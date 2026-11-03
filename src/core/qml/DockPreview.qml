@@ -17,21 +17,21 @@ Item {
     property bool enableAnimation: aniDuration > 0
     property alias spacing: listview.spacing
 
-    readonly property int panelHorizontalPadding: root.isTooltip
-                                                  ? PopoverStyle.tooltipHorizontalPadding
-                                                  : listview.spacing
-    readonly property int panelVerticalPadding: root.isTooltip
-                                                ? PopoverStyle.tooltipVerticalPadding
-                                                : listview.spacing
+    readonly property int panelHorizontalPadding: PopoverStyle.tooltipHorizontalPadding
+    readonly property int panelVerticalPadding: PopoverStyle.tooltipVerticalPadding
+    readonly property int screenEdgeMargin: 10
     property bool enableBlur: true
     property bool enableShadow: GraphicsInfo.api !== GraphicsInfo.Software
     property bool enableBorder: true
-    // set by States
-    property bool isHorizontal
     // set by show()
     property var target
     property point pos
     property int direction
+    function isHorizontalDirection(direction) {
+        return direction !== ForeignToplevelManagerInterfaceV3.PreviewDirection.left
+            && direction !== ForeignToplevelManagerInterfaceV3.PreviewDirection.right;
+    }
+    readonly property bool isHorizontal: root.isHorizontalDirection(root.direction)
     // auto update by binding
     readonly property var outputItem: target?.ownsOutput?.outputItem ?? null
     readonly property int screenWidth: outputItem && outputItem.width > 0 ? outputItem.width
@@ -44,16 +44,228 @@ Item {
             return Qt.point(0, 0);
         return outputItem.mapToItem(root.parent, 0, 0);
     }
-    property int horizontalCenterOffsetAdjust: 0
-    property int verticalCenterOffsetAdjust: 0
     // set by showTooltip(): the client-drawn tooltip surface
     property var tooltipSurface: null
-    // handle by workspace
+    onTooltipSurfaceChanged: root.applyTooltipSurface(root.tooltipSurface)
+
+    property var liveTooltipLayer: null
+    // Natural size of the tooltip that last left.
+    property size lastTooltipSize: Qt.size(0, 0)
 
     property bool isShowing: false
-    property bool isTooltip: false
+
+    // Content layout the popover shows. It is a mode, not liveness
+    enum Mode { Tooltip, Preview }
+    property int mode: DockPreview.Mode.Tooltip
+    readonly property bool tooltipLayout: root.mode === DockPreview.Mode.Tooltip
     property bool isNewDockPreview: false
     property bool listviewPinToLeft: true
+    // The authoritative list of windows the preview shows.
+    property var desiredSurfaces: []
+    onDesiredSurfacesChanged: filterSurfaceModel.updateModel()
+    // Visibility of the preview content, 0..1. It is the preview's own progress:
+    // 1 while the preview is on screen, 0 while the tooltip replaces it.
+    property real previewReveal: 0
+
+    // Height of the title row. It is the space the preview layer has to leave
+    // free at the top of the frame.
+    readonly property real titleRowHeight: titleFontMetrics.height
+
+    // Natural size of one preview slot: the short side is fixed (120 tall on a
+    // horizontal dock, 240 wide on a vertical one), the other side follows the
+    // window's aspect ratio and is clamped so one slot never dominates the strip.
+    function previewSlotSize(wrapper, horizontal) {
+        if (horizontal) {
+            if (!wrapper || !(wrapper.height > 0))
+                return Qt.size(80, 120);
+            return Qt.size(Math.max(80, Math.min(240, 120 * wrapper.width / wrapper.height)), 120);
+        }
+        if (!wrapper || !(wrapper.width > 0))
+            return Qt.size(240, 80);
+        return Qt.size(240, Math.max(80, Math.min(120, 240 * wrapper.height / wrapper.width)));
+    }
+
+    // Natural size of a preview layout for a given set of surfaces. Pure, so a
+    // switch can know the final frame size before any layer or delegate exists.
+    function contentSizeFor(wrappers, horizontal) {
+        const count = wrappers ? wrappers.length : 0;
+        let width = 0;
+        let height = 0;
+        let placed = 0;
+
+        for (let i = 0; i < count; ++i) {
+            const wrapper = wrappers[i];
+            if (!wrapper)
+                continue;
+
+            const slot = root.previewSlotSize(wrapper, horizontal);
+            if (placed > 0) {
+                if (horizontal)
+                    width += root.spacing;
+                else
+                    height += root.spacing;
+            }
+            if (horizontal) {
+                width += slot.width;
+                height = Math.max(height, slot.height);
+            } else {
+                width = Math.max(width, slot.width);
+                height += slot.height;
+            }
+            ++placed;
+        }
+
+        return Qt.size(width, height);
+    }
+
+    readonly property size contentSize:
+        root.contentSizeFor(root.desiredSurfaces, root.isHorizontal)
+
+    readonly property size liveTooltipSize: root.liveTooltipLayer
+                                            ? root.liveTooltipLayer.naturalSize
+                                            : Qt.size(0, 0)
+
+    // Natural size of the tooltip on screen, falling back to the one that just
+    // left: a switch never has to measure a layer that is already fading out.
+    readonly property size tooltipSize:
+        root.liveTooltipSize.width > 0 ? root.liveTooltipSize : root.lastTooltipSize
+
+    // Frame size for a preview layout on this output. A strip longer than the
+    // output is not squeezed.
+    function previewFrameSizeFor(contentSize) {
+        const titleSpace = root.titleRowHeight + root.spacing;
+        const maxContentWidth = Math.max(0, root.outPutSize.width
+                                            - 2 * root.screenEdgeMargin
+                                            - 2 * root.panelHorizontalPadding);
+        const maxContentHeight = Math.max(0, root.outPutSize.height
+                                             - 2 * root.screenEdgeMargin
+                                             - 2 * root.panelVerticalPadding
+                                             - titleSpace);
+        return Qt.size(Math.min(contentSize.width, maxContentWidth)
+                           + 2 * root.panelHorizontalPadding,
+                       Math.min(contentSize.height, maxContentHeight)
+                           + titleSpace + 2 * root.panelVerticalPadding);
+    }
+
+    function frameSizeFor(kind) {
+        return kind === DockPreview.Mode.Tooltip
+                   ? root.tooltipSize
+                   : root.previewFrameSizeFor(root.contentSize);
+    }
+
+    readonly property size targetFrameSize: root.frameSizeFor(root.mode)
+
+    // Content area the preview settles at, from the content alone.
+    readonly property size previewViewport: {
+        const frame = root.previewFrameSizeFor(root.contentSize);
+        return Qt.size(Math.max(0, frame.width - 2 * root.panelHorizontalPadding),
+                       Math.max(0, frame.height - 2 * root.panelVerticalPadding
+                                        - root.titleRowHeight - root.spacing));
+    }
+
+    // The frame is the only animated geometry.
+    property real frameWidth: root.targetFrameSize.width
+    property real frameHeight: root.targetFrameSize.height
+
+    // Opacity of the surface the popover paints.
+    // Tooltip layers are not included.
+    property real shellFade: 0
+
+    function setShowing(showing) {
+        if (showing)
+            root.visible = true;
+        // The states used to carry these two numbers; the Behaviours act on the
+        // assignment, so entry and exit read the same here as everywhere else.
+        root.shellFade = showing ? 1 : 0;
+        scaleTransform.xScale = showing ? 1 : 0.5;
+        root.isShowing = showing;
+    }
+
+    // The shell fade also owns the popover's lifetime: it hides the item (and
+    // drops the state it kept alive) once the fade out is over.
+    Behavior on shellFade {
+        SequentialAnimation {
+            NumberAnimation {
+                id: shellFadeAnimation
+                duration: root.aniDuration
+                easing.type: Easing.OutExpo
+            }
+            ScriptAction {
+                script: {
+                    if (!root.isShowing) {
+                        root.visible = false;
+                        root.setPreviewReveal(0, false);
+                        root.tooltipSurface = null;
+                        root.mode = DockPreview.Mode.Tooltip;
+                        root.desiredSurfaces = [ ];
+                    }
+                }
+            }
+        }
+    }
+
+    // Progress of the preview layout, 1 whenever the preview is the current mode,
+    // only animates during a tooltip <-> preview switch.
+    NumberAnimation {
+        id: previewRevealAnimation
+        target: root
+        property: "previewReveal"
+        duration: root.aniDuration
+        easing.type: Easing.OutExpo
+        onFinished: {
+            if (root.tooltipLayout)
+                root.desiredSurfaces = [ ];
+        }
+    }
+
+    function setPreviewReveal(value, animate) {
+        if (!animate || !root.enableAnimation) {
+            previewRevealAnimation.stop();
+            root.previewReveal = value;
+            return;
+        }
+        if (previewRevealAnimation.running) {
+            // The same target is already animating: leave it alone.
+            if (previewRevealAnimation.to === value)
+                return;
+        } else if (root.previewReveal === value) {
+            return;
+        }
+        // Restart from the current value, so a switch that reverses midway does
+        // not jump back to where it started.
+        previewRevealAnimation.stop();
+        previewRevealAnimation.from = root.previewReveal;
+        previewRevealAnimation.to = value;
+        previewRevealAnimation.start();
+    }
+
+    Behavior on frameWidth {
+        enabled: root.visible && root.enableAnimation
+        NumberAnimation {
+            duration: root.aniDuration
+            easing.type: Easing.OutExpo
+        }
+    }
+
+    Behavior on frameHeight {
+        enabled: root.visible && root.enableAnimation
+        NumberAnimation {
+            duration: root.aniDuration
+            easing.type: Easing.OutExpo
+        }
+    }
+
+    // Space the preview layer reserves for the title, growing from zero.
+    readonly property real reservedTitleSpace:
+        root.previewReveal * (root.titleRowHeight + root.spacing)
+    // Vertical rhythm of the frame, top to bottom:
+    //   panel padding | title row | spacing | preview content | panel padding
+    readonly property real contentLeft: root.panelHorizontalPadding
+    readonly property real contentTop: root.panelVerticalPadding + root.reservedTitleSpace
+    readonly property real contentWidth:
+        Math.max(0, root.frameWidth - 2 * root.panelHorizontalPadding)
+    readonly property real contentHeight:
+        Math.max(0, root.frameHeight - 2 * root.panelVerticalPadding - root.reservedTitleSpace)
 
     visible: false
 
@@ -93,21 +305,19 @@ Item {
             Qt.callLater(()=> { lastSize = count })
         }
 
-        property var desiredSurfaces: []
-        onDesiredSurfacesChanged:  {
-            updateModel();
-        }
-
+        // View mirror of root.desiredSurfaces. Called by its change handler; it
+        // only keeps the row count and row contents in step with the authority.
         function updateModel() {
-            var newSize = desiredSurfaces.length;
-            var oldSize = filterSurfaceModel.count;
+            const surfaces = root.desiredSurfaces;
+            const newSize = surfaces.length;
+            const oldSize = filterSurfaceModel.count;
             root.isNewDockPreview = oldSize === 0 && newSize !== 0;
             for (let i = 0; i < Math.min(newSize, oldSize); i++) {
-                filterSurfaceModel.set(i, {"wrapper": desiredSurfaces[i]})
+                filterSurfaceModel.set(i, {"wrapper": surfaces[i]})
             }
             if (newSize > oldSize) {
                 for (let index = oldSize; index < newSize; index++) {
-                    filterSurfaceModel.append({"wrapper": desiredSurfaces[index]});
+                    filterSurfaceModel.append({"wrapper": surfaces[index]});
                 }
             }
             if (newSize < oldSize) {
@@ -119,12 +329,14 @@ Item {
             if (!surfaceWrapper)
                 return;
 
-            var index = desiredSurfaces.indexOf(surfaceWrapper);
+            const index = root.desiredSurfaces.indexOf(surfaceWrapper);
             if (index < 0)
                 return;
 
-            desiredSurfaces.splice(index, 1);
-            updateModel();
+            // Copy instead of splice: the assignment is what triggers updateModel.
+            const surfaces = root.desiredSurfaces.slice();
+            surfaces.splice(index, 1);
+            root.desiredSurfaces = surfaces;
         }
 
         function activateWindow(surfaceWrapper) {
@@ -146,10 +358,11 @@ Item {
 
         function closeAllWindow() {
             console.debug(qLcDockPreview, "close all preview windows")
-            var tmp = filterSurfaceModel.desiredSurfaces;
-            filterSurfaceModel.desiredSurfaces = [ ];
-            for (let surface of tmp) {
-                surface.shellSurface.close();
+            const surfaces = root.desiredSurfaces;
+            root.desiredSurfaces = [ ];
+            for (let surface of surfaces) {
+                if (surface && surface.shellSurface)
+                    surface.shellSurface.close();
             }
             root.close();
         }
@@ -167,86 +380,171 @@ Item {
 
     function show(surfaces, target, pos, direction) {
         console.info(qLcDockPreview, "start show windows: ", surfaces)
+        const wasVisible = root.visible;
         root.parent = target.parent;
 
         // We want keep listview ancher to left as possible, many animations rely on it
         // Only when show `dock preview` <-> 'tooltip' animation ancher to right
-        if (root.isShowing && root.isTooltip)
+        if (root.isShowing && root.tooltipLayout)
             root.listviewPinToLeft = root.pos?.x - pos?.x <= 0;
         else
             root.listviewPinToLeft = true
-        filterSurfaceModel.desiredSurfaces = surfaces
+
         root.pos = pos;
         root.direction = direction;
         root.target = target;
-        if (root.isShowing && root.isTooltip) {
-            if (root.enableAnimation) {
-                tooltip2PreViewAnimation.start();
-            } else {
-                root.tooltipSurface = null
-            }
+        root.mode = DockPreview.Mode.Preview;
+        // Drop empty entries once, at the only entry that takes an external list.
+        const windows = [];
+        for (let i = 0; i < surfaces.length; ++i) {
+            if (surfaces[i])
+                windows.push(surfaces[i]);
         }
-        root.isTooltip = false;
-        root.isShowing = true;
+        root.desiredSurfaces = windows;
+        listview.contentX = 0;
+        listview.contentY = 0;
+        // A popover that is already on screen switches with a curve; one that is
+        // entering from nothing lands on the final layout right away.
+        root.setPreviewReveal(1, wasVisible);
+        root.setShowing(true);
+        root.tooltipSurface = null;
+    }
+
+    // Every tooltip the dock stops showing becomes a frozen layer.
+    function demoteTooltipLayer(layer) {
+        if (!layer)
+            return;
+
+        // Snapshot the size before clearing the live layer: tooltipSize falls
+        // back to lastTooltipSize whenever there is no live one, so this keeps
+        // the frame target from dipping during a switch.
+        const size = layer.naturalSize;
+        if (size.width > 0 && size.height > 0)
+            root.lastTooltipSize = size;
+        if (root.liveTooltipLayer === layer)
+            root.liveTooltipLayer = null;
+        layer.freeze();
+        layer.fadeOut();
+    }
+
+    function createLiveTooltip(surface) {
+        const layer = tooltipLayerComponent.createObject(contentHost);
+        if (!layer) {
+            console.warn(qLcDockPreview, "failed to create the tooltip layer");
+            return;
+        }
+        const item = tooltipSurfaceComponent.createObject(layer);
+        if (!item) {
+            console.warn(qLcDockPreview, "failed to create the tooltip surface item");
+            layer.destroy();
+            return;
+        }
+        // Set the surface on an already completed item, so it is initialized the
+        // same way the previously static item was, and has its size right away.
+        item.surface = surface;
+        layer.surfaceItem = item;
+        root.liveTooltipLayer = layer;
+        layer.fadeIn();
+    }
+
+    function applyTooltipSurface(surface) {
+        // Only the change handler calls this.
+        const live = root.liveTooltipLayer;
+        if (surface)
+            root.createLiveTooltip(surface);
+        root.demoteTooltipLayer(live);
     }
 
     function showTooltip(surface, target, pos, direction) {
         console.info(qLcDockPreview, "start show tooltip: ", surface, target, pos, direction)
+        const wasVisible = root.visible;
         root.parent = target.parent;
-        if (root.isShowing && !root.isTooltip)
+        if (root.isShowing && !root.tooltipLayout)
             root.listviewPinToLeft = root.pos?.x - pos?.x >= 0;
         else
             root.listviewPinToLeft = true
-        root.tooltipSurface = surface;
+
         root.pos = pos;
         root.direction = direction;
         root.target = target;
-        if (root.isShowing && !root.isTooltip) {
-            if (root.enableAnimation) {
-                preView2TooltipAnimation.start();
-            }else {
-                filterSurfaceModel.desiredSurfaces = [ ];
-            }
-        }
-        root.isTooltip = true;
-        root.isShowing = true;
+        // Publish the surface before the mode: tooltipSize reads the live layer,
+        // and switching mode first would let the frame target fall back to the
+        // previous tooltip for a moment.
+        root.tooltipSurface = surface;
+        root.mode = DockPreview.Mode.Tooltip;
+        // Same as show(): a switch animates the preview away, an entry from
+        // nothing starts with the preview already collapsed.
+        root.setPreviewReveal(0, wasVisible);
+        root.setShowing(true);
+        if (!root.enableAnimation)
+            root.desiredSurfaces = [ ];
     }
 
     function close() {
         console.info(qLcDockPreview, "stop dock preview")
-        root.isShowing = false;
+        root.setShowing(false);
+        root.tooltipSurface = null;
     }
     /* --- model end --- */
 
     /* --- global position begin --- */
-    implicitWidth: getWidth(false)
-    implicitHeight: getHeight(false)
+    implicitWidth: root.targetFrameSize.width
+    implicitHeight: root.targetFrameSize.height
 
-    onWidthChanged: {
-        var leftSpace = root.x - outPutPos.x;
-        if (leftSpace < 0) {
-            horizontalCenterOffsetAdjust = -leftSpace + 10;
-            return;
+    // Where the frame settles in the parent's coordinates.
+    readonly property real unadjustedFrameX: {
+        if (!root.target)
+            return 0;
+
+        const frameWidth = root.targetFrameSize.width;
+        switch (root.direction) {
+        case ForeignToplevelManagerInterfaceV3.PreviewDirection.left:
+            return root.target.x + root.pos.x;
+        case ForeignToplevelManagerInterfaceV3.PreviewDirection.right:
+            return root.target.x + root.pos.x - frameWidth;
+        default: // bottom / top: the frame's center follows the dock icon
+            return root.target.x + root.pos.x - frameWidth / 2;
         }
-        var rightSpace = outPutPos.x + outPutSize.width - (root.x + root.width);
-        if (rightSpace < 0) {
-            horizontalCenterOffsetAdjust = rightSpace - 10;
-            return;
-        }
-        horizontalCenterOffsetAdjust = 0
     }
-    onHeightChanged: {
-        var topSpace = root.y - outPutPos.y;
-        if (topSpace < 0) {
-            verticalCenterOffsetAdjust = -topSpace;
-            return;
+    readonly property real unadjustedFrameY: {
+        if (!root.target)
+            return 0;
+
+        const frameHeight = root.targetFrameSize.height;
+        switch (root.direction) {
+        case ForeignToplevelManagerInterfaceV3.PreviewDirection.bottom:
+            return root.target.y + root.pos.y - frameHeight;
+        case ForeignToplevelManagerInterfaceV3.PreviewDirection.top:
+            return root.target.y + root.pos.y;
+        default: // left / right: the frame's center follows the dock icon
+            return root.target.y + root.pos.y - frameHeight / 2;
         }
-        var bottomSpace = outPutPos.y + outPutSize.height - (root.y + root.height);
-        if (bottomSpace < 0) {
-            verticalCenterOffsetAdjust = bottomSpace;
-            return;
-        }
-        verticalCenterOffsetAdjust = 0
+    }
+
+    // Keep the settled frame inside the output, with a margin on every side.
+    readonly property real horizontalCenterOffsetAdjust: {
+        const leftSpace = root.unadjustedFrameX - root.outPutPos.x;
+        if (leftSpace < 0)
+            return -leftSpace + root.screenEdgeMargin;
+
+        const rightSpace = root.outPutPos.x + root.outPutSize.width
+                           - (root.unadjustedFrameX + root.targetFrameSize.width);
+        if (rightSpace < 0)
+            return rightSpace - root.screenEdgeMargin;
+
+        return 0;
+    }
+    readonly property real verticalCenterOffsetAdjust: {
+        const topSpace = root.unadjustedFrameY - root.outPutPos.y;
+        if (topSpace < 0)
+            return -topSpace + root.screenEdgeMargin;
+
+        const bottomSpace = root.outPutPos.y + root.outPutSize.height
+                            - (root.unadjustedFrameY + root.targetFrameSize.height);
+        if (bottomSpace < 0)
+            return bottomSpace - root.screenEdgeMargin;
+
+        return 0;
     }
 
     states: [
@@ -262,20 +560,18 @@ Item {
                 target: background
                 anchors.horizontalCenter: root.horizontalCenter
                 anchors.bottom: root.bottom
-                // horizontalCenterOffset always follow root.horizontalCenterOffset
-                // bottomMargin always set to zero
+                // Pin the background's dock-facing edge to root's.
             }
             PropertyChanges {
                 target: root
                 anchors.horizontalCenterOffset: root.pos.x - root.target?.width / 2 + horizontalCenterOffsetAdjust
                 anchors.bottomMargin: -root.pos.y
-                isHorizontal: true
                 restoreEntryValues: false
             }
             PropertyChanges {
                 target: scaleTransform
-                origin.x: background.implicitWidth / 2
-                origin.y: background.implicitHeight
+                origin.x: root.frameWidth / 2
+                origin.y: root.frameHeight
             }
         },
         State {
@@ -295,13 +591,12 @@ Item {
                 target: root
                 anchors.verticalCenterOffset: root.pos.y - root.target?.height / 2 + verticalCenterOffsetAdjust
                 anchors.leftMargin: root.pos.x
-                isHorizontal: false
                 restoreEntryValues: false
             }
             PropertyChanges {
                 target: scaleTransform
                 origin.x: 0
-                origin.y: background.implicitHeight / 2
+                origin.y: root.frameHeight / 2
             }
         },
         State {
@@ -321,12 +616,11 @@ Item {
                 target: root
                 anchors.horizontalCenterOffset: root.pos.x - root.target?.width / 2 + horizontalCenterOffsetAdjust
                 anchors.topMargin: root.pos.y
-                isHorizontal: true
                 restoreEntryValues: false
             }
             PropertyChanges {
                 target: scaleTransform
-                origin.x: background.implicitWidth / 2
+                origin.x: root.frameWidth / 2
                 origin.y: 0
             }
         },
@@ -347,13 +641,12 @@ Item {
                 target: root
                 anchors.verticalCenterOffset: root.pos.y - root.target?.height / 2 + verticalCenterOffsetAdjust
                 anchors.rightMargin: -root.pos.x
-                isHorizontal: false
                 restoreEntryValues: false
             }
             PropertyChanges {
                 target: scaleTransform
-                origin.x: background.implicitWidth
-                origin.y: background.implicitHeight / 2
+                origin.x: root.frameWidth
+                origin.y: root.frameHeight / 2
             }
         }
     ]
@@ -361,7 +654,7 @@ Item {
     Behavior on anchors.horizontalCenterOffset {
         enabled: root.visible && root.enableAnimation
         NumberAnimation {
-            duration: root.enableAnimation ? root.aniDuration : 0
+            duration: root.aniDuration
             easing.type: Easing.OutExpo
         }
     }
@@ -369,90 +662,46 @@ Item {
     Behavior on anchors.verticalCenterOffset {
         enabled: root.visible && root.enableAnimation
         NumberAnimation {
-            duration: root.enableAnimation ? root.aniDuration : 0
+            duration: root.aniDuration
             easing.type: Easing.OutExpo
         }
     }
     /* --- global position end --- */
 
-    function getWidth(removing) {
-        const tooltipWidth = Math.min(Math.round(tooltipSurfaceItem.implicitWidth)
-                                      + 2 * root.panelHorizontalPadding,
-                                      root.outPutSize.width);
-        if (removing && root.isTooltip)
-            return tooltipWidth;
-
-        let width = 0
-        var reseverWidth = listview.orientation === ListView.Horizontal ? -listview.spacing : 0
-
-        for (let child of listview.contentItem.visibleChildren) {
-            if (child.objectName === "highlight" || (removing && child.isRemoving)) continue
-            if (listview.orientation === ListView.Horizontal) {
-                let tmp = width + (child.implicitWidth + listview.spacing)
-                if (tmp > outPutSize.width) {
-                    return width + reseverWidth
-                } else {
-                    width = tmp
-                }
-            } else {
-                width = Math.max(width, child.implicitWidth)
-            }
-        }
-
-        width += reseverWidth + 2 * listview.spacing
-
-        if (width < tooltipWidth)
-            width = tooltipWidth;
-        return width
-    }
-
-    function getHeight(removing) {
-        if (removing && root.isTooltip)
-            return tooltipSurfaceItem.implicitHeight;
-
-        let height = 0
-        let reseverHeight = headLayout.implicitHeight + (listview.orientation === ListView.Vertical ? 0 : listview.spacing)
-
-        for (let child of listview.contentItem.visibleChildren) {
-            if (child.objectName === "highlight" || (removing && child.isRemoving)) continue
-            if (listview.orientation === ListView.Vertical) {
-                let tmp = height + (child.implicitHeight + listview.spacing)
-                if (tmp > outPutSize.height) {
-                    return height + reseverHeight
-                } else {
-                    height = tmp
-                }
-            } else {
-                height = Math.max(height, child.implicitHeight)
-            }
-        }
-        height += reseverHeight + listview.spacing
-        return height;
-    }
-
-    onListviewPinToLeftChanged: {
-        // We must clear all left/right anchors then reset them
-        listview.anchors.left = undefined
-        listview.anchors.right = undefined
-        listview.anchors.left = root.listviewPinToLeft ? listview.parent.left : undefined
-        listview.anchors.right = root.listviewPinToLeft ? undefined : listview.parent.right
+    // Line height of the title font, measured without a real string.
+    FontMetrics {
+        id: titleFontMetrics
+        font: PopoverStyle.titleFont
     }
 
     ListView {
         id: listview
         model: filterSurfaceModel
-        parent: background
+        // Outside the shell group: the preview content owns its own opacity, so
+        // it does not multiply into the shell fade.
+        parent: contentHost
 
         property size lastSize: Qt.size(0, 0)
         property int radius: 5
         // Topmost z of the preview items (delegates).
         readonly property int delegateZBase: 10000
-        clip: false
-        anchors.left: parent.left // Maybe changed in `onListviewPinToLeftChanged`
-        anchors.leftMargin: listview.spacing
-        anchors.rightMargin: listview.spacing
-        anchors.bottom: parent.bottom
+        clip: true
+        enabled: !root.tooltipLayout
+        width: root.previewViewport.width
+        height: root.previewViewport.height
+        x: root.listviewPinToLeft ? root.contentLeft
+                                  : root.contentLeft + root.contentWidth - width
+        y: root.contentTop + root.contentHeight - height
         transformOrigin: root.listviewPinToLeft ? Item.BottomLeft : Item.BottomRight
+        scale: {
+            if (!(width > 0) || !(height > 0))
+                return 0;
+            return Math.max(0, Math.min(1, root.contentWidth / width,
+                                         root.contentHeight / height));
+        }
+        // The reveal covers mode switches; the shell fade covers entering and
+        // leaving the popover.
+        opacity: root.previewReveal * root.shellFade
 
         orientation: root.isHorizontal ? ListView.Horizontal : ListView.Vertical
         layoutDirection: Qt.LeftToRight
@@ -460,9 +709,7 @@ Item {
         boundsBehavior: Flickable.StopAtBounds
         interactive: true
         highlightFollowsCurrentItem: true
-        implicitHeight: root.implicitHeight - headLayout.implicitHeight
-        implicitWidth: root.implicitWidth - listview.spacing * 2
-        highlightMoveDuration: root.enableAnimation ? root.aniDuration/2 : 0
+        highlightMoveDuration: root.aniDuration/2
         spacing: 5
         highlight: Control {
             objectName: "highlight"
@@ -508,9 +755,10 @@ Item {
             required property var index
             required property var wrapper // from filterSurfaceModel
             property bool isRemoving: false
+            readonly property size naturalSize: root.previewSlotSize(wrapper, root.isHorizontal)
 
-            implicitHeight: root.isHorizontal ? 120 : Math.max(80, Math.min(120, 240 * wrapper.height / wrapper.width))
-            implicitWidth: root.isHorizontal ? Math.max(80, Math.min(240, 120 * wrapper.width / wrapper.height)) : 240
+            implicitWidth: naturalSize.width
+            implicitHeight: naturalSize.height
 
             Connections {
                 target: wrapper
@@ -533,10 +781,15 @@ Item {
                     target: delegate
                     property: "x"
                     to: {
-                        var item = listview.itemAtIndex(listview.model.count - 1)
-                        return item?.x + item?.implicitWidth - delegate.implicitWidth
+                        // The last slot is not instantiated once it is outside the
+                        // viewport, and `undefined + undefined` is NaN: keep the
+                        // item where it is instead of animating to nowhere.
+                        const item = listview.itemAtIndex(listview.model.count - 1)
+                        if (!item)
+                            return delegate.x;
+                        return item.x + item.implicitWidth - delegate.implicitWidth
                     }
-                    duration: root.enableAnimation ? root.aniDuration : 0
+                    duration: root.aniDuration
                     easing.type: Easing.OutExpo
                 }
                 PropertyAction { target: delegate; property: "ListView.delayRemove"; value: false }
@@ -602,16 +855,23 @@ Item {
                     property: "opacity"
                     from: 0.3
                     to: 1
-                    duration: root.enableAnimation ? root.aniDuration : 0
+                    duration: root.aniDuration
+                    easing.type: Easing.OutExpo
                 }
 
                 NumberAnimation {
-                    property:"x"
+                    property: "x"
                     from: {
-                        var item = listview.itemAtIndex(listview.model.lastSize - 1)
-                        return item?.x + item?.implicitWidth - addTransition.ViewTransition.item?.implicitWidth
+                        // The slot the new one slides out from may be outside the
+                        // viewport, hence not instantiated: start from the item's
+                        // own place instead of animating from NaN.
+                        const item = listview.itemAtIndex(listview.model.lastSize - 1)
+                        const added = addTransition.ViewTransition.item
+                        if (!item)
+                            return added ? added.x : 0;
+                        return item.x + item.implicitWidth - (added ? added.implicitWidth : 0)
                     }
-                    duration: root.enableAnimation ? root.aniDuration : 0
+                    duration: root.aniDuration
                     easing.type: Easing.OutExpo
                 }
             }
@@ -629,85 +889,60 @@ Item {
         }
     }
 
-    SequentialAnimation {
-        id: preView2TooltipAnimation
-        ParallelAnimation {
-            NumberAnimation {
-                target: listview
-                property: "scale"
-                from: 1
-                to: 0
-                duration: root.enableAnimation ? root.aniDuration : 0
-            }
-        }
-        ScriptAction {
-            script: {
-                filterSurfaceModel.desiredSurfaces = [ ];
-                listview.scale = 1 // restore scale property after animation
-            }
-        }
-    }
-
-    SequentialAnimation {
-        id: tooltip2PreViewAnimation
-        ParallelAnimation {
-            NumberAnimation {
-                target: listview
-                property: "scale"
-                from: 0
-                to: 1
-                duration: root.enableAnimation ? root.aniDuration : 0
-            }
-        }
-        ScriptAction { script: root.tooltipSurface = null }
-    }
-
     Rectangle {
         id: background
         z: root.z
-        color: PopoverStyle.tintFor(root.enableBlur && backgroundBlur.blurEnabled)
-        implicitWidth: {
-            let newWidth = getWidth(true);
-            // TODO: remove if Qt fix QTBUG-132588(maybe in Qt 6.10 or 6.8)
-            if (!Number.isFinite(newWidth))
-                return implicitWidth;
-            return newWidth;
-        }
-        implicitHeight: {
-            let newHeight = Math.round(getHeight(true)) + 2 * root.panelVerticalPadding;
-            // TODO: remove if Qt fix QTBUG-132588(maybe in Qt 6.10 or 6.8)
-            if (!Number.isFinite(newHeight))
-                return implicitHeight;
-            return newHeight;
-        }
+        // Only the frame geometry.
+        color: "transparent"
+        width: root.frameWidth
+        height: root.frameHeight
 
         radius: PopoverStyle.radius
         clip: false
         parent: root.parent
         visible: root.visible
 
-        XdgShadow {
-            visible: root.enableShadow
-            cornerRadius: background.radius
-            shadowBlur: PopoverStyle.shadowBlur
-            shadowOffsetX: 0
-            shadowOffsetY: PopoverStyle.shadowOffsetY
-            shadowColor: PopoverStyle.shadowColor
+        // Host of every content layer. Each layer owns its opacity, so nothing
+        // here multiplies into the shell's fade. The shell paints below them.
+        Item {
+            id: contentHost
+            anchors.fill: parent
+            z: 0
         }
 
-        Blur {
-            id: backgroundBlur
+        // The group fades on its own value.
+        Rectangle {
+            id: shell
             anchors.fill: parent
-            visible: root.enableBlur
+            z: -1
+            opacity: root.shellFade
+            clip: false
+            color: PopoverStyle.tintFor(root.enableBlur && backgroundBlur.blurEnabled)
             radius: background.radius
-        }
 
-        Border {
-            anchors.fill: parent
-            visible: root.enableBorder
-            radius: background.radius
-            outsideColor: PopoverStyle.borderOutsideColor
-            insideColor: PopoverStyle.borderInsideColor
+            XdgShadow {
+                visible: root.enableShadow
+                cornerRadius: background.radius
+                shadowBlur: PopoverStyle.shadowBlur
+                shadowOffsetX: 0
+                shadowOffsetY: PopoverStyle.shadowOffsetY
+                shadowColor: PopoverStyle.shadowColor
+            }
+
+            Blur {
+                id: backgroundBlur
+                anchors.fill: parent
+                visible: root.enableBlur
+                radius: background.radius
+            }
+
+            Border {
+                anchors.fill: parent
+                visible: root.enableBorder
+                radius: background.radius
+                outsideColor: PopoverStyle.borderOutsideColor
+                insideColor: PopoverStyle.borderInsideColor
+            }
         }
 
         HoverHandler {
@@ -726,170 +961,187 @@ Item {
         RowLayout {
             id: headLayout
             spacing: 4
-
-            parent: background
+            parent: shell
+            height: root.titleRowHeight
             anchors {
-                left: background.left
-                right: background.right
-                top: background.top
+                left: shell.left
+                right: shell.right
+                top: shell.top
                 leftMargin: root.panelHorizontalPadding
                 rightMargin: root.panelHorizontalPadding
                 topMargin: root.panelVerticalPadding
             }
 
-            Rectangle {
-                id: titleOrTooltipRect
+            Item {
+                id: titleTextArea
                 Layout.alignment: Qt.AlignVCenter
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                implicitWidth: root.isTooltip ?  tooltipSurfaceItem.implicitWidth : titleIconText.implicitWidth
-                implicitHeight: root.isTooltip ?  tooltipSurfaceItem.implicitHeight : titleIconText.implicitHeight
-                color: "transparent"
+                implicitWidth: titleText.implicitWidth
 
-                states: [
-                    State {
-                        name: "tooltip_visible"
-                        when: root.isShowing && root.isTooltip
-                        PropertyChanges {
-                            restoreEntryValues: false // don't restore visible
-                            tooltipSurfaceItem {
-                                scale: 1
-                                opacity: 1
-                            }
-                            titleIconText {
-                                scale: 0.2
-                                opacity: 0
-                            }
-                        }
-                    },
-                    State {
-                        name: "title_visible"
-                        when: root.isShowing && !root.isTooltip
-                        PropertyChanges {
-                            restoreEntryValues: false
-                            tooltipSurfaceItem {
-                                scale: 0.2
-                                opacity: 0
-                            }
-                            titleIconText {
-                                scale: 1
-                                opacity: 1
-                            }
-                        }
-                    },
-                    State {
-                        name: "all_hide"
-                        when: !root.isShowing
-                        PropertyChanges {
-                            restoreEntryValues: false
-                            tooltipSurfaceItem {
-                                scale: 1
-                                opacity: 0
-                            }
-                            titleIconText {
-                                scale: 1
-                                opacity: 0
-                            }
-                        }
+                Text {
+                    id: titleText
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    width: parent.width
+                    text: {
+                        const surfaces = root.desiredSurfaces;
+                        if (surfaces.length === 0)
+                            return "";
+                        const index = Math.min(Math.max(listview.currentIndex, 0),
+                                               surfaces.length - 1);
+                        const wrapper = surfaces[index];
+                        return wrapper && wrapper.shellSurface
+                               ? wrapper.shellSurface.title : "";
                     }
-                ]
-
-                SurfaceItem {
-                    id: tooltipSurfaceItem
-                    anchors.fill: parent
-                    surface: root.tooltipSurface
-                    flags: SurfaceItem.RejectEvent
-                    transformOrigin: Item.BottomLeft
-                    Behavior on opacity {
-                        enabled: root.isShowing && root.enableAnimation
-                        SequentialAnimation {
-                            NumberAnimation { duration: root.enableAnimation ? root.aniDuration : 0 }
-                        }
-                    }
-                    Behavior on scale {
-                        enabled: root.isShowing && root.enableAnimation
-                        NumberAnimation { duration: root.enableAnimation ? root.aniDuration : 0 }
-                    }
-                }
-
-                RowLayout {
-                    id: titleIconText
-                    anchors.fill: parent
-                    spacing: 2
-                    transformOrigin: Item.BottomLeft
-                    /*
-                    Rectangle { // TODO: We can't get app icon now, use Rectangle as fallback!
-                        width: 24
-                        height: 24
-                        color: "yellow"
-                    }
-                    */
-                    Text {
-                        text: filterSurfaceModel.count ?
-                                  filterSurfaceModel.get(Math.max(listview.currentIndex, 0)).wrapper.shellSurface.title : ""
-                        font: PopoverStyle.titleFont
-                        color: PopoverStyle.titleColor
-                        elide: Text.ElideRight
-                        horizontalAlignment: Text.AlignLeft
-                        verticalAlignment: Text.AlignVCenter
-                        Layout.fillWidth: true
-                    }
-
-                    Behavior on opacity {
-                        enabled: root.isShowing && root.enableAnimation
-                        SequentialAnimation {
-                            NumberAnimation { duration: root.enableAnimation ? root.aniDuration : 0 }
-                        }
-                    }
-                    Behavior on scale {
-                        enabled: root.isShowing && root.enableAnimation
-                        NumberAnimation { duration: root.enableAnimation ? root.aniDuration : 0 }
-                    }
+                    font: PopoverStyle.titleFont
+                    color: PopoverStyle.titleColor
+                    horizontalAlignment: Text.AlignLeft
+                    elide: Text.ElideRight
+                    opacity: root.previewReveal
                 }
             }
 
             PopoverCloseButton {
                 // Never taller than the title row it appears in.
-                maximumSize: Math.min(PopoverStyle.closeButtonMaxSize,
-                                      titleIconText.implicitHeight)
-                visible: titleHover.hovered
+                maximumSize: Math.min(PopoverStyle.closeButtonMaxSize, root.titleRowHeight)
+                // Only the preview state has a close-all action: in the tooltip
+                // state the button would take width from the text.
+                visible: !root.tooltipLayout && titleHover.hovered
                 Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
-                Layout.rightMargin: 6
                 onClicked: {
                     listview.model.closeAllWindow()
                 }
             }
         }
 
-        Behavior on implicitHeight {
-            enabled: background.visible && root.enableAnimation
-            NumberAnimation {
-                duration: root.enableAnimation ? root.aniDuration : 0
-                easing.type: Easing.OutExpo
+        Component {
+            id: tooltipSurfaceComponent
+            SurfaceItem {
+                flags: SurfaceItem.RejectEvent
+                // Its natural size, never stretched; the owning layer is what gets
+                // positioned and compressed.
+                width: implicitWidth
+                height: implicitHeight
             }
         }
 
-        Behavior on implicitWidth {
-            enabled: background.visible && root.enableAnimation
-            NumberAnimation {
-                duration: root.enableAnimation ? root.aniDuration : 0
-                easing.type: Easing.OutExpo
-            }
-        }
+        // One layer per shown tooltip surface.
+        Component {
+            id: tooltipLayerComponent
 
-        Behavior on anchors.horizontalCenterOffset {
-            enabled: root.visible && root.enableAnimation
-            NumberAnimation {
-                duration: root.enableAnimation ? root.aniDuration : 0
-                easing.type: Easing.OutExpo
-            }
-        }
+            Item {
+                id: layer
+                z: 1
+                // The frame this layer shows.
+                property Item surfaceItem: null
+                property bool fadingOut: false
 
-        Behavior on anchors.verticalCenterOffset {
-            enabled: root.visible && root.enableAnimation
-            NumberAnimation {
-                duration: root.enableAnimation ? root.aniDuration : 0
-                easing.type: Easing.OutExpo
+                readonly property size naturalSize: surfaceItem
+                                                     ? Qt.size(surfaceItem.implicitWidth,
+                                                               surfaceItem.implicitHeight)
+                                                     : Qt.size(0, 0)
+
+                // Where the layer sits inside the frame, for the current
+                // direction. Position and the scale origin both read the same
+                // animated frame on root, so they cannot disagree.
+                readonly property real layerX: {
+                    switch (root.direction) {
+                    case ForeignToplevelManagerInterfaceV3.PreviewDirection.left:
+                        return 0;
+                    case ForeignToplevelManagerInterfaceV3.PreviewDirection.right:
+                        return root.frameWidth - width;
+                    default: // top / bottom: centred on the dock icon
+                        return (root.frameWidth - width) / 2;
+                    }
+                }
+
+                readonly property real layerY: {
+                    switch (root.direction) {
+                    case ForeignToplevelManagerInterfaceV3.PreviewDirection.top:
+                        return 0;
+                    case ForeignToplevelManagerInterfaceV3.PreviewDirection.bottom:
+                        return root.frameHeight - height;
+                    default: // left / right: centred on the dock icon
+                        return (root.frameHeight - height) / 2;
+                    }
+                }
+
+                // Every layer shrinks towards the edge the tooltip is glued to.
+                readonly property point scaleOrigin: {
+                    switch (root.direction) {
+                    case ForeignToplevelManagerInterfaceV3.PreviewDirection.left:
+                        return Qt.point(0, height / 2);
+                    case ForeignToplevelManagerInterfaceV3.PreviewDirection.right:
+                        return Qt.point(width, height / 2);
+                    case ForeignToplevelManagerInterfaceV3.PreviewDirection.top:
+                        return Qt.point(width / 2, 0);
+                    default: // bottom
+                        return Qt.point(width / 2, height);
+                    }
+                }
+                // Fit into the frame without ever stretching it.
+                readonly property real compressionX:
+                    width > 0 && root.frameWidth > 0 ? Math.min(1, root.frameWidth / width) : 1
+                readonly property real compressionY:
+                    height > 0 && root.frameHeight > 0 ? Math.min(1, root.frameHeight / height) : 1
+
+                visible: surfaceItem !== null
+                width: naturalSize.width
+                height: naturalSize.height
+
+                x: layer.layerX
+                y: layer.layerY
+
+                transform: Scale {
+                    origin.x: layer.scaleOrigin.x
+                    origin.y: layer.scaleOrigin.y
+                    xScale: layer.compressionX
+                    yScale: layer.compressionY
+                }
+
+                NumberAnimation {
+                    id: fadeAnimation
+                    target: layer
+                    property: "opacity"
+                    duration: root.aniDuration
+                    easing.type: Easing.OutExpo
+                    onFinished: {
+                        if (layer.fadingOut)
+                            layer.destroy();
+                    }
+                }
+
+                function freeze() {
+                    if (!surfaceItem)
+                        return;
+                    surfaceItem.surface = null;
+                    surfaceItem.enabled = false;
+                }
+
+                function fadeIn() {
+                    fadingOut = false;
+                    if (!root.enableAnimation) {
+                        opacity = 1;
+                        return;
+                    }
+                    opacity = 0;
+                    fadeAnimation.from = 0;
+                    fadeAnimation.to = 1;
+                    fadeAnimation.restart();
+                }
+
+                // A demoted layer only owns its fade from here on.
+                function fadeOut() {
+                    fadingOut = true;
+                    if (!root.enableAnimation) {
+                        layer.destroy();
+                        return;
+                    }
+                    fadeAnimation.from = opacity;
+                    fadeAnimation.to = 0;
+                    fadeAnimation.restart();
+                }
             }
         }
 
@@ -900,63 +1152,11 @@ Item {
 
             Behavior on xScale {
                 NumberAnimation {
-                    duration: root.enableAnimation ? root.aniDuration : 0
-                    easing.type: root.isShowing ? Easing.OutExpo : Easing.InExpo
+                    id: scaleAnimation
+                    duration: root.aniDuration
+                    easing.type: Easing.OutExpo
                 }
             }
         }
-
-        Behavior on opacity {
-            SequentialAnimation {
-                ScriptAction {
-                    script: {
-                        if (root.isShowing)
-                          root.visible = true;
-                    }
-                }
-                NumberAnimation {
-                    duration: root.enableAnimation ? root.aniDuration : 0
-                    easing.type: root.isShowing ? Easing.OutExpo : Easing.InExpo
-                }
-                ScriptAction {
-                    script: {
-                        if (!root.isShowing) {
-                            root.visible = false;
-                            root.tooltipSurface = null
-                            filterSurfaceModel.desiredSurfaces = [ ];
-                        }
-                    }
-                }
-            }
-        }
-
-        states: [
-            State {
-                name: "invisible"
-                when: !root.isShowing
-                PropertyChanges {
-                    scaleTransform {
-                        xScale: 0.5
-                    }
-
-                    background {
-                        opacity: 0.0
-                    }
-                }
-            },
-            State {
-                name: "visible"
-                when: root.isShowing
-                PropertyChanges {
-                    scaleTransform {
-                        xScale: 1.0
-                    }
-
-                    background {
-                        opacity: 1.0
-                    }
-                }
-            }
-        ]
     }
 }
