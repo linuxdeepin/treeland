@@ -361,7 +361,13 @@ void WInputMethodHelper::handleNewKGV2(wlr_input_method_keyboard_grab_v2 *kgv2)
     }
     d->activeKeyboardGrab = kgv2;
     d->setKeyboard(kgv2, d->seat->keyboard());
-    d->grabInterface = *d->seat->handle()->keyboard_state.grab->interface;
+    // Base the IME grab on the seat's default keyboard grab interface, not
+    // whatever grab happens to be active right now. Copying the active grab
+    // also copies its cancel() callback: if a DnD drag grab is active, endGrab
+    // would later call drag_handle_keyboard_cancel() with our handlerArg as the
+    // wlr_drag*, crashing in drag_destroy(). The default interface's cancel()
+    // is a no-op, which is what an IME grab (ended explicitly) needs.
+    d->grabInterface = *d->seat->handle()->keyboard_state.default_grab->interface;
     d->grabInterface.key = handleKey;
     d->grabInterface.modifiers = handleModifiers;
     d->keyboardGrab.seat = d->seat->handle();
