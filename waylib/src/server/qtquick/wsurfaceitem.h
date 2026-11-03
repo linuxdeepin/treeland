@@ -206,6 +206,14 @@ public:
 
     QPointF mapFromSurface(const QPointF &point) const;
 
+    // The topmost visible surface item whose input region contains \a windowPos of
+    // \a window, following Qt's delivery order (z value, then insertion order, and a
+    // subtree without an accepting surface falls through to the next sibling). On
+    // success \a surfacePos is the position in the surface's pixel space, which is
+    // what the wl_pointer requests expect.
+    static WSurfaceItem *surfaceItemAt(QWindow *window, const QPointF &windowPos,
+                                       QPointF *surfacePos);
+
 Q_SIGNALS:
     void surfaceChanged();
     void subsurfaceAdded(WAYLIB_SERVER_NAMESPACE::WSurfaceItem *item);

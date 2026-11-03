@@ -6,6 +6,7 @@
 #include "winputdevice.h"
 #include "woutput.h"
 #include "wsurface.h"
+#include "wsurfaceitem.h"
 #include "wscoplistener.h"
 #include "wpointer.h"
 #include "platformplugin/qwlrootsintegration.h"
@@ -179,6 +180,12 @@ public:
         // but doNotifyMotion will call doEnter too,
         // so should compare pointerFocusEventObject and eventObject early
         if (pointerFocusEventObject == eventObject) {
+            // The grab may have cleared the focus (a surface of another client) without
+            // touching the bookkeeping; retake it for the same object instead of returning
+            // a stale success, otherwise this surface keeps getting no events.
+            if (surface && !pointerFocusSurface())
+                wlr_seat_pointer_notify_enter(handle(), surface->handle(),
+                                              position.x(), position.y());
             return true;
         }
         auto tmp = oldPointerFocusSurface;
@@ -345,6 +352,49 @@ public:
             wlr_seat_keyboard_notify_modifiers(handle(), &keyboard->modifiers);
         }
         return true;
+    }
+    inline WSurfaceItem *surfaceItemUnderCursor(QPointF *surfacePos) const {
+        if (!cursor)
+            return nullptr;
+        auto *w = cursor->eventWindow();
+        if (!w)
+            return nullptr;
+        return WSurfaceItem::surfaceItemAt(w, cursor->position() - QPointF(w->position()), surfacePos);
+    }
+    // Whether the pointer focus has to follow the surface under the cursor. Only the xdg
+    // popup grab needs it (drag grabs forward to the drag grab and manage focus
+    // themselves; pointer constraints never install a wlroots grab). A held button is
+    // excluded: wlroots already forwarded the press to the focused client and Qt holds an
+    // implicit mouse grab, so switching focus would make wlr_seat_pointer_notify_enter()
+    // reset pointer_state.buttons and drop the release, leaving the popup grab stuck.
+    // This relies on wlroots' button_count keeping step with Qt's press/release pairs: a
+    // filter that swallows a release would freeze the count and silently fall back to the
+    // old behaviour.
+    inline bool shouldFollowGrabFocus() const {
+        auto *s = handle();
+        return s && !s->drag && !s->pointer_state.button_count && wlr_seat_pointer_has_grab(s);
+    }
+    // See shouldFollowGrabFocus(): resolve the surface under the cursor and take the focus
+    // the hover path would have taken. Qt's hover delivery only re-runs on mouse moves, so a
+    // popup that appears under a stationary cursor, or a surface whose EventItem was rebuilt
+    // after a commit, never gets a HoverEnter and the focus silently stays on the previous
+    // surface (no hover feedback, and the next press ends the grab).
+    inline void updateGrabPointerFocus(QInputEvent *event) {
+        if (!shouldFollowGrabFocus())
+            return;
+        switch (event->type()) {
+        case QEvent::HoverMove: Q_FALLTHROUGH();
+        case QEvent::MouseMove: Q_FALLTHROUGH();
+        case QEvent::MouseButtonPress: Q_FALLTHROUGH();
+        case QEvent::MouseButtonRelease: Q_FALLTHROUGH();
+        case QEvent::Wheel:
+            break;
+        default:
+            return;
+        }
+        QPointF surfacePos;
+        if (auto *item = surfaceItemUnderCursor(&surfacePos))
+            doEnter(item->surface(), item->eventItem(), surfacePos);
     }
     inline void doMouseMove(WCursor *cursor, const QPointingDevice *device, uint32_t timestamp) {
         Q_ASSERT(device);
@@ -996,6 +1046,24 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
 
     event->accept();
 
+    // A wlroots pointer grab (xdg popup) forwards motion and buttons to the grabbing
+    // client and ends itself when no client is focused, so the compositor has to keep
+    // the pointer focus on the surface under the cursor. Focus has been taken already in
+    // filterEventBeforeDisposeStage() (before the compositor filters decide about the
+    // grab), here only the surface-local position is needed: the Qt event carries window
+    // or item-local coordinates depending on whether an item took it, and neither is what
+    // wl_pointer expects.
+    WSurfaceItem *grabItem = nullptr;
+    QPointF grabPos;
+    if (d->shouldFollowGrabFocus()
+        && (event->type() == QEvent::HoverMove || event->type() == QEvent::MouseMove)) {
+        grabItem = d->surfaceItemUnderCursor(&grabPos);
+        if (grabItem) {
+            target = grabItem->surface();
+            eventObject = grabItem->eventItem();
+        }
+    }
+
     switch (event->type()) {
     case QEvent::HoverEnter: {
         auto e = static_cast<QHoverEvent*>(event);
@@ -1029,6 +1097,12 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
     case QEvent::MouseMove: {
         auto e = static_cast<QSinglePointEvent*>(event);
         Q_ASSERT(event->type() != QEvent::MouseMove || static_cast<QMouseEvent*>(event)->source() == Qt::MouseEventNotSynthesized);
+        if (grabItem) {
+            // The Qt event carries window or item-local coordinates depending on
+            // whether an item took it; only grabPos is surface-local.
+            d->doNotifyMotion(target, eventObject, grabPos, e->timestamp());
+            break;
+        }
         // When begin drag, the wlroots will grab pointer event for drag, and the pointer focus is nullptr.
         if (d->pointerFocusEventObject) {
             // received HoverEnter event of next eventObject before HoverLeave event of last eventObject,
@@ -1769,6 +1843,11 @@ QByteArrayView WSeat::interfaceName() const
 bool WSeat::filterEventBeforeDisposeStage(QWindow *targetWindow, QInputEvent *event)
 {
     W_D(WSeat);
+
+    // Take the pointer focus before any filter sees the event: the compositor decides
+    // whether to dismiss a popup grab from the current focus, so the focus must already
+    // follow the surface under the cursor.
+    d->updateGrabPointerFocus(event);
 
     d->addEventState(event);
 

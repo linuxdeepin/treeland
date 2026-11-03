@@ -17,6 +17,7 @@
 
 #include <wlr_all.h>
 
+#include <algorithm>
 #include <memory>
 
 #include <QPointer>
@@ -1169,6 +1170,72 @@ QPointF WSurfaceItem::mapFromSurface(const QPointF &point) const
     const QPointF offset = getContentGeometry().topLeft();
     return QPointF(point.x() + leftPadding() - offset.x(),
                    point.y() + topPadding() - offset.y());
+}
+
+// The topmost surface item whose committed input region contains \a pos (in the local
+// coordinates of \a item), following Qt's pointer delivery order: higher z first, later
+// inserted first on equal z, and a subtree without an accepting surface falls through to
+// the next sibling. Item clipping is intentionally not honoured: no container that holds
+// surface items is clipped today, and the surface's input region is the authoritative
+// answer anyway.
+static WSurfaceItem *topmostSurfaceItemAt(QQuickItem *item, const QPointF &pos,
+                                         QPointF *surfacePos);
+
+// Visits the children of \a item in delivery order. Qt inserts the item itself at z == 0
+// among its sorted children, so children below that (place_below subsurfaces live at
+// WSurfaceItem::ZOrder::BelowSubsurface) are delivered after the item itself.
+static WSurfaceItem *surfaceUnderChildren(QQuickItem *item, const QPointF &pos,
+                                         QPointF *surfacePos, bool negativeZ)
+{
+    auto children = item->childItems();
+    std::stable_sort(children.begin(), children.end(), [](QQuickItem *lhs, QQuickItem *rhs) {
+        return lhs->z() < rhs->z();
+    });
+    for (auto it = children.crbegin(); it != children.crend(); ++it) {
+        QQuickItem *child = *it;
+        if (!child->isVisible() || !child->isEnabled())
+            continue;
+        if ((child->z() < 0) != negativeZ)
+            continue;
+        const QPointF childPos = child->mapFromItem(item, pos);
+        if (!child->contains(childPos))
+            continue;
+        if (auto *found = topmostSurfaceItemAt(child, childPos, surfacePos))
+            return found;
+    }
+
+    return nullptr;
+}
+
+static WSurfaceItem *topmostSurfaceItemAt(QQuickItem *item, const QPointF &pos,
+                                         QPointF *surfacePos)
+{
+    if (auto *found = surfaceUnderChildren(item, pos, surfacePos, false))
+        return found;
+
+    auto *surfaceItem = qobject_cast<WSurfaceItem *>(item);
+    if (surfaceItem && surfaceItem->surface() && surfaceItem->eventItem()) {
+        // The EventItem is scaled to the surface's pixel space, so its local position is
+        // the surface-local position wl_pointer expects. The item geometry can cover the
+        // point while the surface's input region does not (the region is part of the
+        // committed wl_surface state), so check it instead of trusting the geometry.
+        const QPointF itemSurfacePos = surfaceItem->eventItem()->mapFromItem(item, pos);
+        if (surfaceItem->surface()->inputRegionContains(itemSurfacePos)) {
+            *surfacePos = itemSurfacePos;
+            return surfaceItem;
+        }
+    }
+
+    return surfaceUnderChildren(item, pos, surfacePos, true);
+}
+
+WSurfaceItem *WSurfaceItem::surfaceItemAt(QWindow *window, const QPointF &windowPos, QPointF *surfacePos)
+{
+    auto *qw = qobject_cast<QQuickWindow *>(window);
+    if (!qw || !surfacePos)
+        return nullptr;
+
+    return topmostSurfaceItemAt(qw->contentItem(), windowPos, surfacePos);
 }
 
 QSizeF WSurfaceItem::getContentSize() const
