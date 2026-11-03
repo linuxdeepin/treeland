@@ -8,18 +8,19 @@
 
 #include <QPoint>
 #include <QObject>
+#include <QSize>
 #include <QString>
 #include <memory>
 #include <vector>
 
 class SurfaceWrapper;
-class DockPreviewContextV2;
-class ForeignToplevelHandleV2;
-class ForeignToplevelManagerInterfaceV2Private;
+class DockPreviewContextV3;
+class ForeignToplevelHandleV3;
+class ForeignToplevelManagerInterfaceV3Private;
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-class ForeignToplevelManagerInterfaceV2
+class ForeignToplevelManagerInterfaceV3
     : public QObject
     , public WServerInterface
 {
@@ -36,8 +37,8 @@ public:
     };
     Q_ENUM(PreviewDirection)
 
-    explicit ForeignToplevelManagerInterfaceV2(QObject *parent = nullptr);
-    ~ForeignToplevelManagerInterfaceV2() override;
+    explicit ForeignToplevelManagerInterfaceV3(QObject *parent = nullptr);
+    ~ForeignToplevelManagerInterfaceV3() override;
 
     void addSurface(SurfaceWrapper *wrapper);
     void removeSurface(SurfaceWrapper *wrapper);
@@ -54,10 +55,11 @@ Q_SIGNALS:
                             WSurface *target,
                             QPoint abs,
                             PreviewDirection direction);
-    void requestDockPreviewTooltip(QString tooltip,
+    void requestDockPreviewTooltip(WSurface *surface,
                                    WSurface *target,
                                    QPoint abs,
                                    PreviewDirection direction);
+    void requestDockHideTooltip();
     void requestDockClose();
 
 protected:
@@ -67,15 +69,15 @@ protected:
 
 private:
     wl_event_loop *eventLoop() const;
-    ForeignToplevelHandleV2 *handleForIdentifier(uint32_t identifier) const;
-    void releaseHandle(ForeignToplevelHandleV2 *handle);
-    void releaseDockPreviewContext(DockPreviewContextV2 *context);
-    void initializeToplevelHandle(SurfaceWrapper *wrapper, ForeignToplevelHandleV2 *handle);
+    ForeignToplevelHandleV3 *handleForIdentifier(uint32_t identifier) const;
+    void releaseHandle(ForeignToplevelHandleV3 *handle);
+    void releaseDockPreviewContext(DockPreviewContextV3 *context);
+    void initializeToplevelHandle(SurfaceWrapper *wrapper, ForeignToplevelHandleV3 *handle);
 
-    std::unique_ptr<ForeignToplevelManagerInterfaceV2Private> d;
+    std::unique_ptr<ForeignToplevelManagerInterfaceV3Private> d;
 
-    friend class ForeignToplevelManagerInterfaceV2Private;
-    friend class DockPreviewContextV2;
-    friend class DockPreviewContextV2Private;
-    friend class ForeignToplevelHandleV2Private;
+    friend class ForeignToplevelManagerInterfaceV3Private;
+    friend class DockPreviewContextV3;
+    friend class DockPreviewContextV3Private;
+    friend class ForeignToplevelHandleV3Private;
 };

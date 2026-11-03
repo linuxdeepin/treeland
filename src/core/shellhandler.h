@@ -4,7 +4,7 @@
 #pragma once
 
 #include <wlr_fwd.h>
-#include "modules/foreign-toplevel/foreigntoplevelmanagerv2.h"
+#include "modules/foreign-toplevel/foreigntoplevelmanagerv3.h"
 
 #include <xcb/xcb.h>
 
@@ -31,7 +31,7 @@ class Workspace;
 class SurfaceContainer;
 class IMCandidatePanelManager;
 class QmlEngine;
-class ForeignToplevelManagerInterfaceV2;
+class ForeignToplevelManagerInterfaceV3;
 class PrelaunchSplash;
 class WineWindowStateManager;
 class WineWindowManager;
@@ -77,7 +77,7 @@ public:
     [[nodiscard]] SurfaceContainer *privilegedOverlayContainer() const;
     [[nodiscard]] SurfaceContainer *snapMaskContainer() const;
     [[nodiscard]] RootSurfaceContainer *rootSurfaceContainer() const;
-    [[nodiscard]] ForeignToplevelManagerInterfaceV2 *foreignToplevel() const;
+    [[nodiscard]] ForeignToplevelManagerInterfaceV3 *foreignToplevel() const;
 
     void createComponent(QmlEngine *engine, QQuickItem *parentItem);
     void init(WAYLIB_SERVER_NAMESPACE::WServer *server, WAYLIB_SERVER_NAMESPACE::WSeat *seat);
@@ -121,11 +121,13 @@ private Q_SLOTS:
     void onDockPreview(std::vector<SurfaceWrapper *> surfaces,
                        WAYLIB_SERVER_NAMESPACE::WSurface *target,
                        QPoint pos,
-                       ForeignToplevelManagerInterfaceV2::PreviewDirection direction);
-    void onDockPreviewTooltip(QString tooltip,
+                       ForeignToplevelManagerInterfaceV3::PreviewDirection direction);
+    void onDockPreviewTooltip(WAYLIB_SERVER_NAMESPACE::WSurface *surface,
                               WAYLIB_SERVER_NAMESPACE::WSurface *target,
                               QPoint pos,
-                              ForeignToplevelManagerInterfaceV2::PreviewDirection direction);
+                              ForeignToplevelManagerInterfaceV3::PreviewDirection direction);
+    void onDockHideTooltip();
+    void onDockClose();
 
     void setupDockPreview();
     void onInputPopupSurfaceV2Removed(WAYLIB_SERVER_NAMESPACE::WInputPopupSurface *surface);
@@ -187,7 +189,7 @@ private:
     WineWindowStateManager *m_wineWindowStateManager = nullptr;
     WineWindowManager *m_wineWindowManager = nullptr;
     QList<WAYLIB_SERVER_NAMESPACE::WXWayland *> m_xwaylands;
-    ForeignToplevelManagerInterfaceV2 *m_treelandForeignToplevel = nullptr;
+    ForeignToplevelManagerInterfaceV3 *m_treelandForeignToplevel = nullptr;
 
     QPointer<RootSurfaceContainer> m_rootSurfaceContainer;
     LayerSurfaceContainer *m_backgroundContainer = nullptr;

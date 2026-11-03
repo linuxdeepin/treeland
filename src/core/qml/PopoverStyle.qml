@@ -23,20 +23,13 @@ QtObject {
         return blurred ? tint : opaqueTint
     }
 
-    readonly property font textFont: D.DTK.fontManager.t8
     readonly property font titleFont: D.DTK.fontManager.t6
 
-
-    readonly property color textColor: D.DTK.palette.brightText
     readonly property color titleColor: D.DTK.palette.windowText
 
     // dde-shell overrides DTK's toolTip padding horizontally (8 instead of 5),
     readonly property int tooltipHorizontalPadding: 8
     readonly property int tooltipVerticalPadding: DS.Style.toolTip.verticalPadding
-
-    // A DTK tooltip is a fixed-height pill; keeping it an integer also keeps the
-    // 1px border and the corner radius on whole pixels.
-    readonly property int tooltipMinimumHeight: DS.Style.toolTip.height
 
     readonly property int shadowBlur: 20
     readonly property int shadowOffsetY: 6

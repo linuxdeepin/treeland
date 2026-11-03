@@ -12,7 +12,7 @@
 #include "modules/snap-target/snaphandler.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev2.h"
-#include "modules/foreign-toplevel/foreigntoplevelmanagerv2.h"
+#include "modules/foreign-toplevel/foreigntoplevelmanagerv3.h"
 #include "modules/layer-shell-extension/layershellextensionmanagerinterfacev1.h"
 #include "modules/prelaunch-splash/prelaunchsplash.h"
 #include "modules/show-desktop/showdesktopinterfacev1.h"
@@ -76,15 +76,15 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     , m_snapMaskContainer(new SurfaceContainer(rootContainer))
     , m_windowConfigStore(new WindowConfigStore(this))
 {
-    m_treelandForeignToplevel = server->attach<ForeignToplevelManagerInterfaceV2>();
+    m_treelandForeignToplevel = server->attach<ForeignToplevelManagerInterfaceV3>();
     Q_ASSERT(m_treelandForeignToplevel);
-    qmlRegisterSingletonInstance<ForeignToplevelManagerInterfaceV2>(
+    qmlRegisterSingletonInstance<ForeignToplevelManagerInterfaceV3>(
         "Treeland.Protocols",
         1,
         0,
-        "ForeignToplevelManagerInterfaceV2",
+        "ForeignToplevelManagerInterfaceV3",
         m_treelandForeignToplevel);
-    qRegisterMetaType<ForeignToplevelManagerInterfaceV2::PreviewDirection>();
+    qRegisterMetaType<ForeignToplevelManagerInterfaceV3::PreviewDirection>();
 
     m_backgroundContainer->setZ(RootSurfaceContainer::BackgroundZOrder);
     m_backgroundContainer->setObjectName(QStringLiteral("BackgroundContainer"));
@@ -430,7 +430,7 @@ RootSurfaceContainer *ShellHandler::rootSurfaceContainer() const
     return m_rootSurfaceContainer;
 }
 
-ForeignToplevelManagerInterfaceV2 *ShellHandler::foreignToplevel() const
+ForeignToplevelManagerInterfaceV3 *ShellHandler::foreignToplevel() const
 {
     return m_treelandForeignToplevel;
 }
@@ -1086,25 +1086,27 @@ void ShellHandler::setupDockPreview()
     Q_ASSERT(m_dockPreview);
 
     connect(m_treelandForeignToplevel,
-            &ForeignToplevelManagerInterfaceV2::requestDockPreview,
+            &ForeignToplevelManagerInterfaceV3::requestDockPreview,
             this,
             &ShellHandler::onDockPreview);
     connect(m_treelandForeignToplevel,
-            &ForeignToplevelManagerInterfaceV2::requestDockPreviewTooltip,
+            &ForeignToplevelManagerInterfaceV3::requestDockPreviewTooltip,
             this,
             &ShellHandler::onDockPreviewTooltip);
     connect(m_treelandForeignToplevel,
-            &ForeignToplevelManagerInterfaceV2::requestDockClose,
-            m_dockPreview,
-            [this]() {
-                QMetaObject::invokeMethod(m_dockPreview, "close");
-            });
+            &ForeignToplevelManagerInterfaceV3::requestDockHideTooltip,
+            this,
+            &ShellHandler::onDockHideTooltip);
+    connect(m_treelandForeignToplevel,
+            &ForeignToplevelManagerInterfaceV3::requestDockClose,
+            this,
+            &ShellHandler::onDockClose);
 }
 
 void ShellHandler::onDockPreview(std::vector<SurfaceWrapper *> surfaces,
                                  WSurface *target,
                                  QPoint pos,
-                                 ForeignToplevelManagerInterfaceV2::PreviewDirection direction)
+                                 ForeignToplevelManagerInterfaceV3::PreviewDirection direction)
 {
     if (!m_dockPreview)
         return;
@@ -1121,10 +1123,10 @@ void ShellHandler::onDockPreview(std::vector<SurfaceWrapper *> surfaces,
 }
 
 void ShellHandler::onDockPreviewTooltip(
-    QString tooltip,
+    WSurface *surface,
     WSurface *target,
     QPoint pos,
-    ForeignToplevelManagerInterfaceV2::PreviewDirection direction)
+    ForeignToplevelManagerInterfaceV3::PreviewDirection direction)
 {
     if (!m_dockPreview)
         return;
@@ -1133,10 +1135,26 @@ void ShellHandler::onDockPreviewTooltip(
     Q_ASSERT(dockWrapper);
     QMetaObject::invokeMethod(m_dockPreview,
                               "showTooltip",
-                              QVariant::fromValue(tooltip),
+                              QVariant::fromValue(surface),
                               QVariant::fromValue(dockWrapper),
                               QVariant::fromValue(pos),
                               QVariant::fromValue(direction));
+}
+
+void ShellHandler::onDockHideTooltip()
+{
+    if (!m_dockPreview)
+        return;
+
+    QMetaObject::invokeMethod(m_dockPreview, "hideTooltip");
+}
+
+void ShellHandler::onDockClose()
+{
+    if (!m_dockPreview)
+        return;
+
+    QMetaObject::invokeMethod(m_dockPreview, "close");
 }
 
 void ShellHandler::onSurfaceInactivationRequested(SurfaceWrapper *wrapper)

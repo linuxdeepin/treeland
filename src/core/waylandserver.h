@@ -95,7 +95,7 @@ class CaptureSourceSelector;
 class DDEShellManagerInterfaceV1;
 class DDEShellManagerInterfaceV2;
 class DDMInterfaceV1;
-class ForeignToplevelManagerInterfaceV2;
+class ForeignToplevelManagerInterfaceV3;
 class FpsDisplayManager;
 class GreeterProxy;
 class ILockScreen;

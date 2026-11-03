@@ -53,7 +53,10 @@ struct ftm_server_state {
     uint32_t preview_direction;
     int      preview_surface_count;
     int      tooltip_fired;
-    char     tooltip[64];
+    int      tooltip_count;
+    int      tooltip_surface_present;
+    int      tooltip_width;
+    int      tooltip_height;
     int      tooltip_x;
     int      tooltip_y;
     uint32_t tooltip_direction;
@@ -64,10 +67,16 @@ struct test_ctx {
     struct client_connection connection;
     struct wl_display    *display;
 
-    struct treeland_foreign_toplevel_manager_v2  *manager;
-    struct treeland_dock_preview_context_v2      *context;
-    struct treeland_foreign_toplevel_handle_v2   *handle;
+    struct treeland_foreign_toplevel_manager_v3  *manager;
+    struct treeland_dock_preview_context_v3      *context;
+    struct treeland_foreign_toplevel_handle_v3   *handle;
     struct wl_seat                                *seat;
+    struct wl_compositor                          *compositor;
+    struct wl_shm                                 *shm;
+    struct wl_surface                             *tooltip_surface;
+    struct wl_buffer                              *tooltip_buffer;
+    struct wl_surface                             *tooltip_surface2;
+    struct wl_buffer                              *tooltip_buffer2;
     struct xdg_toplevel_client             xdg_toplevel;
 
     int context_enter_received;
