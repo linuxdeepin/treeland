@@ -15,8 +15,8 @@
 Q_MOC_INCLUDE(<woutput.h>)
 
 class SurfaceEntry;
-class ForeignToplevelManagerInterfaceV2;
-class ForeignToplevelHandleV2Private;
+class ForeignToplevelManagerInterfaceV3;
+class ForeignToplevelHandleV3Private;
 struct wl_resource;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -25,7 +25,7 @@ class WSeat;
 class WSurface;
 WAYLIB_SERVER_END_NAMESPACE
 
-class ForeignToplevelHandleV2 : public QObject, public WAYLIB_SERVER_NAMESPACE::WObject
+class ForeignToplevelHandleV3 : public QObject, public WAYLIB_SERVER_NAMESPACE::WObject
 {
     Q_OBJECT
 public:
@@ -40,7 +40,7 @@ public:
     Q_ENUM(State)
     Q_DECLARE_FLAGS(States, State)
 
-    ~ForeignToplevelHandleV2() override;
+    ~ForeignToplevelHandleV3() override;
 
     void set_title(const QString &title);
     void set_app_id(const QString &app_id);
@@ -50,7 +50,7 @@ public:
     void set_activated(bool activated);
     void set_fullscreen(bool fullscreen);
     void set_attention(bool attention);
-    void set_parent(ForeignToplevelHandleV2 *parent);
+    void set_parent(ForeignToplevelHandleV3 *parent);
 
 Q_SIGNALS:
     void requestMaximize(bool maximized);
@@ -61,7 +61,7 @@ Q_SIGNALS:
     void iconGeometryChanged(WAYLIB_SERVER_NAMESPACE::WSurface *surface, const QRect &rect);
 
 private:
-    explicit ForeignToplevelHandleV2(ForeignToplevelManagerInterfaceV2 *manager,
+    explicit ForeignToplevelHandleV3(ForeignToplevelManagerInterfaceV3 *manager,
                                      wl_resource *resource,
                                      SurfaceEntry *entry);
 
@@ -77,8 +77,8 @@ private:
     void output_leave(WAYLIB_SERVER_NAMESPACE::WOutput *output);
     void send_output(WAYLIB_SERVER_NAMESPACE::WOutput *output, bool enter);
 
-    std::unique_ptr<ForeignToplevelHandleV2Private> d;
+    std::unique_ptr<ForeignToplevelHandleV3Private> d;
 
-    friend class ForeignToplevelManagerInterfaceV2;
-    friend class ForeignToplevelManagerInterfaceV2Private;
+    friend class ForeignToplevelManagerInterfaceV3;
+    friend class ForeignToplevelManagerInterfaceV3Private;
 };

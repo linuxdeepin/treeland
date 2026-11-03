@@ -46,8 +46,8 @@ Item {
     }
     property int horizontalCenterOffsetAdjust: 0
     property int verticalCenterOffsetAdjust: 0
-    // set by showTooltip()
-    property string tooltip: ""
+    // set by showTooltip(): the client-drawn tooltip surface
+    property var tooltipSurface: null
     // handle by workspace
 
     property bool isShowing: false
@@ -130,7 +130,7 @@ Item {
         function activateWindow(surfaceWrapper) {
             console.debug(qLcDockPreview, "activate preview window: ", surfaceWrapper)
             WaylandServer.forceActivateSurface(surfaceWrapper)
-            ForeignToplevelManagerInterfaceV2.leaveDockPreview(root.target.shellSurface.surface)
+            ForeignToplevelManagerInterfaceV3.leaveDockPreview(root.target.shellSurface.surface)
             root.close();
         }
 
@@ -183,21 +183,21 @@ Item {
             if (root.enableAnimation) {
                 tooltip2PreViewAnimation.start();
             } else {
-                root.tooltip = ""
+                root.tooltipSurface = null
             }
         }
         root.isTooltip = false;
         root.isShowing = true;
     }
 
-    function showTooltip(tooltip, target, pos, direction) {
-        console.info(qLcDockPreview, "start show tooltip: ", tooltip, target, pos, direction)
+    function showTooltip(surface, target, pos, direction) {
+        console.info(qLcDockPreview, "start show tooltip: ", surface, target, pos, direction)
         root.parent = target.parent;
         if (root.isShowing && !root.isTooltip)
             root.listviewPinToLeft = root.pos?.x - pos?.x >= 0;
         else
             root.listviewPinToLeft = true
-        root.tooltip = tooltip;
+        root.tooltipSurface = surface;
         root.pos = pos;
         root.direction = direction;
         root.target = target;
@@ -215,6 +215,11 @@ Item {
     function close() {
         console.info(qLcDockPreview, "stop dock preview")
         root.isShowing = false;
+    }
+
+    function hideTooltip() {
+        if (root.isTooltip)
+            root.close();
     }
     /* --- model end --- */
 
@@ -252,7 +257,7 @@ Item {
     states: [
         State {
             name: "dock_bottom"
-            when: direction === ForeignToplevelManagerInterfaceV2.PreviewDirection.bottom
+            when: direction === ForeignToplevelManagerInterfaceV3.PreviewDirection.bottom
             AnchorChanges {
                 target: root
                 anchors.horizontalCenter: root.target?.horizontalCenter
@@ -280,7 +285,7 @@ Item {
         },
         State {
             name: "dock_left"
-            when: direction === ForeignToplevelManagerInterfaceV2.PreviewDirection.left
+            when: direction === ForeignToplevelManagerInterfaceV3.PreviewDirection.left
             AnchorChanges {
                 target: root
                 anchors.verticalCenter: root.target?.verticalCenter
@@ -306,7 +311,7 @@ Item {
         },
         State {
             name: "dock_top"
-            when: direction === ForeignToplevelManagerInterfaceV2.PreviewDirection.top
+            when: direction === ForeignToplevelManagerInterfaceV3.PreviewDirection.top
             AnchorChanges {
                 target: root
                 anchors.horizontalCenter: root.target?.horizontalCenter
@@ -332,7 +337,7 @@ Item {
         },
         State {
             name: "dock_right"
-            when: direction === ForeignToplevelManagerInterfaceV2.PreviewDirection.right
+            when: direction === ForeignToplevelManagerInterfaceV3.PreviewDirection.right
             AnchorChanges {
                 target: root
                 anchors.verticalCenter: root.target?.verticalCenter
@@ -375,14 +380,9 @@ Item {
     }
     /* --- global position end --- */
 
-    TextMetrics {
-        id: tooltipMetrics
-        font: PopoverStyle.textFont
-        text: root.tooltip
-    }
-
     function getWidth(removing) {
-        const tooltipWidth = Math.min(Math.round(tooltipMetrics.width) + 2 * root.panelHorizontalPadding,
+        const tooltipWidth = Math.min(Math.round(tooltipSurfaceItem.implicitWidth)
+                                      + 2 * root.panelHorizontalPadding,
                                       root.outPutSize.width);
         if (removing && root.isTooltip)
             return tooltipWidth;
@@ -413,7 +413,7 @@ Item {
 
     function getHeight(removing) {
         if (removing && root.isTooltip)
-            return tooltipMetrics.height;
+            return tooltipSurfaceItem.implicitHeight;
 
         let height = 0
         let reseverHeight = headLayout.implicitHeight + (listview.orientation === ListView.Vertical ? 0 : listview.spacing)
@@ -664,7 +664,7 @@ Item {
                 duration: root.enableAnimation ? root.aniDuration : 0
             }
         }
-        PropertyAction { target: root; property: "tooltip"; value: "" }
+        ScriptAction { script: root.tooltipSurface = null }
     }
 
     Rectangle {
@@ -679,8 +679,7 @@ Item {
             return newWidth;
         }
         implicitHeight: {
-            let newHeight = Math.max(Math.round(getHeight(true)) + 2 * root.panelVerticalPadding,
-                                     root.isTooltip ? PopoverStyle.tooltipMinimumHeight : 0);
+            let newHeight = Math.round(getHeight(true)) + 2 * root.panelVerticalPadding;
             // TODO: remove if Qt fix QTBUG-132588(maybe in Qt 6.10 or 6.8)
             if (!Number.isFinite(newHeight))
                 return implicitHeight;
@@ -721,9 +720,9 @@ Item {
             enabled: listview.count !== 0
             onHoveredChanged: {
                 if (!hovered) {
-                    ForeignToplevelManagerInterfaceV2.leaveDockPreview(root.target.shellSurface.surface)
+                    ForeignToplevelManagerInterfaceV3.leaveDockPreview(root.target.shellSurface.surface)
                 } else {
-                    ForeignToplevelManagerInterfaceV2.enterDockPreview(root.target.shellSurface.surface)
+                    ForeignToplevelManagerInterfaceV3.enterDockPreview(root.target.shellSurface.surface)
                 }
             }
             cursorShape: Qt.ArrowCursor
@@ -748,8 +747,8 @@ Item {
                 Layout.alignment: Qt.AlignVCenter
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                implicitWidth: root.isTooltip ?  tooltipText.implicitWidth : titleIconText.implicitWidth
-                implicitHeight: root.isTooltip ?  tooltipText.implicitHeight : titleIconText.implicitHeight
+                implicitWidth: root.isTooltip ?  tooltipSurfaceItem.implicitWidth : titleIconText.implicitWidth
+                implicitHeight: root.isTooltip ?  tooltipSurfaceItem.implicitHeight : titleIconText.implicitHeight
                 color: "transparent"
 
                 states: [
@@ -758,7 +757,7 @@ Item {
                         when: root.isShowing && root.isTooltip
                         PropertyChanges {
                             restoreEntryValues: false // don't restore visible
-                            tooltipText {
+                            tooltipSurfaceItem {
                                 scale: 1
                                 opacity: 1
                             }
@@ -773,7 +772,7 @@ Item {
                         when: root.isShowing && !root.isTooltip
                         PropertyChanges {
                             restoreEntryValues: false
-                            tooltipText {
+                            tooltipSurfaceItem {
                                 scale: 0.2
                                 opacity: 0
                             }
@@ -788,7 +787,7 @@ Item {
                         when: !root.isShowing
                         PropertyChanges {
                             restoreEntryValues: false
-                            tooltipText {
+                            tooltipSurfaceItem {
                                 scale: 1
                                 opacity: 0
                             }
@@ -800,14 +799,11 @@ Item {
                     }
                 ]
 
-                Text {
-                    id: tooltipText
+                SurfaceItem {
+                    id: tooltipSurfaceItem
                     anchors.fill: parent
-                    text: root.tooltip
-                    font: PopoverStyle.textFont
-                    color: PopoverStyle.textColor
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
+                    surface: root.tooltipSurface
+                    flags: SurfaceItem.RejectEvent
                     transformOrigin: Item.BottomLeft
                     Behavior on opacity {
                         enabled: root.isShowing && root.enableAnimation
@@ -931,7 +927,7 @@ Item {
                     script: {
                         if (!root.isShowing) {
                             root.visible = false;
-                            root.tooltip = ""
+                            root.tooltipSurface = null
                             filterSurfaceModel.desiredSurfaces = [ ];
                         }
                     }
