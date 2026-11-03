@@ -1,11 +1,13 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+#include "core/waylandserver.h"
 #include "modules/prelaunch-splash/prelaunchsplash.h"
 #include "server-bridge.h"
 #include "treeland-prelaunch-splash-v2.h"
 
 #include <QString>
 #include <wserver.h>
+#include <wsocket.h>
 
 #include <wlr_all.h>
 
@@ -22,6 +24,7 @@ WAYLIB_SERVER_USE_NAMESPACE
 
 namespace {
 splash_server_state g_state {};
+WSocket *g_extraSocket = nullptr;
 }
 
 static void recordRequest(const QString &appId, const QString &instanceId, bool iconNonNull)
@@ -52,10 +55,27 @@ void protocol_test_setup(WaylandServer *server)
                                   "%s", qPrintable(instanceId));
                      });
 
+    // A second root socket for the cross-session singleton scope test. The
+    // client connected to this socket must be able to bind the manager even
+    // while the global-session socket already has an owner.
+    auto *extraSocket = new WSocket(true);
+    Q_ASSERT(extraSocket->autoCreate());
+    server->addSocket(extraSocket);
+    g_extraSocket = extraSocket;
 }
 
 extern "C" void splash_query_state(void *data)
 {
     auto *state = static_cast<splash_server_state *>(data);
     *state = g_state;
+}
+
+extern "C" const char *splash_extra_socket_name(void)
+{
+    static thread_local char buffer[256];
+    if (!g_extraSocket)
+        return nullptr;
+    const QByteArray name = g_extraSocket->fullServerName().toUtf8();
+    snprintf(buffer, sizeof(buffer), "%s", name.constData());
+    return buffer;
 }

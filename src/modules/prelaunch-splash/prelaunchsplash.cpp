@@ -8,8 +8,10 @@
 #include <wlr/types/wlr_buffer.h>
 
 #include <wserver.h>
+#include <wsocket.h>
 
 #include <QByteArray>
+#include <QHash>
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -85,7 +87,16 @@ protected:
 
     void bind_resource(Resource *resource) override
     {
-        if (m_boundClient && m_boundClient != resource->client()) {
+        // The manager is a per-session singleton: treeland runs a single display
+        // shared by all user sessions, so the binding must be scoped to the
+        // client's root socket rather than the display.
+        auto *socket = WSocket::get(resource->client());
+        if (!socket)
+            return;
+        auto *root = socket->rootSocket();
+
+        if (auto it = m_boundClientBySocket.constFind(root);
+            it != m_boundClientBySocket.constEnd() && *it != resource->client()) {
             qCWarning(lcTlPrelaunchSplash)
                 << "Rejecting prelaunch splash manager bind: already bound by another client";
             wl_resource_post_error(resource->handle,
@@ -94,14 +105,22 @@ protected:
             return;
         }
 
-        m_boundClient = resource->client();
+        m_boundClientBySocket.insert(root, resource->client());
     }
 
     void destroy_resource(Resource *resource) override
     {
         // Released when the bound client destroys its last manager object or disconnects.
-        if (resource->client() == m_boundClient && !resourceMap().contains(m_boundClient))
-            m_boundClient = nullptr;
+        // Only clear the binding if this client owns it: a rejected client also goes
+        // through destroy_resource, and must not evict the legitimate owner.
+        auto *socket = WSocket::get(resource->client());
+        if (!socket)
+            return;
+        auto *root = socket->rootSocket();
+        if (m_boundClientBySocket.value(root) == resource->client()
+            && !resourceMap().contains(resource->client())) {
+            m_boundClientBySocket.remove(root);
+        }
     }
 
     void create_splash(Resource *resource,
@@ -132,9 +151,10 @@ protected:
 
 private:
     PrelaunchSplash *q;
-    // The manager is a per-session (per-display) singleton: at most one client may
-    // bind it. A second client is rejected instead of taking over the binding.
-    struct ::wl_client *m_boundClient = nullptr;
+    // The manager is a per-session singleton: at most one client per root socket
+    // may bind it. A second client on the same session is rejected instead of
+    // taking over the binding.
+    QHash<WSocket *, struct ::wl_client *> m_boundClientBySocket;
 };
 
 PrelaunchSplash::PrelaunchSplash(QObject *parent)

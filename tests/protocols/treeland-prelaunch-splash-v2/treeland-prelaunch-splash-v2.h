@@ -9,6 +9,7 @@ extern "C" {
 
 int protocol_test_run(const char *socket_name);
 void splash_query_state(void *data);
+const char *splash_extra_socket_name(void);
 
 #include "client-connection.h"
 
@@ -51,6 +52,11 @@ struct test_ctx {
     struct client_connection connection2;
     struct wl_display *display2;
     struct treeland_prelaunch_splash_manager_v2 *manager2;
+
+    /* Second session (separate root socket), used to check per-session scope. */
+    struct client_connection connection3;
+    struct wl_display *display3;
+    struct treeland_prelaunch_splash_manager_v2 *manager3;
 
     struct splash_server_state server;
 
