@@ -36,7 +36,9 @@ Item {
         smooth: root.surface?.smooth ?? true
 
         onDevicePixelRatioChanged: {
-            if (wrapper) {
+            // The wrapper outlives a destroyed shell surface during its close
+            // animation, so there is nothing to keep in sync in that case.
+            if (wrapper && wrapper.shellSurface) {
                 wrapper.updateSurfaceSizeRatio()
             }
         }

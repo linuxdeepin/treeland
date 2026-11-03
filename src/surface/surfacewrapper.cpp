@@ -2919,7 +2919,17 @@ bool SurfaceWrapper::socketEnabled() const
 void SurfaceWrapper::updateSurfaceSizeRatio()
 {
     if (m_type == Type::XWayland && m_surfaceItem && window()) {
-        Q_ASSERT(shellSurface());
+        // A destroyed wrapper can still be alive in the scene while its close
+        // animation runs, and a QPointer can already be nulled by the
+        // WToplevelSurface destructor. Neither is a programming error: there is
+        // no shell surface left to keep in sync, so skip the update instead of
+        // aborting the whole compositor.
+        if (!m_shellSurface || m_wrapperAboutToRemove) {
+            qCWarning(lcTlSurface) << "Skip surface size ratio update for destroyed surface,"
+                                   << "aboutToRemove:" << m_wrapperAboutToRemove
+                                   << "proxy:" << m_isProxy << "type:" << int(m_type);
+            return;
+        }
         const qreal targetScale = window()->effectiveDevicePixelRatio();
         if (m_surfaceItem->bufferScale() < targetScale)
             m_surfaceItem->setSurfaceSizeRatio(targetScale / m_surfaceItem->bufferScale());
