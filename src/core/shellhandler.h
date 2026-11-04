@@ -127,7 +127,6 @@ private Q_SLOTS:
                               WAYLIB_SERVER_NAMESPACE::WSurface *target,
                               QPoint pos,
                               ForeignToplevelManagerInterfaceV3::PreviewDirection direction);
-    void onDockHideTooltip();
     void onDockClose();
 
     void setupDockPreview();
