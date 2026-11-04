@@ -216,11 +216,6 @@ Item {
         console.info(qLcDockPreview, "stop dock preview")
         root.isShowing = false;
     }
-
-    function hideTooltip() {
-        if (root.isTooltip)
-            root.close();
-    }
     /* --- model end --- */
 
     /* --- global position begin --- */
