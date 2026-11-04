@@ -68,10 +68,40 @@ POD DebugEvent(
     quint64 timestampMs
 )
 
+// Idle state and one idle-inhibit source, used by the ``treeland-debug idle``
+// command. kind is "idle-inhibit" (zwp_idle_inhibit_manager_v1 surface;
+// surfaceId/title/heldMs identify it) or "screensaver"
+// (treeland_screensaver_v2 inhibit; appName/reason are the client-provided
+// strings). active means this source alone counts as inhibiting right now.
+POD IdleInhibitor(
+    qint64 surfaceId,
+    QString kind,
+    QString appId,
+    QString title,
+    int pid,
+    QString executable,
+    QString command,
+    QString appName,
+    QString reason,
+    bool active,
+    quint64 heldMs
+)
+
+// Snapshot of the compositor idle state. idleMs is the time since the last
+// input activity on any seat; inhibited is whether idle notification is
+// currently suppressed (by any source below, or by the screensaver).
+POD IdleInfo(
+    bool inhibited,
+    bool screensaverInhibited,
+    quint64 idleMs,
+    QList<IdleInhibitor> inhibitors
+)
+
 class WindowTreeRemote {
     SLOT(TreelandInfo getTreelandInfo());
     SLOT(QList<WindowInfo> getWindows());
     SLOT(QList<ClientInfo> getClients());
+    SLOT(IdleInfo getIdleInfo());
     SLOT(bool activateWindow(qint64 id));
     SLOT(bool closeWindow(qint64 id));
     SLOT(bool minimizeWindow(qint64 id));
