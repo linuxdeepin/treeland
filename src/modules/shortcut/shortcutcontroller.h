@@ -96,6 +96,13 @@ public:
     // Every currently bound shortcut, for the debug interface.
     QList<Binding> bindings() const;
 
+    // Debug interface only: resolves the window that currently has keyboard
+    // focus. Sampled when a key shortcut is dispatched, so an observer sees the
+    // window the shortcut was pressed on even when the action moves the focus.
+    using TriggerTargetProvider = std::function<qint64()>;
+    void setTriggerTargetProvider(TriggerTargetProvider provider);
+    qint64 lastTriggerTarget() const { return m_lastTriggerTarget; }
+
     explicit ShortcutController(QObject *parent = nullptr);
     ~ShortcutController() override;
 
@@ -134,6 +141,8 @@ private:
     QMap<ShortcutAction, int> m_actionCombinedMap;
     // Suppresses shortcutUnregistered() while the object is being destroyed.
     bool m_destroying = false;
+    TriggerTargetProvider m_triggerTargetProvider;
+    qint64 m_lastTriggerTarget = 0;
 };
 
 // Convenience alias so existing bare `ShortcutAction` references keep working

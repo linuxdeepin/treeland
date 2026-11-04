@@ -691,16 +691,17 @@ QString shortcutDetail(const ShortcutController::Binding &binding)
                  binding.key,
                  action,
                  shortcutFlagsText(binding.flags));
+    // Every placeholder is filled in one arg() pass: a client-provided name
+    // containing "%2" must not be substituted by the next chained arg().
     case ShortcutController::Binding::Swipe:
         return QStringLiteral("\"%1\" = swipe %2-finger %3 -> %4")
-            .arg(sanitizedName(binding.name))
-            .arg(binding.fingers)
-            .arg(swipeDirectionName(binding.direction), action);
+            .arg(sanitizedName(binding.name),
+                 QString::number(binding.fingers),
+                 swipeDirectionName(binding.direction),
+                 action);
     case ShortcutController::Binding::Hold:
         return QStringLiteral("\"%1\" = hold %2-finger -> %3")
-            .arg(sanitizedName(binding.name))
-            .arg(binding.fingers)
-            .arg(action);
+            .arg(sanitizedName(binding.name), QString::number(binding.fingers), action);
     }
     return {};
 }
@@ -1193,6 +1194,7 @@ void TreelandRemoteSource::startEventCapture()
             &ShortcutController::actionFinished,
             this,
             &TreelandRemoteSource::onShortcutFinished);
+    m_shortcutController->setTriggerTargetProvider([this] { return focusedWindowId(); });
 }
 
 void TreelandRemoteSource::onShortcutRegistered(const ShortcutController::Binding &binding)
@@ -1211,9 +1213,12 @@ void TreelandRemoteSource::onShortcutTriggered(ShortcutAction action,
                                                ShortcutController::KeyFlags keyFlags)
 {
     // Gestures have no keyboard-focus target (a swipe while the lockscreen is
-    // up would otherwise blame an unrelated window), so they report 0.
-    auto *seat = WaylandServer::instance() ? WaylandServer::instance()->seat() : nullptr;
-    const auto target = isGesture ? 0 : surfaceId(seat ? seat->keyboardFocusSurface() : nullptr);
+    // up would otherwise blame an unrelated window), so they report 0. For keys
+    // the target was sampled before the action ran: a workspace/task switch
+    // would otherwise report the destination window instead of the origin.
+    const qint64 target = isGesture || !m_shortcutController
+        ? 0
+        : m_shortcutController->lastTriggerTarget();
     const QString trigger = isGesture
         ? QStringLiteral(" (gesture)")
         : QStringLiteral(" [%1]").arg(shortcutFlagsText(keyFlags));
@@ -1247,6 +1252,7 @@ void TreelandRemoteSource::stopEventCapture()
     if (auto *window = WaylandServer::instance() ? WaylandServer::instance()->window() : nullptr)
         window->removeEventFilter(this);
     if (m_shortcutController) {
+        m_shortcutController->setTriggerTargetProvider({});
         disconnect(m_shortcutController, nullptr, this, nullptr);
         m_shortcutController = nullptr;
     }
