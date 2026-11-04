@@ -79,7 +79,7 @@ xdg-shell 由共享 xdg-toplevel 夹具覆盖（多个 toplevel 测试复用）�
 | [wayland-ext-foreign-toplevel-list-v1](wayland-ext-foreign-toplevel-list-v1/README.md) | E | 映射 toplevel 后回读真实 `wlr_ext_foreign_toplevel_list_v1::toplevels` 列表非空 |
 | [wayland-ext-idle-notify-v1](wayland-ext-idle-notify-v1/README.md) | E | 跨协议验证：创建 idle inhibitor 后 `idled` 不触发，销毁 inhibitor 后 `idled` 触发，证明生产 `wlr_idle_notifier_v1` inhibited 状态被修改 |
 | [wayland-ext-image-copy-capture-v1](wayland-ext-image-copy-capture-v1/README.md) | P | 绑定两个 manager，并从真实 headless `wl_output` 创建、销毁非空 capture source |
-| [wayland-ext-session-lock-v1](wayland-ext-session-lock-v1/README.md) | E | `lock`→`locked` 后回读真实 `WSessionLock::isLocked()` 为 true |
+| [wayland-ext-session-lock-v1](wayland-ext-session-lock-v1/README.md) | E | `lock`→`locked` 后回读真实 `WSessionLock::isLocked()` 为 true；提交 lock surface buffer 后回读生产 wrapper，断言其尺寸 == `Output::geometry()`（全屏，而非去掉 exclusive zone 的工作区）、位置 == 输出原点 |
 | [wayland-fractional-scale-v1](wayland-fractional-scale-v1/README.md) | E | 回读真实 `WOutput::scale()`，断言 `preferred_scale` == round(scale×120) |
 | [wayland-idle-inhibit-unstable-v1](wayland-idle-inhibit-unstable-v1/README.md) | E | 回读真实 `wlr_idle_inhibitor_v1` 已关联 mapped `WSurface`，销毁后确认 resource 已移除 |
 | [wayland-keyboard-shortcuts-inhibit-unstable-v1](wayland-keyboard-shortcuts-inhibit-unstable-v1/README.md) | I / P | mapped toplevel 获取 seat focus 后，inhibitor 收到 `active` | `inactive`、真实快捷键分发和失焦 policy |
@@ -175,7 +175,7 @@ focus 到 `active` event 的链路；`ext-image-copy-capture-v1` 已验证 outpu
 | `ext-data-control-v1` | `wlr_seat::selection_source` 非空 |
 | `ext-foreign-toplevel-list-v1` | `wlr_ext_foreign_toplevel_list_v1::toplevels` 列表非空 |
 | `ext-idle-notify-v1` | 跨协议：inhibitor 创建/销毁后 `idled` 行为变化证明 `wlr_idle_notifier_v1` inhibited 状态被修改 |
-| `ext-session-lock-v1` | `WSessionLock::isLocked()` 为 true |
+| `ext-session-lock-v1` | `WSessionLock::isLocked()` 为 true；锁屏 wrapper 尺寸 == `Output::geometry()` |
 | `fractional-scale-v1` | `WOutput::scale()` 与 `preferred_scale` 一致 |
 | `idle-inhibit-unstable-v1` | `wlr_idle_inhibitor_v1` 关联 mapped `WSurface`，销毁后 resource 移除 |
 | `pointer-constraints-unstable-v1` | `wlr_pointer_constraint_v1::type` == Locked |
@@ -200,7 +200,8 @@ focus 到 `active` event 的链路；`ext-image-copy-capture-v1` 已验证 outpu
 `cursor-shape`/`relative-pointer`/`pointer-constraints` 三个 E 级测试需要 seat 指针能力，
 在 setup 中通过创建真实 `WInputDevice::Type::Pointer` 设备注入。
 `ext-session-lock` 测试在 300ms grace timer 后必须收到 `locked`；收到 `finished` 表示
-合成器拒绝锁定，测试失败。
+合成器拒绝锁定，测试失败。锁屏 surface 的尺寸断言需要先由 top layer surface 引入
+`exclusive_zone=40`（`EXTRA_XMLS` 引入 wlr-layer-shell），否则工作区与输出相同、断言会平凡通过。
 `ext-idle-notify` 通过 idle-inhibit 验证生产 `wlr_idle_notifier_v1` 的跨协议抑制行为，
 因此使用 `ProtocolTest.cmake` 的 `EXTRA_XMLS` 参数包含 idle-inhibit XML。
 
