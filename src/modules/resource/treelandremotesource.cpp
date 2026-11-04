@@ -637,6 +637,18 @@ QList<WindowInfo> TreelandRemoteSource::getWindows()
 
 namespace {
 
+// Shortcut names come from Wayland clients; keep them from forging extra lines
+// or terminal escapes in the debug stream.
+QString sanitizedName(const QString &name)
+{
+    QString safe = name;
+    for (auto &ch : safe) {
+        if (ch.unicode() < 0x20 || ch.unicode() == 0x7f)
+            ch = QLatin1Char('?');
+    }
+    return safe;
+}
+
 QString shortcutFlagsText(ShortcutController::KeyFlags flags)
 {
     QStringList parts;
@@ -675,18 +687,18 @@ QString shortcutDetail(const ShortcutController::Binding &binding)
     switch (binding.type) {
     case ShortcutController::Binding::Key:
         return QStringLiteral("\"%1\" = %2 -> %3 [%4]")
-            .arg(binding.name,
+            .arg(sanitizedName(binding.name),
                  binding.key,
                  action,
                  shortcutFlagsText(binding.flags));
     case ShortcutController::Binding::Swipe:
         return QStringLiteral("\"%1\" = swipe %2-finger %3 -> %4")
-            .arg(binding.name)
+            .arg(sanitizedName(binding.name))
             .arg(binding.fingers)
             .arg(swipeDirectionName(binding.direction), action);
     case ShortcutController::Binding::Hold:
         return QStringLiteral("\"%1\" = hold %2-finger -> %3")
-            .arg(binding.name)
+            .arg(sanitizedName(binding.name))
             .arg(binding.fingers)
             .arg(action);
     }
@@ -707,7 +719,7 @@ QList<ShortcutInfo> TreelandRemoteSource::getShortcuts()
     result.reserve(bindings.size());
     for (const auto &binding : bindings) {
         ShortcutInfo info;
-        info.setName(binding.name);
+        info.setName(sanitizedName(binding.name));
         info.setType(binding.type);
         info.setKey(binding.key);
         info.setFlags(binding.flags);
@@ -1177,6 +1189,10 @@ void TreelandRemoteSource::startEventCapture()
             &ShortcutController::actionTriggered,
             this,
             &TreelandRemoteSource::onShortcutTriggered);
+    connect(m_shortcutController,
+            &ShortcutController::actionFinished,
+            this,
+            &TreelandRemoteSource::onShortcutFinished);
 }
 
 void TreelandRemoteSource::onShortcutRegistered(const ShortcutController::Binding &binding)
@@ -1186,7 +1202,7 @@ void TreelandRemoteSource::onShortcutRegistered(const ShortcutController::Bindin
 
 void TreelandRemoteSource::onShortcutUnregistered(const QString &name)
 {
-    appendEvent(7, 0, QStringLiteral("shortcut unregistered: \"%1\"").arg(name));
+    appendEvent(7, 0, QStringLiteral("shortcut unregistered: \"%1\"").arg(sanitizedName(name)));
 }
 
 void TreelandRemoteSource::onShortcutTriggered(ShortcutAction action,
@@ -1194,14 +1210,34 @@ void TreelandRemoteSource::onShortcutTriggered(ShortcutAction action,
                                                bool isGesture,
                                                ShortcutController::KeyFlags keyFlags)
 {
-    Q_UNUSED(keyFlags)
+    // Gestures have no keyboard-focus target (a swipe while the lockscreen is
+    // up would otherwise blame an unrelated window), so they report 0.
     auto *seat = WaylandServer::instance() ? WaylandServer::instance()->seat() : nullptr;
+    const auto target = isGesture ? 0 : surfaceId(seat ? seat->keyboardFocusSurface() : nullptr);
+    const QString trigger = isGesture
+        ? QStringLiteral(" (gesture)")
+        : QStringLiteral(" [%1]").arg(shortcutFlagsText(keyFlags));
     appendEvent(8,
-                surfaceId(seat ? seat->keyboardFocusSurface() : nullptr),
+                target,
                 QStringLiteral("shortcut triggered: \"%1\" -> %2%3")
-                    .arg(name,
+                    .arg(sanitizedName(name),
                          QString::fromUtf8(ShortcutController::actionName(action)),
-                         isGesture ? QStringLiteral(" (gesture)") : QString()));
+                         trigger));
+}
+
+void TreelandRemoteSource::onShortcutFinished(ShortcutAction action,
+                                              const QString &name,
+                                              bool isTriggered)
+{
+    // Only swipe gestures emit actionFinished(); key and hold triggers arrive
+    // through actionTriggered(), so there is no double counting.
+    if (!isTriggered)
+        return;
+    appendEvent(8,
+                0,
+                QStringLiteral("shortcut triggered: \"%1\" -> %2 (gesture)")
+                    .arg(sanitizedName(name),
+                         QString::fromUtf8(ShortcutController::actionName(action))));
 }
 
 void TreelandRemoteSource::stopEventCapture()

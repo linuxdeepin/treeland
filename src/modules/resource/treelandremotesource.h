@@ -9,6 +9,7 @@
 
 
 #include <QPointF>
+#include <QPointer>
 #include <QTimer>
 
 class SurfaceWrapper;
@@ -88,6 +89,8 @@ private Q_SLOTS:
     void onShortcutUnregistered(const QString &name);
     void onShortcutTriggered(ShortcutAction action, const QString &name, bool isGesture,
                              ShortcutController::KeyFlags keyFlags);
+    // Swipe gestures report only actionFinished() — never actionTriggered().
+    void onShortcutFinished(ShortcutAction action, const QString &name, bool isTriggered);
 
 private:
     void collectSurfaceInfos(QList<WindowInfo> &infos,
@@ -145,8 +148,9 @@ private:
     bool m_eventCaptureActive = false;
     QTimer *m_eventIdleTimer = nullptr;
     // Controller whose shortcut signals feed the event ring buffer while
-    // capture is armed (null when capture is off).
-    ShortcutController *m_shortcutController = nullptr;
+    // capture is armed (null when capture is off). Guarded: the source can
+    // outlive the manager's controller when remoteDebug is toggled.
+    QPointer<ShortcutController> m_shortcutController;
     // Held for the lifetime of the QRemoteObjectHost so the socket name
     // claimed in the constructor stays ours (Wayland-style flock lock file,
     // see TreelandDebugSocketLock).
