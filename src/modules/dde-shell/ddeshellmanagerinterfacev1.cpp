@@ -71,9 +71,21 @@ void DDEShellManagerInterfaceV1Private::set_xwindow_position_relative(Resource *
                                                                       wl_fixed_t dx,
                                                                       wl_fixed_t dy)
 {
+    uint32_t ok = 1;
+#ifndef DISABLE_XWAYLAND
     WSurface *wsurface = WSurface::fromHandle(wlr_surface_from_resource(anchor));
-    uint32_t ok = (wsurface && WaylandServer::instance()->setXWindowPositionRelative(wid, wsurface, dx, dy)) ? 0 : 1;
+    ok = (wsurface && WaylandServer::instance()->setXWindowPositionRelative(wid, wsurface, dx, dy)) ? 0 : 1;
+#else
+    Q_UNUSED(wid);
+    Q_UNUSED(anchor);
+    Q_UNUSED(dx);
+    Q_UNUSED(dy);
+#endif
     wl_resource *cb = wl_resource_create(resource->client(), &wl_callback_interface, 1, callback);
+    if (!cb) {
+        wl_client_post_no_memory(resource->client());
+        return;
+    }
     wl_callback_send_done(cb, ok);
     wl_resource_destroy(cb);
 }

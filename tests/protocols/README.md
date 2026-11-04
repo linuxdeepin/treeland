@@ -47,6 +47,8 @@ cmake --build --preset ci --target protocol-test-coverage-target
 
 ## 可选条件测试
 
+`DISABLE_XWAYLAND=ON` 时不构建或注册 xwindow-control 测试。
+
 uinput 与 GPU target 默认不注册：
 
 ```bash

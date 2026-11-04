@@ -5,16 +5,22 @@
 
 #include "wglobal.h"
 
+#ifndef DISABLE_XWAYLAND
 #include <xcb/xproto.h>
+#endif
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WSocket;
+#ifndef DISABLE_XWAYLAND
 class WXWayland;
+#endif
 WAYLIB_SERVER_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE
 
+#ifndef DISABLE_XWAYLAND
 class SettingManager;
+#endif
 class WallpaperLauncher;
 
 class Session : public QObject {
@@ -26,8 +32,10 @@ public:
     uid_t uid() const;
     const QString &username() const;
     WSocket *socket() const;
+#ifndef DISABLE_XWAYLAND
     WXWayland *xwayland() const;
     quint32 noTitlebarAtom() const;
+#endif
 
 Q_SIGNALS:
     void aboutToBeDestroyed();
@@ -42,10 +50,12 @@ private:
     uid_t m_uid = 0;
     QString m_username = {};
     WSocket *m_socket = nullptr;
+#ifndef DISABLE_XWAYLAND
     WXWayland *m_xwayland = nullptr;
     quint32 m_noTitlebarAtom = XCB_ATOM_NONE;
     SettingManager *m_settingManager = nullptr;
     QThread *m_settingManagerThread = nullptr;
+#endif
 };
 
 /**
@@ -83,7 +93,9 @@ public:
     std::shared_ptr<Session> sessionForId(const QString &id) const;
     std::shared_ptr<Session> sessionForUid(uid_t uid) const;
     std::shared_ptr<Session> sessionForUser(const QString &username) const;
+#ifndef DISABLE_XWAYLAND
     std::shared_ptr<Session> sessionForXWayland(WXWayland *xwayland) const;
+#endif
     std::shared_ptr<Session> sessionForSocket(WSocket *socket) const;
     bool isDDEUserClient(WClient *client);
     void syncActiveSessionXSettings();
