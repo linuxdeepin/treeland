@@ -253,6 +253,27 @@ QJsonArray clientsToJson(const QList<ClientInfo> &clients)
     return result;
 }
 
+QJsonObject shortcutToJson(const ShortcutInfo &shortcut)
+{
+    return {
+        {"name", shortcut.name()},
+        {"type", shortcut.type()},
+        {"key", shortcut.key()},
+        {"flags", static_cast<qint64>(shortcut.flags())},
+        {"action", shortcut.action()},
+        {"fingers", static_cast<qint64>(shortcut.fingers())},
+        {"direction", shortcut.direction()},
+    };
+}
+
+QJsonArray shortcutsToJson(const QList<ShortcutInfo> &shortcuts)
+{
+    QJsonArray result;
+    for (const auto &shortcut : shortcuts)
+        result.append(shortcutToJson(shortcut));
+    return result;
+}
+
 QJsonObject debugEventToJson(const DebugEvent &event)
 {
     return {

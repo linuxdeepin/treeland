@@ -113,6 +113,9 @@ bool DebugServer::listen(const QString &host, int port)
     m_httpServer.route("/api/idle", [this]() {
         return jsonCorsResponse(handleIdle());
     });
+    m_httpServer.route("/api/shortcuts", [this]() {
+        return jsonCorsResponse(handleShortcuts());
+    });
     m_httpServer.route("/api/focused", [this]() {
         return jsonCorsResponse(handleFocused());
     });
@@ -275,7 +278,18 @@ QJsonObject DebugServer::handleNoAuth()
                                {"error", "the compositor can only open a runtime directory "
                                          "of its own, so a session instance keeps requiring root"}};
         }
-        return QJsonObject{{"ok", true}, {"data", QJsonObject{{"noAuth", true}}}};
+        return QJsonObject{{"ok", true}, {"data", QJsonObject{{"noAuth", true}}}};    });
+}
+
+QJsonObject DebugServer::handleShortcuts()
+{
+    return sessionRequest([this](Session &session) {
+        QList<ShortcutInfo> shortcuts;
+        if (!waitSlot(session.replica->getShortcuts(), m_timeoutMs, &shortcuts))
+            return QJsonObject{{"ok", false}, {"error", "getShortcuts() failed"}};
+        return QJsonObject{{"ok", true}, {"data", shortcutsToJson(shortcuts)}};
+    });
+}
     });
 }
 
@@ -853,6 +867,11 @@ QJsonObject DebugServer::mcpToolsList() const
                 {"inputSchema", noArgs}
             },
             QJsonObject{
+                {"name", "shortcuts"},
+                {"description", "List the currently registered shortcuts (key bindings and touchpad gestures) with their name, trigger, action and flags."},
+                {"inputSchema", noArgs}
+            },
+            QJsonObject{
                 {"name", "focused"},
                 {"description", "Get the id of the currently focused window."},
                 {"inputSchema", noArgs}
@@ -1097,6 +1116,8 @@ QJsonArray DebugServer::mcpDispatchTool(const QString &name, const QJsonObject &
         return formatJson(handleIdle());
     if (name == "no-auth")
         return formatJson(handleNoAuth());
+    if (name == "shortcuts")
+        return formatJson(handleShortcuts());
     if (name == "focused")
         return formatJson(handleFocused());
     if (name == "cursor_window")
@@ -1264,6 +1285,8 @@ void DebugServer::handleWebSocketMessage(QWebSocket *socket, const QString &mess
         result = handleIdle();
     } else if (command == "no-auth") {
         result = handleNoAuth();
+    } else if (command == "shortcuts") {
+        result = handleShortcuts();
     } else if (command == "focused") {
         result = handleFocused();
     } else if (command == "cursor-window") {

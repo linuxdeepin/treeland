@@ -78,6 +78,24 @@ public:
         All = KeyPress | KeyRelease | Repeat
     };
     Q_DECLARE_FLAGS(KeyFlags, KeyFlag)
+
+    // A bound shortcut as reported to the debug interface (treeland-debug
+    // `shortcuts`): a key binding (Key) or a touchpad swipe/hold gesture.
+    struct Binding
+    {
+        enum Type { Key = 0, Swipe = 1, Hold = 2 };
+
+        Type type = Key;
+        QString name;
+        QString key; // portable-text key sequence, empty for gestures
+        KeyFlags flags;
+        ShortcutAction action = ShortcutAction::Notify;
+        uint fingers = 0; // gestures
+        SwipeGesture::Direction direction = SwipeGesture::Direction::Invalid; // gestures
+    };
+    // Every currently bound shortcut, for the debug interface.
+    QList<Binding> bindings() const;
+
     explicit ShortcutController(QObject *parent = nullptr);
     ~ShortcutController() override;
 
@@ -100,6 +118,10 @@ public:
 
 Q_SIGNALS:
     void actionTriggered(ShortcutAction action, const QString &name, bool isGesture, KeyFlags keyFlags = {});
+    // Emitted when a binding appears or disappears, so treeland-debug can
+    // stream shortcut registration without polling.
+    void shortcutRegistered(const ShortcutController::Binding &binding);
+    void shortcutUnregistered(const QString &name);
     void actionProgress(ShortcutAction action, qreal progress, const QString &name);
     void actionFinished(ShortcutAction action, const QString &name, bool isTriggered);
 

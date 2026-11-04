@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "modules/shortcut/shortcutcontroller.h"
 #include "rep_treelandwindowtree_source.h"
 #include "treelanddebugsocket.h"
 
@@ -65,6 +66,8 @@ public:
 
     // ---- real-time monitoring ----
     QList<DebugEvent> getEvents(quint64 afterSeq) override;
+    // ---- shortcut registry ----
+    QList<ShortcutInfo> getShortcuts() override;
     qint64 focusedWindowId() override;
     qint64 windowUnderCursor() override;
     // ---- QtQuick scene inspection ----
@@ -77,6 +80,14 @@ protected:
     // only while a treeland-debug client is actively polling getEvents(), so
     // there is zero per-event overhead when nobody is monitoring.
     bool eventFilter(QObject *watched, QEvent *event) override;
+
+private Q_SLOTS:
+    // Feed the shortcut registration/trigger stream into the event ring
+    // buffer while capture is armed.
+    void onShortcutRegistered(const ShortcutController::Binding &binding);
+    void onShortcutUnregistered(const QString &name);
+    void onShortcutTriggered(ShortcutAction action, const QString &name, bool isGesture,
+                             ShortcutController::KeyFlags keyFlags);
 
 private:
     void collectSurfaceInfos(QList<WindowInfo> &infos,
@@ -133,6 +144,9 @@ private:
     static constexpr int MAX_EVENTS = 2000;
     bool m_eventCaptureActive = false;
     QTimer *m_eventIdleTimer = nullptr;
+    // Controller whose shortcut signals feed the event ring buffer while
+    // capture is armed (null when capture is off).
+    ShortcutController *m_shortcutController = nullptr;
     // Held for the lifetime of the QRemoteObjectHost so the socket name
     // claimed in the constructor stays ours (Wayland-style flock lock file,
     // see TreelandDebugSocketLock).

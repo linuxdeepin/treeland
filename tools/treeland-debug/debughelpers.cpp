@@ -161,6 +161,11 @@ ParseResult parseCommand(const QString &command, const QStringList &args)
         r.command = DebugCommand::Idle;
         return r;
     }
+    if (command == QLatin1String("shortcuts")) {
+        r.ok = true;
+        r.command = DebugCommand::Shortcuts;
+        return r;
+    }
     if (command == QLatin1String("help")) {
         r.ok = true;
         r.command = DebugCommand::Help;

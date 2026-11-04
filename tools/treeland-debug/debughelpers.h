@@ -49,6 +49,7 @@ enum class DebugCommand {
     Windows,
     Clients,
     Idle,
+    Shortcuts,
     Help,
     Shell,
     Activate,
