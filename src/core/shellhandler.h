@@ -16,6 +16,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QSet>
+#include <QSize>
 
 Q_MOC_INCLUDE("workspace/workspace.h")
 Q_MOC_INCLUDE(<wlayersurface.h>)
