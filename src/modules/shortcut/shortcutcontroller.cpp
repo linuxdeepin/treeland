@@ -234,6 +234,11 @@ uint ShortcutController::registerHoldGesture(const QString &name, uint finger, S
     return 0;
 }
 
+void ShortcutController::setTriggerTargetProvider(TriggerTargetProvider provider)
+{
+    m_triggerTargetProvider = std::move(provider);
+}
+
 void ShortcutController::unregisterShortcut(const QString &name)
 {
     if (m_deleters.contains(name)) {
@@ -293,6 +298,10 @@ bool ShortcutController::dispatchKeyEvent(const QKeyEvent *kevent)
     }
     if (!matched)
         return false;
+
+    // Sample the focus before emitting: the action may switch workspaces or
+    // tasks and move the keyboard focus away from the origin window.
+    m_lastTriggerTarget = m_triggerTargetProvider ? m_triggerTargetProvider() : 0;
 
     for (const auto &[action, keybind] : std::as_const(m_keyMap[combined]).asKeyValueRange()) {
         const auto& [name, bindFlags] = keybind;

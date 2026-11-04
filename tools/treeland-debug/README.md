@@ -278,9 +278,11 @@ place to watch shortcuts being bound and used:
   when the active session changes (the registry is cleared and re-populated)
   and for the old name when a binding is re-bound under a new one.
 - `type 8` — `shortcut triggered: "<name>" -> <action> [flags]`, with `target`
-  set to the keyboard-focused window. Gesture triggers (swipe and hold) are
-  reported too, marked `(gesture)` and with `target` 0 — a gesture has no
-  keyboard focus to blame.
+  set to the window that was keyboard-focused when the shortcut fired (sampled
+  before the action runs, so a workspace or task switch does not report the
+  destination window). Gesture triggers (swipe and hold) are reported too,
+  marked `(gesture)` and with `target` 0 — a gesture has no keyboard focus to
+  blame.
 
 `treeland-debug events` prints the event type next to the timestamp
 (`motion`, `button`, `key`, `shortcut-registered`, …), the same names the

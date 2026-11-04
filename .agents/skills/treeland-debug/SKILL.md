@@ -185,7 +185,7 @@ sudo journalctl -u treeland.service -f
 
 **快捷键不生效 / 想知道谁绑了什么：**
 1. `treeland-debug shortcuts` —— 看当前注册的绑定（只有客户端通过 `treeland-shortcut-manager-v3` 绑定过才有内容，空列表通常意味着没有 shell 绑定）。
-2. `treeland-debug events` —— 边操作边看：`shortcut-registered/-unregistered`（重新登录或重启 shell 会先把旧绑定都注销再重注册）与 `shortcut-triggered`（按键触发带 `[press|release|repeat]` 且 `target` 是键盘聚焦窗口；swipe/hold 手势带 `(gesture)` 且 `target` 为 0）。
+2. `treeland-debug events` —— 边操作边看：`shortcut-registered/-unregistered`（重新登录或重启 shell 会先把旧绑定都注销再重注册）与 `shortcut-triggered`（按键触发带 `[press|release|repeat]`，`target` 是**按键触发那一刻**的键盘聚焦窗口 —— 动作执行前采样，所以切工作区/任务切换不会报成目标窗口；swipe/hold 手势带 `(gesture)` 且 `target` 为 0）。
 3. 相关分类：`treeland.shortcut`。
 
 **输入不落地 / 目标不对：**
