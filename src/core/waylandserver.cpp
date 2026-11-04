@@ -783,6 +783,11 @@ WSeat *WaylandServer::seat() const
     return m_primarySeat;
 }
 
+ShortcutController *WaylandServer::shortcutController() const
+{
+    return m_shortcutManager ? m_shortcutManager->controller() : nullptr;
+}
+
 Output *WaylandServer::getOutputAtCursor() const
 {
     return m_outputManager->outputAtCursor();

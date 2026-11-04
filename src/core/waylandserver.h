@@ -117,6 +117,7 @@ class SettingManager;
 class SessionModel;
 class ShellHandler;
 class ShellActionExecutor;
+class ShortcutController;
 class ShortcutManagerV3;
 class ShortcutRunner;
 class SurfaceContainer;
@@ -210,6 +211,10 @@ public:
     [[nodiscard]] WXWayland *createXWayland();
 
     WSeat *seat() const;
+
+    // The shortcut manager's controller, i.e. the live registry of bound
+    // shortcuts. Exposed for the debug remote source; null before init.
+    ShortcutController *shortcutController() const;
 
     // Moves the primary seat cursor to @p position, first ending any
     // in-progress interactive move/resize for every seat so the motion is

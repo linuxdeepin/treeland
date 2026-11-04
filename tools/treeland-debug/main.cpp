@@ -246,6 +246,47 @@ void printIdle(const IdleInfo &info)
     }
 }
 
+QString shortcutFlagsText(quint32 flags)
+{
+    QStringList parts;
+    if (flags & 0x1) parts << QStringLiteral("press");
+    if (flags & 0x2) parts << QStringLiteral("release");
+    if (flags & 0x4) parts << QStringLiteral("repeat");
+    if (parts.isEmpty()) parts << QStringLiteral("none");
+    return parts.join('|');
+}
+
+void printShortcutsTable(const QList<ShortcutInfo> &shortcuts)
+{
+    QTextStream out(stdout);
+    if (shortcuts.isEmpty()) {
+        out << "No shortcuts registered.\n";
+        return;
+    }
+    for (const auto &shortcut : shortcuts) {
+        QString binding;
+        switch (shortcut.type()) {
+        case 0: // key
+            binding = shortcut.key();
+            break;
+        case 1: // swipe
+            binding = QStringLiteral("swipe %1-finger %2")
+                          .arg(shortcut.fingers())
+                          .arg(shortcut.direction());
+            break;
+        default: // hold
+            binding = QStringLiteral("hold %1-finger").arg(shortcut.fingers());
+            break;
+        }
+        const QString flags = shortcut.type() == 0
+            ? QStringLiteral("  [%1]").arg(shortcutFlagsText(shortcut.flags()))
+            : QString();
+        out << shortcut.name().leftJustified(28) << binding.leftJustified(22) << "-> "
+            << shortcut.action() << flags << "\n";
+
+    }
+}
+
 void printTree(const TreelandInfo &info)
 {
     QTextStream out(stdout);
@@ -364,7 +405,7 @@ QString helpText()
         "  --url <url>          Remote object host URL (default: $TREELAND_DEBUG_SOCKET,\n"
         "                       else the build-specific socket found by probing)\n"        "  --name <name>        Remote object name (default: WindowTree)\n"
         "  --timeout-ms <n>     Request timeout in milliseconds (default: 30000)\n"
-        "  --json               Emit machine-readable JSON for `tree`/`cursor`/`windows`/`clients`/`idle`\n"
+        "  --json               Emit machine-readable JSON for `tree`/`cursor`/`windows`/`clients`/`idle`/`shortcuts`\n"
         "  --preview            Force inline image preview in terminal (auto-detected by default)\n"
         "  --no-preview         Disable inline image preview\n"
         "  --no-escalate        Do not attempt polkit privilege escalation (release builds only)\n"
@@ -375,6 +416,7 @@ QString helpText()
         "  windows                    List all toplevel windows (use --json for JSON)\n"
         "  clients                    List connected Wayland clients and their windows\n"
         "  idle                       Show the idle state (time since last input) and who holds idle off\n"
+        "  shortcuts                  List registered key shortcuts and gestures\n"
         "  top [interval-ms]          Live, top-like refreshing view (default 1000ms)\n"
         "  events [interval-ms]      Real-time input event stream (default 50ms)\n"
         "  watch <id> [interval-ms]  Monitor a window's changes (default 250ms)\n"
@@ -996,6 +1038,16 @@ static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt
             printJson(QJsonDocument(QJsonObject{ { "noAuth", true } }));
         else
             QTextStream(stdout) << "the debug socket is open to every user for 30 minutes\n";
+        return EXIT_SUCCESS;
+    }
+    case DebugCommand::Shortcuts: {
+        QList<ShortcutInfo> shortcuts;
+        if (!waitSlot(replica->getShortcuts(), timeoutMs, &shortcuts))
+            return fail("getShortcuts() failed");
+        if (json)
+            printJson(QJsonDocument(shortcutsToJson(shortcuts)));
+        else
+            printShortcutsTable(shortcuts);
         return EXIT_SUCCESS;
     }
     // ---- window control ----

@@ -63,8 +63,24 @@ POD ClientInfo(
     QList<WindowInfo> windows
 )
 
+// A registered shortcut (key binding or touchpad gesture), as reported by
+// the compositor's shortcut manager. `type`: 0=key 1=swipe 2=hold. `key` is the
+// portable-text key sequence for key bindings (empty for gestures), `flags` the
+// keybind flag mask (1=press 2=release 4=repeat), and `fingers`/`direction`
+// describe gestures.
+POD ShortcutInfo(
+    QString name,
+    int type,
+    QString key,
+    uint flags,
+    QString action,
+    uint fingers,
+    QString direction
+)
+
 // Real-time debug event: input events, window state changes, etc.
 // type: 1=pointerMotion 2=pointerButton 3=keyboardKey 4=focusChanged 5=cursorWindowChanged
+//       6=shortcutRegistered 7=shortcutUnregistered 8=shortcutTriggered
 POD DebugEvent(
     quint64 seq,
     int type,
@@ -115,6 +131,7 @@ class WindowTreeRemote {
     SLOT(QList<WindowInfo> getWindows());
     SLOT(QList<ClientInfo> getClients());
     SLOT(IdleInfo getIdleInfo());
+    SLOT(QList<ShortcutInfo> getShortcuts());
     SLOT(bool activateWindow(qint64 id));
     SLOT(bool closeWindow(qint64 id));
     SLOT(bool minimizeWindow(qint64 id));
