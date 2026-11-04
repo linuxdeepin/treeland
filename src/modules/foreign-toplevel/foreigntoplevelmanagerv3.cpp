@@ -25,7 +25,9 @@
 #include <wsocket.h>
 #include <wtoplevelsurface.h>
 #include <wxdgtoplevelsurface.h>
+#ifndef DISABLE_XWAYLAND
 #include <wxwaylandsurface.h>
+#endif
 
 #include <QPointer>
 #include <QVariant>
@@ -580,6 +582,7 @@ void ForeignToplevelManagerInterfaceV3::initializeToplevelHandle(SurfaceWrapper 
                                 handle,
                                 updateSurfaceParent);
         updateSurfaceParent();
+#ifndef DISABLE_XWAYLAND
     } else if (auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(surface)) {
         handle->set_pid(xwaylandSurface->pid());
 
@@ -609,6 +612,7 @@ void ForeignToplevelManagerInterfaceV3::initializeToplevelHandle(SurfaceWrapper 
                                      handle,
                                      updateSurfaceParent);
         updateSurfaceParent();
+#endif
     } else {
         qCFatal(lcTlProtocol)
         << "TreelandForeignToplevelManager only support WXdgSurface or "

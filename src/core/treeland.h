@@ -48,7 +48,9 @@ Q_SIGNALS:
 
 public Q_SLOTS:
     bool ActivateWayland(QDBusUnixFileDescriptor fd);
+#ifndef DISABLE_XWAYLAND
     void XWaylandName();
+#endif
 
 private:
     void initialize();

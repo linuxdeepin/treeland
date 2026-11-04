@@ -30,7 +30,9 @@
 
 #include <wsocket.h>
 #include <woutputrenderwindow.h>
+#ifndef DISABLE_XWAYLAND
 #include <wxwayland.h>
+#endif
 
 #include <QCoreApplication>
 #include <QDBusAbstractAdaptor>
@@ -96,8 +98,10 @@ public:
             server = qmlEngine->singletonInstance<WaylandServer *>("Treeland", "WaylandServer");
             connect(server, &WaylandServer::requestQuit, q, &Treeland::quit, Qt::QueuedConnection);
 
+#ifndef DISABLE_XWAYLAND
             if (qEnvironmentVariableIsEmpty("WLR_XWAYLAND"))
                 qputenv("WLR_XWAYLAND", QByteArray(LIBEXEC_DIR) + "/treeland-xwayland");
+#endif
             server->init(q);
 
 #ifndef DISABLE_DDM
@@ -370,10 +374,12 @@ class Compositor1Adaptor: public QDBusAbstractAdaptor
                 "      <arg direction=\"in\" type=\"h\" name=\"fd\"/>\n"
                 "      <arg direction=\"out\" type=\"b\" name=\"result\"/>\n"
                 "    </method>\n"
+#ifndef DISABLE_XWAYLAND
                 "    <method name=\"XWaylandName\">\n"
                 "      <arg direction=\"out\" type=\"s\" name=\"result\"/>\n"
                 "      <arg direction=\"out\" type=\"ay\" name=\"auth\"/>\n"
                 "    </method>\n"
+#endif
                 "    <signal name=\"SessionChanged\"/>\n"
                 "    <signal name=\"XWaylandAuthChanged\"/>\n"
                 "  </interface>\n"
@@ -395,10 +401,12 @@ public Q_SLOTS: // METHODS
         return parent()->ActivateWayland(fd);
     }
 
+#ifndef DISABLE_XWAYLAND
     void XWaylandName()
     {
         parent()->XWaylandName();
     }
+#endif
 
 Q_SIGNALS: // SIGNALS
     void SessionChanged();
@@ -443,12 +451,14 @@ void Treeland::initialize()
                 auto envs = QProcessEnvironment::systemEnvironment();
                 envs.insert("WAYLAND_DISPLAY",
                             globalSession->socket()->fullServerName());
+#ifndef DISABLE_XWAYLAND
                 if (auto currentUserSession = d->server->sessionManager()->sessionForUid(getuid())) {
                     if (auto *xwayland = currentUserSession->xwayland())
                         envs.insert("DISPLAY", xwayland->displayName());
                 } else if (auto *current = globalSession->xwayland()) {
                     envs.insert("DISPLAY", current->displayName());
                 }
+#endif
                 envs.insert("XDG_SESSION_DESKTOP", "Treeland");
 
                 QProcess process;
@@ -612,6 +622,7 @@ bool Treeland::ActivateWayland(QDBusUnixFileDescriptor _fd)
     return true;
 }
 
+#ifndef DISABLE_XWAYLAND
 void Treeland::XWaylandName()
 {
     Q_D(Treeland);
@@ -643,6 +654,7 @@ void Treeland::XWaylandName()
     conn.send(m.createReply(result));
     return;
 }
+#endif
 
 void Treeland::quit()
 {

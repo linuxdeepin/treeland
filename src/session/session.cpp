@@ -11,15 +11,22 @@
 #include "treelanduserconfig.hpp"
 #include "wallpaper/wallpaperlauncher.h"
 #include "workspace/workspace.h"
+#ifndef DISABLE_XWAYLAND
 #include "xsettings/settingmanager.h"
+#endif
 
 #include <woutputrenderwindow.h>
 #include <wsocket.h>
+#ifndef DISABLE_XWAYLAND
 #include <wxwayland.h>
+#endif
 
 #include <pwd.h>
+#ifndef DISABLE_XWAYLAND
 #include <xcb/randr.h>
+#endif
 
+#ifndef DISABLE_XWAYLAND
 #define _DEEPIN_NO_TITLEBAR "_DEEPIN_NO_TITLEBAR"
 
 static void applySessionXSettings(SettingManager *settingManager,
@@ -64,12 +71,14 @@ static xcb_atom_t internAtom(xcb_connection_t *connection, const char *name, boo
 
     return atom;
 }
+#endif
 
 Session::~Session()
 {
     qCDebug(lcTlCore) << "Deleting session for uid:" << m_uid << m_socket;
     Q_EMIT aboutToBeDestroyed();
 
+#ifndef DISABLE_XWAYLAND
     if (m_settingManagerThread) {
         m_settingManagerThread->quit();
         m_settingManagerThread->wait(QDeadlineTimer(25000));
@@ -85,6 +94,7 @@ Session::~Session()
             server->shellHandler()->removeXWayland(m_xwayland);
         m_xwayland = nullptr;
     }
+#endif
     if (m_socket) {
         delete m_socket;
         m_socket = nullptr;
@@ -111,6 +121,7 @@ WSocket *Session::socket() const
     return m_socket;
 }
 
+#ifndef DISABLE_XWAYLAND
 WXWayland *Session::xwayland() const
 {
     return m_xwayland;
@@ -120,6 +131,7 @@ quint32 Session::noTitlebarAtom() const
 {
     return m_noTitlebarAtom;
 }
+#endif
 
 SessionManager::SessionManager(QObject *parent)
     : QObject(parent)
@@ -137,6 +149,7 @@ SessionManager::~SessionManager()
 
 void SessionManager::syncActiveSessionXWaylandPrimaryOutput()
 {
+#ifndef DISABLE_XWAYLAND
     const auto *primaryOutput = WaylandServer::instance()->rootSurfaceContainer()->primaryOutput();
     if (!primaryOutput)
         return;
@@ -181,6 +194,7 @@ void SessionManager::syncActiveSessionXWaylandPrimaryOutput()
         free(outputInfo);
     }
     free(resources);
+#endif
 }
 
 const QList<std::shared_ptr<Session>> &SessionManager::sessions() const
@@ -291,6 +305,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
         WaylandServer::instance()->addSocket(socket);
         return socket;
     };
+#ifndef DISABLE_XWAYLAND
     auto createXWayland = [this](WSocket *socket) {
         // Create xwayland
         auto *xwayland = WaylandServer::instance()->createXWayland();
@@ -367,6 +382,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
         });
         return xwayland;
     };
+#endif
     // Check if session already exists for user
     if (auto session = sessionForUser(username)) {
         // Ensure it has a socket and xwayland
@@ -378,6 +394,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
             }
             session->m_socket = socket;
         }
+#ifndef DISABLE_XWAYLAND
         if (!session->m_xwayland) {
             auto *xwayland = createXWayland(session->m_socket);
             if (!xwayland) {
@@ -389,6 +406,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
 
             session->m_xwayland = xwayland;
         }
+#endif
 
         return session;
     }
@@ -413,9 +431,11 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
         m_wallpaperLauncher->start();
     }
 
+#ifndef DISABLE_XWAYLAND
     session->m_xwayland = createXWayland(session->m_socket);
     if (!session->m_xwayland)
         return nullptr;
+#endif
 
     // Add session to list
     m_sessions.append(session);
@@ -468,6 +488,7 @@ std::shared_ptr<Session> SessionManager::sessionForUser(const QString &username)
     return nullptr;
 }
 
+#ifndef DISABLE_XWAYLAND
 /**
  * Find the session for the given WXWayland
  *
@@ -482,6 +503,7 @@ std::shared_ptr<Session> SessionManager::sessionForXWayland(WXWayland *xwayland)
     }
     return nullptr;
 }
+#endif
 
 /**
  * Find the session for the given WSocket
@@ -513,6 +535,7 @@ bool SessionManager::isDDEUserClient(WClient *client)
 
 void SessionManager::syncActiveSessionXSettings()
 {
+#ifndef DISABLE_XWAYLAND
     const auto session = m_activeSession.lock();
     if (!session) {
         qCDebug(lcTlXsettings) << "Skip XSettings sync: no active session";
@@ -538,6 +561,7 @@ void SessionManager::syncActiveSessionXSettings()
                           config->cursorThemeName(),
                           config->cursorSize(),
                           config->x11GtkIMModule());
+#endif
 }
 
 /**

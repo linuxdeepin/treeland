@@ -516,7 +516,9 @@ private:
     Q_SLOT void onShowAnimationFinished();
     Q_SLOT void onHideAnimationFinished();
     void updateStackingLayer();
+#ifndef DISABLE_XWAYLAND
     void updateXWaylandStackingState();
+#endif
     void updateSizeCapabilities();
     void setModal(bool modal);
     void startMinimizeAnimation(const QRectF &iconGeometry, uint direction);

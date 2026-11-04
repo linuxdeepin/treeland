@@ -12,7 +12,6 @@
 #include "modules/input-manager/inputmanagerinterfacev1.h"
 #include "seat/seatmanager.h"
 #include "session/session.h"
-#include "xsettings/settingmanager.h"
 
 #include <libinput.h>
 #include <xkbcommon/xkbcommon.h>

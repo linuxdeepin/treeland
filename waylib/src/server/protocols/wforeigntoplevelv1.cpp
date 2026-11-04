@@ -9,7 +9,9 @@
 #include "woutput.h"
 #include "wtoplevelsurface.h"
 #include "wxdgtoplevelsurface.h"
+#ifndef DISABLE_XWAYLAND
 #include "wxwaylandsurface.h"
+#endif
 #include "wayliblogging.h"
 
 #include <wlr_all.h>
@@ -90,6 +92,7 @@ public:
                                                  surface,
                                                  updateSurfaceParent));
             updateSurfaceParent();
+#ifndef DISABLE_XWAYLAND
         } else if (auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(surface)) {
             auto updateSurfaceParent = [this, handle, xwaylandSurface] {
                 WToplevelSurface *p = xwaylandSurface->parentXWaylandSurface();
@@ -110,6 +113,7 @@ public:
                                                      surface,
                                                      updateSurfaceParent));
             updateSurfaceParent();
+#endif
         }
 
         conns.append(QObject::connect(surface->surface(), &WSurface::outputEntered,

@@ -17,7 +17,15 @@ macro(install_symlink filepath wantsdir)
 endmacro(install_symlink)
 
 configure_file("dde-session-pre.target.wants/treeland-sd.service.in" "dde-session-pre.target.wants/treeland-sd.service" IMMEDIATE @ONLY)
-configure_file("dde-session-pre.target.wants/treeland-xwayland.service.in" "dde-session-pre.target.wants/treeland-xwayland.service" IMMEDIATE @ONLY)
+if (NOT DISABLE_XWAYLAND)
+    configure_file("dde-session-pre.target.wants/treeland-xwayland.service.in" "dde-session-pre.target.wants/treeland-xwayland.service" IMMEDIATE @ONLY)
+    install(FILES treeland.service.d/xwayland.conf
+        DESTINATION ${SYSTEMD_USER_UNIT_DIR}/treeland.service.d)
+else()
+    configure_file(remove-xwayland-units.cmake.in
+        remove-xwayland-units.cmake @ONLY)
+    install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/remove-xwayland-units.cmake")
+endif()
 configure_file("dde-session-pre.target.wants/treeland.service.in" "dde-session-pre.target.wants/treeland.service" IMMEDIATE @ONLY)
 configure_file("treeland-session-helper.service.in" "treeland-session-helper.service" IMMEDIATE @ONLY)
 configure_file("treeland-screensaver.service.in" "treeland-screensaver.service" IMMEDIATE @ONLY)
@@ -32,18 +40,24 @@ install(DIRECTORY DESTINATION ${SYSTEMD_USER_UNIT_DIR}/dde-session-pre.target.wa
 install(DIRECTORY DESTINATION ${SYSTEMD_USER_UNIT_DIR}/dde-session-shutdown.target.wants/)
 set(DDE_SESSION_PRE_WANTS
     dde-session-pre.target.wants/treeland-sd.socket
-    dde-session-pre.target.wants/treeland-xwayland.socket
     dde-session-shutdown.target.wants/treeland-session-shutdown.service
     ${CMAKE_CURRENT_BINARY_DIR}/dde-session-pre.target.wants/treeland-sd.service
-    ${CMAKE_CURRENT_BINARY_DIR}/dde-session-pre.target.wants/treeland-xwayland.service
     ${CMAKE_CURRENT_BINARY_DIR}/dde-session-pre.target.wants/treeland.service
 )
+if (NOT DISABLE_XWAYLAND)
+    list(APPEND DDE_SESSION_PRE_WANTS
+        dde-session-pre.target.wants/treeland-xwayland.socket
+        ${CMAKE_CURRENT_BINARY_DIR}/dde-session-pre.target.wants/treeland-xwayland.service
+    )
+endif()
 
 install(FILES ${DDE_SESSION_PRE_WANTS} DESTINATION ${SYSTEMD_USER_UNIT_DIR})
 install_symlink(treeland-sd.socket dde-session-pre.target.wants)
 install_symlink(treeland-sd.service dde-session-pre.target.wants)
-install_symlink(treeland-xwayland.socket dde-session-pre.target.wants)
-install_symlink(treeland-xwayland.service dde-session-pre.target.wants)
+if (NOT DISABLE_XWAYLAND)
+    install_symlink(treeland-xwayland.socket dde-session-pre.target.wants)
+    install_symlink(treeland-xwayland.service dde-session-pre.target.wants)
+endif()
 install_symlink(treeland.service dde-session-pre.target.wants)
 install_symlink(treeland-session-shutdown.service dde-session-shutdown.target.wants)
 install_symlink(treeland-session-helper.service treeland.service.wants)

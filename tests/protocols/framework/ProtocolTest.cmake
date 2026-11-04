@@ -2,6 +2,14 @@ include_guard(GLOBAL)
 
 set(TREELAND_PROTOCOL_TEST_FRAMEWORK_DIR "${CMAKE_CURRENT_LIST_DIR}")
 
+# The XWayland helper is only built when xwayland support is enabled.
+if (NOT DISABLE_XWAYLAND)
+    set(TREELAND_PROTOCOL_TEST_XWAYLAND_ENV
+        "WLR_XWAYLAND=$<TARGET_FILE:treeland-xwayland>;")
+else()
+    set(TREELAND_PROTOCOL_TEST_XWAYLAND_ENV "")
+endif()
+
 pkg_get_variable(WAYLAND_PROTOCOLS_DATADIR wayland-protocols pkgdatadir)
 set(TREELAND_PROTOCOL_TEST_FRAMEWORK_BINARY_DIR
     "${CMAKE_CURRENT_BINARY_DIR}/framework")
@@ -134,7 +142,10 @@ function(treeland_add_protocol_test)
         AUTORCC OFF
         C_STANDARD 11
     )
-    add_dependencies(${target} lockscreen multitaskview treeland-xwayland)
+    add_dependencies(${target} lockscreen multitaskview)
+    if (NOT DISABLE_XWAYLAND)
+        add_dependencies(${target} treeland-xwayland)
+    endif()
     set_property(GLOBAL APPEND PROPERTY TREELAND_PROTOCOL_TEST_TARGETS ${target})
     if(ARGS_XML)
         set_property(GLOBAL APPEND PROPERTY TREELAND_PROTOCOL_TEST_XMLS "${ARGS_XML}")
@@ -144,7 +155,7 @@ function(treeland_add_protocol_test)
     endforeach()
     add_test(NAME ${target} COMMAND ${target})
     set_tests_properties(${target} PROPERTIES
-        ENVIRONMENT "WLR_BACKENDS=headless;WLR_RENDERER=pixman;WLR_XWAYLAND=$<TARGET_FILE:treeland-xwayland>;DSG_DATA_DIRS=${TREELAND_PROTOCOL_TEST_DSG_DATA_DIRS};TREELAND_PROTOCOL_TEST_DSG_DIR=${TREELAND_PROTOCOL_TEST_DSG_DATA_DIR}"
+        ENVIRONMENT "WLR_BACKENDS=headless;WLR_RENDERER=pixman;${TREELAND_PROTOCOL_TEST_XWAYLAND_ENV}DSG_DATA_DIRS=${TREELAND_PROTOCOL_TEST_DSG_DATA_DIRS};TREELAND_PROTOCOL_TEST_DSG_DIR=${TREELAND_PROTOCOL_TEST_DSG_DATA_DIR}"
         LABELS "protocols"
         SKIP_REGULAR_EXPRESSION "SKIP   :"
         SKIP_RETURN_CODE 77

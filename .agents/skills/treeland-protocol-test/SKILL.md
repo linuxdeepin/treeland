@@ -78,7 +78,7 @@ void protocol_test_setup(WaylandServer *server)
 - 覆盖范围或剩余边界变化时，更新该协议目录的 `README.md` 与 `tests/protocols/INDEX.md`。
 
 ## 验证
-`tests/protocols/` 整棵树只在 `BUILD_TREELAND_PROTOCOL_TESTS` 为 `ON`（默认值）时构建。`TREELAND_ENABLE_GPU_PROTOCOL_TESTS`（DMA-BUF 渲染器）默认 `OFF`，这些用例不会出现在 CTest 里而不是失败；需要 `/dev/uinput` 或可用 `dde-seatd` 的用例始终会构建，运行时 skip。
+`tests/protocols/` 整棵树只在 `BUILD_TREELAND_PROTOCOL_TESTS` 为 `ON`（默认值）时构建。`TREELAND_ENABLE_GPU_PROTOCOL_TESTS`（DMA-BUF 渲染器）和 `TREELAND_ENABLE_UINPUT_PROTOCOL_TESTS` 默认 `OFF`，对应可选用例不注册到 CTest；开启 uinput 测试后，没有 `/dev/uinput` 写权限或可用 `dde-seatd` 时运行时 skip。`DISABLE_XWAYLAND=ON` 时不构建或注册 xwindow-control 测试。
 
 新增目录或修改 preset 后重新 configure：
 

@@ -2,6 +2,8 @@
 
 ## 范围
 
+仅在 `DISABLE_XWAYLAND=OFF` 时构建并注册本测试；关闭 Xwayland 时，生产模块与对应 global 一并移除。
+
 - XML / interface：`treeland_xwindow_control_v1`（v1）
 - 测试源码：`tests/protocols/treeland-xwindow-control-unstable-v1/`
 - Fixture：`protocol_test_setup` 注册生产 `XWindowControlInterfaceV1` 全局并创建

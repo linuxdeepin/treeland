@@ -7,7 +7,9 @@
 
 #include <wserver.h>
 #include <wsurface.h>
+#ifndef DISABLE_XWAYLAND
 #include <wxwaylandsurface.h>
+#endif
 #include <wxdgtoplevelsurface.h>
 #include <wseat.h>
 #include <wsocket.h>
@@ -99,9 +101,11 @@ QList<IdleManager::Inhibitor> IdleManager::inhibitors() const
             if (auto *toplevel = WXdgToplevelSurface::fromSurface(wsurface)) {
                 info.title = toplevel->title();
                 info.appId = toplevel->appId();
+#ifndef DISABLE_XWAYLAND
             } else if (auto *xwayland = WXWaylandSurface::fromSurface(wsurface)) {
                 info.title = xwayland->title();
                 info.appId = xwayland->appId();
+#endif
             }
         }
         if (auto *client = inhibitor->resource ? wl_resource_get_client(inhibitor->resource)

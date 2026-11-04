@@ -1,0 +1,11 @@
+# Remove only files installed by the Xwayland-enabled build. Preserve user
+# overrides in /etc and honor staging so package builds never touch the host.
+foreach(relative_path IN ITEMS
+    treeland.service.d/xwayland.conf
+    treeland-xwayland.service
+    treeland-xwayland.socket
+    dde-session-pre.target.wants/treeland-xwayland.service
+    dde-session-pre.target.wants/treeland-xwayland.socket
+)
+    file(REMOVE "$ENV{DESTDIR}@SYSTEMD_USER_UNIT_DIR@/${relative_path}")
+endforeach()
