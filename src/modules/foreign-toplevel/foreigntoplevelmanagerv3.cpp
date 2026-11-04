@@ -653,9 +653,6 @@ public:
     // surface belongs to the client; the wrapper is ours when nobody else had
     // wrapped that surface yet.
     QPointer<WSurface> tooltipSurface;
-    QPoint tooltipPos;
-    ForeignToplevelManagerInterfaceV3::PreviewDirection tooltipDirection =
-        ForeignToplevelManagerInterfaceV3::PreviewDirection::top;
     // Whether the tooltip, and not the preview, is what the UI displays.
     bool tooltipShown = false;
 
@@ -865,14 +862,13 @@ void DockPreviewContextV3Private::show_tooltip_surface(Resource *resource,
     }
 
     setTooltipSurface(surface);
-    tooltipPos = QPoint(x, y);
-    tooltipDirection = static_cast<ForeignToplevelManagerInterfaceV3::PreviewDirection>(direction);
 
     tooltipShown = true;
     enterTooltipOutputs();
-    Q_EMIT q->requestShowTooltip(tooltipSurface.data(),
-                                 tooltipPos,
-                                 tooltipDirection);
+    Q_EMIT q->requestShowTooltip(
+        tooltipSurface.data(),
+        QPoint(x, y),
+        static_cast<ForeignToplevelManagerInterfaceV3::PreviewDirection>(direction));
 }
 
 void DockPreviewContextV3Private::close([[maybe_unused]] Resource *resource)

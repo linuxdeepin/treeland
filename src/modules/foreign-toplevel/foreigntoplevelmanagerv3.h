@@ -8,7 +8,6 @@
 
 #include <QPoint>
 #include <QObject>
-#include <QSize>
 #include <QString>
 #include <memory>
 #include <vector>
