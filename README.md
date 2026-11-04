@@ -194,6 +194,7 @@ used).
 | `cursor` | _(none)_ | Cursor position `x=… y=…` (`--json` for `{"x","y"}`). |
 | `windows` | _(none)_ | Window table; `--json` for a JSON array. |
 | `clients` | _(none)_ | Client + window table; `--json` for a JSON array. |
+| `shortcuts` | _(none)_ | Registered shortcuts (keys and gestures); `--json` for a JSON array. |
 | `top` | `[interval-ms]` (default 1000) | Live, `top`-like refreshing client view (Ctrl+C to quit). |
 
 #### Window control

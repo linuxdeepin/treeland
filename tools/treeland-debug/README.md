@@ -171,8 +171,16 @@ Run `treeland-debug <command>` for any of the following.
 | `windows` | List all toplevel windows (table, or JSON with `--json`), including every output each window is on and its frame-pacing output. |
 | `clients` | List connected Wayland clients and the windows each owns. |
 | `idle` | Show the idle state (time since the last input activity), whether idle is inhibited, and every idle-inhibit source (window/idle-inhibitor or screensaver) holding it off. |
+| `shortcuts` | List the registered shortcuts (key bindings and touchpad gestures). |
 | `top [interval-ms]` | Live, `top`-like refreshing view of clients and windows (default 1000 ms, Ctrl+C to quit). Includes an idle summary line. |
 | `scene [id]` | Dump the QtQuick scene tree of one window (by `id`/`appId`) or, with no id, the whole render scene. Useful for inspecting menus, popups and decorations that do not show up in the layout `tree`. |
+
+`shortcuts` prints one line per registered shortcut — name, trigger
+(`Ctrl+Alt+T`, `swipe 3-finger left`, `hold 4-finger`), target action and, for
+key bindings, the trigger flags (`press`/`release`/`repeat`). Use `--json` for
+`[{name,type,key,flags,action,fingers,direction}]`, where `type` is
+`0`=key, `1`=swipe, `2`=hold. Registrations come from clients, so the list is
+empty until a shell binds shortcuts through `treeland-shortcut-manager-v3`.
 
 The `windows`/`clients`/`top` views report a stable numeric `id` for every
 window. That id (or the window's `appId`) is accepted by every control command.
@@ -260,6 +268,21 @@ If `file` is omitted a path under `/tmp` is generated.
 treeland-debug screenshot window 93824992268800
 ```
 
+### Shortcut monitoring
+
+`events` also carries the shortcut stream, so `treeland-debug events` is the
+place to watch shortcuts being bound and used:
+
+- `type 6` — `shortcut registered: "<name>" = <trigger> -> <action> [flags]`
+- `type 7` — `shortcut unregistered: "<name>"`
+- `type 8` — `shortcut triggered: "<name>" -> <action>`, with `target` set to
+  the keyboard-focused window.
+
+Like the other live streams, capture is armed only while a client is polling
+`getEvents()`, so bind a shortcut that was already registered before you
+attached (restart the client that owns it, or re-login) to see a registration
+event, and press any bound shortcut to see a trigger event.
+
 ### Interactive shell mode
 
 ```bash
@@ -300,6 +323,7 @@ OPTIONS preflight is handled, so a browser frontend can call the API directly.
 | GET | `/api/clients` | — | All clients JSON |
 | GET | `/api/idle` | — | Idle state and idle-inhibit sources JSON |
 | GET | `/api/no-auth` | — | Ask the compositor to open this debug socket to every local user for 30 minutes. This API has no authentication of its own, so bind it to a trusted address (see Access control). |
+| GET | `/api/shortcuts` | — | Registered shortcuts JSON |
 | GET | `/api/focused` | — | Focused window id |
 | GET | `/api/cursor-window` | — | Window under cursor id |
 | GET | `/api/scene` | `?target=...` | QtQuick scene tree of a window (or the whole scene if `target` is omitted), as pre-formatted text |
@@ -373,6 +397,7 @@ The 24 available tools mirror the HTTP REST API and CLI commands:
 | `clients` | — | All clients |
 | `idle` | — | Idle state and idle-inhibit sources |
 | `no-auth` | — | Open this debug socket to every local user for 30 minutes |
+| `shortcuts` | — | Registered shortcuts |
 | `focused` | — | Focused window id |
 | `cursor_window` | — | Window under cursor id |
 | `scene` | `target?` | QtQuick scene tree of a window (or whole scene) |

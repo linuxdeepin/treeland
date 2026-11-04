@@ -101,8 +101,9 @@ sudo -u dde -- dde-dconfig set -a org.deepin.dde.treeland -r org.deepin.dde.tree
 | `windows` | 顶层窗口表格 / JSON 数组。 |
 | `clients` | 客户端及其窗口（含 `pid`、`executable`、`command`）。 |
 | `idle` | 空闲状态：距上次输入活动的时长 `idleMs`、空闲抑制是否生效 `inhibited`/`screensaverInhibited`，以及每个抑制来源（`zwp_idle_inhibit_manager_v1` surface 或 `treeland_screensaver_v2` inhibit，含 `pid`/`appId`/`title`/`appName`/`reason`/`heldMs`）。合成器没有全局空闲阈值（阈值由客户端通过 `ext-idle-notify-v1` 自行设定），因此只报告时长与抑制来源。列表**包含当前未生效**的来源（如被最小化的抑制窗口），用 `active` 区分，只有 `active` 的才算进 `inhibited`；`surfaceId` 只有在抑制挂在 toplevel 上时才等于可控制命令的窗口 id（layer-shell / subsurface 抑制查不到窗口）。 |
+| `shortcuts` | 已注册的快捷键：按键绑定（`Ctrl+Alt+T`）与触摸板手势（`swipe`/`hold`），含 name、trigger、action、flags。`--json` 输出 `{name,type,key,flags,action,fingers,direction}`。 |
 | `top [interval-ms]` | 类似 `top` 的客户端/窗口实时视图（Ctrl+C 退出），顶部含 `idle`/`inhibited` 汇总行。 |
-| `events [interval-ms]` | 输入事件实时流（默认 50ms）。 |
+| `events [interval-ms]` | 输入事件实时流（默认 50ms），同时带快捷键注册/注销/触发事件（type 6/7/8）；每行先打事件类型名。 |
 | `watch <id> [interval-ms]` | 轮询单个窗口的变化（默认 250ms）。 |
 | `scene [id]` | 单个窗口（按 id/appId）或整个场景的 QtQuick 场景树 —— 用于查看不在布局 `tree` 里的菜单/弹窗/装饰。 |
 
@@ -181,6 +182,11 @@ sudo journalctl -u treeland.service -f
 1. `treeland-debug --json windows` —— 检查 `active` 标记；`treeland-debug cursor` 看指针位置。光标下的对象没有 CLI 子命令（`cursor-window`/`focused` 只暴露在 HTTP/WS）：`treeland-debug listen --host 127.0.0.1` 后 `curl -s 127.0.0.1:8080/api/cursor-window`、`curl -s 127.0.0.1:8080/api/focused`。
 2. `treeland-debug activate <id|appId>` 后复查。
 3. 相关分类：`treeland.seat`、`treeland.popup.focus`、`treeland.activation`。
+
+**快捷键不生效 / 想知道谁绑了什么：**
+1. `treeland-debug shortcuts` —— 看当前注册的绑定（只有客户端通过 `treeland-shortcut-manager-v3` 绑定过才有内容，空列表通常意味着没有 shell 绑定）。
+2. `treeland-debug events` —— 边按快捷键边看：`shortcut registered/unregistered`（重新登录或重启 shell 会看到注册）与 `shortcut triggered`（`target` 是键盘聚焦窗口）。
+3. 相关分类：`treeland.shortcut`。
 
 **输入不落地 / 目标不对：**
 1. `treeland-debug move-cursor <x> <y>` 后 `treeland-debug event button left click`；`treeland-debug event key enter tap`。

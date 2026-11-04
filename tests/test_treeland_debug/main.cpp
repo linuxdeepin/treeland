@@ -82,6 +82,7 @@ private Q_SLOTS:
     void testParseWindows();
     void testParseClients();
     void testParseIdle();
+    void testParseShortcuts();
     void testParseHelp();
     void testParseShell();
     void testParseNoAuth();
@@ -938,6 +939,14 @@ void TreelandDebugTest::testParseIdle()
     QVERIFY(r.ok);
     QCOMPARE(r.command, DebugCommand::Idle);
     QVERIFY(r.error.isEmpty());
+}
+
+void TreelandDebugTest::testParseShortcuts()
+{
+    const auto r = parseCommand(QStringLiteral("shortcuts"), {});
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Shortcuts);
+    QCOMPARE(r.intervalMs, 0); // one-shot listing, not a live view
 }
 
 void TreelandDebugTest::testParseHelp()

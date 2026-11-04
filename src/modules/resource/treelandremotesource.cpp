@@ -6,6 +6,7 @@
 #include "core/rootsurfacecontainer.h"
 #include "core/shellhandler.h"
 #include "idle/idlemanager.h"
+#include "modules/shortcut/shortcutcontroller.h"
 #include "output/output.h"
 #include "core/waylandserver.h"
 #include "surface/surfacecontainer.h"
@@ -634,6 +635,90 @@ QList<WindowInfo> TreelandRemoteSource::getWindows()
     return infos;
 }
 
+namespace {
+
+QString shortcutFlagsText(ShortcutController::KeyFlags flags)
+{
+    QStringList parts;
+    if (flags.testFlag(ShortcutController::KeyPress))
+        parts << QStringLiteral("press");
+    if (flags.testFlag(ShortcutController::KeyRelease))
+        parts << QStringLiteral("release");
+    if (flags.testFlag(ShortcutController::Repeat))
+        parts << QStringLiteral("repeat");
+    if (parts.isEmpty())
+        parts << QStringLiteral("none");
+    return parts.join('|');
+}
+
+QString swipeDirectionName(SwipeGesture::Direction direction)
+{
+    switch (direction) {
+    case SwipeGesture::Direction::Down:
+        return QStringLiteral("down");
+    case SwipeGesture::Direction::Left:
+        return QStringLiteral("left");
+    case SwipeGesture::Direction::Up:
+        return QStringLiteral("up");
+    case SwipeGesture::Direction::Right:
+        return QStringLiteral("right");
+    default:
+        return {};
+    }
+}
+
+// One-line description of a bound shortcut, shared by the `shortcuts` listing
+// and the registration event stream.
+QString shortcutDetail(const ShortcutController::Binding &binding)
+{
+    const QString action = QString::fromUtf8(ShortcutController::actionName(binding.action));
+    switch (binding.type) {
+    case ShortcutController::Binding::Key:
+        return QStringLiteral("\"%1\" = %2 -> %3 [%4]")
+            .arg(binding.name,
+                 binding.key,
+                 action,
+                 shortcutFlagsText(binding.flags));
+    case ShortcutController::Binding::Swipe:
+        return QStringLiteral("\"%1\" = swipe %2-finger %3 -> %4")
+            .arg(binding.name)
+            .arg(binding.fingers)
+            .arg(swipeDirectionName(binding.direction), action);
+    case ShortcutController::Binding::Hold:
+        return QStringLiteral("\"%1\" = hold %2-finger -> %3")
+            .arg(binding.name)
+            .arg(binding.fingers)
+            .arg(action);
+    }
+    return {};
+}
+
+} // namespace
+
+QList<ShortcutInfo> TreelandRemoteSource::getShortcuts()
+{
+    QList<ShortcutInfo> result;
+    auto *server = WaylandServer::instance();
+    auto *controller = server ? server->shortcutController() : nullptr;
+    if (!controller)
+        return result;
+
+    const auto bindings = controller->bindings();
+    result.reserve(bindings.size());
+    for (const auto &binding : bindings) {
+        ShortcutInfo info;
+        info.setName(binding.name);
+        info.setType(binding.type);
+        info.setKey(binding.key);
+        info.setFlags(binding.flags);
+        info.setAction(QString::fromUtf8(ShortcutController::actionName(binding.action)));
+        info.setFingers(binding.fingers);
+        info.setDirection(swipeDirectionName(binding.direction));
+        result.append(info);
+    }
+    return result;
+}
+
 QList<ClientInfo> TreelandRemoteSource::getClients()
 {
     noteActivity();
@@ -1073,6 +1158,50 @@ void TreelandRemoteSource::startEventCapture()
         return;
     window->installEventFilter(this);
     m_eventCaptureActive = true;
+
+    // Shortcut registrations and triggers are taken from the controller's
+    // signals: a bound shortcut may swallow the key before it ever reaches the
+    // render window, so the input filter would miss it.
+    m_shortcutController = WaylandServer::instance()->shortcutController();
+    if (!m_shortcutController)
+        return;
+    connect(m_shortcutController,
+            &ShortcutController::shortcutRegistered,
+            this,
+            &TreelandRemoteSource::onShortcutRegistered);
+    connect(m_shortcutController,
+            &ShortcutController::shortcutUnregistered,
+            this,
+            &TreelandRemoteSource::onShortcutUnregistered);
+    connect(m_shortcutController,
+            &ShortcutController::actionTriggered,
+            this,
+            &TreelandRemoteSource::onShortcutTriggered);
+}
+
+void TreelandRemoteSource::onShortcutRegistered(const ShortcutController::Binding &binding)
+{
+    appendEvent(6, 0, QStringLiteral("shortcut registered: ") + shortcutDetail(binding));
+}
+
+void TreelandRemoteSource::onShortcutUnregistered(const QString &name)
+{
+    appendEvent(7, 0, QStringLiteral("shortcut unregistered: \"%1\"").arg(name));
+}
+
+void TreelandRemoteSource::onShortcutTriggered(ShortcutAction action,
+                                               const QString &name,
+                                               bool isGesture,
+                                               ShortcutController::KeyFlags keyFlags)
+{
+    Q_UNUSED(keyFlags)
+    auto *seat = WaylandServer::instance() ? WaylandServer::instance()->seat() : nullptr;
+    appendEvent(8,
+                surfaceId(seat ? seat->keyboardFocusSurface() : nullptr),
+                QStringLiteral("shortcut triggered: \"%1\" -> %2%3")
+                    .arg(name,
+                         QString::fromUtf8(ShortcutController::actionName(action)),
+                         isGesture ? QStringLiteral(" (gesture)") : QString()));
 }
 
 void TreelandRemoteSource::stopEventCapture()
@@ -1081,12 +1210,18 @@ void TreelandRemoteSource::stopEventCapture()
         return;
     if (auto *window = WaylandServer::instance() ? WaylandServer::instance()->window() : nullptr)
         window->removeEventFilter(this);
+    if (m_shortcutController) {
+        disconnect(m_shortcutController, nullptr, this, nullptr);
+        m_shortcutController = nullptr;
+    }
     m_eventCaptureActive = false;
     m_events.clear(); // release the ring buffer while idle
 }
 
 void TreelandRemoteSource::appendEvent(int type, qint64 target, const QString &detail)
 {
+    if (!m_eventCaptureActive)
+        return;
     DebugEvent e;
     e.setSeq(m_nextEventSeq++);
     e.setType(type);
