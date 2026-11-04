@@ -454,7 +454,7 @@
             "visibility": "public"
         },
         "glassEnabled": {
-            "value": true,
+            "value": false,
             "serial": 0,
             "flags": [],
             "name": "Glass Effect Enabled",
