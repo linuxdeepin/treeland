@@ -19,10 +19,24 @@ extern "C" {
  * verifies that WSessionLock::isLocked() returns true after the client receives
  * the `locked` event, proving the lock reached the real compositor session-lock
  * object rather than merely surviving without a protocol error.
+ *
+ * The output geometry fields make the surface-size expectation explicit: a lock
+ * surface must cover the whole output (geometry), not just the work area
+ * (validGeometry, i.e. the output with exclusive zones removed).
  */
 struct session_lock_server_state {
 	int valid; /* a WSessionLock was captured from lockCreated */
 	int locked; /* WSessionLock::isLocked() */
+	int output_width; /* Output::geometry() */
+	int output_height;
+	int output_x; /* Output::geometry() top-left */
+	int output_y;
+	int valid_area_height; /* Output::validGeometry() height */
+	int wrapper_valid; /* a Type::LockScreen SurfaceWrapper was captured */
+	int wrapper_x; /* geometry of that wrapper */
+	int wrapper_y;
+	int wrapper_width;
+	int wrapper_height;
 };
 
 /* Defined in setup.cpp; runs on the compositor thread via
