@@ -501,7 +501,15 @@ void OutputManager::outputRemoved(WOutput *output)
     const auto &surfaces = workspaceSurfaces(o);
     removeFromRootContainer(o);
     const bool removedConfiguredSingleOutput = onScreenRemoved(o, surfaces);
-    if (removedConfiguredSingleOutput) {
+    // When the seat becomes inactive (e.g. VT switch), wlroots tears down every
+    // DRM output synchronously. The restore below re-enables the remaining
+    // outputs, but no DRM commit can succeed while the session is inactive, so
+    // they stay disabled and off the layout, and layout->move() would assert.
+    // Leave them alone here; wlroots rescans and re-adds the connectors when
+    // the session becomes active again.
+    const bool backendSessionInactive =
+        m_backend && m_backend->session() && !m_backend->isSessionActive();
+    if (removedConfiguredSingleOutput && !backendSessionInactive) {
         // Keep the unavailable output as the configured single-output target.
         // The remaining outputs are enabled only as a temporary fallback.
         restoreExtensionModeFromConfig();
