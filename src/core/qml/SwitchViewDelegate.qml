@@ -30,11 +30,6 @@ Item {
         height: sourceView.thumbnailheight
         width: parent.width - 2 * (sourceView.vSpacing + sourceView.borderMargin)
 
-        Rectangle {
-            anchors.fill: parent
-            opacity: 0.8
-        }
-
         ColumnLayout {
             anchors.fill: parent
             spacing: 0
@@ -42,6 +37,12 @@ Item {
             Item {
                 Layout.preferredHeight: sourceView.titleheight
                 Layout.fillWidth: true
+
+                Rectangle {
+                    anchors.fill: parent
+                    opacity: 0.8
+                }
+
                 RowLayout {
                     spacing: 8
                     anchors {
