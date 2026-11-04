@@ -50,7 +50,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [wallpaper-shell-unstable-v1](treeland-wallpaper-shell-unstable-v1/README.md) | I / P | wallpaper shell 与 notifier 生命周期 |
 | [wallpaper desktop 联合路径](treeland-wallpaper-desktop-v1/README.md) | P / E | manager 配置、shell surface 与真实 output 的关联 |
 | [show-desktop-v1](treeland-show-desktop-v1/README.md) | E / P | show-desktop 隐藏并恢复真实窗口 |
-| [treeland-xwindow-control-unstable-v1](treeland-xwindow-control-unstable-v1/README.md) | P | `set_xwindow_position_relative` 失败回调；成功路径需 Xwayland，当前环境未覆盖 |
+| [treeland-xwindow-control-unstable-v1](treeland-xwindow-control-unstable-v1/README.md) | P | 仅 `DISABLE_XWAYLAND=OFF` 注册；`set_xwindow_position_relative` 失败回调；成功路径需 Xwayland，当前环境未覆盖 |
 | [wine-window-management-unstable-v1](treeland-wine-window-management-unstable-v1/README.md) | P / E | 真实 wrapper 的位置与置顶层同步 |
 | [wine-window-state-unstable-v1](treeland-wine-window-state-unstable-v1/README.md) | P / E | 真实 wrapper 的最小化、attention 与可见性同步 |
 | [window-transition-unstable-v1](treeland-window-transition-unstable-v1/README.md) | P / I / E | transition rect 进入生产 pending 集合、同 token 覆盖发一次 `closed`、旧 rect 析构不误删新 rect、销毁回收；map 前激活把**未 map** 的目标 arm 成 40×40 带 source surface（同 token 消费、他 token 不受影响），并跟随几何更新、0×0 禁用/重启用、source 清空/重设；激活迟到与无 originating surface 各发一次 `closed`；`invalid_geometry` / `invalid_surface` 协议错误 |

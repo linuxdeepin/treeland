@@ -58,7 +58,6 @@ function(wlroots_generate_protocols target)
         "xdg-system-bell-v1|${_wlr_wp_dir}/staging/xdg-system-bell/xdg-system-bell-v1.xml"
         "xdg-toplevel-icon-v1|${_wlr_wp_dir}/staging/xdg-toplevel-icon/xdg-toplevel-icon-v1.xml"
         "xdg-toplevel-tag-v1|${_wlr_wp_dir}/staging/xdg-toplevel-tag/xdg-toplevel-tag-v1.xml"
-        "xwayland-shell-v1|${_wlr_wp_dir}/staging/xwayland-shell/xwayland-shell-v1.xml"
         "tearing-control-v1|${_wlr_wp_dir}/staging/tearing-control/tearing-control-v1.xml"
         "ext-transient-seat-v1|${_wlr_wp_dir}/staging/ext-transient-seat/ext-transient-seat-v1.xml"
 
@@ -90,6 +89,11 @@ function(wlroots_generate_protocols target)
         "wlr-screencopy-unstable-v1|${_wlr_local_proto_dir}/wlr-screencopy-unstable-v1.xml"
         "wlr-virtual-pointer-unstable-v1|${_wlr_local_proto_dir}/wlr-virtual-pointer-unstable-v1.xml"
     )
+
+    if(WLR_HAS_XWAYLAND)
+        list(APPEND _wlr_protocol_pairs
+            "xwayland-shell-v1|${_wlr_wp_dir}/staging/xwayland-shell/xwayland-shell-v1.xml")
+    endif()
 
     # Client headers required by backend/wayland (backend/wayland/meson.build).
     set(_wlr_client_protos

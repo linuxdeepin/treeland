@@ -81,8 +81,10 @@
 #include <wsocket.h>
 #include <ext-background-effect-v1-protocol.h>
 #include <wlr_all.h>
+#ifndef DISABLE_XWAYLAND
 #include <wxwayland.h>
 #include <wxwaylandsurface.h>
+#endif
 
 #include <DGuiApplicationHelper>
 
@@ -877,6 +879,7 @@ void WaylandServer::toggleFpsDisplay()
     m_fpsDisplay = qmlEngine()->createFpsDisplay(m_renderWindow->contentItem());
 }
 
+#ifndef DISABLE_XWAYLAND
 /**
  * Move a XWayland window's surface corresponding to wid, to a
  * position relative to a WSurface. Top-left point is always used.
@@ -927,6 +930,7 @@ WXWayland *WaylandServer::createXWayland()
 {
     return shellHandler()->createXWayland(server(), m_primarySeat, m_compositor, false);
 }
+#endif
 
 WSeat *WaylandServer::findSeatForSurface(SurfaceWrapper *wrapper) const
 {
@@ -1118,7 +1122,9 @@ WXdgOutputManager *WaylandServer::installDesktopProtocols(QmlEngine *engine)
             &SessionManager::syncActiveSessionXWaylandPrimaryOutput);
     m_wallpaperColorV1 = server()->attach<WallpaperColorInterfaceV1>();
     m_showDesktop->initialize(server());
+#ifndef DISABLE_XWAYLAND
     m_xWindowControlInterfaceV1 = server()->attach<XWindowControlInterfaceV1>();
+#endif
     auto *outputGroupInterface = server()->attach<OutputGroupManagerInterfaceV1>();
     m_outputManager->setOutputGroupInterface(outputGroupInterface);
 
@@ -1211,10 +1217,14 @@ void WaylandServer::installRuntimeProtocols(WXdgOutputManager *xdgOutputManager)
     m_captureManager->installImageCapture(server(), m_surfaceProtocols->toplevelList());
     initializeRenderWindow();
 
+#ifndef DISABLE_XWAYLAND
     auto *xwaylandOutputManager =
         server()->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
     m_outputManager->setXdgOutputManagers(
         xdgOutputManager, xwaylandOutputManager, m_sessionManager);
+#else
+    m_outputManager->setXdgOutputManagers(xdgOutputManager, nullptr, m_sessionManager);
+#endif
     // User dde does not has a real Logind session, so just pass "0" as id
     m_sessionManager->updateActiveUserSession(QStringLiteral("dde"), QStringLiteral("0"));
     connect(m_userModel, &UserModel::userLoggedIn, m_sessionManager, &SessionManager::updateActiveUserSession);

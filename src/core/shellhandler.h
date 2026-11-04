@@ -21,7 +21,9 @@
 Q_MOC_INCLUDE("workspace/workspace.h")
 Q_MOC_INCLUDE(<wlayersurface.h>)
 Q_MOC_INCLUDE(<wxdgtoplevelsurface.h>)
+#ifndef DISABLE_XWAYLAND
 Q_MOC_INCLUDE(<wxwaylandsurface.h>)
+#endif
 
 class WaylandServer;
 class SurfaceWrapper;
@@ -45,13 +47,17 @@ class WXdgPopupSurface;
 class WXdgShell;
 class WLayerShell;
 class WLayerSurface;
+#ifndef DISABLE_XWAYLAND
 class WXWayland;
+#endif
 class WToplevelSurface; // forward declare base toplevel
 class WInputMethodHelper;
 class WInputPopupSurface;
 class WSeat;
 class WSurface;
+#ifndef DISABLE_XWAYLAND
 class WXWaylandSurface;
+#endif
 WAYLIB_SERVER_END_NAMESPACE
 
 QT_BEGIN_NAMESPACE
@@ -82,6 +88,7 @@ public:
 
     void createComponent(QmlEngine *engine, QQuickItem *parentItem);
     void init(WAYLIB_SERVER_NAMESPACE::WServer *server, WAYLIB_SERVER_NAMESPACE::WSeat *seat);
+#ifndef DISABLE_XWAYLAND
     [[nodiscard]] WAYLIB_SERVER_NAMESPACE::WXWayland *createXWayland(
         WAYLIB_SERVER_NAMESPACE::WServer *server,
         WAYLIB_SERVER_NAMESPACE::WSeat *seat,
@@ -91,6 +98,7 @@ public:
     void removeXWayland(WAYLIB_SERVER_NAMESPACE::WXWayland *xwayland);
 
     WAYLIB_SERVER_NAMESPACE::WXWayland *defaultXWaylandSocket() const;
+#endif
     void setupDockPreview(QObject *dockPreview);
 
     TreelandWallpaperShellInterfaceV1 *wallpaperShell() const
@@ -111,8 +119,10 @@ private Q_SLOTS:
     void onXdgPopupSurfaceAdded(WAYLIB_SERVER_NAMESPACE::WXdgPopupSurface *surface);
     void onXdgPopupSurfaceRemoved(WAYLIB_SERVER_NAMESPACE::WXdgPopupSurface *surface);
 
+#ifndef DISABLE_XWAYLAND
     void onXWaylandSurfaceAdded(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface);
     void onXWaylandSurfaceRemoved(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface);
+#endif
 
     void onLayerSurfaceAdded(WAYLIB_SERVER_NAMESPACE::WLayerSurface *surface);
     void onLayerSurfaceRemoved(WAYLIB_SERVER_NAMESPACE::WLayerSurface *surface);
@@ -145,9 +155,11 @@ private:
                                     SurfaceWrapper *wrapper);
     void handleDdeShellSurfaceV2Added(class DDEShellSurfaceV2 *shellSurface,
                                       SurfaceWrapper *wrapper);
+#ifndef DISABLE_XWAYLAND
     void updateXWaylandDesktopProperties();
     void watchXWaylandDesktopOutput(Output *output);
     void watchXWaylandWorkspaceNames();
+#endif
     // Prelaunch splash related: creates a prelaunch SurfaceWrapper when
     // PrelaunchSplash::splashRequested
     void handlePrelaunchSplashRequested(const QString &appId,
@@ -166,18 +178,22 @@ private:
     // Creates or matches a wrapper from prelaunch splash, then initializes it
     void ensureXdgWrapper(WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *surface,
                           const QString &appId);
+#ifndef DISABLE_XWAYLAND
     // Creates or matches a wrapper from prelaunch splash, then initializes it
     void ensureXwaylandWrapper(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
                                const QString &appId);
+#endif
     // Unified parent/container update for Xdg & XWayland toplevel wrappers.
     void updateWrapperContainer(SurfaceWrapper *wrapper,
                                 WAYLIB_SERVER_NAMESPACE::WSurface *parentSurface);
+#ifndef DISABLE_XWAYLAND
     // Async X11 property fetch for XWayland surfaces
     void fetchInitialProperties(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
                                 const QString &appId);
     void onInitialPropertiesReady(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
                                   const QString &appId,
                                   const QMap<xcb_atom_t, QByteArray> &result);
+#endif
     bool checkAndApplyPrivilegedOverlay(SurfaceWrapper *wrapper);
     void applyPrivilegedOverlay(SurfaceWrapper *wrapper);
     void revokePrivilegedOverlay(SurfaceWrapper *wrapper);
@@ -188,7 +204,9 @@ private:
     PrelaunchSplash *m_prelaunchSplash = nullptr;
     WineWindowStateManager *m_wineWindowStateManager = nullptr;
     WineWindowManager *m_wineWindowManager = nullptr;
+#ifndef DISABLE_XWAYLAND
     QList<WAYLIB_SERVER_NAMESPACE::WXWayland *> m_xwaylands;
+#endif
     ForeignToplevelManagerInterfaceV3 *m_treelandForeignToplevel = nullptr;
 
     QPointer<RootSurfaceContainer> m_rootSurfaceContainer;

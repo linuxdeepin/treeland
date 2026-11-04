@@ -10,12 +10,16 @@
 #include "shellhandler.h"
 #include "surface/surfacewrapper.h"
 
+#ifndef DISABLE_XWAYLAND
 #include <xcb/xcb.h>
+#endif
 
 #include <WInputMethodHelper>
 #include <WSurface>
+#ifndef DISABLE_XWAYLAND
 #include <WXWayland>
 #include <WXWaylandSurface>
+#endif
 #include <wxdgtoplevelsurface.h>
 
 const QLatin1String IMCandidatePanelManager::IM_CANDIDATE_PANEL(
@@ -37,6 +41,7 @@ IMCandidatePanelManager::IMCandidatePanelManager(
             });
 }
 
+#ifndef DISABLE_XWAYLAND
 bool IMCandidatePanelManager::parseIMCandidatePanelProperty(
     const QMap<xcb_atom_t, QByteArray> &result,
     xcb_atom_t atom)
@@ -61,12 +66,14 @@ void IMCandidatePanelManager::setupXWayland(WAYLIB_SERVER_NAMESPACE::WXWayland *
             this,
             &IMCandidatePanelManager::onXwaylandPropertyChanged);
 }
+#endif
 
 bool IMCandidatePanelManager::isIMCandidatePanel(SurfaceWrapper *wrapper) const
 {
     return wrapper->isIMCandidatePanel();
 }
 
+#ifndef DISABLE_XWAYLAND
 bool IMCandidatePanelManager::isIMCandidatePanel(
     WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface) const
 {
@@ -80,6 +87,7 @@ xcb_atom_t IMCandidatePanelManager::imCandidatePanelAtom() const
 {
     return m_imCandidatePanelAtom;
 }
+#endif
 bool IMCandidatePanelManager::checkAndApplyIMCandidatePanel(SurfaceWrapper *wrapper)
 {
     auto *shellSurface = wrapper->shellSurface();
@@ -87,10 +95,12 @@ bool IMCandidatePanelManager::checkAndApplyIMCandidatePanel(SurfaceWrapper *wrap
         = qobject_cast<WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *>(shellSurface)) {
         if (xdgSurface->tag() != IM_CANDIDATE_PANEL)
             return false;
+#ifndef DISABLE_XWAYLAND
     } else if (auto *xwaylandSurface
                = qobject_cast<WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *>(shellSurface)) {
         if (!isIMCandidatePanel(xwaylandSurface))
             return false;
+#endif
     } else {
         return false;
     }
@@ -103,9 +113,11 @@ bool IMCandidatePanelManager::checkAndApplyIMCandidatePanel(SurfaceWrapper *wrap
         qCDebug(lcTlShellXdg) << "IM candidate panel applied" << wrapper
                               << "appId =" << wrapper->appId()
                               << "tag =" << xdgSurface->tag();
+#ifndef DISABLE_XWAYLAND
     } else {
         qCDebug(lcTlShellXdg) << "IM candidate panel applied (XWayland)" << wrapper
                               << "appId =" << wrapper->appId();
+#endif
     }
     return true;
 }
@@ -219,6 +231,7 @@ void IMCandidatePanelManager::onIMCandidatePanelGeometryChanged()
     arrangeIMCandidatePanels(output, pos);
 }
 
+#ifndef DISABLE_XWAYLAND
 void IMCandidatePanelManager::onXwaylandPropertyChanged(
     WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
     xcb_atom_t atom)
@@ -255,3 +268,4 @@ void IMCandidatePanelManager::onXwaylandPropertyChanged(
             }
         });
 }
+#endif

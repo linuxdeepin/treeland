@@ -34,6 +34,11 @@ option(WLROOTS_ALLOCATOR_GBM "Build GBM allocator" ON)
 option(WLROOTS_ALLOCATOR_UDMABUF "Build udmabuf allocator" ON)
 option(WLROOTS_SESSION "Build session support" ON)
 option(WLROOTS_XWAYLAND "Build Xwayland support" ON)
+if(DISABLE_XWAYLAND)
+    # Override the effective feature without changing the cached preference.
+    # Re-enabling Xwayland in the same build tree restores that preference.
+    set(WLROOTS_XWAYLAND OFF)
+endif()
 option(WLROOTS_COLOR_MANAGEMENT "Build color management (lcms2)" ON)
 option(WLROOTS_LIBLIFTOFF "Build libliftoff support (soft)" ON)
 option(WLROOTS_XCB_ERRORS "Build xcb-errors support (soft)" ON)
