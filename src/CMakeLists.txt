@@ -504,16 +504,18 @@ install(TARGETS treeland-sd RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")
 
 ## XWayland wrapper
 
-pkg_check_modules(LIBXAU REQUIRED IMPORTED_TARGET "xau")
+if (NOT DISABLE_XWAYLAND)
+    pkg_check_modules(LIBXAU REQUIRED IMPORTED_TARGET "xau")
 
-qt_add_executable(treeland-xwayland
-    xwayland.cpp
-)
+    qt_add_executable(treeland-xwayland
+        xwayland.cpp
+    )
 
-target_link_libraries(treeland-xwayland
-    PRIVATE
-        Qt6::Core
-        PkgConfig::LIBXAU
-)
+    target_link_libraries(treeland-xwayland
+        PRIVATE
+            Qt6::Core
+            PkgConfig::LIBXAU
+    )
 
-install(TARGETS treeland-xwayland RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")
+    install(TARGETS treeland-xwayland RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")
+endif()

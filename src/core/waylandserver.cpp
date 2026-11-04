@@ -80,8 +80,10 @@
 #include <wsocket.h>
 #include <ext-background-effect-v1-protocol.h>
 #include <wlr_all.h>
+#ifndef DISABLE_XWAYLAND
 #include <wxwayland.h>
 #include <wxwaylandsurface.h>
+#endif
 
 #include <DGuiApplicationHelper>
 
@@ -857,6 +859,7 @@ bool WaylandServer::setXWindowPositionRelative(uint wid, WSurface *anchor, wl_fi
     }
 
     SurfaceWrapper *target = nullptr;
+#ifndef DISABLE_XWAYLAND
     for (SurfaceWrapper *wrapper : std::as_const(rootSurfaceContainer()->surfaces())) {
         if (wrapper->type() == SurfaceWrapper::Type::XWayland) {
             wlr_xwayland_surface *surface =
@@ -867,6 +870,7 @@ bool WaylandServer::setXWindowPositionRelative(uint wid, WSurface *anchor, wl_fi
             }
         }
     }
+#endif
     if (!target) {
         qCWarning(lcTlCore) << "setXWindowPositionRelative: XWayland surface corresponding to WID" << wid << "not found!";
         return false;
@@ -885,10 +889,12 @@ bool WaylandServer::setXWindowPositionRelative(uint wid, WSurface *anchor, wl_fi
     return true;
 }
 
+#ifndef DISABLE_XWAYLAND
 WXWayland *WaylandServer::createXWayland()
 {
     return shellHandler()->createXWayland(server(), m_primarySeat, m_compositor, false);
 }
+#endif
 
 WSeat *WaylandServer::findSeatForSurface(SurfaceWrapper *wrapper) const
 {
@@ -1080,7 +1086,9 @@ WXdgOutputManager *WaylandServer::installDesktopProtocols(QmlEngine *engine)
             &SessionManager::syncActiveSessionXWaylandPrimaryOutput);
     m_wallpaperColorV1 = server()->attach<WallpaperColorInterfaceV1>();
     m_showDesktop->initialize(server());
+#ifndef DISABLE_XWAYLAND
     m_xWindowControlInterfaceV1 = server()->attach<XWindowControlInterfaceV1>();
+#endif
     auto *outputGroupInterface = server()->attach<OutputGroupManagerInterfaceV1>();
     m_outputManager->setOutputGroupInterface(outputGroupInterface);
 
@@ -1173,10 +1181,14 @@ void WaylandServer::installRuntimeProtocols(WXdgOutputManager *xdgOutputManager)
     m_captureManager->installImageCapture(server(), m_surfaceProtocols->toplevelList());
     initializeRenderWindow();
 
+#ifndef DISABLE_XWAYLAND
     auto *xwaylandOutputManager =
         server()->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
     m_outputManager->setXdgOutputManagers(
         xdgOutputManager, xwaylandOutputManager, m_sessionManager);
+#else
+    m_outputManager->setXdgOutputManagers(xdgOutputManager, nullptr, m_sessionManager);
+#endif
     // User dde does not has a real Logind session, so just pass "0" as id
     m_sessionManager->updateActiveUserSession(QStringLiteral("dde"), QStringLiteral("0"));
     connect(m_userModel, &UserModel::userLoggedIn, m_sessionManager, &SessionManager::updateActiveUserSession);

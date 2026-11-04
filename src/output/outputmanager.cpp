@@ -26,7 +26,9 @@
 #include <utility>
 
 #include <WBackend>
+#ifndef DISABLE_XWAYLAND
 #include <WXWayland>
+#endif
 #include <wlr_all.h>
 #include <woutputhelper.h>
 #include <woutputlayout.h>
@@ -171,6 +173,7 @@ void OutputManager::setXdgOutputManagers(WXdgOutputManager *manager,
 {
     Q_ASSERT(!m_xwaylandOutputManager);
 
+#ifndef DISABLE_XWAYLAND
     m_xwaylandOutputManager = xwaylandManager;
     m_xwaylandOutputManager->setScaleOverride(1.0);
 
@@ -202,6 +205,11 @@ void OutputManager::setXdgOutputManagers(WXdgOutputManager *manager,
             this,
             updateXWaylandOutputScale);
     updateXWaylandOutputScale();
+#else
+    Q_UNUSED(manager);
+    Q_UNUSED(xwaylandManager);
+    Q_UNUSED(sessionManager);
+#endif
 }
 
 WXdgOutputManager *OutputManager::xwaylandOutputManager() const

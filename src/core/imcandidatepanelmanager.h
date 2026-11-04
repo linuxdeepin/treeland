@@ -17,8 +17,10 @@ class Output;
 
 namespace WAYLIB_SERVER_NAMESPACE {
 class WInputMethodHelper;
+#ifndef DISABLE_XWAYLAND
 class WXWayland;
 class WXWaylandSurface;
+#endif
 } // namespace WAYLIB_SERVER_NAMESPACE
 
 class IMCandidatePanelManager : public QObject
@@ -30,12 +32,18 @@ public:
                                      WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *inputMethodHelper,
                                      QObject *parent = nullptr);
 
+#ifndef DISABLE_XWAYLAND
     void setupXWayland(WAYLIB_SERVER_NAMESPACE::WXWayland *xwayland);
+#endif
 
     bool isIMCandidatePanel(SurfaceWrapper *wrapper) const;
+#ifndef DISABLE_XWAYLAND
     bool isIMCandidatePanel(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface) const;
+#endif
     bool checkAndApplyIMCandidatePanel(SurfaceWrapper *wrapper);
+#ifndef DISABLE_XWAYLAND
     xcb_atom_t imCandidatePanelAtom() const;
+#endif
 
     // Parse IM candidate panel property from async result map
     static bool parseIMCandidatePanelProperty(const QMap<xcb_atom_t, QByteArray> &result,
@@ -48,12 +56,16 @@ private:
 
     static const QLatin1String IM_CANDIDATE_PANEL;
     void applyInitialPositionAtCursor();
+#ifndef DISABLE_XWAYLAND
     void onXwaylandPropertyChanged(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
                                    xcb_atom_t atom);
+#endif
 
     ShellHandler *m_shellHandler;
     WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *m_inputMethodHelper;
+#ifndef DISABLE_XWAYLAND
     QPointer<WAYLIB_SERVER_NAMESPACE::WXWayland> m_xwayland;
     xcb_atom_t m_imCandidatePanelAtom = XCB_ATOM_NONE;
+#endif
     QList<SurfaceWrapper *> m_imCandidatePanels;
 };

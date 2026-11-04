@@ -45,9 +45,11 @@
 #include <wxdgpopupsurface.h>
 #include <wxdgshell.h>
 #include <wxdgtoplevelsurface.h>
+#ifndef DISABLE_XWAYLAND
 #include <wxwayland.h>
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
+#endif
 
 #include <QColor>
 #include <QPointer>
@@ -102,6 +104,7 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     m_privilegedOverlayContainer->setObjectName(QStringLiteral("PrivilegedOverlayContainer"));
     m_snapMaskContainer->setZ(RootSurfaceContainer::SnapMaskLayerZOrder);
     m_snapMaskContainer->setObjectName(QStringLiteral("SnapMaskContainer"));
+#ifndef DISABLE_XWAYLAND
     connect(m_rootSurfaceContainer->outputModel(),
             &QAbstractItemModel::rowsInserted,
             this,
@@ -124,8 +127,10 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
         updateXWaylandDesktopProperties();
     });
     watchXWaylandWorkspaceNames();
+#endif
 }
 
+#ifndef DISABLE_XWAYLAND
 void ShellHandler::watchXWaylandDesktopOutput(Output *output)
 {
     connect(output,
@@ -218,6 +223,7 @@ void ShellHandler::updateXWaylandDesktopProperties()
                                            == ShowDesktopInterfaceV1::State::Show);
     }
 }
+#endif
 
 void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper, WSurface *parentSurface)
 {
@@ -527,6 +533,7 @@ void ShellHandler::init(WServer *server, WSeat *seat)
     overlay->setParentItem(m_rootSurfaceContainer);
 }
 
+#ifndef DISABLE_XWAYLAND
 WXWayland *ShellHandler::createXWayland(WServer *server,
                                         WSeat *seat,
                                         wlr_compositor *compositor,
@@ -563,6 +570,7 @@ void ShellHandler::removeXWayland(WXWayland *xwayland)
         server->detach(xwayland);
     delete xwayland;
 }
+#endif
 
 void ShellHandler::onXdgToplevelSurfaceAdded(WXdgToplevelSurface *surface)
 {
@@ -603,6 +611,7 @@ void ShellHandler::onXdgToplevelSurfaceAdded(WXdgToplevelSurface *surface)
     ensureXdgWrapper(surface, QString());
 }
 
+#ifndef DISABLE_XWAYLAND
 void ShellHandler::onXWaylandSurfaceRemoved(WXWaylandSurface *surface)
 {
     auto *wrapper = m_rootSurfaceContainer->getSurface(surface);
@@ -613,6 +622,7 @@ void ShellHandler::onXWaylandSurfaceRemoved(WXWaylandSurface *surface)
     Q_EMIT surfaceWrapperAboutToRemove(wrapper);
     m_rootSurfaceContainer->destroyForSurface(wrapper);
 }
+#endif
 
 void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString &targetAppId)
 {
@@ -831,6 +841,7 @@ void ShellHandler::onXdgPopupSurfaceRemoved(WXdgPopupSurface *surface)
     m_rootSurfaceContainer->destroyForSurface(wrapper);
 }
 
+#ifndef DISABLE_XWAYLAND
 void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
 {
     QObject::connect(surface, &WXWaylandSurface::associated,
@@ -1044,6 +1055,7 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
     }
     Q_EMIT surfaceWrapperAdded(wrapper);
 }
+#endif
 
 void ShellHandler::registerSurfaceToForeignToplevel(SurfaceWrapper *wrapper)
 {

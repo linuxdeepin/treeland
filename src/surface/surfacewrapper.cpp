@@ -22,8 +22,10 @@
 #include <wsocket.h>
 #include <wxdgpopupsurfaceitem.h>
 #include <wxdgtoplevelsurfaceitem.h>
+#ifndef DISABLE_XWAYLAND
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
+#endif
 
 #include <QColor>
 #include <QVariant>
@@ -311,11 +313,13 @@ void SurfaceWrapper::setup()
         m_surfaceItem = new WLayerSurfaceItem(this);
         break;
     case Type::XWayland: {
+#ifndef DISABLE_XWAYLAND
         m_surfaceItem = new WXWaylandSurfaceItem(this);
         connect(m_surfaceItem,
                 &WSurfaceItem::bufferScaleChanged,
                 this,
                 &SurfaceWrapper::updateSurfaceSizeRatio);
+#endif
         break;
     }
     case Type::InputPopup:
@@ -466,6 +470,7 @@ void SurfaceWrapper::setup()
         }
     }
 
+#ifndef DISABLE_XWAYLAND
     if (m_type == Type::XWayland && !m_isProxy) {
         auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface);
         auto xwaylandSurfaceItem = qobject_cast<WXWaylandSurfaceItem *>(m_surfaceItem);
@@ -575,6 +580,7 @@ void SurfaceWrapper::setup()
         updateX11SkipFlags();
         updateXWaylandStackingState();
     }
+#endif
     // Connect DConfig windowRadius change so QML bindings re-evaluate radius()
     if (m_type == Type::XdgToplevel || m_type == Type::XWayland) {
         if (auto *server = WaylandServer::instance()) {
@@ -687,15 +693,19 @@ void SurfaceWrapper::syncPrelaunchMappedState()
     }
 
     const bool fullscreenRequested = [this] {
+#ifndef DISABLE_XWAYLAND
         if (auto *surface = qobject_cast<WXWaylandSurface *>(m_shellSurface.data()))
             return surface->handle()->fullscreen;
+#endif
         if (auto *surface = qobject_cast<WXdgToplevelSurface *>(m_shellSurface.data()))
             return surface->handle()->requested.fullscreen;
         return false;
     }();
     const bool maximizeRequested = [this] {
+#ifndef DISABLE_XWAYLAND
         if (auto *surface = qobject_cast<WXWaylandSurface *>(m_shellSurface.data()))
             return surface->handle()->maximized_horz && surface->handle()->maximized_vert;
+#endif
         if (auto *surface = qobject_cast<WXdgToplevelSurface *>(m_shellSurface.data()))
             return surface->handle()->requested.maximized;
         return false;
@@ -3008,6 +3018,7 @@ void SurfaceWrapper::updateStackingLayer()
         sub->updateStackingLayer();
 }
 
+#ifndef DISABLE_XWAYLAND
 void SurfaceWrapper::updateXWaylandStackingState()
 {
     auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface.data());
@@ -3024,6 +3035,7 @@ void SurfaceWrapper::updateXWaylandStackingState()
         stackToFirst();
     }
 }
+#endif
 
 void SurfaceWrapper::updateSizeCapabilities()
 {
