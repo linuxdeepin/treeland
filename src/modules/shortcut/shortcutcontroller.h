@@ -132,6 +132,8 @@ private:
     QMap<std::pair<uint, SwipeGesture::Direction>, QObject*> m_gestures;
     QMap<QString, std::function<void()>> m_deleters;
     QMap<ShortcutAction, int> m_actionCombinedMap;
+    // Suppresses shortcutUnregistered() while the object is being destroyed.
+    bool m_destroying = false;
 };
 
 // Convenience alias so existing bare `ShortcutAction` references keep working

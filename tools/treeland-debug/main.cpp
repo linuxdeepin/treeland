@@ -1403,6 +1403,23 @@ static int runShell(Session &session, int timeoutMs, bool json, int previewOpt)
     return EXIT_SUCCESS;
 }
 
+// Event types reported by WindowTreeRemote::getEvents(); see
+// src/modules/resource/treelandwindowtree.rep.
+static QString debugEventTypeName(int type)
+{
+    switch (type) {
+    case 1: return QStringLiteral("motion");
+    case 2: return QStringLiteral("button");
+    case 3: return QStringLiteral("key");
+    case 4: return QStringLiteral("focus");
+    case 5: return QStringLiteral("cursor-window");
+    case 6: return QStringLiteral("shortcut-registered");
+    case 7: return QStringLiteral("shortcut-unregistered");
+    case 8: return QStringLiteral("shortcut-triggered");
+    default: return QStringLiteral("event-%1").arg(type);
+    }
+}
+
 static int runEvents(Session &session, int timeoutMs, int intervalMs)
 {
     QTextStream out(stdout);
@@ -1431,7 +1448,8 @@ static int runEvents(Session &session, int timeoutMs, int intervalMs)
             QString targetName;
             if (e.target() != 0)
                 targetName = QStringLiteral(" -> %1").arg(e.target());
-            out << time << "  " << e.detail() << targetName << "\n";
+            out << time << "  " << debugEventTypeName(e.type()).leftJustified(21) << "  "
+                << e.detail() << targetName << "\n";
         }
         out.flush();
     };

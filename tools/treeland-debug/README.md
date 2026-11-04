@@ -274,14 +274,23 @@ treeland-debug screenshot window 93824992268800
 place to watch shortcuts being bound and used:
 
 - `type 6` — `shortcut registered: "<name>" = <trigger> -> <action> [flags]`
-- `type 7` — `shortcut unregistered: "<name>"`
-- `type 8` — `shortcut triggered: "<name>" -> <action>`, with `target` set to
-  the keyboard-focused window.
+- `type 7` — `shortcut unregistered: "<name>"`; also emitted for every binding
+  when the active session changes (the registry is cleared and re-populated)
+  and for the old name when a binding is re-bound under a new one.
+- `type 8` — `shortcut triggered: "<name>" -> <action> [flags]`, with `target`
+  set to the keyboard-focused window. Gesture triggers (swipe and hold) are
+  reported too, marked `(gesture)` and with `target` 0 — a gesture has no
+  keyboard focus to blame.
+
+`treeland-debug events` prints the event type next to the timestamp
+(`motion`, `button`, `key`, `shortcut-registered`, …), the same names the
+`type` field uses.
 
 Like the other live streams, capture is armed only while a client is polling
 `getEvents()`, so bind a shortcut that was already registered before you
 attached (restart the client that owns it, or re-login) to see a registration
-event, and press any bound shortcut to see a trigger event.
+event, and use any bound shortcut — key, swipe or hold — to see a trigger
+event.
 
 ### Interactive shell mode
 
