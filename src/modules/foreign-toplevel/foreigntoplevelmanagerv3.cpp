@@ -649,6 +649,11 @@ public:
     // surface belongs to the client; the wrapper is ours when nobody else had
     // wrapped that surface yet.
     QPointer<WSurface> tooltipSurface;
+    // Owns the native destroy listener of the tooltip surface. The token is
+    // its own listener target instead of the surface wrapper: the wrapper may
+    // belong to another dock preview context and be released before the
+    // surface dies, and the popover still has to be closed in that case.
+    WListenerOwner m_tooltipDestroyListenerOwner;
     // Whether the tooltip, and not the preview, is what the UI displays.
     bool tooltipShown = false;
 
@@ -665,10 +670,8 @@ protected:
     void close(Resource *resource) override;
 
 private:
-    static void tooltipSurfaceDestroyed(wl_listener *listener, void *data);
+    void tooltipSurfaceDestroyed();
 
-    wl_listener m_tooltipDestroyListener{};
-    bool m_tooltipListening = false;
     bool m_ownsTooltipWrapper = false;
 };
 
@@ -704,19 +707,19 @@ void DockPreviewContextV3Private::setTooltipSurface(wlr_surface *surface)
     }
     tooltipSurface = wrapper;
 
-    m_tooltipDestroyListener.notify = &DockPreviewContextV3Private::tooltipSurfaceDestroyed;
-    wl_signal_add(&surface->events.destroy, &m_tooltipDestroyListener);
-    m_tooltipListening = true;
+    m_tooltipDestroyListenerOwner.teardown();
+    m_tooltipDestroyListenerOwner.listeners()->add(
+        &surface->events.destroy,
+        this,
+        &DockPreviewContextV3Private::tooltipSurfaceDestroyed);
 }
 
 void DockPreviewContextV3Private::releaseTooltipSurface()
 {
     leaveTooltipOutputs();
 
-    if (m_tooltipListening) {
-        wl_list_remove(&m_tooltipDestroyListener.link);
-        m_tooltipListening = false;
-    }
+    // Detach the destroy listener from the surface.
+    m_tooltipDestroyListenerOwner.teardown();
 
     if (m_ownsTooltipWrapper) {
         m_ownsTooltipWrapper = false;
@@ -749,25 +752,21 @@ void DockPreviewContextV3Private::leaveTooltipOutputs()
         tooltipSurface->leaveOutput(output);
 }
 
-void DockPreviewContextV3Private::tooltipSurfaceDestroyed(wl_listener *listener,
-                                                          [[maybe_unused]] void *data)
+void DockPreviewContextV3Private::tooltipSurfaceDestroyed()
 {
-    DockPreviewContextV3Private *context = nullptr;
-    context = wl_container_of(listener, context, m_tooltipDestroyListener);
-
-    wl_list_remove(&context->m_tooltipDestroyListener.link);
-    context->m_tooltipListening = false;
+    // Detach first: the native surface is going away.
+    m_tooltipDestroyListenerOwner.teardown();
 
     // The wrapper of a surface the client destroyed must go with it.
-    if (context->m_ownsTooltipWrapper) {
-        context->m_ownsTooltipWrapper = false;
-        delete context->tooltipSurface.data();
+    if (m_ownsTooltipWrapper) {
+        m_ownsTooltipWrapper = false;
+        delete tooltipSurface.data();
     }
-    context->tooltipSurface = nullptr;
+    tooltipSurface = nullptr;
 
-    if (context->tooltipShown) {
-        context->tooltipShown = false;
-        Q_EMIT context->q->requestClose();
+    if (tooltipShown) {
+        tooltipShown = false;
+        Q_EMIT q->requestClose();
     }
 }
 
