@@ -211,10 +211,6 @@ void ForeignToplevelManagerInterfaceV3Private::get_dock_preview_context(Resource
                                                              direction);
                      });
     QObject::connect(context,
-                     &DockPreviewContextV3::requestHideTooltip,
-                     q,
-                     &ForeignToplevelManagerInterfaceV3::requestDockHideTooltip);
-    QObject::connect(context,
                      &DockPreviewContextV3::requestClose,
                      q,
                      &ForeignToplevelManagerInterfaceV3::requestDockClose);
@@ -658,7 +654,6 @@ public:
 
     void setTooltipSurface(wlr_surface *surface);
     void releaseTooltipSurface();
-    void hideTooltip();
     void enterTooltipOutputs();
     void leaveTooltipOutputs();
 
@@ -754,17 +749,6 @@ void DockPreviewContextV3Private::leaveTooltipOutputs()
         tooltipSurface->leaveOutput(output);
 }
 
-void DockPreviewContextV3Private::hideTooltip()
-{
-    leaveTooltipOutputs();
-
-    if (!tooltipShown)
-        return;
-
-    tooltipShown = false;
-    Q_EMIT q->requestHideTooltip();
-}
-
 void DockPreviewContextV3Private::tooltipSurfaceDestroyed(wl_listener *listener,
                                                           [[maybe_unused]] void *data)
 {
@@ -781,7 +765,10 @@ void DockPreviewContextV3Private::tooltipSurfaceDestroyed(wl_listener *listener,
     }
     context->tooltipSurface = nullptr;
 
-    context->hideTooltip();
+    if (context->tooltipShown) {
+        context->tooltipShown = false;
+        Q_EMIT context->q->requestClose();
+    }
 }
 
 void DockPreviewContextV3Private::destroy_resource([[maybe_unused]] Resource *resource)
