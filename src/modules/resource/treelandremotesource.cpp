@@ -638,12 +638,14 @@ QList<WindowInfo> TreelandRemoteSource::getWindows()
 namespace {
 
 // Shortcut names come from Wayland clients; keep them from forging extra lines
-// or terminal escapes in the debug stream.
+// or terminal escapes in the debug stream. Covers C0 (incl. \n and ESC), DEL
+// and C1, which some terminals still interpret as escape introducers.
 QString sanitizedName(const QString &name)
 {
     QString safe = name;
     for (auto &ch : safe) {
-        if (ch.unicode() < 0x20 || ch.unicode() == 0x7f)
+        const ushort code = ch.unicode();
+        if (code < 0x20 || (code >= 0x7f && code <= 0x9f))
             ch = QLatin1Char('?');
     }
     return safe;
@@ -1194,7 +1196,11 @@ void TreelandRemoteSource::startEventCapture()
             &ShortcutController::actionFinished,
             this,
             &TreelandRemoteSource::onShortcutFinished);
-    m_shortcutController->setTriggerTargetProvider([this] { return focusedWindowId(); });
+    // Guarded: the controller outlives this source when remoteDebug is toggled,
+    // and a provider left installed must not touch a destroyed source.
+    const QPointer<TreelandRemoteSource> guardedThis(this);
+    m_shortcutController->setTriggerTargetProvider(
+        [guardedThis] { return guardedThis ? guardedThis->focusedWindowId() : 0; });
 }
 
 void TreelandRemoteSource::onShortcutRegistered(const ShortcutController::Binding &binding)
