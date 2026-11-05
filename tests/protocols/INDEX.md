@@ -41,6 +41,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [decoration-unstable-v1](treeland-decoration-unstable-v1/README.md) | E | mapped toplevel 的 `set_corner_radius` 回读真实 `SurfaceWrapper::radius()` | shadow、border、titlebar 和协议错误路径 |
 | [remote-subsurface-unstable-v1](treeland-remote-subsurface-unstable-v1/README.md) | E / P | token 导出、真实 Remote `WSubsurface` 的父子关系、位置与层级；`parent_rejected` / `invalid_sibling` | 跨 client、循环 parent、映射生命周期与 sibling 间排序 |
 | [prelaunch-splash-v2](treeland-prelaunch-splash-v2/README.md) | I / E | splash 请求/关闭信号；生产 splash wrapper 创建、加入 workspace 与销毁 |
+| [prelaunch splash 桌面集成](treeland-prelaunch-splash-desktop-v2/README.md) | E / V | splash wrapper 创建/销毁；AM 图标在 splash item 与客户端 `wl_buffer` 都销毁后仍由 wrapper 持有；dock preview 标题行图标 item 的 buffer 指针、尺寸与纹理像素；无图标窗口与悬停切换不产生 `WBufferItem` / QML 警告 |
 | [screensaver-v2](treeland-screensaver-v2/README.md) | E / P | 真实 ext-idle 抑制生命周期 |
 | [shortcut-manager-v3](treeland-shortcut-manager-v3/README.md) | E / P | 聚焦窗口捕获与快捷键激活 |
 | [output-group-manager-v1](treeland-output-group-manager-v1/README.md) | P / E | 输出分组创建/镜像/解散；set_source 与 add/remove_output 的 uuid 校验 |
