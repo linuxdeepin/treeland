@@ -76,7 +76,7 @@ CaptureSourceSelector {
         anchors.margins: 10
         visible: toolBarModel.count > 1
         Behavior on opacity {
-            enabled: WaylandServer.config.captureToolbarAnimationEnabled
+            enabled: WaylandServer.animationConfig.captureToolbar
             OpacityAnimator {
                 from: 0.0
                 to: 1.0

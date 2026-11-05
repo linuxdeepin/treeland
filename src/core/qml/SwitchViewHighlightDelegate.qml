@@ -23,7 +23,6 @@ Rectangle {
 
     Behavior on x {
         enabled: sourceView.enableDelegateAnimation
-                 && WaylandServer.config.taskSwitcherHighlightAnimationEnabled
         NumberAnimation {
             duration: aniDuration
             easing.type: Easing.OutExpo
@@ -32,7 +31,6 @@ Rectangle {
 
     Behavior on width {
         enabled: sourceView.enableDelegateAnimation
-                 && WaylandServer.config.taskSwitcherHighlightAnimationEnabled
         NumberAnimation {
             duration: aniDuration
             easing.type: Easing.OutExpo

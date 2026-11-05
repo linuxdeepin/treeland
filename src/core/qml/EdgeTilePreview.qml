@@ -19,7 +19,7 @@ Rectangle {
     // from the dragged surface to the target tile is animated (like KWin's
     // outline growing from the window being moved).
     property bool animationEnabled: false
-    readonly property bool animationAllowed: WaylandServer.config.edgeTilePreviewAnimationEnabled
+    readonly property bool animationAllowed: WaylandServer.animationConfig.edgeTilePreview
 
     function applyGeometry(geometry) {
         x = geometry.x

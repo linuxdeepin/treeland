@@ -119,6 +119,7 @@ OutputItem {
         anchors.fill: parent
         WallpaperSwitcher {
             id: wallpaper
+            readonly property bool enableAnimation: WaylandServer.animationConfig.wallpaperScale
 
             clip: true
             anchors.fill: parent
@@ -161,7 +162,7 @@ OutputItem {
                 Transition {
                     from: "*"
                     to: "Normal"
-                    enabled: WaylandServer.animationConfig.wallpaperScale
+                    enabled: wallpaper.enableAnimation
                     PropertyAnimation {
                         property: "scale"
                         duration: wallpaper.duration
@@ -171,7 +172,7 @@ OutputItem {
                 Transition {
                     from: "*"
                     to: "Scale"
-                    enabled: WaylandServer.animationConfig.wallpaperScale
+                    enabled: wallpaper.enableAnimation
                     PropertyAnimation {
                         property: "scale"
                         duration: wallpaper.duration
@@ -181,7 +182,7 @@ OutputItem {
                 Transition {
                     from: "*"
                     to: "ScaleTo1.2"
-                    enabled: WaylandServer.animationConfig.wallpaperScale
+                    enabled: wallpaper.enableAnimation
                     PropertyAnimation {
                         property: "scale"
                         duration: wallpaper.duration

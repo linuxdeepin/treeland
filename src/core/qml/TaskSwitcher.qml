@@ -260,7 +260,7 @@ Item {
                 property bool enableDelegateBlur: root.enableBlur
                 property bool enableDelegateBorders: root.enableBorders
                 property bool enableDelegateShadows: root.enableShadows
-                property bool enableDelegateAnimation: root.enableAnimation
+                property bool enableDelegateAnimation: root.enableAnimation && WaylandServer.animationConfig.taskSwitcherHighlight
                 property bool enableDelegateRadius: root.enableRadius
 
 

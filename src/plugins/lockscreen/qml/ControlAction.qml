@@ -10,6 +10,7 @@ import Treeland
 
 RowLayout {
     id: bottomGroup
+    readonly property bool enableAnimation: WaylandServer.animationConfig.lockscreenControl
     spacing: 15
 
     required property Item rootItem

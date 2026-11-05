@@ -29,6 +29,7 @@ FocusScope {
 
     Rectangle {
         id: background
+        readonly property bool enableAnimation: WaylandServer.animationConfig.greeterBackground
 
         readonly property int scaleDuration: 1000
         readonly property int duration: (GreeterProxy.isLocked || scale !== 1) ? scaleDuration : 600
@@ -62,7 +63,7 @@ FocusScope {
         ]
 
         Behavior on scale {
-            enabled: WaylandServer.animationConfig.greeterBackground
+            enabled: background.enableAnimation
             NumberAnimation {
                 duration: background.scaleDuration
                 easing.type: Easing.OutExpo
@@ -73,7 +74,7 @@ FocusScope {
             Transition {
                 from: "*"
                 to: "Show"
-                enabled: WaylandServer.animationConfig.greeterBackground
+                enabled: background.enableAnimation
                 PropertyAnimation {
                     property: "effectStrength"
                     duration: background.duration
@@ -88,7 +89,7 @@ FocusScope {
             Transition {
                 from: "*"
                 to: "Hide"
-                enabled: WaylandServer.animationConfig.greeterBackground
+                enabled: background.enableAnimation
                 PropertyAnimation {
                     property: "effectStrength"
                     duration: background.duration

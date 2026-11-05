@@ -114,6 +114,7 @@ Item {
                 model: surfaceModel
                 Item {
                     id: surfaceItemDelegate
+                    readonly property bool enableAnimation: state !== "dragging" && state !== "partial" && WaylandServer.animationConfig.multitaskviewLayout
 
                     required property int index
                     required property SurfaceWrapper wrapper
@@ -204,12 +205,12 @@ Item {
                         }
                     ]
 
-                    Behavior on x {enabled:state !== "dragging" && state !== "partial" && WaylandServer.animationConfig.multitaskviewLayout; XAnimator {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
-                    Behavior on y {enabled:state !== "dragging" && state !== "partial" && WaylandServer.animationConfig.multitaskviewLayout; YAnimator {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
-                    Behavior on width {enabled:state !== "dragging" && state !== "partial" && WaylandServer.animationConfig.multitaskviewLayout; NumberAnimation {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
-                    Behavior on height {enabled:state !== "dragging" && state !== "partial" && WaylandServer.animationConfig.multitaskviewLayout; NumberAnimation {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
-                    Behavior on paddingOpacity {enabled:state !== "dragging" && state !== "partial" && WaylandServer.animationConfig.multitaskviewLayout; NumberAnimation {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
-                    Behavior on scale {enabled:state !== "dragging" && state !== "partial" && WaylandServer.animationConfig.multitaskviewLayout; ScaleAnimator {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
+                    Behavior on x {enabled:surfaceItemDelegate.enableAnimation; XAnimator {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
+                    Behavior on y {enabled:surfaceItemDelegate.enableAnimation; YAnimator {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
+                    Behavior on width {enabled:surfaceItemDelegate.enableAnimation; NumberAnimation {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
+                    Behavior on height {enabled:surfaceItemDelegate.enableAnimation; NumberAnimation {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
+                    Behavior on paddingOpacity {enabled:surfaceItemDelegate.enableAnimation; NumberAnimation {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
+                    Behavior on scale {enabled:surfaceItemDelegate.enableAnimation; ScaleAnimator {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
 
                     D.BoxShadow {
                         id: paddingRectShadow

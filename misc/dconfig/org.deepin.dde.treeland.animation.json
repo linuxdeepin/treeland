@@ -364,6 +364,61 @@
             "description[zh_CN]": "控制登录界面背景缩放与变暗过渡；关闭时立即应用最终状态。",
             "permissions": "readwrite",
             "visibility": "public"
+        },
+        "dockPreview": {
+            "value": true,
+            "serial": 0,
+            "flags": [],
+            "name": "Dock preview",
+            "name[zh_CN]": "Dock 预览",
+            "description": "Animate dock preview. Disabled transitions apply their final state directly.",
+            "description[zh_CN]": "控制Dock 预览动画；禁用时直接应用目标状态。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "taskSwitcherHighlight": {
+            "value": true,
+            "serial": 0,
+            "flags": [],
+            "name": "Task switcher highlight",
+            "name[zh_CN]": "任务切换高亮",
+            "description": "Animate task switcher highlight. Disabled transitions apply their final state directly.",
+            "description[zh_CN]": "控制任务切换高亮动画；禁用时直接应用目标状态。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "workspaceReorder": {
+            "value": true,
+            "serial": 0,
+            "flags": [],
+            "name": "Workspace thumbnail reorder",
+            "name[zh_CN]": "工作区缩略图重排",
+            "description": "Animate workspace thumbnail reorder. Disabled transitions apply their final state directly.",
+            "description[zh_CN]": "控制工作区缩略图重排动画；禁用时直接应用目标状态。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "captureToolbar": {
+            "value": true,
+            "serial": 0,
+            "flags": [],
+            "name": "Capture toolbar",
+            "name[zh_CN]": "截图工具条",
+            "description": "Animate capture toolbar. Disabled transitions apply their final state directly.",
+            "description[zh_CN]": "控制截图工具条动画；禁用时直接应用目标状态。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "edgeTilePreview": {
+            "value": true,
+            "serial": 0,
+            "flags": [],
+            "name": "Edge tile preview",
+            "name[zh_CN]": "边缘平铺预览",
+            "description": "Animate edge tile preview. Disabled transitions apply their final state directly.",
+            "description[zh_CN]": "控制边缘平铺预览动画；禁用时直接应用目标状态。",
+            "permissions": "readwrite",
+            "visibility": "public"
         }
     }
 }
