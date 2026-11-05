@@ -10,7 +10,7 @@ import Treeland
 
 RowLayout {
     id: bottomGroup
-    readonly property bool enableAnimation: WaylandServer.animationConfig.lockscreenControl
+    readonly property bool enableAnimation: WaylandServer.animationConfig.lockscreen
     spacing: 15
 
     required property Item rootItem
@@ -130,13 +130,13 @@ RowLayout {
             }
 
             Behavior on width {
-                enabled: WaylandServer.animationConfig.lockscreenControl
+                enabled: bottomGroup.enableAnimation
                 NumberAnimation {
                     duration: 150
                 }
             }
             Behavior on height {
-                enabled: WaylandServer.animationConfig.lockscreenControl
+                enabled: bottomGroup.enableAnimation
                 NumberAnimation {
                     duration: 150
                 }

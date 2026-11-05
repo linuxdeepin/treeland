@@ -24,11 +24,7 @@ Item {
     property bool enableShadows: GraphicsInfo.api !== GraphicsInfo.Software
     property bool enableRadius: true
     property bool enableAnimation: GraphicsInfo.api !== GraphicsInfo.Software
-    // Per-effect switches; the bindings below also drive mid-flight completion.
-    readonly property bool maskAnimationEnabled: WaylandServer.animationConfig.taskSwitcher
-    readonly property bool panelAnimationEnabled: WaylandServer.animationConfig.taskSwitcherPanel
-    readonly property bool exitAnimationEnabled: WaylandServer.animationConfig.taskSwitcherExit
-
+                                   && WaylandServer.animationConfig.taskSwitcher
     readonly property int leftpreferredMargin: 20
     readonly property int rightpreferredMargin: 20
     readonly property int mouseExitInterval: 400
@@ -47,7 +43,7 @@ Item {
             mask.opacity = 0.5
             currentContext.loaderStatus = 0
 
-            if (root.panelAnimationEnabled) {
+            if (root.enableAnimation) {
                 switchItemAnimation.stop()
                 switchItemAnimation.isInAni = true
                 switchItemAnimation.start()
@@ -56,16 +52,6 @@ Item {
                 switchItem.y = switchItemAnimation.fromeY
                 switchItem.opacity = 1
             }
-        }
-    }
-
-    // Turning an effect off while it is playing must finish that effect once:
-    // land on the final state instead of leaving the panel or previews half way.
-    onExitAnimationEnabledChanged: {
-        if (!exitAnimationEnabled && previewWindows.animationRunning) {
-            previewWindows.finishAnimation(true)
-            showTask(false)
-            root.switchOn = false
         }
     }
 
@@ -115,7 +101,7 @@ Item {
         opacity: 0.0
 
         Behavior on opacity {
-            enabled: root.enableAnimation && root.maskAnimationEnabled
+            enabled: root.enableAnimation
 
             NumberAnimation {
                 duration: 400
@@ -260,7 +246,7 @@ Item {
                 property bool enableDelegateBlur: root.enableBlur
                 property bool enableDelegateBorders: root.enableBorders
                 property bool enableDelegateShadows: root.enableShadows
-                property bool enableDelegateAnimation: root.enableAnimation && WaylandServer.animationConfig.taskSwitcherHighlight
+                property bool enableDelegateAnimation: root.enableAnimation
                 property bool enableDelegateRadius: root.enableRadius
 
 
@@ -298,7 +284,7 @@ Item {
         }
 
         Component.onCompleted: {
-            if (root.panelAnimationEnabled) {
+            if (root.enableAnimation) {
                 switchItemAnimation.fromeY = switchItem.y
                 switchItemAnimation.stop()
                 switchItemAnimation.isInAni = true
@@ -656,18 +642,12 @@ Item {
         if (root.enableAnimation) {
             mask.opacity = 0.0
 
-            if (root.panelAnimationEnabled) {
-                switchItemAnimation.stop()
-                switchItemAnimation.isInAni = false
-                switchItemAnimation.start()
-            } else {
-                switchItemAnimation.stop()
-                switchItem.y = switchItemAnimation.fromeY
-                switchItem.opacity = 0
-            }
+            switchItemAnimation.stop()
+            switchItemAnimation.isInAni = false
+            switchItemAnimation.start()
         }
 
-        const playSurfaceAnimation = root.enableAnimation && root.exitAnimationEnabled
+        const playSurfaceAnimation = root.enableAnimation
                 && switchView.count > 0 && switchView.count <= 18
         const surfaceSnapshot = playSurfaceAnimation ? root.model.surfaceSnapshot() : []
 

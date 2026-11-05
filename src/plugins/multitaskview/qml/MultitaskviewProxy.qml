@@ -23,15 +23,12 @@ Multitaskview {
     property real taskviewVal: 0
     property bool inProgress: false
 
-    // Per-effect switches. Disabling still commits the final state; the exit
-    // ScriptAction below is the business completion that hides this layer.
-    readonly property bool enterAnimationEnabled: WaylandServer.animationConfig.multitaskviewEnter
-    readonly property bool exitAnimationEnabled: WaylandServer.animationConfig.multitaskviewExit
+    readonly property bool enableAnimation: WaylandServer.animationConfig.multitaskview
 
     onActionFinished: {
         if (root.status === Multitaskview.Exited) {
             exited = true
-            if (!root.exitAnimationEnabled) {
+            if (!root.enableAnimation) {
                 taskviewVal = 0
                 root.visible = false
             }
@@ -41,18 +38,6 @@ Multitaskview {
 
         if (root.activeReason === Multitaskview.Gesture) {
             inProgress = false
-        }
-    }
-
-    onEnterAnimationEnabledChanged: {
-        if (!enterAnimationEnabled && state === "taskview")
-            taskviewVal = 1
-    }
-
-    onExitAnimationEnabledChanged: {
-        if (!exitAnimationEnabled && exited && root.visible) {
-            taskviewVal = 0
-            root.visible = false
         }
     }
 
@@ -94,7 +79,7 @@ Multitaskview {
     transitions: [
         Transition {
             to: "initial"
-            enabled: root.exitAnimationEnabled
+            enabled: root.enableAnimation
             SequentialAnimation {
                 NumberAnimation {
                     duration: WaylandServer.config.multitaskviewAnimationDuration
@@ -108,7 +93,7 @@ Multitaskview {
         },
         Transition {
             to: "taskview"
-            enabled: root.enterAnimationEnabled
+            enabled: root.enableAnimation
             SequentialAnimation {
                 NumberAnimation {
                     duration: WaylandServer.config.multitaskviewAnimationDuration

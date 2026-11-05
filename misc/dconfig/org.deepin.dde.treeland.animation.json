@@ -2,14 +2,14 @@
     "magic": "dsg.config.meta",
     "version": "1.0",
     "contents": {
-        "lockscreenControl": {
+        "lockscreen": {
             "value": true,
             "serial": 0,
             "flags": [],
-            "name": "Lock screen control animation",
-            "name[zh_CN]": "锁屏控制按钮动画",
-            "description": "Animate lock screen control button expansion and collapse. Disabling completes the current size transition immediately.",
-            "description[zh_CN]": "控制锁屏按钮展开和收缩动画；关闭时立即完成当前尺寸过渡。",
+            "name": "Login and lock screen",
+            "name[zh_CN]": "登录与锁屏界面",
+            "description": "Control content slides, background transitions and control button resizing on login and lock screens.",
+            "description[zh_CN]": "统一控制登录与锁屏界面的内容滑动、背景过渡和控制按钮尺寸变化。",
             "permissions": "readwrite",
             "visibility": "public"
         },
@@ -226,87 +226,21 @@
             "value": true,
             "serial": 0,
             "flags": [],
-            "name": "Task switcher mask animation",
-            "name[zh_CN]": "任务切换遮罩动画",
-            "description": "Animate the Alt-Tab overlay mask fading. Disabling applies the mask opacity immediately.",
-            "description[zh_CN]": "控制 Alt-Tab 遮罩淡入淡出；关闭时立即应用遮罩透明度。",
+            "name": "Task switcher",
+            "name[zh_CN]": "任务切换",
+            "description": "Control mask, panel, thumbnails, highlight and window restoration transitions for the task switcher.",
+            "description[zh_CN]": "统一控制任务切换的遮罩、面板、缩略图、高亮和窗口恢复过渡。",
             "permissions": "readwrite",
             "visibility": "public"
         },
-        "taskSwitcherPanel": {
+        "multitaskview": {
             "value": true,
             "serial": 0,
             "flags": [],
-            "name": "Task switcher panel animation",
-            "name[zh_CN]": "任务切换面板动画",
-            "description": "Animate the Alt-Tab switcher panel sliding in and out. Disabling shows and hides it immediately.",
-            "description[zh_CN]": "控制 Alt-Tab 切换面板的滑入滑出；关闭时立即显示或隐藏。",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
-        "taskSwitcherThumbnail": {
-            "value": true,
-            "serial": 0,
-            "flags": [],
-            "name": "Task switcher thumbnail animation",
-            "name[zh_CN]": "任务切换缩略图动画",
-            "description": "Animate window thumbnails when switching items in Alt-Tab. Disabling switches thumbnails immediately.",
-            "description[zh_CN]": "控制 Alt-Tab 缩略图切换动画；关闭时立即切换缩略图。",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
-        "taskSwitcherExit": {
-            "value": true,
-            "serial": 0,
-            "flags": [],
-            "name": "Task switcher exit animation",
-            "name[zh_CN]": "任务切换退出动画",
-            "description": "Animate restoring real windows when leaving Alt-Tab. Disabling restores them immediately.",
-            "description[zh_CN]": "控制退出 Alt-Tab 时真实窗口的恢复动画；关闭时立即恢复。",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
-        "multitaskviewEnter": {
-            "value": true,
-            "serial": 0,
-            "flags": [],
-            "name": "Multitask view enter animation",
-            "name[zh_CN]": "多任务视图进入动画",
-            "description": "Animate entering the multitask view. Disabling shows the final layout immediately.",
-            "description[zh_CN]": "控制进入多任务视图的动画；关闭时立即显示最终布局。",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
-        "multitaskviewExit": {
-            "value": true,
-            "serial": 0,
-            "flags": [],
-            "name": "Multitask view exit animation",
-            "name[zh_CN]": "多任务视图退出动画",
-            "description": "Animate leaving the multitask view. Disabling hides it immediately after the exit completes.",
-            "description[zh_CN]": "控制退出多任务视图的动画；关闭时退出后立即隐藏。",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
-        "multitaskviewLayout": {
-            "value": true,
-            "serial": 0,
-            "flags": [],
-            "name": "Multitask view layout animation",
-            "name[zh_CN]": "多任务窗口布局动画",
-            "description": "Animate window layout and scale changes in the multitask view. Disabling applies the final layout immediately; dragging stays interactive.",
-            "description[zh_CN]": "控制多任务视图中窗口布局与缩放变化；关闭时立即应用最终布局，拖动交互保留。",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
-        "multitaskviewEmptyHint": {
-            "value": true,
-            "serial": 0,
-            "flags": [],
-            "name": "Multitask view empty hint animation",
-            "name[zh_CN]": "多任务空窗口提示动画",
-            "description": "Animate the empty-window hint opacity in the multitask view. Disabling applies the final opacity immediately.",
-            "description[zh_CN]": "控制多任务视图空窗口提示的透明度动画；关闭时立即应用最终透明度。",
+            "name": "Multitask view",
+            "name[zh_CN]": "多任务视图",
+            "description": "Control entry, exit, window layout, empty hint and workspace thumbnail reordering transitions. Gesture following is preserved.",
+            "description[zh_CN]": "统一控制多任务视图进入、退出、窗口布局、空窗口提示和工作区缩略图重排过渡，保留手势跟随。",
             "permissions": "readwrite",
             "visibility": "public"
         },
@@ -343,28 +277,6 @@
             "permissions": "readwrite",
             "visibility": "public"
         },
-        "loginContent": {
-            "value": true,
-            "serial": 0,
-            "flags": [],
-            "name": "Login content animation",
-            "name[zh_CN]": "登录内容滑入滑出动画",
-            "description": "Animate lock and login screen content sliding in and out. Disabling shows or hides the content immediately.",
-            "description[zh_CN]": "控制锁屏和登录界面内容的滑入滑出；关闭时立即显示或隐藏。",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
-        "greeterBackground": {
-            "value": true,
-            "serial": 0,
-            "flags": [],
-            "name": "Greeter background transition animation",
-            "name[zh_CN]": "登录背景过渡动画",
-            "description": "Animate the greeter background scale and dim transitions. Disabling applies the final state immediately.",
-            "description[zh_CN]": "控制登录界面背景缩放与变暗过渡；关闭时立即应用最终状态。",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
         "dockPreview": {
             "value": true,
             "serial": 0,
@@ -373,28 +285,6 @@
             "name[zh_CN]": "Dock 预览",
             "description": "Animate dock preview. Disabled transitions apply their final state directly.",
             "description[zh_CN]": "控制Dock 预览动画；禁用时直接应用目标状态。",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
-        "taskSwitcherHighlight": {
-            "value": true,
-            "serial": 0,
-            "flags": [],
-            "name": "Task switcher highlight",
-            "name[zh_CN]": "任务切换高亮",
-            "description": "Animate task switcher highlight. Disabled transitions apply their final state directly.",
-            "description[zh_CN]": "控制任务切换高亮动画；禁用时直接应用目标状态。",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
-        "workspaceReorder": {
-            "value": true,
-            "serial": 0,
-            "flags": [],
-            "name": "Workspace thumbnail reorder",
-            "name[zh_CN]": "工作区缩略图重排",
-            "description": "Animate workspace thumbnail reorder. Disabled transitions apply their final state directly.",
-            "description[zh_CN]": "控制工作区缩略图重排动画；禁用时直接应用目标状态。",
             "permissions": "readwrite",
             "visibility": "public"
         },

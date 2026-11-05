@@ -9,7 +9,7 @@ import org.deepin.dtk.style 1.0 as DS
 
 Loader {
     id: root
-    readonly property bool enableAnimation: WaylandServer.animationConfig.taskSwitcherThumbnail
+    readonly property bool enableAnimation: WaylandServer.animationConfig.taskSwitcher
 
     signal clicked()
     property int loaderStatus: 0

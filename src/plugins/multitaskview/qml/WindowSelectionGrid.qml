@@ -12,6 +12,7 @@ import org.deepin.dtk.style as DS
 
 Item {
     id: root
+    readonly property bool enableAnimation: multitaskview.enableAnimation
     required property QtObject output
     required property WorkspaceModel workspace
     required property int workspaceListPadding
@@ -88,7 +89,7 @@ Item {
         transitions: [
             Transition {
                 to: "taskview"
-                enabled: WaylandServer.animationConfig.multitaskviewEnter
+                enabled: root.enableAnimation
                 SequentialAnimation {
                     PauseAnimation { duration: WaylandServer.config.multitaskviewAnimationDuration }
                     PropertyAction { target: surfaceGridView; property: "clip" }
@@ -114,7 +115,7 @@ Item {
                 model: surfaceModel
                 Item {
                     id: surfaceItemDelegate
-                    readonly property bool enableAnimation: state !== "dragging" && state !== "partial" && WaylandServer.animationConfig.multitaskviewLayout
+                    readonly property bool enableAnimation: state !== "dragging" && state !== "partial" && root.enableAnimation
 
                     required property int index
                     required property SurfaceWrapper wrapper
@@ -413,7 +414,7 @@ Item {
                 height: 50
                 padding: 10
                 Behavior on opacity {
-                    enabled: state !== "partial" && WaylandServer.animationConfig.multitaskviewEmptyHint
+                    enabled: state !== "partial" && root.enableAnimation
                     OpacityAnimator {
                         duration: WaylandServer.config.multitaskviewAnimationDuration
                         easing.type: WaylandServer.config.multitaskviewEasingCurveType

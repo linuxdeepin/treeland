@@ -29,7 +29,7 @@ FocusScope {
 
     Rectangle {
         id: background
-        readonly property bool enableAnimation: WaylandServer.animationConfig.greeterBackground
+        readonly property bool enableAnimation: WaylandServer.animationConfig.lockscreen
 
         readonly property int scaleDuration: 1000
         readonly property int duration: (GreeterProxy.isLocked || scale !== 1) ? scaleDuration : 600
