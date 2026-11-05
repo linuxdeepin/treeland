@@ -278,7 +278,8 @@ QJsonObject DebugServer::handleNoAuth()
                                {"error", "the compositor can only open a runtime directory "
                                          "of its own, so a session instance keeps requiring root"}};
         }
-        return QJsonObject{{"ok", true}, {"data", QJsonObject{{"noAuth", true}}}};    });
+        return QJsonObject{{"ok", true}, {"data", QJsonObject{{"noAuth", true}}}};
+    });
 }
 
 QJsonObject DebugServer::handleShortcuts()
@@ -288,8 +289,6 @@ QJsonObject DebugServer::handleShortcuts()
         if (!waitSlot(session.replica->getShortcuts(), m_timeoutMs, &shortcuts))
             return QJsonObject{{"ok", false}, {"error", "getShortcuts() failed"}};
         return QJsonObject{{"ok", true}, {"data", shortcutsToJson(shortcuts)}};
-    });
-}
     });
 }
 
