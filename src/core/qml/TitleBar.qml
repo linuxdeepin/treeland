@@ -40,45 +40,50 @@ Control {
         blocking: true
     }
 
-    // Left mouse button handler
-    TapHandler {
-        acceptedButtons: Qt.LeftButton
-        onTapped: {
-            WaylandServer.activateSurface(surface)
+    // Pointer handlers (TapHandler/DragHandler) are delivered to every item under
+    // the cursor, including title bars covered by the window on top, so pressing
+    // the title bar of the active window also activated-and-raised a stacked SSD
+    // window. A MouseArea takes the exclusive grab, which only the topmost item
+    // gets, so a covered title bar stays inert (same reason Decoration.qml uses
+    // MouseArea for the resize borders).
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+
+        property point pressPosition
+        property bool movingWindow: false
+        readonly property real dragThreshold: Qt.styleHints.startDragDistance
+
+        onPressed: function (mouse) {
+            pressPosition = Qt.point(mouse.x, mouse.y)
+            movingWindow = false
         }
-        onDoubleTapped: {
-            if (root.canToggleMaximize)
+        onPositionChanged: function (mouse) {
+            if (!pressed || movingWindow || !(mouse.buttons & Qt.LeftButton))
+                return
+            const dx = mouse.x - pressPosition.x
+            const dy = mouse.y - pressPosition.y
+            if (dx * dx + dy * dy < dragThreshold * dragThreshold)
+                return
+            movingWindow = true
+            surface.moveRequested()
+        }
+        onClicked: function (mouse) {
+            if (mouse.button === Qt.LeftButton)
+                WaylandServer.activateSurface(surface)
+            else
+                surface.windowMenuRequested(Qt.point(mouse.x, mouse.y))
+        }
+        onDoubleClicked: function (mouse) {
+            if (mouse.button === Qt.LeftButton && root.canToggleMaximize)
                 surface.toggleMaximized()
         }
-    }
-
-    DragHandler {
-        acceptedButtons: Qt.LeftButton
-        target: null
-        dragThreshold: Qt.styleHints.startDragDistance
-        onActiveChanged: {
-            if (active)
-                surface.moveRequested()
+        onPressAndHold: function (mouse) {
+            // Touch screen only: a mouse press held down on the title bar is not
+            // a window menu gesture.
+            if (mouse.source !== Qt.MouseEventNotSynthesized)
+                surface.windowMenuRequested(Qt.point(mouse.x, mouse.y))
         }
-    }
-
-    // Right mouse button handler
-    TapHandler {
-        acceptedButtons: Qt.RightButton
-        onTapped: {
-            surface.windowMenuRequested(eventPoint.position)
-        }
-    }
-
-    // Touch screen click
-    TapHandler {
-        acceptedButtons: Qt.NoButton
-        acceptedDevices: PointerDevice.TouchScreen
-        onDoubleTapped: {
-            if (root.canToggleMaximize)
-                surface.toggleMaximized()
-        }
-        onLongPressed: surface.windowMenuRequested(point.position)
     }
 
     Rectangle {
