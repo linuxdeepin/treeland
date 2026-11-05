@@ -22,24 +22,29 @@
 
 #define _DEEPIN_NO_TITLEBAR "_DEEPIN_NO_TITLEBAR"
 
-static void applyCursorSettings(SettingManager *settingManager, const QString &theme, qreal size)
+static void applySessionXSettings(SettingManager *settingManager,
+                                 const QString &theme,
+                                 qreal size,
+                                 const QString &imModule)
 {
     if (!settingManager) {
-        qCDebug(lcTlXsettings) << "Skip cursor settings sync: no SettingManager";
+        qCDebug(lcTlXsettings) << "Skip XSettings sync: no SettingManager";
         return;
     }
 
     const bool queued = QMetaObject::invokeMethod(
         settingManager,
-        [settingManager, theme, size]() {
+        [settingManager, theme, size, imModule]() {
             settingManager->setCursorTheme(theme);
             settingManager->setCursorSize(size);
+            settingManager->setIMModule(imModule);
             settingManager->apply();
         },
         Qt::QueuedConnection);
     if (!queued) {
-        qCWarning(lcTlXsettings) << "Failed to queue cursor settings sync"
-                                     << "theme:" << theme << "size:" << size;
+        qCWarning(lcTlXsettings) << "Failed to queue XSettings sync"
+                                     << "theme:" << theme << "size:" << size
+                                     << "imModule:" << imModule;
     }
 }
 
@@ -328,13 +333,15 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
                             const QString cursorTheme =
                                 config ? config->cursorThemeName() : QString();
                             const qreal cursorSize = config ? config->cursorSize() : 24;
+                            const QString imModule = config ? config->x11GtkIMModule() : QString();
 
                             const bool queued = QMetaObject::invokeMethod(
                                 settingManager,
-                                [settingManager, scale, cursorTheme, cursorSize]() {
+                                [settingManager, scale, cursorTheme, cursorSize, imModule]() {
                                     settingManager->setGlobalScale(scale);
                                     settingManager->setCursorTheme(cursorTheme);
                                     settingManager->setCursorSize(cursorSize);
+                                    settingManager->setIMModule(imModule);
                                     settingManager->apply();
                                 },
                                 Qt::QueuedConnection);
@@ -342,7 +349,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
                                 qCWarning(lcTlXsettings)
                                     << "Failed to queue initial XSettings sync"
                                     << "cursorTheme:" << cursorTheme << "cursorSize:" << cursorSize
-                                    << "scale:" << scale;
+                                    << "imModule:" << imModule << "scale:" << scale;
                             }
                             QObject::connect(
                                 renderWindow,
@@ -504,17 +511,17 @@ bool SessionManager::isDDEUserClient(WClient *client)
     return client->socket() == global->socket();
 }
 
-void SessionManager::syncActiveSessionCursorSettings()
+void SessionManager::syncActiveSessionXSettings()
 {
     const auto session = m_activeSession.lock();
     if (!session) {
-        qCDebug(lcTlXsettings) << "Skip cursor settings sync: no active session";
+        qCDebug(lcTlXsettings) << "Skip XSettings sync: no active session";
         return;
     }
 
     if (!session->m_settingManager) {
         qCDebug(lcTlXsettings)
-            << "Skip cursor settings sync: no SettingManager for session" << session->username();
+            << "Skip XSettings sync: no SettingManager for session" << session->username();
         return;
     }
 
@@ -523,11 +530,14 @@ void SessionManager::syncActiveSessionCursorSettings()
 
     const auto *config = server->config();
     if (!config) {
-        qCWarning(lcTlXsettings) << "Cannot sync cursor settings: user config is unavailable";
+        qCWarning(lcTlXsettings) << "Cannot sync XSettings: user config is unavailable";
         return;
     }
 
-    applyCursorSettings(session->m_settingManager, config->cursorThemeName(), config->cursorSize());
+    applySessionXSettings(session->m_settingManager,
+                          config->cursorThemeName(),
+                          config->cursorSize(),
+                          config->x11GtkIMModule());
 }
 
 /**
@@ -585,5 +595,5 @@ void SessionManager::commitActiveUserSession(const ActiveSessionUpdate &update)
     }
 
     qCInfo(lcTlCore) << "Listening on:" << update.session->m_socket->fullServerName();
-    syncActiveSessionCursorSettings();
+    syncActiveSessionXSettings();
 }

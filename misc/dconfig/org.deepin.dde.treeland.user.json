@@ -617,6 +617,17 @@
             "description[zh_CN]": "多屏内边延迟激活边缘平铺的毫秒数",
             "permissions": "readwrite",
             "visibility": "public"
+        },
+        "x11GtkIMModule": {
+            "value": "fcitx",
+            "serial": 0,
+            "flags": [],
+            "name": "GTK Input Method Module (X11)",
+            "name[zh_CN]": "GTK 输入法模块（X11）",
+            "description": "GTK input method module published through the XSettings Gtk/IMModule property, applied by GTK2/3/4 applications running on X11, including XWayland. Wayland GTK applications pick their input method through the Wayland text-input protocol and ignore this value. A colon separated list of modules is allowed. An empty value does not remove the property: GTK then falls back to locale based automatic selection and ignores gtk-im-module from the user's settings.ini.",
+            "description[zh_CN]": "通过 XSettings 的 Gtk/IMModule 属性发布的 GTK 输入法模块，作用于运行在 X11（含 XWayland）上的 GTK2/3/4 应用。Wayland 下的 GTK 应用通过 text-input 协议获取输入法，不使用该值。允许以冒号分隔多个模块。空字符串并不会移除该属性：此时 GTK 回退为按 locale 自动选择，用户 settings.ini 中的 gtk-im-module 不会生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
         }
     }
 }
