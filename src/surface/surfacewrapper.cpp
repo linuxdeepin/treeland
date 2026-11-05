@@ -120,9 +120,8 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
         setup();
     } else {
         setImplicitSize(original->implicitWidth(), original->implicitHeight());
-        auto iconVar = original->prelaunchSplash()
-            ? original->prelaunchSplash()->property("iconBuffer")
-            : QVariant();
+        // Borrowed, not owned: the proxy does not keep an icon reference.
+        auto iconVar = original->appIcon();
         QColor bgColor = original->prelaunchSplash()
             ? original->prelaunchSplash()->property("backgroundColor").value<QColor>()
             : QColor("#ffffff");
@@ -186,6 +185,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_maximizable(false)
     , m_modal(false)
     , m_appId(appId)
+    , m_appIcon(iconBuffer)
 {
     m_windowTransition = std::make_unique<SurfaceWindowTransition>(this);
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
@@ -197,7 +197,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
         setImplicitSize(800, 600);
     }
     m_prelaunchSplash =
-        m_engine->createPrelaunchSplash(this, radius(), iconBuffer, backgroundColor);
+        m_engine->createPrelaunchSplash(this, radius(), m_appIcon.get(), backgroundColor);
 
     setNoDecoration(false);
     updateHasActiveCapability(ActiveControlState::HasActivateCapability, true);
@@ -901,6 +901,11 @@ WSurfaceItem *SurfaceWrapper::surfaceItem() const
 QQuickItem *SurfaceWrapper::prelaunchSplash() const
 {
     return m_prelaunchSplash;
+}
+
+QVariant SurfaceWrapper::appIcon() const
+{
+    return m_appIcon ? QVariant::fromValue(m_appIcon.get()) : QVariant();
 }
 
 QString SurfaceWrapper::appId() const
