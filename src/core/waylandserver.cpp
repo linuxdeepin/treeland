@@ -761,6 +761,7 @@ void WaylandServer::prepareLockScreenTransition(bool isShutdownView)
         m_multitaskView->immediatelyExit();
     }
     deleteTaskSwitch();
+    m_rootSurfaceContainer->dismissAllPopups();
     if (isShutdownView) {
         return;
     }
