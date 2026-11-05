@@ -323,15 +323,13 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
                           : splashThemeType == 2;
     const QColor splashColor = dark ? QColor(darkPalette) : QColor(lightPalette);
 
+    // The wrapper takes over this icon reference and releases it when destroyed.
     auto *wrapper = new SurfaceWrapper(WaylandServer::instance()->qmlEngine(),
                                        nullptr,
                                        lastSize,
                                        appId,
                                        iconBuffer,
                                        splashColor);
-    if (iconBuffer) {
-        wlr_buffer_unlock(iconBuffer);
-    }
     m_prelaunchWrappers.append(wrapper);
     m_workspace->addSurface(wrapper);
     setupSurfaceActiveWatcher(wrapper);
