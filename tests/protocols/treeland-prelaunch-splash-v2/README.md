@@ -27,7 +27,7 @@ create_splash(
   app_id = "org.deepin.treeland.protocol.splash",
   instance_id = "protocol-instance",
   sandbox = "org.deepin.Sandbox",
-  icon = null)
+  icon = 2×2 wl_shm buffer)
 ```
 
 测试观察的不是 fixture 手工创建的对象，而是以下生产调用链：
@@ -52,15 +52,22 @@ create_splash
 | wrapper 语义 | 读取该生产 wrapper | `type == SplashScreen`；`appId` 与请求相同；已存在 `prelaunchSplash()` QML item |
 | 配置结果 | 读取 wrapper 的 implicit size | 应用配置默认的 `800 × 600` 已写入生产 wrapper |
 | 加入桌面 | 查询真实 workspace | wrapper 确实包含在 `Workspace::surfaces()`，不是独立的测试对象 |
+| 图标锁住 | 发送 `create_splash` 后立即销毁客户端 `wl_buffer` | wrapper 的 `appIcon()` 仍可读，尺寸与提交的 `2 × 2` 一致：客户端已不再持有该 buffer，读到的指针仍然有效 |
 | 关闭 | 销毁客户端 splash 资源 | `ShellHandler::handlePrelaunchSplashClosed` 经 root container 销毁 wrapper；wrapper 离开 workspace 且发出 destroyed |
 
 ## 生产结果
 
 基础测试使用真实 `wl_buffer`，并观察生产 splash request/close 信号。桌面测试进一步
-证明该信号已进入生产 `ShellHandler`，实际生成并管理 splash wrapper。
+证明该信号已进入生产 `ShellHandler`，实际生成并管理 splash wrapper，并在客户端释放
+`wl_buffer` 之后仍能通过 `SurfaceWrapper::appIcon()` 读到图标。
 
 ## 已知边界 / 下一项结果
 
-已验证 QML splash item 被创建，但尚未验证它在某个 `WOutputRenderWindow` 的最终可见性
-或像素内容；图标 buffer 的实际纹理/绘制也尚未读回。若要升级到 **V**，应在
-`RenderedOutputFixture` 中提交颜色明确的图标或背景，并读取对应 output 的像素。
+本目录的断言都发生在 splash 阶段内部：此时 splash QML item（`PrelaunchSplash.qml` 内的
+`BufferItem`）自己也持有一份 buffer 锁，所以「客户端释放后指针仍有效」只能说明至少还有一个
+持有者，不能证明是 wrapper 的锁在保它，也没有覆盖「splash item 被销毁之后」这一真正目标场景。
+
+跨阶段保留与 dock preview 实际绘制由
+[treeland-prelaunch-splash-desktop-v2](../treeland-prelaunch-splash-desktop-v2/README.md)
+覆盖：它在 splash item 已销毁、客户端 `wl_buffer` 已销毁之后读取 `appIcon()`，并把该 buffer
+读回为图标纹理像素。splash 自身的可见性与像素仍未验证。
