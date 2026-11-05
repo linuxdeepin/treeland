@@ -15,6 +15,7 @@
 #ifdef EXT_SESSION_LOCK_V1
 #include "core/rootsurfacecontainer.h"
 #include "surface/surfacewrapper.h"
+#include "workspace/workspace.h"
 
 #include <wsessionlock.h>
 #include <wsessionlocksurface.h>
@@ -306,8 +307,12 @@ void LockScreen::onLockSurfaceAdded(WSessionLockSurface *surface)
 
     wrapper->setHasInitializeContainer(true);
 
-    connect(wrapper, &SurfaceWrapper::activationRequested, this, [wrapper] {
-        WaylandServer::instance()->activateSurface(wrapper);
+    // Lock surfaces have no Activate capability, so ask for focus directly
+    // once mapped; its INT_MAX priority keeps lower-priority surfaces from
+    // taking it back.
+    connect(wrapper, &SurfaceWrapper::hasFocusCapabilityChanged, this, [wrapper] {
+        if (wrapper->hasFocusCapability())
+            WaylandServer::instance()->requestKeyboardFocus(wrapper);
     });
 }
 
@@ -369,6 +374,12 @@ void LockScreen::onExternalLock(WSessionLock *lock)
     QObject::connect(lock, &WSessionLock::abandoned, this, &LockScreen::onExternalLockAbandoned);
 
     setVisible(true);
+
+    // Snapshot the focused surface and clear focus until the lock surface maps.
+    // primary seat only, upgrade when lock surfaces become per-seat.
+    auto *server = WaylandServer::instance();
+    m_lockFocusRestoreSurface = server->activatedSurface();
+    server->requestKeyboardFocus(nullptr);
 }
 
 void LockScreen::onExternalUnlock() {
@@ -383,6 +394,23 @@ void LockScreen::onExternalUnlock() {
     m_fallbackItems.clear();
     m_sessionLock = nullptr;
     Q_EMIT unlock();
+    // After finishLockScreenTransition() so the snapshot wins over its generic restore.
+    restoreLockedSessionFocus();
+}
+
+void LockScreen::restoreLockedSessionFocus()
+{
+    auto *server = WaylandServer::instance();
+    auto *restore = m_lockFocusRestoreSurface.data();
+
+    // Fall back to the latest active window when the snapshot is gone/unfocusable.
+    if (!restore || !restore->hasFocusCapability())
+        restore = server->workspace()->current()->latestActiveSurface();
+
+    if (restore)
+        server->requestKeyboardFocus(restore, Qt::NoFocusReason);
+
+    m_lockFocusRestoreSurface.clear();
 }
 
 void LockScreen::onExternalLockAbandoned() {
