@@ -52,14 +52,21 @@ Control {
 
         property point pressPosition
         property bool movingWindow: false
+        // A press on a window that a window above covers at the cursor position has
+        // fallen through it (the upper client owns no surface there); it must not
+        // activate or move this window.
+        property bool pressBelongsToWindow: true
         readonly property real dragThreshold: Qt.styleHints.startDragDistance
 
         onPressed: function (mouse) {
             pressPosition = Qt.point(mouse.x, mouse.y)
             movingWindow = false
+            pressBelongsToWindow = root.surface.isTopmostWindowAt(
+                root.mapToItem(null, Qt.point(mouse.x, mouse.y)))
         }
         onPositionChanged: function (mouse) {
-            if (!pressed || movingWindow || !(mouse.buttons & Qt.LeftButton))
+            if (!pressed || movingWindow || !pressBelongsToWindow
+                || !(mouse.buttons & Qt.LeftButton))
                 return
             const dx = mouse.x - pressPosition.x
             const dy = mouse.y - pressPosition.y
@@ -69,19 +76,21 @@ Control {
             surface.moveRequested()
         }
         onClicked: function (mouse) {
+            if (!pressBelongsToWindow || movingWindow)
+                return
             if (mouse.button === Qt.LeftButton)
                 WaylandServer.activateSurface(surface)
             else
                 surface.windowMenuRequested(Qt.point(mouse.x, mouse.y))
         }
         onDoubleClicked: function (mouse) {
-            if (mouse.button === Qt.LeftButton && root.canToggleMaximize)
+            if (pressBelongsToWindow && mouse.button === Qt.LeftButton && root.canToggleMaximize)
                 surface.toggleMaximized()
         }
         onPressAndHold: function (mouse) {
             // Touch screen only: a mouse press held down on the title bar is not
             // a window menu gesture.
-            if (mouse.source !== Qt.MouseEventNotSynthesized)
+            if (pressBelongsToWindow && mouse.source !== Qt.MouseEventNotSynthesized)
                 surface.windowMenuRequested(Qt.point(mouse.x, mouse.y))
         }
     }
@@ -126,6 +135,10 @@ Control {
                     D.ColorSelector.inactived: !surface.isActivated
 
                     onClicked: {
+                        // A covered title bar can be reached through an area of the
+                        // window above that owns no input; its buttons stay inert then.
+                        if (!surface.isTopmostWindowUnderCursor())
+                            return
                         surface.minimize()
                     }
                 }
@@ -143,6 +156,8 @@ Control {
                     D.ColorSelector.inactived: !surface.isActivated
 
                     onClicked: {
+                        if (!surface.isTopmostWindowUnderCursor())
+                            return
                         WaylandServer.activateSurface(surface)
                         surface.toggleMaximized()
                     }
@@ -167,6 +182,8 @@ Control {
                         D.ColorSelector.inactived: !surface.isActivated
 
                         onClicked: {
+                            if (!surface.isTopmostWindowUnderCursor())
+                                return
                             surface.closeSurface()
                         }
                     }

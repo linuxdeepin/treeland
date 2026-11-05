@@ -33,45 +33,6 @@
 #include <QMouseEvent>
 #include <QKeySequence>
 
-namespace {
-
-// Whether @p surface is covered, at @p scenePos, by a window stacked above it.
-//
-// A press inside the window on top that lands on none of its client surfaces (a
-// compositor-drawn title bar, the window border, a transparent margin) falls
-// through to the window below. Activating that window would raise it above the
-// window the user pressed, which is not what the press was aimed at.
-bool pressedThroughWindowAbove(SurfaceWrapper *surface, const QPointF &scenePos)
-{
-    if (surface->type() != SurfaceWrapper::Type::XdgToplevel
-        && surface->type() != SurfaceWrapper::Type::XWayland)
-        return false;
-
-    auto *parent = surface->parentItem();
-    if (!parent)
-        return false;
-
-    // childItems() is in stacking order: the last child is the topmost window.
-    const auto siblings = parent->childItems();
-    for (auto it = siblings.crbegin(); it != siblings.crend(); ++it) {
-        auto *window = qobject_cast<SurfaceWrapper *>(*it);
-        if (!window)
-            continue;
-        if (window == surface)
-            return false;
-        if (!window->isVisible()
-            || (window->type() != SurfaceWrapper::Type::XdgToplevel
-                && window->type() != SurfaceWrapper::Type::XWayland))
-            continue;
-        if (window->mapRectToScene(QRectF(QPointF(0, 0), window->size())).contains(scenePos))
-            return true;
-    }
-
-    return false;
-}
-
-} // namespace
-
 CompositorInputFilter::CompositorInputFilter(WaylandServer *server,
     FocusController *focus, IdleManager *idleManager, CaptureManager *captureManager,
     OutputManager *outputManager)
@@ -340,11 +301,12 @@ bool CompositorInputFilter::afterHandleEvent([[maybe_unused]] WSeat *seat,
 
         if (eventSeat && surface) {
             m_focus->updateSurfaceSeatInteraction(surface, eventSeat);
-            // The press belongs to the window under the cursor, not to a window
-            // stacked below it: keep the activation and the stacking untouched when
-            // the press fell through a window that covers this position.
-            if (pressedThroughWindowAbove(surface,
-                                          static_cast<QSinglePointEvent *>(event)->scenePosition()))
+            // A press inside the window on top that lands on none of its client
+            // surfaces (title bar, border, a transparent margin) is delivered to the
+            // window below. Activating that window would raise it above the window the
+            // user pressed, which is not what the press was aimed at.
+            if (!surface->isTopmostWindowAt(
+                    static_cast<QSinglePointEvent *>(event)->scenePosition()))
                 return false;
             m_focus->activateSurface(surface, Qt::MouseFocusReason, eventSeat, true);
         }
