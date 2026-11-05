@@ -405,11 +405,15 @@ void WaylandServer::applyCurrentUserConfig(const QString &userName,
             disconnect(m_config,
                        &TreelandUserConfig::cursorThemeNameChanged,
                        m_sessionManager,
-                       &SessionManager::syncActiveSessionCursorSettings);
+                       &SessionManager::syncActiveSessionXSettings);
             disconnect(m_config,
                        &TreelandUserConfig::cursorSizeChanged,
                        m_sessionManager,
-                       &SessionManager::syncActiveSessionCursorSettings);
+                       &SessionManager::syncActiveSessionXSettings);
+            disconnect(m_config,
+                       &TreelandUserConfig::x11GtkIMModuleChanged,
+                       m_sessionManager,
+                       &SessionManager::syncActiveSessionXSettings);
         }
         m_config = config;
         Q_EMIT configChanged();
@@ -418,12 +422,17 @@ void WaylandServer::applyCurrentUserConfig(const QString &userName,
     connect(m_config,
             &TreelandUserConfig::cursorThemeNameChanged,
             m_sessionManager,
-            &SessionManager::syncActiveSessionCursorSettings,
+            &SessionManager::syncActiveSessionXSettings,
             Qt::UniqueConnection);
     connect(m_config,
             &TreelandUserConfig::cursorSizeChanged,
             m_sessionManager,
-            &SessionManager::syncActiveSessionCursorSettings,
+            &SessionManager::syncActiveSessionXSettings,
+            Qt::UniqueConnection);
+    connect(m_config,
+            &TreelandUserConfig::x11GtkIMModuleChanged,
+            m_sessionManager,
+            &SessionManager::syncActiveSessionXSettings,
             Qt::UniqueConnection);
 
     auto user = m_userModel->currentUser();
@@ -438,7 +447,7 @@ void WaylandServer::applyCurrentUserConfig(const QString &userName,
     if (seatConfig) {
         m_inputManager->setupSeatUserConfig(userName);
     }
-    m_sessionManager->syncActiveSessionCursorSettings();
+    m_sessionManager->syncActiveSessionXSettings();
     syncPaletteTypeWithWindowColorScheme(m_config->windowColorScheme());
     tryInitRemoteSource();
     // TODO(YaoBing Xiao): Isolate workspaces for different users to prevent them from sharing the same one.

@@ -108,6 +108,11 @@ void SettingManager::setDoubleClickInterval(int interval)
     m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Net_DoubleClickTime), interval);
 }
 
+void SettingManager::setIMModule(const QString &module)
+{
+    m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Gtk_IMModule), module);
+}
+
 void SettingManager::setGlobalScale(qreal scale)
 {
     m_resource->setPropertyValue(XResource::toByteArray(XResource::Xft_DPI), scale * BASE_DPI);
