@@ -128,10 +128,18 @@ void seat_client_send_selection(struct wlr_seat_client *seat_client) {
 		source->accepted = false;
 	}
 
-	// Make all current offers inert
+	// Keep this client's offers until it receives the new selection event and
+	// destroys them. Closing a popup can restore focus to another surface of
+	// the same client before its queued receive request is dispatched.
+	// Offers belonging to other clients must still become inert on focus loss.
 	struct wlr_data_offer *offer, *tmp;
 	wl_list_for_each_safe(offer, tmp,
 			&seat_client->seat->selection_offers, link) {
+		if (offer->source == source &&
+				wl_resource_get_client(offer->resource) == seat_client->client) {
+			continue;
+		}
+
 		data_offer_destroy(offer);
 	}
 
