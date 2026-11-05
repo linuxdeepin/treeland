@@ -5,6 +5,7 @@
 
 #include "surface/surfacecontainer.h"
 #include "wglobal.h"
+#include <QPointer>
 #include <map>
 #include <memory>
 
@@ -64,6 +65,7 @@ private:
     void onOutputGeometryChanged();
     void doRemoveLockSurface(WSessionLockSurface *surface);
     void createFallbackItem(WOutputItem *outputItem);
+    void restoreLockedSessionFocus();
 
 private Q_SLOTS:
     void onLockSurfaceAdded(WSessionLockSurface *surface);
@@ -91,6 +93,8 @@ private:
     std::map<WOutputItem *, std::unique_ptr<WSessionLockSurface, std::function<void(WSessionLockSurface*)>>> m_lockSurfaces;
     std::map<WOutputItem *, std::unique_ptr<QQuickItem, std::function<void(QQuickItem*)>>> m_fallbackItems;
     WSessionLock* m_sessionLock{ nullptr };
+    // The surface focused when the session was locked, restored on unlock.
+    QPointer<SurfaceWrapper> m_lockFocusRestoreSurface;
 #endif
     QQuickItem *m_loginView{ nullptr };
 };
