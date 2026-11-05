@@ -68,6 +68,10 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 
 ### 标准 wayland-protocols（1.49）由 Treeland 提供的协议
 
+核心 Wayland 剪贴板协议另见 [wayland-data-device](wayland-data-device/README.md)：
+真实 selection pipe 传输、同客户端焦点切换期间的 offer 有效性、跨客户端切换及
+source 替换/销毁后的旧 offer 失效（E）。实际右键菜单交互由 GUI 复测补充。
+
 以下 25 个测试覆盖 Treeland 在运行时通过 wlroots 实际提供的标准 wayland-protocols（wayland-protocols 1.49.0-1）。
 xdg-shell 由共享 xdg-toplevel 夹具覆盖（多个 toplevel 测试复用）。input-method-v2 不在 wayland-protocols 包内，故排除。
 
