@@ -1011,7 +1011,10 @@ bool SurfaceWrapper::isTopmostWindowAt(const QPointF &scenePos) const
             pending.append(child);
 
         auto *other = qobject_cast<SurfaceWrapper *>(item);
-        if (!other || other == this || !other->isVisible() || other->parentSurface())
+        // Child windows (dialogs, X11 transients) cover like any other window: the
+        // paint order already puts their parent below them. Popups and input popups
+        // are filtered out by the type check below.
+        if (!other || other == this || !other->isVisible())
             continue;
         if (other->type() != Type::XdgToplevel && other->type() != Type::XWayland)
             continue;
