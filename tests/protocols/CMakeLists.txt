@@ -76,6 +76,7 @@ add_subdirectory(treeland-wine-window-management-unstable-v1)
 # --- Standard wayland-protocols (1.49) served by Treeland ---
 add_subdirectory(wayland-alpha-modifier-v1)
 add_subdirectory(wayland-cursor-shape-v1)
+add_subdirectory(wayland-data-device)
 add_subdirectory(wayland-ext-data-control-v1)
 add_subdirectory(wayland-ext-foreign-toplevel-list-v1)
 add_subdirectory(wayland-ext-idle-notify-v1)
