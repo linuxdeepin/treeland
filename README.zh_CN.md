@@ -66,12 +66,17 @@ sudo cmake --install build --component treeland-debug
 
 ### 开启调试 source
 
-调试 Remote Object 默认开启。`remoteDebug` 是它的总开关：开关为开时，Treeland 会
+调试 Remote Object 默认关闭：它会把窗口内容和输入注入能力交出去，跑在用户会话里的合成器
+不应默认提供。`remoteDebug` 是它的总开关：开关为开时，Treeland 会
 发布调试 socket，并给连上来的客户端提供窗口树远程数据源——该数据源是个薄 QObject，
 只在每次调用时干活，没有客户端连着时不占资源。把开关关掉就完全禁止调试，socket 也会
-一起消失。Release 构建中 socket 只允许 root 连接（权限 0000）；Debug 构建发布的是
-0666，但它位于合成器自己的目录里（0700），所以 Debug 构建下实际能连的是
-「合成器用户 + root」，Release 构建下的 0000 socket 则只答 root。
+一起消失。Release 构建中 socket 只允许 root 连接（权限 0000）；Debug 构建
+（`CMAKE_BUILD_TYPE=Debug`）忽略这个开关，对整台机器永久放开通道：`-dev` socket 是
+0666，启动时还会把 Treeland 自己的目录开到 0711，所以即使合成器是 deb 安装的全局服务、
+以它自己的用户运行（socket 在 `/run/treeland-debug/...`），`treeland-debug` 也能直接连上、
+不弹 polkit。`-dev` 这个独立名字把它和发行版实例区分开。会话实例的 socket 位于
+`$XDG_RUNTIME_DIR`，那里按 Qt 要求保持 0700，所以只有它自己的用户（和 root）能连 ——
+而那个用户本来就是调试它的人。
 
 Release 构建的 root 限制可以通过调试协议本身临时放开：`treeland-debug no-auth`
 （即 `WindowTreeRemote` 的 `requestNoAuth` 方法）请求合成器把它自己的调试目录开到 0711、
@@ -96,11 +101,13 @@ socket 自身的权限位。窗口开着时可以同时挂多个客户端。如�
 开关被关了，要么 Treeland 没在运行——客户端会直接在 stderr 上说明并指向这个开关。
 切换 `remoteDebug` 即时生效：远程源会动态创建或销毁，无需重启。
 
-开关要以 Treeland 运行用户（global 模式下为 `dde`）的身份切换；DConfig 的应用级键
-按用户分开存储，daemon 只接受 uid 与目标用户一致的调用者（root 也不行）：
+用 `treeland-debug debug on` / `treeland-debug debug off` 切换（不带参数的 `debug`
+打印当前状态）。开关是按用户存放的 DConfig 键，Treeland 只读自己运行用户的那个，因此该
+命令会从运行中的合成器查到这个用户，不是你本人时通过 `pkexec` 提权（`--no-escalate`
+只报告需要提权而不弹认证）。它在底层以 root 执行等价于：
 
 ```bash
-sudo -u dde -- dde-dconfig set \
+dde-dconfig -u <合成器 uid> set \
   -a org.deepin.dde.treeland \
   -r org.deepin.dde.treeland \
   -k remoteDebug \

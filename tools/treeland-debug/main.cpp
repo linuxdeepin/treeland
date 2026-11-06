@@ -3,6 +3,8 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -20,7 +22,9 @@
 
 #include <algorithm>
 #include <csignal>
+#include <pwd.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <utility>
@@ -367,7 +371,8 @@ QString helpText()
         "  --json               Emit machine-readable JSON for `tree`/`cursor`/`windows`/`clients`/`idle`\n"
         "  --preview            Force inline image preview in terminal (auto-detected by default)\n"
         "  --no-preview         Disable inline image preview\n"
-        "  --no-escalate        Do not attempt polkit privilege escalation (release builds only)\n"
+        "  --no-escalate        Do not attempt polkit privilege escalation; report the\n"
+        "                       requirement instead (scripts, CI)\n"
         "\n"
         "Inspection:\n"
         "  tree                       Print the complete window tree (human-readable, use --json for JSON)\n"
@@ -415,6 +420,13 @@ QString helpText()
         "                             on, and in a release build that is root alone); every later\n"
         "                             call extends the window, an idle half hour closes it.\n"
         "\n"
+        "Switch (no connection needed):\n"
+        "  debug [on|off|status]      Read or write treeland's `remoteDebug` switch\n"
+        "                             (default: status). The switch belongs to the user\n"
+        "                             treeland runs as, so writing it escalates via polkit\n"
+        "                             when that is not you. Takes effect immediately;\n"
+        "                             a debug-build compositor ignores it and is always on.\n"
+        "\n"
         "Interactive:\n"
         "  shell                      Start an interactive REPL (shell mode)\n"
         "                             All commands above (including top/events/watch)\n"
@@ -425,6 +437,206 @@ QString helpText()
         "Backward compatibility: `--tree` and `--cursor` are accepted as aliases for\n"
         "the `tree` and `cursor` commands.\n");
 }
+
+// uids of every running treeland, deduplicated and sorted.  Read through /proc,
+// which needs no privileges: the answer is the same before and after a polkit
+// escalation, so the elevated copy writes the key of the instance the caller
+// meant.
+QList<uid_t> compositorUids()
+{
+    QList<uid_t> uids;
+    const QDir proc(QStringLiteral("/proc"));
+    const QStringList entries = proc.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const QString &entry : entries) {
+        bool isPid = false;
+        entry.toUInt(&isPid);
+        if (!isPid)
+            continue;
+        const QString dir = proc.filePath(entry);
+        QFile comm(dir + QStringLiteral("/comm"));
+        if (!comm.open(QIODevice::ReadOnly) || comm.readAll().trimmed() != QByteArrayLiteral("treeland"))
+            continue;
+        struct stat st {};
+        if (::stat(QFile::encodeName(dir).constData(), &st) != 0)
+            continue;
+        const uid_t uid = static_cast<uid_t>(st.st_uid);
+        if (!uids.contains(uid))
+            uids.append(uid);
+    }
+    std::sort(uids.begin(), uids.end());
+    return uids;
+}
+
+QString userName(uid_t uid)
+{
+    if (const struct passwd *pw = ::getpwuid(uid))
+        return QString::fromLocal8Bit(pw->pw_name);
+    return QString::number(uid);
+}
+
+// Runs `dde-dconfig`, the DTK CLI for the config manager on the system bus.
+// `-u <uid>` names the user whose app-scoped keys are meant, which is how root
+// writes another user's switch.  Returns false only when the process could not
+// be run at all: the tool reports refusals as text and still exits 0, so every
+// caller judges the result by the value it reads back.
+bool runDConfig(const QStringList &args, QString *out, QString *err)
+{
+    const QString exe = QStandardPaths::findExecutable(QStringLiteral("dde-dconfig"));
+    if (exe.isEmpty()) {
+        *err = QStringLiteral("dde-dconfig was not found — install the dde-dconfig package");
+        return false;
+    }
+    QProcess process;
+    process.start(exe, args);
+    if (!process.waitForStarted(5000)) {
+        *err = process.errorString();
+        return false;
+    }
+    if (!process.waitForFinished(30000)) {
+        process.kill();
+        process.waitForFinished();
+        *err = QStringLiteral("dde-dconfig did not answer");
+        return false;
+    }
+    *out = QString::fromLocal8Bit(process.readAllStandardOutput()).trimmed();
+    *err = QString::fromLocal8Bit(process.readAllStandardError()).trimmed();
+    return true;
+}
+
+QStringList remoteDebugArgs(uid_t uid, const QString &action)
+{
+    return { QStringLiteral("-u"),
+             QString::number(uid),
+             action,
+             QStringLiteral("-a"),
+             QStringLiteral("org.deepin.dde.treeland"),
+             QStringLiteral("-r"),
+             QStringLiteral("org.deepin.dde.treeland"),
+             QStringLiteral("-k"),
+             QStringLiteral("remoteDebug") };
+}
+
+int failDConfig(const QString &what, const QString &out, const QString &err)
+{
+    const QString detail = (out + QLatin1Char(' ') + err).trimmed();
+    return fail(detail.isEmpty() ? what : what + QStringLiteral(": ") + detail);
+}
+
+// `debug [on|off|status]`: the only command that does not go through the debug
+// socket, because it is what makes a socket exist at all.  The switch is a
+// per-user DConfig key that treeland reads for its own user, so the uid of the
+// running compositor decides which key matters, and another user's key can only
+// be written as root.
+int runDebugSwitch(const QStringList &args, const QStringList &selfArgs, bool noEscalate)
+{
+    const QString action = args.isEmpty() ? QStringLiteral("status") : args.first().toLower();
+    const bool on = action == QLatin1String("on") || action == QLatin1String("true");
+    const bool off = action == QLatin1String("off") || action == QLatin1String("false");
+    if ((!on && !off && action != QLatin1String("status")) || args.size() > 1)
+        return fail(QStringLiteral("usage: treeland-debug debug [on|off|status]"));
+
+    // A session instance normally runs as whoever asks and may share the machine
+    // with a global service, so our own uid wins when a compositor has it.
+    const QList<uid_t> uids = compositorUids();
+    const uid_t self = ::geteuid();
+    uid_t uid = self;
+    if (uids.contains(self)) {
+        uid = self;
+    } else if (uids.size() == 1) {
+        uid = uids.first();
+    } else if (uids.size() > 1) {
+        QStringList names;
+        for (const uid_t candidate : uids)
+            names.append(QStringLiteral("%1 (uid %2)").arg(userName(candidate)).arg(candidate));
+        return fail(QStringLiteral("several compositors are running, as %1; the switch is "
+                                   "per user, so write the one you mean with `dde-dconfig -u "
+                                   "<uid> set -a org.deepin.dde.treeland -r "
+                                   "org.deepin.dde.treeland -k remoteDebug -v true|false`")
+                        .arg(names.join(QStringLiteral(", "))));
+    }
+
+    // DConfig keeps app-scoped keys per user.  The check is the daemon's own uid
+    // comparison (the system bus policy lets every local caller through): a plain
+    // user only reaches its own keys, while root may name the target with `-u`,
+    // so another user's key needs root.
+    if (uid != self && self != 0) {
+        if (noEscalate) {
+            return fail(QStringLiteral("the compositor runs as %1 (uid %2), so its switch can "
+                                       "only be written as that user or as root; remove "
+                                       "--no-escalate to escalate via polkit")
+                            .arg(userName(uid))
+                            .arg(uid));
+        }
+        const QString pkexec = QStandardPaths::findExecutable(QStringLiteral("pkexec"));
+        if (pkexec.isEmpty()) {
+            return fail(QStringLiteral("root privileges are required to write the switch of %1 "
+                                       "(uid %2), but pkexec was not found — install polkit")
+                            .arg(userName(uid))
+                            .arg(uid));
+        }
+        QStringList pkArgs;
+        pkArgs << QCoreApplication::applicationFilePath() << selfArgs;
+        return QProcess::execute(pkexec, pkArgs);
+    }
+
+    QString out;
+    QString err;
+    const QString wanted = on ? QStringLiteral("true") : QStringLiteral("false");
+    if (on || off) {
+        QStringList setArgs = remoteDebugArgs(uid, QStringLiteral("set"));
+        setArgs.append({ QStringLiteral("-v"), wanted });
+        if (!runDConfig(setArgs, &out, &err))
+            return failDConfig(QStringLiteral("cannot run dde-dconfig"), out, err);
+    }
+    if (!runDConfig(remoteDebugArgs(uid, QStringLiteral("get")), &out, &err))
+        return failDConfig(QStringLiteral("cannot run dde-dconfig"), out, err);
+    if (out != QLatin1String("true") && out != QLatin1String("false"))
+        return failDConfig(QStringLiteral("remoteDebug is unreadable"), out, err);
+    if ((on || off) && out != wanted)
+        return failDConfig(QStringLiteral("the switch did not change"), out, err);
+
+    const bool enabled = out == QLatin1String("true");
+    if (on)
+        QTextStream(stdout) << "remoteDebug is on; treeland publishes its debug socket now\n";
+    else if (off)
+        QTextStream(stdout) << "remoteDebug is off; treeland drops its debug socket now\n";
+    else
+        QTextStream(stdout) << "remoteDebug is " << (enabled ? "on" : "off") << " (uid " << uid
+                            << ")\n";
+    if (uids.isEmpty())
+        QTextStream(stderr) << "treeland-debug: no treeland is running; the switch takes effect "
+                               "when it starts\n";
+    return EXIT_SUCCESS;
+}
+
+#ifndef TREELAND_DEBUG_DEV_BUILD
+// The switch is off by default, so a release user's first run finds no socket at
+// all -- a case where a polkit prompt only asks for a password that cannot help.
+// Returns a hint when the switch of the compositor this caller would target reads
+// back as off, and nothing when it is on or unreadable (another user's key needs
+// root, which the escalation then provides).
+QString remoteDebugOffHint()
+{
+    const QList<uid_t> uids = compositorUids();
+    const uid_t self = ::geteuid();
+    uid_t uid = self;
+    if (!uids.contains(self)) {
+        if (uids.size() != 1)
+            return {};
+        uid = uids.first();
+    }
+    if (uid != self && self != 0)
+        return {};
+    QString out;
+    QString err;
+    if (!runDConfig(remoteDebugArgs(uid, QStringLiteral("get")), &out, &err))
+        return {};
+    if (out != QLatin1String("false"))
+        return {};
+    return QStringLiteral("treeland's `remoteDebug` switch is off, so it publishes no debug "
+                          "socket; turn it on with `treeland-debug debug on`");
+}
+#endif
 
 } // namespace
 
@@ -581,10 +793,9 @@ static void explainConnectFailure(const QStringList &candidateUrls,
         QTextStream(stderr) << "treeland-debug: treeland published no debug socket in "
                             << treelandDebugSocketDirs().join(QStringLiteral(" or "))
                             << "; is it running, and is its "
-                               "`remoteDebug` switch on? As the compositor's user: "
-                               "`dde-dconfig set -a org.deepin.dde.treeland -r "
-                               "org.deepin.dde.treeland -k remoteDebug -v true` "
-                               "(e.g. with `sudo -u dde --`)\n";
+                               "`remoteDebug` switch on? `treeland-debug debug on` turns it "
+                               "on, escalating to root when the compositor runs as another "
+                               "user\n";
         if (!occupiedNonSocket.isEmpty())
             QTextStream(stderr) << "treeland-debug: note that " << occupiedNonSocket
                                 << " exists but is not a socket; something else owns that "
@@ -729,7 +940,7 @@ int main(int argc, char *argv[])
     bool previewOpt = 0; // 0=auto-detect, 1=force on, 2=force off
     bool compatTree = false;
     bool compatCursor = false;
-    [[maybe_unused]] bool noEscalate = false;
+    bool noEscalate = false;
     QStringList rest;
 
     for (int i = 1; i < argc; ++i) {
@@ -816,6 +1027,15 @@ int main(int argc, char *argv[])
         return EXIT_SUCCESS;
     }
 
+    // The switch command runs without the socket -- it is what makes one exist --
+    // so it is dispatched before any connection or escalation below.
+    if (command == QLatin1String("debug")) {
+        QStringList selfArgs;
+        for (int i = 1; i < argc; ++i)
+            selfArgs.append(QString::fromUtf8(argv[i]));
+        return runDebugSwitch(commandArgs, selfArgs, noEscalate);
+    }
+
 #ifndef TREELAND_DEBUG_DEV_BUILD
     // Release builds: the server-side socket is chmod'd to 0000 inside a runtime
     // directory only its owner may enter, so only root can connect -- unless a
@@ -839,9 +1059,9 @@ int main(int argc, char *argv[])
         : treelandDebugInstanceSocketUrls(treelandDebugCandidateSocketUrls());
 
     // Treeland publishes its debug socket whenever its `remoteDebug` master
-    // switch is on (the default), so the client never touches DConfig: a
-    // missing socket means the switch was turned off or treeland is not
-    // running, and the hint below is all the caller needs.
+    // switch is on, so the client never touches DConfig: a missing socket means
+    // the switch is off (it is off by default) or treeland is not running, and
+    // the hint below points at `treeland-debug debug on`.
 
 #ifdef TREELAND_DEBUG_LISTEN
     if (command == QLatin1String("listen")) {
@@ -880,6 +1100,11 @@ int main(int argc, char *argv[])
         // password prompt worth asking for.  --no-escalate never prompts: it
         // reports the root requirement instead.
         if (mayEscalate) {
+            if (!urlConfigured && connectUrls.isEmpty()) {
+                const QString hint = remoteDebugOffHint();
+                if (!hint.isEmpty())
+                    return fail(hint);
+            }
             if (noEscalate) {
                 return fail(QStringLiteral("root privileges required (release build); "
                                             "remove --no-escalate to escalate via polkit"));
@@ -1345,6 +1570,12 @@ static int runShell(Session &session, int timeoutMs, bool json, int previewOpt)
                 out << "\n"; // newline after the interrupted live view
                 continue;
             }
+        }
+        if (command == QLatin1String("debug")) {
+            // The switch is per user and may need polkit, which this REPL cannot
+            // forward an escalation through: it is a pre-connection command.
+            out << "debug: run `treeland-debug debug on|off|status` as a one-shot command\n";
+            continue;
         }
         runCommand(session, timeoutMs, json, previewOpt, command, parts);
     }

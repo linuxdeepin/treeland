@@ -41,7 +41,7 @@ cmake --preset default -DCMAKE_BUILD_TYPE=Debug
 - 定义 `TREELAND_DEBUG_DEV_BUILD`：socket 名变成 `org.deepin.dde.treeland.debug-dev`，`treeland-debug` 免 polkit 提权
 - 不传 `CMAKE_BUILD_TYPE` 时既不是 Debug 也不是 Release，上面这个宏都不会定义
 
-调试 Remote Object 的开关在两种构建里都是 `remoteDebug`（默认开），Debug 构建不再有自己的覆盖开关。
+调试 Remote Object 的开关是 `remoteDebug`（默认关，用 `treeland-debug debug on` 打开）；**Debug 构建不看这个开关，始终开启**（socket 名带 `-dev`），所以 dev 实例里不需要也不应该去改它。
 
 ## 常用配置选项
 | 选项 | 默认 | 说明 |

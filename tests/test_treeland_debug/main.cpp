@@ -897,6 +897,14 @@ void TreelandDebugTest::testSocketAccessSwitch()
     QCOMPARE(modeOf(elsewhere.path()), 0700u);
     // Sealing is always allowed: that is the direction that only removes access.
     QVERIFY(treelandDebugSetSocketAccess(foreign, false));
+
+    // Nor is a directory of ours that any other user can write: a debug build
+    // widens its directory without anyone asking, and $TREELAND_DEBUG_DIR points
+    // at /tmp often enough -- chmod there would drop its sticky bit.
+    QCOMPARE(::chmod(QFile::encodeName(treelandDebugSocketDir()).constData(), 01777), 0);
+    QVERIFY(!treelandDebugSetSocketAccess(path, true));
+    QCOMPARE(modeOf(treelandDebugSocketDir()), 01777u);
+    QCOMPARE(::chmod(QFile::encodeName(treelandDebugSocketDir()).constData(), 0711), 0);
 }
 
 // ---------------------------------------------------------------------------
