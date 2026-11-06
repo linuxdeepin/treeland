@@ -9,14 +9,23 @@ import QtQuick.Effects
 Item {
     id: root
 
+    enum Direction {
+        Show = 1,
+        Hide
+    }
+
     required property SurfaceWrapper surface
     required property rect fromGeometry
     required property rect toGeometry
     property int duration: 400 * WaylandServer.animationSpeed
-    property real fadeDurationRatio: 0.5
     property var enableBlur: false
     property var sourceSurface: null
     property int direction: 0
+
+    readonly property bool opening: direction === WindowTransition.Direction.Show
+    readonly property bool hasIcon: !!sourceSurface
+
+    property real progress: hasIcon && opening ? 0 : 1
 
     signal finished
 
@@ -31,7 +40,8 @@ Item {
 
     XdgShadow {
         anchors.fill: parent
-        visible: surface.visibleDecoration && !surface.noDecoration
+        visible: surface.visibleDecoration && !surface.noDecoration && surface.shadowVisible
+        opacity: root.progress
         cornerRadius: surface.radius
         shadowBlur: surface.shadowBlurRadius
         shadowOffsetX: surface.shadowOffsetX
@@ -49,30 +59,44 @@ Item {
     }
 
     ShaderEffectSource {
-        id: backgroundEffect
+        id: windowSource
 
-        readonly property real xScale: root.width / surface.width
-        readonly property real yScale: root.height / surface.height
-
+        // Sampled by the effect below, never drawn directly.
+        visible: false
         live: true
         sourceItem: surface
         hideSource: true
-        sourceRect: surface.boundingRect
-        width: sourceRect.width * xScale
-        height: sourceRect.height * yScale
-        x: sourceRect.x * xScale
-        y: sourceRect.y * yScale
+        anchors.fill: parent
     }
 
     SurfaceItemContent {
         id: sourceImage
 
-        anchors.fill: parent
-        visible: !!root.sourceSurface
+        width: implicitWidth
+        height: implicitHeight
+        visible: root.hasIcon
         surface: root.sourceSurface
         smooth: true
         live: true
-        opacity: root.direction === 1 ? 1 : 0
+    }
+
+    ShaderEffectSource {
+        id: iconSource
+
+        visible: false
+        live: true
+        sourceItem: sourceImage
+        hideSource: true
+        anchors.fill: parent
+    }
+
+    ShaderEffect {
+        anchors.fill: parent
+
+        property real progress: root.progress
+        property variant windowTexture: windowSource
+        property variant iconTexture: iconSource
+        fragmentShader: "qrc:/shaders/window_transition.frag.qsb"
     }
 
     ParallelAnimation {
@@ -112,18 +136,15 @@ Item {
             to: root.toGeometry.height
         }
 
-        SequentialAnimation {
-            PauseAnimation {
-                duration: root.direction === 1 ? 0 : root.duration * (1 - root.fadeDurationRatio)
-            }
-            PropertyAnimation {
-                target: sourceImage
-                property: "opacity"
-                duration: root.duration * root.fadeDurationRatio
-                from: root.direction === 1 ? 1 : 0
-                to: root.direction === 1 ? 0 : 1
-                easing.type: Easing.Linear
-            }
+        // The window's visible weight follows OutExpo, the icon's follows
+        // 1 - OutExpo.
+        NumberAnimation {
+            target: root
+            property: "progress"
+            duration: root.duration
+            easing.type: Easing.OutExpo
+            from: root.hasIcon && root.opening ? 0 : 1
+            to: root.hasIcon && !root.opening ? 0 : 1
         }
 
         onFinished: {
