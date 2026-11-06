@@ -146,6 +146,9 @@ QString treelandDebugSocketPeerText(const QLocalSocket &socket);
 // way, since widening a directory of somebody else's is exactly what this
 // function must not do.  Returns false when the policy could not be applied; the
 // socket stays usable for its owner either way, so callers only log it.
+//
+// Called with @p anyUser by the no-auth window of a release build and, once at
+// startup, by a debug build: whoever debugs there must not need a polkit prompt.
 bool treelandDebugSetSocketAccess(const QString &socketPath, bool anyUser);
 
 // RAII lock that claims a local-socket name, mirroring wl_socket_lock() in

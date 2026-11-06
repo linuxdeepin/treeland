@@ -70,15 +70,22 @@ sudo cmake --install build --component treeland-debug
 
 ### Enabling the debug source
 
-The debug Remote Object is on by default. `remoteDebug` is Treeland's master
-switch for it: while the switch is on, Treeland publishes its debug socket and
+The debug Remote Object is off by default: it hands out window contents and
+input injection, which a compositor running inside a user session must not offer
+unasked. `remoteDebug` is Treeland's master switch for it: while the switch is
+on, Treeland publishes its debug socket and
 serves the window tree remote source to whoever connects -- the source is a thin
 QObject that only does work per call, so it costs nothing when no client is
 attached. Turn the switch off to forbid debugging entirely; the socket then
-disappears too. Release builds keep the socket root-only (mode 0000). Debug
-builds publish it world-writable (0666), but it lives in a directory of the
-compositor's own (0700), so in a debug build the socket is reachable by the
-compositor's user, while a release build's 0000 socket answers root alone.
+disappears too. Release builds keep the socket root-only (mode 0000). A debug
+build instead ignores the switch and opens the channel to every local user for
+good: its `-dev` socket is 0666 and the directory Treeland owns is widened to
+0711 at startup, so `treeland-debug` connects without a polkit prompt even when
+the compositor is the deb-installed global service running as its own user
+(`/run/treeland-debug/...`). The separate `-dev` name keeps such an instance
+apart from a release one. A session instance's socket sits in `$XDG_RUNTIME_DIR`,
+which stays 0700 like Qt requires, so there only its own user (and root)
+connects -- that user is the one debugging it anyway.
 
 The root restriction of a release build can be lifted for a while over the
 debug protocol itself: `treeland-debug no-auth` (the `requestNoAuth` method of
@@ -114,12 +121,15 @@ the client says so on stderr and points at the switch. Toggling `remoteDebug`
 takes effect immediately: the remote source is created or destroyed on the fly,
 no restart needed.
 
-Flip the switch as the user Treeland runs as (`dde` in global mode); DConfig
-keeps app-scoped keys per user and rejects a caller with any other uid, root
-included:
+Flip the switch with `treeland-debug debug on` / `treeland-debug debug off`
+(`debug` without an argument reports the current state). The switch is a
+per-user DConfig key that Treeland reads for the user it runs as, so the command
+finds that user through the running compositor and escalates through `pkexec`
+when it is not you; `--no-escalate` reports the requirement instead of prompting.
+Underneath it runs, as root, the equivalent of:
 
 ```bash
-sudo -u dde -- dde-dconfig set \
+dde-dconfig -u <compositor uid> set \
   -a org.deepin.dde.treeland \
   -r org.deepin.dde.treeland \
   -k remoteDebug \
