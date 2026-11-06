@@ -77,8 +77,16 @@ add_compile_definitions(
     "$<$<NOT:$<CONFIG:Debug>>:TREELAND_DEBUG_SOCKET=\"${TREELAND_DEBUG_SOCKET_RELEASE}\">"
 )
 
-# NOTE: Qt keywords conflict with wlroots. but dtksystemsettings still uses it.
-# add_definitions("-DQT_NO_KEYWORDS")
+# Disable Qt lowercase keywords (``signals``, ``slots``, ``emit``) so they
+# never collide with wlroots struct field names (e.g. ``slots[]``).  Source
+# must use the ``Q_SIGNALS`` / ``Q_SLOTS`` / ``Q_EMIT`` equivalents instead.
+# waylib already defines QT_NO_SIGNALS_SLOTS_KEYWORDS on its own target; this
+# covers treeland and test targets.  Enabled by default.
+option(TREELAND_NO_QT_KEYWORDS "Disable Qt lowercase keyword macros (signals/slots/emit)" ON)
+if(TREELAND_NO_QT_KEYWORDS)
+    add_compile_definitions(QT_NO_KEYWORDS)
+endif()
+add_feature_info(treeland_no_qt_keywords TREELAND_NO_QT_KEYWORDS "Disable Qt lowercase keyword macros")
 
 # NOTE: Enable Qt logging with context.
 add_definitions("-DQT_MESSAGELOGCONTEXT")
