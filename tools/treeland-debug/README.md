@@ -229,12 +229,19 @@ treeland-debug maximize 93824992268800
 | `event key <key> [press\|release\|tap]` | Send a keyboard event; `key` = name or raw Linux evdev keycode (default `tap`). |
 
 Pointer buttons use Linux input codes (`BTN_LEFT` = 0x110, `BTN_RIGHT` = 0x111,
-`BTN_MIDDLE` = 0x112). Keyboard keys use Linux evdev keycodes; common names are
-recognised (`enter`, `esc`, `space`, `tab`, `left`/`right`/`up`/`down`, `a`–`z`,
-`0`–`9`, `f1`–`f12`, …). Keys are delivered to the currently keyboard-focused
-surface, so `activate` a window first to target it. Pointer buttons are
-delivered to the surface that currently holds pointer focus; move the cursor
-onto a window before clicking.
+`BTN_MIDDLE` = 0x112). Keyboard keys are given either as a Qt key name — with or
+without the `Key_` prefix, case-insensitively (`space`, `Escape`, `Return`,
+`Left`, `A`–`Z`, `0`–`9`, `F1`–`F12`, `VolumeMute`, …) — or as a raw Linux evdev
+keycode, the same convention as `evtest` and `ydotool` (`57` = space, `30` = the
+`A` key). An unknown name, or a named key with no physical counterpart, fails
+with `unknown key '<name>'` instead of injecting nothing.
+
+The injected keycode is a *physical* key position, so which character it
+produces follows the current layout, exactly like a real key press: with a
+non-US layout, `event key A` presses the key that layout maps to `A`. Keys are
+delivered to the currently keyboard-focused surface, so `activate` a window
+first to target it. Pointer buttons are delivered to the surface that currently
+holds pointer focus; move the cursor onto a window before clicking.
 
 ```bash
 treeland-debug activate dde-file-manager

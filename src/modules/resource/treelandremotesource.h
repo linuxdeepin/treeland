@@ -55,7 +55,7 @@ public:
     // ---- input / event injection ----
     bool moveCursor(QPointF pos) override;
     bool sendPointerButton(int button, bool pressed) override;
-    bool sendKey(int qtKey, bool pressed) override;
+    bool sendKey(int evdevKey, bool pressed) override;
 
     // ---- image capture (asynchronous) ----
     // Starts an async grab; the encoded PNG bytes are delivered via the

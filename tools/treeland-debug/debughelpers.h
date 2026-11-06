@@ -22,10 +22,10 @@ QString formatDuration(quint64 ms);
 // through. Sets *ok=false for unknown names.
 int buttonCode(const QString &name, bool *ok);
 
-// Maps a key name to a Qt::Key enum value using Qt's meta-object system.
-// Accepts the enum name with or without the "Key_" prefix, case-insensitively
-// (e.g. "Escape", "escape", "Key_Escape" all resolve to Qt::Key_Escape).
-// Raw integer values pass through unchanged. Sets *ok=false for unknown names.
+// Maps a key name to a Linux evdev keycode. Accepts a Qt::Key enum name with
+// or without the "Key_" prefix, case-insensitively (e.g. "Escape", "escape",
+// "Key_Escape" all resolve to KEY_ESC), or a decimal raw evdev keycode. Sets
+// *ok=false for unknown names or keycodes outside the 1..255 range.
 int keyCode(const QString &name, bool *ok);
 
 // Writes captured image bytes to @p userPath (or a generated /tmp path when

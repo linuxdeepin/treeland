@@ -261,16 +261,22 @@ void TreelandDebugTest::testButtonCodeUnknown()
 void TreelandDebugTest::testKeyCodeNamed()
 {
     bool ok = false;
-    // keyCode() now returns Qt::Key enum values resolved via QMetaEnum.
-    QCOMPARE(keyCode(QStringLiteral("Escape"), &ok), static_cast<int>(Qt::Key_Escape));
+    // keyCode() returns Linux evdev keycodes (KEY_ESC, KEY_ENTER, ...).
+    QCOMPARE(keyCode(QStringLiteral("Escape"), &ok), 1);
     QVERIFY(ok);
-    QCOMPARE(keyCode(QStringLiteral("Return"), &ok), static_cast<int>(Qt::Key_Return));
+    QCOMPARE(keyCode(QStringLiteral("Return"), &ok), 28);
     QVERIFY(ok);
-    QCOMPARE(keyCode(QStringLiteral("Space"), &ok), static_cast<int>(Qt::Key_Space));
+    QCOMPARE(keyCode(QStringLiteral("Space"), &ok), 57);
     QVERIFY(ok);
-    QCOMPARE(keyCode(QStringLiteral("Up"), &ok), static_cast<int>(Qt::Key_Up));
+    QCOMPARE(keyCode(QStringLiteral("Up"), &ok), 103);
     QVERIFY(ok);
-    QCOMPARE(keyCode(QStringLiteral("F12"), &ok), static_cast<int>(Qt::Key_F12));
+    QCOMPARE(keyCode(QStringLiteral("F12"), &ok), 88);
+    QVERIFY(ok);
+    // Regression: a letter must map to its own keycode, not to whatever key the
+    // old reverse-keymap scan happened to visit first.
+    QCOMPARE(keyCode(QStringLiteral("a"), &ok), 30); // KEY_A
+    QVERIFY(ok);
+    QCOMPARE(keyCode(QStringLiteral("VolumeMute"), &ok), 113); // KEY_MUTE
     QVERIFY(ok);
 }
 
@@ -279,6 +285,10 @@ void TreelandDebugTest::testKeyCodeRaw()
     bool ok = false;
     QCOMPARE(keyCode(QStringLiteral("200"), &ok), 200);
     QVERIFY(ok);
+    // Out of the range a keymap can carry.
+    ok = true;
+    QCOMPARE(keyCode(QStringLiteral("300"), &ok), 0);
+    QVERIFY(!ok);
 }
 
 void TreelandDebugTest::testKeyCodeUnknown()
@@ -292,9 +302,9 @@ void TreelandDebugTest::testKeyCodeCaseInsensitive()
 {
     bool ok = false;
     // Case-insensitive matching: "ESCAPE" and "enter" should also work.
-    QCOMPARE(keyCode(QStringLiteral("ESCAPE"), &ok), static_cast<int>(Qt::Key_Escape));
+    QCOMPARE(keyCode(QStringLiteral("ESCAPE"), &ok), 1);
     QVERIFY(ok);
-    QCOMPARE(keyCode(QStringLiteral("enter"), &ok), static_cast<int>(Qt::Key_Enter));
+    QCOMPARE(keyCode(QStringLiteral("enter"), &ok), 96); // keypad enter
     QVERIFY(ok);
 }
 
@@ -1262,7 +1272,7 @@ void TreelandDebugTest::testParseEventKeyNamed()
                                 { QStringLiteral("key"), QStringLiteral("enter") });
     QVERIFY(r.ok);
     QCOMPARE(r.command, DebugCommand::EventKey);
-    QCOMPARE(r.code, static_cast<int>(Qt::Key_Enter));
+    QCOMPARE(r.code, 96); // keypad enter
     QCOMPARE(r.action, QStringLiteral("tap")); // default action
 }
 
@@ -1281,7 +1291,7 @@ void TreelandDebugTest::testParseEventKeyWithAction()
                                 { QStringLiteral("key"), QStringLiteral("Space"), QStringLiteral("release") });
     QVERIFY(r.ok);
     QCOMPARE(r.command, DebugCommand::EventKey);
-    QCOMPARE(r.code, static_cast<int>(Qt::Key_Space));
+    QCOMPARE(r.code, 57); // KEY_SPACE
     QCOMPARE(r.action, QStringLiteral("release"));
 }
 

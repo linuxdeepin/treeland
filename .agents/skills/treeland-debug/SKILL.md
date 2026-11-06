@@ -112,7 +112,7 @@ sudo -u dde -- dde-dconfig set -a org.deepin.dde.treeland -r org.deepin.dde.tree
 `activate`、`close`、`minimize`、`maximize`、`fullscreen`、`move <id> <x> <y>`、`resize <id> <w> <h>`、`workspace <id> <ws-id>`。每条命令输出 `ok`/`failed`。
 
 ### 输入注入
-`move-cursor <x> <y>`、`event motion <x> <y>`、`event button <btn> [press|release|click]`、`event key <key> [press|release|tap]`。指针按键使用 Linux input code（`left`=0x110，`right`=0x111，`middle`=0x112）；数字键值按 **Qt::Key** 传入（不是 Linux evdev keycode），也可以使用常见名字（`enter`、`esc`、`space`、`a`–`z`、`0`–`9`、`f1`–`f12`、方向键）。键盘事件发往**键盘聚焦**的 surface —— 先 `activate` 窗口；指针按键发往光标下的 surface —— 先把光标移过去。
+`move-cursor <x> <y>`、`event motion <x> <y>`、`event button <btn> [press|release|click]`、`event key <key> [press|release|tap]`。指针按键使用 Linux input code（`left`=0x110，`right`=0x111，`middle`=0x112）；数字键值按 **Linux evdev keycode** 传入（与 evtest/ydotool 一致，`30`=`A` 键、`57`=空格），也可以使用 Qt 键名（`Return`、`Space`、`Left`、`A`–`Z`、`0`–`9`、`F1`–`F12`、`VolumeMute` 等，不带 `Key_` 前缀、不区分大小写）。注入的是**物理键位**，最终字符取决于当前布局；名字无法映射时报 `unknown key '<name>'`。键盘事件发往**键盘聚焦**的 surface —— 先 `activate` 窗口；指针按键发往光标下的 surface —— 先把光标移过去。
 
 ### 截图
 `screenshot output [name] [file]` 与 `screenshot window <id> [file]`。服务端渲染，PNG 字节返回给客户端，由客户端写文件并打印路径（省略 `file` 时自动落在 `/tmp` 下）。
