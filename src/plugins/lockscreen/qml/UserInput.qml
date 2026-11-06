@@ -21,25 +21,6 @@ Item {
     /* Components */
     /**************/
 
-    Item {
-        width: 32
-        height: 32
-        visible: GreeterProxy.isLocked
-        anchors {
-            horizontalCenter: parent.horizontalCenter
-            bottom: parent.top
-            bottomMargin: 56
-        }
-        D.DciIcon {
-            name: "login_lock"
-            anchors.centerIn: parent
-            sourceSize {
-                width: 18
-                height: 22
-            }
-        }
-    }
-
     Column {
         id: userCol
         spacing: 15
