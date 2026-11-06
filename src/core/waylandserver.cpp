@@ -138,7 +138,8 @@ WaylandServer::WaylandServer(QObject *parent)
             &Workspace::workspaceAdded,
             m_wallpaperManager,
             &WallpaperManager::syncAddWorkspace);
-    // Follow the remoteDebug master switch (on by default) in every build type,
+    // Follow the remoteDebug master switch (off by default in release builds,
+    // always on in debug builds -- see misc/dconfig/org.deepin.dde.treeland.json),
     // so the debug socket appears and disappears with it instead of only at
     // startup. The stored value arrives asynchronously -- dtk reports
     // configInitializeSucceed later -- so watch for changes first and only then
@@ -264,18 +265,29 @@ void WaylandServer::syncPaletteTypeWithWindowColorScheme(int32_t colorScheme)
 
 void WaylandServer::tryInitRemoteSource()
 {
-    // remoteDebug is a master switch -- on by default, so the debug socket
-    // exists without anyone enabling it, and off means "no debugging at all".
-    // Toggling it creates or destroys the remote source without restarting the
-    // server. The source itself is a thin QObject that only does work per call,
-    // so keeping it while the switch is on costs nothing when no client is
-    // attached.
+    // remoteDebug is a master switch -- off by default in release builds, so
+    // nothing is exposed until someone asks for it, and on means "serve
+    // debuggers". Toggling it creates or destroys the remote source without
+    // restarting the server. The source itself is a thin QObject that only does
+    // work per call, so keeping it while the switch is on costs nothing when no
+    // client is attached.
+    //
+    // A debug build never looks at the switch: that instance is the thing being
+    // developed, so waiting for a per-user key to be flipped there only costs
+    // time (and a stale `false` left by an earlier session looks like "debug is
+    // broken"). Its socket is the `-dev` one, so this cannot open a release
+    // instance's channel.
+#ifdef TREELAND_DEBUG_DEV_BUILD
+    const bool remoteDebug = true;
+#else
+    const bool remoteDebug = m_globalConfig->remoteDebug();
+#endif
     if (m_treelandRemoteSource) {
-        if (!m_globalConfig->remoteDebug()) {
+        if (!remoteDebug) {
             delete m_treelandRemoteSource;
             m_treelandRemoteSource = nullptr;
         }
-    } else if (m_globalConfig->remoteDebug()) {
+    } else if (remoteDebug) {
         auto *source = new TreelandRemoteSource(this);
         // Binding or publishing can fail while the switch stays on; keep it
         // retryable rather than caching an object that never published.

@@ -41,11 +41,15 @@ socket depends on the build type:
   compositor to open a window, the socket accepts every user instead and the
   client connects without a prompt.
 
-`remoteDebug` is Treeland's master switch for debugging, and it is **on by
-default**. While it is on, Treeland publishes its debug socket and serves the
-`WindowTree` Remote Object to whoever connects; the client never writes DConfig,
-it just connects. Release builds only let root connect (mode 0000) -- turn the
-switch off to forbid debugging entirely, and the socket disappears with it.
+`remoteDebug` is Treeland's master switch for debugging, and it is **off by
+default** -- debugging hands out window contents and input injection, which a
+compositor running inside a user session must not offer unasked. While it is on,
+Treeland publishes its debug socket and serves the `WindowTree` Remote Object to
+whoever connects; a plain command never writes DConfig, it just connects.
+Release builds only let root connect (mode 0000) -- turn the switch off to forbid
+debugging entirely, and the socket disappears with it. A debug build
+(`CMAKE_BUILD_TYPE=Debug`) is the exception: it ignores the switch and always
+publishes its `-dev` socket, because that instance is the one being developed.
 
 The remote source is a stateless shell: the window tree, screenshots and scene
 trees are all collected per call. The one session-scoped resource is input-event
@@ -54,19 +58,20 @@ after it goes idle, so nothing but the socket exists while nobody is connected.
 
 Because the client has nothing to restore, a crash, `SIGKILL` or a closed
 terminal cannot leave any state behind: there is no session-scoped setting at
-all. If you find no socket, either the switch was turned off or Treeland is not
-running; `treeland-debug` says so on stderr. Turn the switch back on as the user
-Treeland runs as (`dde` in global mode): DConfig keeps app-scoped keys per user
-and its daemon only accepts a caller with that uid -- root is rejected even with
-`-u`, so switch to that user instead:
+all. If you find no socket, either the switch is off (the default) or Treeland
+is not running; `treeland-debug` says so on stderr. Turn it on -- or off again --
+with the one command that writes the switch, `treeland-debug debug on|off`:
 
 ```bash
-sudo -u dde -- dde-dconfig set \
-  -a org.deepin.dde.treeland \
-  -r org.deepin.dde.treeland \
-  -k remoteDebug \
-  -v true
+treeland-debug debug on    # or: treeland-debug debug off / treeland-debug debug
 ```
+
+The switch is a per-user DConfig key and Treeland reads the one of the user it
+runs as, so the command finds that user through the running compositor and
+escalates through `pkexec` when it is not you (`--no-escalate` reports the
+requirement instead of prompting). With root, the same thing by hand is
+`dde-dconfig -u <compositor uid> set -a org.deepin.dde.treeland -r
+org.deepin.dde.treeland -k remoteDebug -v true`.
 
 Toggling `remoteDebug` takes effect immediately: the compositor watches
 `remoteDebugChanged` and creates or destroys the Remote Object source on the
@@ -97,14 +102,21 @@ another one off.
   only applies to the global service's own directory (`/run/treeland-debug`, not
   its `$XDG_RUNTIME_DIR`) -- a session instance lives in `/run/user/<uid>`, which
   is never widened, so there root stays required (and `no-auth` fails).
-- **Debug builds** — `treeland-debug` does not restrict the caller, and the
-  socket is published with mode 0666. It still lives in a directory of the
-  compositor's own (0700), so in practice it is that user and `root` who can
-  connect.
+- **Debug builds** — nothing is restricted and nothing is asked: the `-dev`
+  socket is 0666 and, when it lives in Treeland's own directory
+  (`/run/treeland-debug`, which systemd creates 0700), that directory is widened
+  to 0711 at startup. So a deb-installed debug compositor running as its own user
+  accepts any local `treeland-debug` without a polkit prompt. Its own `-dev` name
+  keeps it apart from a release instance, whose 0000 socket still answers root
+  alone. A session instance's socket sits in `$XDG_RUNTIME_DIR`, which is never
+  widened, so there only that user and `root` connect.
 
-`listen` is the one exception to all of this: it starts the HTTP/WebSocket
-server before any connection exists, so it never escalates -- run it as root
-(or as `dde` during a no-auth window) when the compositor is a release build.
+`listen` and `debug` are the exceptions to all of this: `listen` starts the
+HTTP/WebSocket server before any connection exists, and `debug` writes the
+switch of the compositor's user, so neither connects first. `listen` therefore
+never escalates -- run it as root (or as `dde` during a no-auth window) when the
+compositor is a release build. `debug` escalates only when the compositor runs
+as another user, which is exactly when DConfig needs root.
 
 A polkit policy (`misc/polkit/org.deepin.dde.treeland-debug.policy`) is
 installed alongside the executable so that the `pkexec` escalation works out of
@@ -121,7 +133,8 @@ receive an error explaining how to proceed.
 --name <name>        Remote object name (default: WindowTree)
 --timeout-ms <n>     Request timeout in milliseconds (default: 30000)
 --json               Emit machine-readable JSON for `windows`/`clients`
---no-escalate        Do not attempt polkit privilege escalation (release builds only)
+--no-escalate        Do not attempt polkit privilege escalation; report the
+                     requirement instead (scripts, CI)
 -h, --help           Show help
 -v, --version        Show version
 ```
@@ -160,6 +173,7 @@ Run `treeland-debug <command>` for any of the following.
 
 | Command | Description |
 | --- | --- |
+| `debug [on\|off\|status]` | Read or write treeland's `remoteDebug` switch (default: `status`). The only command that runs without the debug socket -- it is what makes one exist, so it works while the switch is off. Escalates through `pkexec` when the compositor runs as another user. A debug-build compositor ignores the switch, so this only changes what a release build does. |
 | `no-auth` | Ask the compositor to let any local user connect to this debug socket for 30 minutes (see Access control above; needs root unless the window is already open). |
 
 ### Inspection

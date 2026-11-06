@@ -463,8 +463,26 @@ bool treelandDebugSetSocketAccess(const QString &socketPath, bool anyUser)
     const QString globalDir = QFileInfo(treelandDebugGlobalSocketDir()).canonicalFilePath();
     const bool ownsDir = !globalDir.isEmpty()
         && QFileInfo(dir).canonicalFilePath() == globalDir;
-    if (anyUser && !ownsDir)
+    if (anyUser && !ownsDir) {
+        errno = EACCES; // callers log qt_error_string() on failure
         return false;
+    }
+    if (anyUser) {
+        // Widening only ever happens to a directory of ours that nobody else can
+        // write.  The startup call of a debug build makes this automatic, and
+        // $TREELAND_DEBUG_DIR is easy to point at /tmp: chmod there would drop
+        // its sticky bit and silence every program on the machine.  Ownership
+        // rather than an exact 0700, because a peer instance may already have
+        // opened the same directory to 0711.
+        struct stat dirSt {};
+        const bool canWiden = ::stat(QFile::encodeName(dir).constData(), &dirSt) == 0
+            && dirSt.st_uid == ::geteuid()
+            && !(dirSt.st_mode & (S_ISVTX | S_IWOTH));
+        if (!canWiden) {
+            errno = EACCES;
+            return false;
+        }
+    }
 
     // Only the socket is toggled on close.  The directory is widened once, when
     // a window first opens, and stays 0711 (traverse, not list) until the process

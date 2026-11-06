@@ -256,6 +256,25 @@ TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
     // during a no-auth window leaves the socket and directory open with no
     // record of it, so the state is written, not restored.
     closeNoAuthWindow();
+#ifdef TREELAND_DEBUG_DEV_BUILD
+    // A debug build opens the channel to every local user for good: whoever
+    // debugs must not need a polkit prompt, and the 0666 socket QLocalServer
+    // bound stays unreachable while the containing directory is 0700 -- which is
+    // how systemd creates the global service's /run/treeland-debug.  Only
+    // Treeland's own directory is widened; a session instance's socket sits in
+    // $XDG_RUNTIME_DIR, which Qt requires to stay 0700 and which belongs to the
+    // caller anyway, so that call is a no-op there.
+    // Same judgement as the helper (canonical paths), made before the call so
+    // qt_error_string() still reports chmod's errno instead of a QFileInfo's.
+    const QString globalDir = QFileInfo(treelandDebugGlobalSocketDir()).canonicalFilePath();
+    const bool ownDir = !globalDir.isEmpty()
+        && QFileInfo(QFileInfo(m_debugSocketPath).absolutePath()).canonicalFilePath()
+            == globalDir;
+    if (!treelandDebugSetSocketAccess(m_debugSocketPath, true) && ownDir) {
+        qCWarning(lcTlDebug) << "Cannot open the debug socket to every user:"
+                             << m_debugSocketPath << ':' << qt_error_string();
+    }
+#endif
 
     m_published = true;
 }
@@ -325,8 +344,9 @@ bool TreelandRemoteSource::bindHost(const QString &socketPath)
 
 bool TreelandRemoteSource::requestNoAuth()
 {
-    // A debug build's socket is world-accessible already, so there is nothing to
-    // open -- but the caller asked for the window, and it is there.
+    // A debug build opens the directory and the socket at startup, so there is
+    // nothing left to open -- but the caller asked for the window, and it is
+    // there.
     if (!m_socketRootOnly)
         return true;
 
@@ -352,7 +372,7 @@ void TreelandRemoteSource::closeNoAuthWindow()
         return;
     m_noAuthIdleTimer->stop();
     if (!m_socketRootOnly)
-        return; // a debug build's socket is 0666 for good; there is no window
+        return; // a debug build opens it at startup, for good; there is no window
 
     const bool windowWasOpen = std::exchange(m_noAuthWindowOpen, false);
     if (windowWasOpen) {
