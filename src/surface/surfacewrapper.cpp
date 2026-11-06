@@ -1738,7 +1738,12 @@ void SurfaceWrapper::startWindowTransition()
 {
     if (!m_windowTransition->active()) {
         m_windowTransitionPending = false;
-        finishWindowAnimation();
+        if (m_windowAnimation) {
+            m_windowAnimation->disconnect(this);
+            m_windowAnimation->deleteLater();
+            m_windowAnimation = nullptr;
+            Q_EMIT windowAnimationRunningChanged();
+        }
         return;
     }
     m_windowTransitionPending = true;
@@ -2025,9 +2030,8 @@ void SurfaceWrapper::onAnimationReady()
 
 void SurfaceWrapper::onAnimationFinished()
 {
-    Q_ASSERT(m_geometryAnimation);
-
     setXwaylandPositionFromSurface(true);
+    Q_ASSERT(m_geometryAnimation);
     // The ready signal is driven by ShaderEffectSource's scheduled update.
     // Software renderers may complete the geometry animation without issuing
     // that update, so apply here as an idempotent fallback. Re-applying also
@@ -2055,28 +2059,18 @@ bool SurfaceWrapper::startStateChangeAnimation(const QRectF &targetGeometry)
     return ok;
 }
 
-void SurfaceWrapper::finishWindowAnimation()
+void SurfaceWrapper::onWindowAnimationFinished()
 {
-    const bool wasRunning = !m_windowAnimation.isNull();
-    if (wasRunning) {
-        m_windowAnimation->disconnect(this);
-        m_windowAnimation->deleteLater();
-        m_windowAnimation = nullptr;
-    }
-    m_windowTransitionPending = false;
+    Q_ASSERT(m_windowAnimation);
+    m_windowAnimation->disconnect(this);
+    m_windowAnimation->deleteLater();
+    m_windowAnimation = nullptr;
 
     // Stop pacing the transition source now that the animation is over. The
     // source itself stays referenced until the rect is done with it.
     m_windowTransition->endAnimation(m_wrapperAboutToRemove);
 
-    if (wasRunning)
-        Q_EMIT windowAnimationRunningChanged();
-}
-
-void SurfaceWrapper::onWindowAnimationFinished()
-{
-    Q_ASSERT(m_windowAnimation);
-    finishWindowAnimation();
+    Q_EMIT windowAnimationRunningChanged();
 
     if (m_wrapperAboutToRemove) {
         deleteLater();

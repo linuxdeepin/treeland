@@ -110,8 +110,6 @@ OutputItem {
             alwaysRunToEnd: true
         }
 
-        readonly property bool rotationAnimationEnabled: WaylandServer.animationConfig.mirrorOutputRotation
-
         Timer {
             id: transformTimer
             property var scheduleTransform
@@ -132,19 +130,10 @@ OutputItem {
             }
         }
 
-        onRotationAnimationEnabledChanged: {
-            if (rotationAnimationEnabled || !rotationAnimator.running)
-                return
-            transformTimer.stop()
-            rotationAnimator.stop()
-            rotation = rotationAnimator.to
-            viewport.rotateOutput(transformTimer.scheduleTransform)
-        }
-
         function rotationOutput(orientation) {
             transformTimer.scheduleTransform = orientation
 
-            if (!rotationAnimationEnabled) {
+            if (!WaylandServer.animationConfig.mirrorOutputRotation) {
                 // Apply the visual value and the real transform together instead
                 // of waiting for the half-way timer.
                 transformTimer.stop()

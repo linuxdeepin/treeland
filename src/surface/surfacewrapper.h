@@ -32,7 +32,6 @@ class Output;
 class SurfaceContainer;
 class SurfaceWindowTransition;
 class AnimationConfig;
-class TreelandUserConfig;
 class WindowTransitionTarget;
 class SurfaceWrapper : public QQuickItem
 {
@@ -525,7 +524,6 @@ private:
     Q_SLOT void onMinimizeAnimationFinished();
     void startShowDesktopAnimation(bool show);
     Q_SLOT void onShowDesktopAnimationFinished();
-    void finishWindowAnimation();
 
     // Per-effect animation switches. Each animated effect reads its own
     // AnimationConfig key so products can combine them freely.

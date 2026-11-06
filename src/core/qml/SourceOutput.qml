@@ -60,8 +60,6 @@ OutputItem {
             alwaysRunToEnd: true
         }
 
-        readonly property bool rotationAnimationEnabled: WaylandServer.animationConfig.outputRotation
-
         Timer {
             id: setTransform
 
@@ -83,21 +81,10 @@ OutputItem {
             }
         }
 
-        // Turning the switch off while rotating finishes this rotation once, so
-        // the pending transform of the old request cannot overwrite a new one.
-        onRotationAnimationEnabledChanged: {
-            if (rotationAnimationEnabled || !rotationAnimator.running)
-                return
-            setTransform.stop()
-            rotationAnimator.stop()
-            rotation = rotationAnimator.to
-            screenViewport.rotateOutput(setTransform.scheduleTransform)
-        }
-
         function rotationOutput(orientation) {
             setTransform.scheduleTransform = orientation
 
-            if (!rotationAnimationEnabled) {
+            if (!WaylandServer.animationConfig.outputRotation) {
                 // Apply the visual value and the real transform together instead
                 // of waiting for the half-way timer.
                 setTransform.stop()
