@@ -142,6 +142,11 @@ void WSurfacePrivate::updatePreferredBufferScale()
     if (explicitPreferredBufferScale > 0)
         return;
 
+    // Keep the last scale when the surface left all outputs (e.g. the output was
+    // unplugged), otherwise it would be reset to 1.0.
+    if (outputs.isEmpty())
+        return;
+
     float maxScale = 1.0;
     for (auto o : std::as_const(outputs))
         maxScale = std::max(o->scale(), maxScale);
