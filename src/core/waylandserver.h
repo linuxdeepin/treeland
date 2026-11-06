@@ -29,6 +29,7 @@
 #include <QMap>
 #include <QEvent>
 
+#include <memory>
 #include <optional>
 
 class QJsonObject;
@@ -97,6 +98,7 @@ class DDEShellManagerInterfaceV2;
 class DDMInterfaceV1;
 class ForeignToplevelManagerInterfaceV3;
 class FpsDisplayManager;
+class GraphicsPlatform;
 class GreeterProxy;
 class ILockScreen;
 class IMultitaskView;
@@ -187,6 +189,7 @@ public:
     SessionManager *sessionManager() const;
     QmlEngine *qmlEngine() const;
     WOutputRenderWindow *window() const;
+    GraphicsPlatform *graphicsPlatform() const;
     ShellHandler *shellHandler() const;
     Workspace *workspace() const;
     WXdgOutputManager *xwaylandOutputManager() const;
@@ -380,6 +383,7 @@ private:
 
     // QtQuick scene and presentation
     WOutputRenderWindow *m_renderWindow = nullptr;
+    std::unique_ptr<GraphicsPlatform> m_graphicsPlatform;
     QQuickItem *m_dockPreview = nullptr;
     QQuickItem *m_fpsDisplay = nullptr;
 
