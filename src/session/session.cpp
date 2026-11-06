@@ -15,10 +15,14 @@
 
 #include <woutputrenderwindow.h>
 #include <wsocket.h>
+#ifndef DISABLE_XWAYLAND
 #include <wxwayland.h>
+#endif
 
 #include <pwd.h>
+#ifndef DISABLE_XWAYLAND
 #include <xcb/randr.h>
+#endif
 
 #define _DEEPIN_NO_TITLEBAR "_DEEPIN_NO_TITLEBAR"
 
@@ -48,6 +52,7 @@ static void applySessionXSettings(SettingManager *settingManager,
     }
 }
 
+#ifndef DISABLE_XWAYLAND
 static xcb_atom_t internAtom(xcb_connection_t *connection, const char *name, bool onlyIfExists)
 {
     if (!name || *name == 0)
@@ -64,6 +69,7 @@ static xcb_atom_t internAtom(xcb_connection_t *connection, const char *name, boo
 
     return atom;
 }
+#endif
 
 Session::~Session()
 {
@@ -79,12 +85,14 @@ Session::~Session()
         delete m_settingManager;
         m_settingManager = nullptr;
     }
+#ifndef DISABLE_XWAYLAND
     if (m_xwayland) {
         // if shellHandler is already destructed, wait for WServer to clean up the interface.
         if (auto *server = WaylandServer::instance())
             server->shellHandler()->removeXWayland(m_xwayland);
         m_xwayland = nullptr;
     }
+#endif
     if (m_socket) {
         delete m_socket;
         m_socket = nullptr;
@@ -137,6 +145,7 @@ SessionManager::~SessionManager()
 
 void SessionManager::syncActiveSessionXWaylandPrimaryOutput()
 {
+#ifndef DISABLE_XWAYLAND
     const auto *primaryOutput = WaylandServer::instance()->rootSurfaceContainer()->primaryOutput();
     if (!primaryOutput)
         return;
@@ -181,6 +190,7 @@ void SessionManager::syncActiveSessionXWaylandPrimaryOutput()
         free(outputInfo);
     }
     free(resources);
+#endif
 }
 
 const QList<std::shared_ptr<Session>> &SessionManager::sessions() const
@@ -291,6 +301,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
         WaylandServer::instance()->addSocket(socket);
         return socket;
     };
+#ifndef DISABLE_XWAYLAND
     auto createXWayland = [this](WSocket *socket) {
         // Create xwayland
         auto *xwayland = WaylandServer::instance()->createXWayland();
@@ -367,6 +378,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
         });
         return xwayland;
     };
+#endif
     // Check if session already exists for user
     if (auto session = sessionForUser(username)) {
         // Ensure it has a socket and xwayland
@@ -379,6 +391,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
             session->m_socket = socket;
         }
         if (!session->m_xwayland) {
+#ifndef DISABLE_XWAYLAND
             auto *xwayland = createXWayland(session->m_socket);
             if (!xwayland) {
                 delete session->m_socket;
@@ -388,6 +401,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
             }
 
             session->m_xwayland = xwayland;
+#endif
         }
 
         return session;
@@ -413,9 +427,11 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
         m_wallpaperLauncher->start();
     }
 
+#ifndef DISABLE_XWAYLAND
     session->m_xwayland = createXWayland(session->m_socket);
     if (!session->m_xwayland)
         return nullptr;
+#endif
 
     // Add session to list
     m_sessions.append(session);

@@ -9,8 +9,7 @@ After=treeland-sd.socket
 Wants=treeland-sd.service
 Before=treeland-sd.service
 
-Wants=treeland-xwayland.service
-Before=treeland-xwayland.service
+@TREELAND_XWAYLAND_SERVICE_DEPS@
 
 @TREELAND_SHORTCUT_SERVICE_DEPS@
 

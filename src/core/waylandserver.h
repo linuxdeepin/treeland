@@ -69,7 +69,9 @@ class WSurfaceItem;
 class WToplevelSurface;
 class WXdgDecorationManager;
 class WXdgOutputManager;
+#ifndef DISABLE_XWAYLAND
 class WXWayland;
+#endif
 class WPointerConstraintsV1;
 
 class WForeignToplevel;
@@ -211,7 +213,9 @@ public:
     Q_INVOKABLE void addOutput();
 
     void addSocket(WSocket *socket);
+#ifndef DISABLE_XWAYLAND
     [[nodiscard]] WXWayland *createXWayland();
+#endif
 
     WSeat *seat() const;
 

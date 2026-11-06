@@ -41,6 +41,13 @@ if (DISABLE_DDM)
     add_compile_definitions("DISABLE_DDM")
 endif()
 
+option(DISABLE_XWAYLAND "Disable the xwayland support" OFF)
+add_feature_info(xwayland_support NOT DISABLE_XWAYLAND "XWayland support")
+
+if (DISABLE_XWAYLAND)
+    add_compile_definitions("DISABLE_XWAYLAND")
+endif()
+
 # Alternative lock mechanism: Wayland ext-session-lock
 option(EXT_SESSION_LOCK_V1 "Enable Wayland ext-session-lock support (alternative to DDM)" ON)
 add_feature_info(ext_session_lock_v1 EXT_SESSION_LOCK_V1 "Enable ext-session-lock-v1 protocol support in Treeland")

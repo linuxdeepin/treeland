@@ -20,7 +20,9 @@
 #include <wxdgtopleveltagmanager.h>
 #include <wxdgtoplevelsurface.h>
 #include <wlayersurface.h>
+#ifndef DISABLE_XWAYLAND
 #include <wxwaylandsurface.h>
+#endif
 #include <wserver.h>
 
 #include <wlr_all.h>
@@ -241,6 +243,7 @@ void SurfaceProtocolController::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
     }
 
     if (isXwayland) {
+#ifndef DISABLE_XWAYLAND
         auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
         auto updateDecorationTitleBar = [wrapper, xwaylandSurface, sessionManager = m_server->sessionManager()]() {
             auto *xwayland = xwaylandSurface->xwayland();
@@ -265,6 +268,7 @@ void SurfaceProtocolController::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         updateDecorationTitleBar();
 
         wrapper->setHideByWorkspace(!m_server->surfaceBelongsToCurrentSession(wrapper));
+#endif
     }
 
     if (!isLayer) {

@@ -157,7 +157,6 @@ set(SOURCES
     qtquick/wxdgtoplevelsurfaceitem.cpp
     qtquick/wxdgpopupsurfaceitem.cpp
     qtquick/wlayersurfaceitem.cpp
-    qtquick/wxwaylandsurfaceitem.cpp
     qtquick/wqmlcreator.cpp
     qtquick/winputpopupsurfaceitem.cpp
     qtquick/wsgtextureprovider.cpp
@@ -196,8 +195,6 @@ set(SOURCES
     protocols/wxdgtopleveltagmanager.cpp
     protocols/wxdgpopupsurface.cpp
 
-    protocols/wxwayland.cpp
-    protocols/wxwaylandsurface.cpp
     protocols/wlayersurface.cpp
     protocols/wforeigntoplevelv1.cpp
     protocols/wxdgoutput.cpp
@@ -281,7 +278,6 @@ set(HEADERS
     qtquick/wxdgtoplevelsurfaceitem.h
     qtquick/wxdgpopupsurfaceitem.h
     qtquick/wlayersurfaceitem.h
-    qtquick/wxwaylandsurfaceitem.h
     qtquick/winputpopupsurfaceitem.h
     qtquick/wqmlcreator.h
     qtquick/wsgtextureprovider.h
@@ -330,10 +326,6 @@ set(HEADERS
     protocols/WOutputManagerV1
     protocols/wlayershell.h
     protocols/WLayerShell
-    protocols/wxwayland.h
-    protocols/WXWayland
-    protocols/wxwaylandsurface.h
-    protocols/WXWaylandSurface
     protocols/wextforeigntoplevellistv1.h
     protocols/wxdgdialogmanagerv1.h
     protocols/wsecuritycontextmanager.h
@@ -387,11 +379,15 @@ if(NOT DISABLE_XWAYLAND)
     list(APPEND SOURCES
         protocols/wxwayland.cpp
         protocols/wxwaylandsurface.cpp
+        qtquick/wxwaylandsurfaceitem.cpp
     )
 
     list(APPEND HEADERS
         protocols/wxwayland.h
+        protocols/WXWayland
         protocols/wxwaylandsurface.h
+        protocols/WXWaylandSurface
+        qtquick/wxwaylandsurfaceitem.h
     )
 endif()
 
