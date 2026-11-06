@@ -235,6 +235,8 @@ treeland 可同时运行。Debug 构建的 treeland-debug 客户端自动优先�
 | `position` | object | `{"x","y"}`。 |
 | `frames` | integer | 已提交帧数（取自 `wlr_surface`）。 |
 | `damage` | object | 上次提交的缓冲区刷新区域 `{"x","y","width","height"}`。 |
+| `inputRegion` | array of object | 输入区域，surface 局部坐标的 box 列表（`[{"x","y","width","height"}, ...]`），已按 surface 尺寸裁剪。按协议，未设置（`NULL`）的输入区域是**无穷大**，因此读回来是覆盖整面的一个 box；只有客户端提交了空 region（表示该 surface 不接受输入）或 surface 尚未提交过 buffer 时，列表才为空。 |
+| `opaqueRegion` | array of object | 不透明区域，结构同上；为空表示客户端没有声明不透明区域（协议默认值，首次 commit 前也是这个值）；它只是重绘优化提示，不代表窗口真的透明。 |
 
 客户端 JSON 对象（`ClientInfo`）：`id`（integer）、`appId`（string）、`pid`（integer，不可用时为 `0`）、
 `executable`（string）、`windows`（`WindowInfo` 数组）。

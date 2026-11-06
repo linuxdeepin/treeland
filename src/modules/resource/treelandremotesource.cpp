@@ -92,6 +92,20 @@ QString commandForPid(int pid)
     return parts.join(' ');
 }
 
+// Build the same covered area without assuming that Qt and pixman retain
+// the same rectangle decomposition (as WTools::fromPixmanRegion does).
+QRegion regionFromPixman(const pixman_region32_t *region)
+{
+    int count = 0;
+    const pixman_box32_t *boxes = pixman_region32_rectangles(region, &count);
+    QRegion result;
+    for (int i = 0; i < count; ++i) {
+        result += QRect(QPoint(boxes[i].x1, boxes[i].y1),
+                        QPoint(boxes[i].x2 - 1, boxes[i].y2 - 1));
+    }
+    return result;
+}
+
 // Encodes a grabbed frame as PNG bytes. The server never writes to disk;
 // the treeland-debug client owns the file. Returns an empty array on failure.
 QByteArray encodeImage(const QImage &image)
@@ -467,6 +481,9 @@ WindowInfo TreelandRemoteSource::buildWindowInfo(SurfaceWrapper *surface,
                 info.setDamage(QRectF(extents->x1, extents->y1,
                                       extents->x2 - extents->x1,
                                       extents->y2 - extents->y1));
+            // wlroots already clipped both regions to the surface size.
+            info.setInputRegion(regionFromPixman(&wlr->input_region));
+            info.setOpaqueRegion(regionFromPixman(&wlr->opaque_region));
         }
     }
     return info;

@@ -8,6 +8,8 @@
 #include <QFileInfo>
 #include <QMetaEnum>
 
+#include <algorithm>
+
 QString stateName(int state)
 {
     switch (state) {
@@ -129,6 +131,34 @@ QJsonObject rectToJson(const QRectF &rect)
         {"width", rect.width()},
         {"height", rect.height()},
     };
+}
+
+QJsonArray rectsToJson(const QRegion &region)
+{
+    QJsonArray array;
+    for (const auto &rect : region)
+        array.append(rectToJson(rect));
+    return array;
+}
+
+QString formatRegion(const QRegion &region, int maxBoxes)
+{
+    const auto rects = region.rects();
+    if (rects.isEmpty())
+        return QStringLiteral("(empty)");
+    QStringList boxes;
+    const int shown = std::min(static_cast<int>(rects.size()), maxBoxes);
+    for (int i = 0; i < shown; ++i) {
+        const auto &r = rects[i];
+        boxes << QStringLiteral("[%1,%2 %3x%4]")
+                     .arg(r.x())
+                     .arg(r.y())
+                     .arg(r.width())
+                     .arg(r.height());
+    }
+    if (rects.size() > shown)
+        boxes << QStringLiteral("(+%1 more)").arg(rects.size() - shown);
+    return boxes.join(QLatin1Char(','));
 }
 
 ParseResult parseCommand(const QString &command, const QStringList &args)
