@@ -248,6 +248,7 @@ void WaylandServer::setAnimationConfig(AnimationConfig *config)
         connect(config, &AnimationConfig::configInitializeFailed,
                 this, &WaylandServer::animationConfigChanged);
     }
+    updateAnimationConfigConnections();
     Q_EMIT animationConfigChanged();
 }
 
@@ -380,6 +381,9 @@ void WaylandServer::updateAnimationConfigConnections()
 
 void WaylandServer::onWorkspaceVisibilityAnimationConfigChanged()
 {
+    if (!m_workspaceScaleAnimation)
+        return;
+
     if (m_workspaceScaleAnimation->state() != QAbstractAnimation::Running
         && m_workspaceOpacityAnimation->state() != QAbstractAnimation::Running) {
         return;
@@ -490,7 +494,6 @@ void WaylandServer::applyCurrentUserConfig(const QString &userName,
         }
         m_config = config;
         Q_EMIT configChanged();
-        updateAnimationConfigConnections();
     }
 
     connect(m_config,
