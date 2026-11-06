@@ -24,7 +24,7 @@ Item {
     property bool enableShadows: GraphicsInfo.api !== GraphicsInfo.Software
     property bool enableRadius: true
     property bool enableAnimation: GraphicsInfo.api !== GraphicsInfo.Software
-
+                                   && WaylandServer.animationConfig.taskSwitcher
     readonly property int leftpreferredMargin: 20
     readonly property int rightpreferredMargin: 20
     readonly property int mouseExitInterval: 400
@@ -43,9 +43,15 @@ Item {
             mask.opacity = 0.5
             currentContext.loaderStatus = 0
 
-            switchItemAnimation.stop()
-            switchItemAnimation.isInAni = true
-            switchItemAnimation.start()
+            if (root.enableAnimation) {
+                switchItemAnimation.stop()
+                switchItemAnimation.isInAni = true
+                switchItemAnimation.start()
+            } else {
+                switchItemAnimation.stop()
+                switchItem.y = switchItemAnimation.fromeY
+                switchItem.opacity = 1
+            }
         }
     }
 
@@ -283,6 +289,9 @@ Item {
                 switchItemAnimation.stop()
                 switchItemAnimation.isInAni = true
                 switchItemAnimation.start()
+            } else {
+                switchItemAnimation.fromeY = switchItem.y
+                switchItem.opacity = 1
             }
         }
     }

@@ -5,7 +5,7 @@ description: "触发场景：新增/修改/评审/调试 treeland 的 DConfig �
 
 # Treeland DConfig 配置
 
-> **铁律**：用户级设置只能通过 `WaylandServer::config()` + `"/" + userName` subpath 访问；不要因为全局模式以 `dde` 运行就写进 `TreelandConfig`。
+> **铁律**：用户级设置必须使用 `"/" + userName` subpath，并通过 `WaylandServer::config()` 或对应的用户级配置入口访问（动画开关为 `WaylandServer::animationConfig()`）；不要因为全局模式以 `dde` 运行就写进 `TreelandConfig`。
 
 ## 范围
 本 skill 用于由 Desktop Spec Group 配置元数据描述、并通过 DTK DConfig 生成的 C++ 封装类消费的 treeland 配置。
@@ -84,6 +84,7 @@ DConfig 描述文件是 JSON 元数据文件。treeland 中它们位于 `misc/dc
 
 - `org.deepin.dde.treeland.json` → 不随当前用户变化的合成器全局设置；生成 `TreelandConfig` / `treelandconfig.hpp`；通常通过 `WaylandServer::globalConfig()` 访问。
 - `org.deepin.dde.treeland.user.json` → 当前用户会话、个性化、工作区、光标、主题等设置；生成 `TreelandUserConfig` / `treelanduserconfig.hpp`；通过 `WaylandServer::config()` 访问，用户切换时从 DConfigManager 缓存中选取。
+- `org.deepin.dde.treeland.animation.json` → 当前用户的动画开关；生成 `AnimationConfig` / `animationconfig.hpp`；由 `DConfigManager::animationConfig(userName)` 缓存，通过 `WaylandServer::animationConfig()` 访问并监听 `animationConfigChanged()`。键名直接用 `windowOpen`、`workspaceSwitch` 等效果名，不重复 `AnimationEnabled`。初始化完成前使用默认启用状态，初始化完成或用户切换时重新绑定并刷新效果。
 - `org.deepin.dde.treeland.output.json` → 按 output 的设置；生成 `OutputConfig` / `outputconfig.hpp`；当前代码使用 `OutputConfig::createByName("org.deepin.dde.treeland.output", "org.deepin.dde.treeland", "/" + outputName, ...)`。
 - `org.deepin.dde.treeland.user.seat.json` → 当前用户的输入/seat 设置；生成 `SeatUserDConfig` / `seatuserconfig.hpp`；当前用户变化时调用 `InputManager::setupSeatUserConfig(userName)`。
 - `org.deepin.dde.treeland.app.json` → 按应用的设置；生成 `AppConfig` / `appconfig.hpp`；`WindowConfigStore` 使用 subpath `"/" + appId`。

@@ -326,6 +326,7 @@ Item {
         interactive: false
         highlightFollowsCurrentItem: false
         displaced: Transition {
+            enabled: multitaskview.enableAnimation
             NumberAnimation {
                 property: "x"
                 duration: WaylandServer.config.multitaskviewAnimationDuration

@@ -16,3 +16,5 @@ add_subdirectory(test_protocol_prelaunch-splash)
 add_subdirectory(test_protocol_pointerconstraints)
 add_subdirectory(test_effect_glass)
 add_subdirectory(test_treeland_debug)
+
+add_subdirectory(test_animation_switches)

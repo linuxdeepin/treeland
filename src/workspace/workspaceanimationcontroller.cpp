@@ -7,6 +7,7 @@
 #include <cmath>
 #include "core/waylandserver.h"
 #include "treelanduserconfig.hpp"
+#include "animationconfig.hpp"
 
 WorkspaceAnimationController::WorkspaceAnimationController(QObject *parent)
     : QObject{ parent }
@@ -42,6 +43,27 @@ WorkspaceAnimationController::WorkspaceAnimationController(QObject *parent)
             &QSequentialAnimationGroup::finished,
             this,
             &WorkspaceAnimationController::finishAnimation);
+}
+
+bool WorkspaceAnimationController::animationConfigEnabled(bool (AnimationConfig::*key)() const) const
+{
+    auto *server = WaylandServer::instance();
+    auto *config = server ? server->animationConfig() : nullptr;
+    // An uninitialized config is not a valid "disabled" answer: keep the default
+    // animated behavior until the real value is available.
+    if (!config || !config->isInitializeSucceeded())
+        return true;
+    return (config->*key)();
+}
+
+bool WorkspaceAnimationController::slideEnabled() const
+{
+    return animationConfigEnabled(&AnimationConfig::workspaceSwitch);
+}
+
+bool WorkspaceAnimationController::bounceEnabled() const
+{
+    return animationConfigEnabled(&AnimationConfig::workspaceBounce);
 }
 
 qreal WorkspaceAnimationController::refWidth() const
@@ -185,6 +207,15 @@ void WorkspaceAnimationController::startGestureSlide(qreal cb, bool bounce)
 
 void WorkspaceAnimationController::startSlideAnimation()
 {
+    if (!slideEnabled()) {
+        // Finish synchronously: land on the destination and leave running=false,
+        // which also dismisses the workspace switcher layer.
+        m_slideAnimation->stop();
+        setViewportPos(m_animationDestination);
+        finishAnimation();
+        return;
+    }
+
     m_posAnimation->setStartValue(m_animationInitial);
     m_posAnimation->setEndValue(m_animationDestination);
     m_slideAnimation->start();
@@ -193,6 +224,13 @@ void WorkspaceAnimationController::startSlideAnimation()
 
 void WorkspaceAnimationController::startBounceAnimation()
 {
+    if (!bounceEnabled()) {
+        m_bounceAnimation->stop();
+        setViewportPos(m_animationDestination);
+        finishAnimation();
+        return;
+    }
+
     auto bounceDestination =
         m_animationDestination + (m_currentDirection == Right ? refBounce() : -refBounce());
     m_bounceInAnimation->setStartValue(m_animationDestination);

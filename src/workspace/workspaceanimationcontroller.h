@@ -7,6 +7,8 @@
 #include <QQmlEngine>
 #include <QSequentialAnimationGroup>
 
+class AnimationConfig;
+
 class WorkspaceAnimationController : public QObject
 {
     Q_OBJECT
@@ -34,6 +36,11 @@ public:
     qreal viewportPos() const;
     void setViewportPos(qreal newViewportPos);
     uint pendingWorkspaceIndex() const;
+
+    // Whether the corresponding automatic transition may play; the caller can
+    // skip creating the visual switcher layer entirely when it cannot.
+    bool slideEnabled() const;
+    bool bounceEnabled() const;
 
     enum Direction
     {
@@ -66,6 +73,7 @@ private:
     void startBounceAnimation();
     void finishAnimation();
     qreal gestureObstruction(qreal gestureValue);
+    bool animationConfigEnabled(bool (AnimationConfig::*key)() const) const;
 
     qreal m_refWidth = 1920;
     qreal m_refGap = 30;

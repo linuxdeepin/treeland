@@ -9,6 +9,7 @@
 #include "core/waylandserver.h"
 #include "surface/surfacewindowtransition.h"
 #include "treelanduserconfig.hpp"
+#include "animationconfig.hpp"
 #include "workspace/workspace.h"
 #include "wtoplevelsurface.h"
 #include "wxdgtoplevelsurface.h"
@@ -202,6 +203,73 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     setNoDecoration(false);
     updateHasActiveCapability(ActiveControlState::HasActivateCapability, true);
     updateHasActiveCapability(ActiveControlState::MappedOrSplash, true); // Splash is true
+}
+
+// Each animated effect reads its own AnimationConfig switch. An uninitialized
+// config is not a valid "disabled" answer, so keep the default animated behavior
+// until the real value is available.
+bool SurfaceWrapper::animationEnabled(bool (AnimationConfig::*key)() const) const
+{
+    auto *server = WaylandServer::instance();
+    auto *config = server ? server->animationConfig() : nullptr;
+    if (!config || !config->isInitializeSucceeded())
+        return true;
+    return (config->*key)();
+}
+
+bool SurfaceWrapper::windowAnimationEnabled(uint direction) const
+{
+    const bool open = direction == OPEN_ANIMATION;
+    switch (m_type) {
+    case Type::SplashScreen:
+    case Type::XdgToplevel:
+    case Type::XWayland:
+        return animationEnabled(open ? &AnimationConfig::windowOpen : &AnimationConfig::windowClose);
+    case Type::Layer: {
+        auto *layerItem = qobject_cast<WLayerSurfaceItem *>(m_surfaceItem);
+        auto *layerSurface = qobject_cast<WLayerSurface *>(m_shellSurface.data());
+        if (!layerItem || !layerSurface)
+            return true;
+        const auto scope = QString(layerItem->layerSurface()->handle()->scope);
+        if (scope == "dde-shell/launchpad")
+            return animationEnabled(open ? &AnimationConfig::launchpadOpen
+                                         : &AnimationConfig::launchpadClose);
+        if (layerSurface->getExclusiveZoneEdge() != WLayerSurface::AnchorType::None)
+            return animationEnabled(open ? &AnimationConfig::layerShellOpen
+                                         : &AnimationConfig::layerShellClose);
+        return true;
+    }
+    default:
+        return true;
+    }
+}
+
+bool SurfaceWrapper::geometryAnimationEnabled(State state) const
+{
+    switch (state) {
+    case State::Maximized:
+        return animationEnabled(&AnimationConfig::maximize);
+    case State::Fullscreen:
+        return animationEnabled(&AnimationConfig::fullscreen);
+    case State::Normal:
+    case State::Tiling:
+        return animationEnabled(&AnimationConfig::restoreWindow);
+    default:
+        return true;
+    }
+}
+
+bool SurfaceWrapper::minimizeAnimationEnabled(uint direction) const
+{
+    return animationEnabled(direction == OPEN_ANIMATION
+                                ? &AnimationConfig::restoreMinimized
+                                : &AnimationConfig::minimize);
+}
+
+bool SurfaceWrapper::showDesktopAnimationEnabled(bool restoring) const
+{
+    return animationEnabled(restoring ? &AnimationConfig::restoreShowDesktop
+                                      : &AnimationConfig::showDesktop);
 }
 
 void SurfaceWrapper::invalidate()
@@ -784,6 +852,19 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
                     - QPointF(targetImplicitSize.width() / 2.0, targetImplicitSize.height() / 2.0);
             toGeometry = QRectF(toTopLeft, targetImplicitSize);
         }
+
+        if (!animationEnabled(&AnimationConfig::splashTransition)) {
+            // Land on the same final state as the animated path: the wrapper ends at
+            // toGeometry, the real surface is revealed and the decoration restored.
+            setPosition(toGeometry.topLeft());
+            if (m_surfaceState == State::Normal)
+                setNormalGeometry(toGeometry);
+            completeSplashTransition(toGeometry.size(), true);
+            if (m_decoration)
+                m_decoration->setVisible(true);
+            return;
+        }
+
         m_geometryAnimation =
             m_engine->createGeometryAnimation(this, fromGeometry, toGeometry, container());
 
@@ -1228,7 +1309,8 @@ void SurfaceWrapper::setSurfaceState(State newSurfaceState)
     setSurfaceStateValue(newSurfaceState);
 
     const QRectF targetGeometry = targetGeometryForState(newSurfaceState);
-    if (targetGeometry.isValid() && isVisible())
+    if (targetGeometry.isValid() && isVisible()
+        && geometryAnimationEnabled(newSurfaceState))
         startStateChangeAnimation(targetGeometry);
     else
         applySurfaceState();
@@ -1723,7 +1805,8 @@ void SurfaceWrapper::finishWindowTransitionOpen()
 
     m_windowAnimation->setProperty("toGeometry", toGeometry);
 
-    if (WaylandServer::instance()->noAnimation()) {
+    if (WaylandServer::instance()->noAnimation()
+        || !windowAnimationEnabled(OPEN_ANIMATION)) {
         onShowAnimationFinished();
         return;
     }
@@ -1750,7 +1833,8 @@ void SurfaceWrapper::startWindowCloseTransition()
 
     restackWindowAnimationAbove();
 
-    if (WaylandServer::instance()->noAnimation()) {
+    if (WaylandServer::instance()->noAnimation()
+        || !windowAnimationEnabled(CLOSE_ANIMATION)) {
         onHideAnimationFinished();
         return;
     }
@@ -1833,7 +1917,10 @@ void SurfaceWrapper::createNewOrClose(uint direction)
 
     if (m_windowAnimation) {
         restackWindowAnimationAbove();
-        if (WaylandServer::instance()->noAnimation()) {
+        // The animation object is created above, so the existing direct-completion
+        // path (also used by noAnimation) can finish the business safely.
+        if (WaylandServer::instance()->noAnimation()
+            || !windowAnimationEnabled(direction)) {
             if (direction == OPEN_ANIMATION) {
                 onShowAnimationFinished();
             } else {
@@ -2069,6 +2156,11 @@ void SurfaceWrapper::onMinimizeAnimationFinished()
 
 void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint direction)
 {
+    // The minimize/restore state and visibility are already committed by the
+    // caller; disabling the animation only skips the shrink/expand transition.
+    if (!minimizeAnimationEnabled(direction))
+        return;
+
     if (m_minimizeAnimation) {
         m_minimizeAnimation->setProperty("direction", direction);
         m_minimizeAnimation->setProperty("position", QVariant::fromValue(iconGeometry));
@@ -2120,7 +2212,6 @@ void SurfaceWrapper::onShowDesktopAnimationFinished()
 
 void SurfaceWrapper::startShowDesktopAnimation(bool show)
 {
-
     if (m_showDesktopAnimation) {
         m_showDesktopAnimation->disconnect(this);
         m_showDesktopAnimation->deleteLater();
@@ -2128,6 +2219,14 @@ void SurfaceWrapper::startShowDesktopAnimation(bool show)
     }
 
     setHideByShowDesk(show);
+
+    // The final visibility is driven by m_hideByshowDesk, so the disabled path
+    // finishes exactly like the animation's finished handler.
+    if (!showDesktopAnimationEnabled(show)) {
+        updateVisible();
+        return;
+    }
+
     m_showDesktopAnimation = m_engine->createShowDesktopAnimation(this, container(), show);
     bool ok = connect(m_showDesktopAnimation,
                       SIGNAL(finished()),

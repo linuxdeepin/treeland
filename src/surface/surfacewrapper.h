@@ -31,6 +31,7 @@ class QmlEngine;
 class Output;
 class SurfaceContainer;
 class SurfaceWindowTransition;
+class AnimationConfig;
 class WindowTransitionTarget;
 class SurfaceWrapper : public QQuickItem
 {
@@ -523,6 +524,14 @@ private:
     Q_SLOT void onMinimizeAnimationFinished();
     void startShowDesktopAnimation(bool show);
     Q_SLOT void onShowDesktopAnimationFinished();
+
+    // Per-effect animation switches. Each animated effect reads its own
+    // AnimationConfig key so products can combine them freely.
+    bool animationEnabled(bool (AnimationConfig::*key)() const) const;
+    bool windowAnimationEnabled(uint direction) const;
+    bool geometryAnimationEnabled(State state) const;
+    bool minimizeAnimationEnabled(uint direction) const;
+    bool showDesktopAnimationEnabled(bool restoring) const;
     void updateHasActiveCapability(ActiveControlState state, bool value);
     void updateFocusControlState(FocusControlState state, bool value);
     void updateActivateCapability();

@@ -14,7 +14,7 @@ import org.deepin.dtk 1.0 as D
 Item {
     id: root
     property int aniDuration: 350
-    property bool enableAnimation: aniDuration > 0
+    property bool enableAnimation: aniDuration > 0 && WaylandServer.animationConfig.dockPreview
     property alias spacing: listview.spacing
 
     readonly property int panelHorizontalPadding: PopoverStyle.tooltipHorizontalPadding
