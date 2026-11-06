@@ -220,12 +220,17 @@ used).
 | `event key` | `<name\|evdev-code> [press\|release\|tap]` | `ok` / `failed` (default `tap`). |
 
 Pointer buttons use Linux input codes (`left`=0x110, `right`=0x111,
-`middle`=0x112, or a numeric code). Keyboard keys use Linux evdev keycodes;
-common names are recognised (`esc`, `enter`, `space`, `tab`, `a`–`z`, `0`–`9`,
-arrow keys, `f1`–`f12`, `home`/`end`/`pageup`/`pagedown`/`insert`/`del`, …) or a
-raw code may be passed. Keys are delivered to the keyboard-focused surface —
-`activate` a window first to target it; pointer buttons go to the surface under
-the cursor.
+`middle`=0x112, or a numeric code). Keyboard keys are given either as a Qt key
+name — with or without the `Key_` prefix, case-insensitively (`space`,
+`Escape`, `Return`, `Left`, `A`–`Z`, `0`–`9`, `F1`–`F12`, `VolumeMute`, …;
+`Enter` is the keypad Enter) — or as a multi-digit Linux evdev keycode, the same
+convention as `evtest` and `ydotool` (`57` = space, `30` = the `A` key). A name
+wins over a number (`5` presses the `5` key), and an unknown one fails with
+`unknown key '<name>'`. The injected keycode is a physical key position on the
+US reference layout, so the character it produces follows the current layout
+(German layout: `event key Z` types `y`). Keys are delivered to the
+keyboard-focused surface — `activate` a window first to target it; pointer
+buttons go to the surface under the cursor.
 
 #### Image capture
 
@@ -331,7 +336,7 @@ sudo -u dde -- treeland-debug move-cursor 960 540
 sudo -u dde -- treeland-debug event button left click
 
 # Send a key tap
-sudo -u dde -- treeland-debug event key enter tap
+sudo -u dde -- treeland-debug event key Return tap
 
 # Screenshot the primary output to a file
 sudo -u dde -- treeland-debug screenshot output /tmp/ss.png

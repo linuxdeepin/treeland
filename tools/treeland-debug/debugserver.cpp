@@ -1036,11 +1036,11 @@ QJsonObject DebugServer::mcpToolsList() const
             },
             QJsonObject{
                 {"name", "event_key"},
-                {"description", "Send a keyboard event. Key can be a Qt::Key name (e.g. 'Escape', 'Return', 'Space', 'a') or a raw code."},
+                {"description", "Send a keyboard event. Key can be a Qt::Key name (e.g. 'Escape', 'Return', 'Space', 'a') or a multi-digit Linux evdev keycode; a name wins over a number."},
                 {"inputSchema", QJsonObject{
                     {"type", "object"},
                     {"properties", QJsonObject{
-                        {"key", QJsonObject{{"type", "string"}, {"description", "Qt::Key name (Escape, Return, Space, ...) or raw code"}}},
+                        {"key", QJsonObject{{"type", "string"}, {"description", "Qt::Key name (Escape, Return, Space, ...) or multi-digit Linux evdev keycode (57 = space); a name wins over a number"}}},
                         {"action", QJsonObject{{"type", "string"}, {"enum", QJsonArray{"press", "release", "tap"}}, {"default", "tap"}}}
                     }},
                     {"required", QJsonArray{"key"}},
