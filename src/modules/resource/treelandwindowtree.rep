@@ -25,7 +25,12 @@ POD WindowInfo(
     QRectF iconGeometry,
     QPointF position,
     qint64 frames,
-    QRectF damage
+    QRectF damage,
+    // Every output the window is on, and the output driving its frame
+    // callbacks: the entered output with the highest refresh rate, the first
+    // entered one on a tie.
+    QList<QString> outputs,
+    QString framePacingOutput
 )
 
 POD WorkspaceInfo(

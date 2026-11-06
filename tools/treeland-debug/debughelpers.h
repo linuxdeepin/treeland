@@ -37,6 +37,11 @@ QString saveCapture(const QByteArray &data, const QString &userPath);
 QJsonObject pointToJson(const QPointF &point);
 QJsonObject rectToJson(const QRectF &rect);
 
+// Joins the outputs a window is on for the one-line views, marking the
+// frame-pacing one with '+' ('*' already means "active window" on those
+// lines). Falls back to @p owner when @p outputs is empty.
+QString outputsLabel(const QStringList &outputs, const QString &pacing, const QString &owner);
+
 // Identifies which treeland-debug command was recognised by parseCommand().
 enum class DebugCommand {
     Tree,

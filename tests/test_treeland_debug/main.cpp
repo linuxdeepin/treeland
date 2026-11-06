@@ -41,6 +41,7 @@ private Q_SLOTS:
     // --- pure helpers ---
     void testStateNameKnownStates();
     void testFormatDuration();
+    void testOutputsLabel();
     void testStateNameUnknown();
     void testButtonCodeNamed();
     void testButtonCodeRaw();
@@ -193,6 +194,24 @@ void TreelandDebugTest::testFormatDuration()
     QCOMPARE(formatDuration(3599000), QStringLiteral("59m59s"));
     QCOMPARE(formatDuration(3599999), QStringLiteral("1h00m"));
     QCOMPARE(formatDuration(3661000), QStringLiteral("1h01m"));
+}
+
+void TreelandDebugTest::testOutputsLabel()
+{
+    // The frame-pacing output is marked with '+', which cannot be confused
+    // with the '*' these views use for the active window.
+    QCOMPARE(outputsLabel({ QStringLiteral("eDP-1") }, QStringLiteral("eDP-1"), QStringLiteral("eDP-1")),
+             QStringLiteral("+eDP-1"));
+    QCOMPARE(outputsLabel({ QStringLiteral("eDP-1"), QStringLiteral("HDMI-A-1") },
+                          QStringLiteral("HDMI-A-1"), QStringLiteral("eDP-1")),
+             QStringLiteral("eDP-1,+HDMI-A-1"));
+    // No known outputs: fall back to the owner output the compositor picked.
+    QCOMPARE(outputsLabel({}, QStringLiteral("HDMI-A-1"), QStringLiteral("eDP-1")),
+             QStringLiteral("eDP-1"));
+    // Pacing output outside the list: nothing is marked.
+    QCOMPARE(outputsLabel({ QStringLiteral("eDP-1"), QStringLiteral("HDMI-A-1") },
+                          QStringLiteral("DP-1"), QStringLiteral("eDP-1")),
+             QStringLiteral("eDP-1,HDMI-A-1"));
 }
 
 void TreelandDebugTest::testStateNameUnknown()

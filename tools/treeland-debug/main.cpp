@@ -147,10 +147,19 @@ QString windowGeometryDetail(const WindowInfo &w)
         .arg(static_cast<int>(frame.width())).arg(static_cast<int>(frame.height()));
 }
 
+// Outputs a window is drawn on, for the one-line views; '+' marks the output
+// driving its frame callbacks, which those views' own '*' (active window)
+// must not be confused with.
+QString windowOutputsLabel(const WindowInfo &window)
+{
+    return outputsLabel(window.outputs(), window.framePacingOutput(), window.output());
+}
+
 void printWindowsTable(const QList<WindowInfo> &windows)
 {
     QTextStream out(stdout);
     out << QStringLiteral("ID              APP-ID                STATE        ACTIVE  MIN  OUTPUT   GEOMETRY              TITLE\n");
+    out << QStringLiteral("  (OUTPUT: every output the window is on; '+' = its framePacingOutput)\n");
     for (const auto &window : windows) {
         const auto g = window.geometry();
         const QString line = QStringLiteral("%1  %2  %3  %4  %5  %6  %7,%8 %9x%10  %11")
@@ -159,7 +168,7 @@ void printWindowsTable(const QList<WindowInfo> &windows)
             .arg(stateName(window.state()).leftJustified(12))
             .arg(window.active() ? QStringLiteral("yes") : QStringLiteral("no"))
             .arg((window.minimized() ? QStringLiteral("yes") : QStringLiteral("no")).leftJustified(5))
-            .arg(window.output().leftJustified(8))
+            .arg(windowOutputsLabel(window).leftJustified(8))
             .arg(static_cast<int>(g.x()))
             .arg(static_cast<int>(g.y()))
             .arg(static_cast<int>(g.width()))
@@ -193,7 +202,7 @@ void printClientsTable(const QList<ClientInfo> &clients)
                     .arg(static_cast<int>(g.y()))
                     .arg(static_cast<int>(g.width()))
                     .arg(static_cast<int>(g.height()))
-                    .arg(window.output())
+                    .arg(windowOutputsLabel(window))
                     .arg(window.minimized() ? QStringLiteral("  (minimized)") : QString());
             out << windowGeometryDetail(window);
         }
@@ -270,7 +279,7 @@ void printTree(const TreelandInfo &info)
                             << (w.minimized() ? QStringLiteral("+Min") : QString()) << "  "
                             << static_cast<int>(g.x()) << "," << static_cast<int>(g.y()) << " "
                             << static_cast<int>(g.width()) << "x" << static_cast<int>(g.height())
-                            << "  [" << w.output() << "]"
+                            << "  [" << windowOutputsLabel(w) << "]"
                             << (w.title().isEmpty() ? "" : "  " + w.title()) << "\n";
                     }
                 }
@@ -290,7 +299,7 @@ void printTree(const TreelandInfo &info)
                 << (w.minimized() ? QStringLiteral("+Min") : QString()) << "  "
                 << static_cast<int>(g.x()) << "," << static_cast<int>(g.y()) << " "
                 << static_cast<int>(g.width()) << "x" << static_cast<int>(g.height())
-                << "  [" << w.output() << "]"
+                << "  [" << windowOutputsLabel(w) << "]"
                 << (w.title().isEmpty() ? "" : "  " + w.title()) << "\n";
         }
     }
