@@ -1016,6 +1016,19 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
     case QEvent::MouseButtonPress: {
         auto e = static_cast<QMouseEvent*>(event);
         Q_ASSERT(e->source() == Qt::MouseEventNotSynthesized);
+        // A surface that appears under a stationary cursor (an xdg popup mapped by
+        // the press that created it, for example) never got a HoverEnter, so the
+        // pointer focus still names the surface that was under the cursor before.
+        // The press belongs to the surface under the cursor, so move the focus there
+        // before delivering it; otherwise the client is handed the press for another
+        // of its own surfaces. A locked pointer keeps its surface by construction, so
+        // never take the focus away from it.
+        auto *cursor = seat->cursor();
+        if (target && !d->handle()->drag
+            && (!cursor || !cursor->activePointerConstraint())
+            && d->pointerFocusSurface() != target->handle()) {
+            d->doEnter(target, eventObject, e->position());
+        }
         d->doNotifyButton(WCursor::toNativeButton(e->button()), WL_POINTER_BUTTON_STATE_PRESSED, event->timestamp());
         break;
     }

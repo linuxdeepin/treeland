@@ -32,6 +32,34 @@
 #include <QScopeGuard>
 #include <QMouseEvent>
 #include <QKeySequence>
+#include <QQuickItem>
+#include <QQuickWindow>
+
+namespace {
+
+// Whether a press at @p scenePos in @p window would go to a client surface.
+// Compositor-drawn UI (title bar, multitask view, ...) owns no surface item, so a
+// press consumed there never reaches WSeat::sendEvent()/beforeHandleEvent().
+bool clientSurfaceAt(QWindow *window, const QPointF &scenePos)
+{
+    auto *qw = qobject_cast<QQuickWindow *>(window);
+    if (!qw)
+        return false;
+
+    const auto surfaceItems = qw->contentItem()->findChildren<WSurfaceItem *>();
+    for (auto *item : surfaceItems) {
+        auto *eventItem = item->eventItem();
+        // EventItem::contains() is the same input-region test Qt hit-tests with.
+        if (eventItem && eventItem->isVisible()
+            && eventItem->contains(eventItem->mapFromScene(scenePos))) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+} // namespace
 
 CompositorInputFilter::CompositorInputFilter(WaylandServer *server,
     FocusController *focus, IdleManager *idleManager, CaptureManager *captureManager,
@@ -118,27 +146,21 @@ bool CompositorInputFilter::beforeDisposeEvent(WSeat *seat, QWindow *targetWindo
             seat->removeFilteredKey(evdevKeycode);
     }
 
-    // Dismiss the popup grab when the user presses a button outside the popup
-    // (e.g. on the desktop or another client). wlroots' xdg popup keyboard grab
-    // redirects keyboard focus back to the popup, so it must be ended explicitly.
+    // A press consumed by compositor-drawn UI (title bar, multitask view, ...) never
+    // reaches a surface item, so beforeHandleEvent() cannot dismiss the popup grab
+    // for it. Only such presses are dismissed here: when a client surface will take
+    // the press, that hook owns the decision, so a stale hit test can never close a
+    // popup the user is clicking on.
     if (event->type() == QEvent::MouseButtonPress) {
         if (auto *seatContainer = m_server->rootContainer()->getSeatContainer(targetSeat)) {
-            if (seatContainer->hasPopupGrab()) {
-                auto *focused = targetSeat->handle()->pointer_state.focused_surface;
-                bool clickOnPopup = false;
-                if (focused) {
-                    if (auto *wSurface = WSurface::fromHandle(focused)) {
-                        if (auto *wrapper = m_server->rootContainer()->getSurface(wSurface))
-                            clickOnPopup = (wrapper->type() == SurfaceWrapper::Type::XdgPopup);
-                    }
-                }
-                // seat->drag is non-null during an active DnD drag, which also
-                // installs a keyboard grab; never end that grab here.
-                if (!clickOnPopup && !targetSeat->handle()->drag)
-                    seatContainer->dismissPopups();
+            auto *cursor = targetSeat ? targetSeat->cursor() : nullptr;
+            if (seatContainer->hasPopupGrab() && cursor && !targetSeat->handle()->drag
+                && !clientSurfaceAt(targetWindow, cursor->position())) {
+                seatContainer->dismissPopups();
             }
         }
     }
+
     if (seat == m_server->seat()) {
         if (event->type() == QEvent::KeyPress) {
             auto kevent = static_cast<QKeyEvent *>(event);
@@ -275,6 +297,37 @@ bool CompositorInputFilter::beforeDisposeEvent(WSeat *seat, QWindow *targetWindo
 
         if (controller->dispatchKeyEvent(kevent))
             return true;
+    }
+
+    return false;
+}
+
+bool CompositorInputFilter::beforeHandleEvent(WSeat *seat,
+                                              WSurface *watched,
+                                              QObject *,
+                                              QObject *,
+                                              QInputEvent *event)
+{
+    if (!m_server->isAvailable() || !m_server->window() || !m_server->backend())
+        return false;
+
+    // Dismiss the popup grab when the press lands outside the popup (e.g. on the
+    // desktop or another client). wlroots' xdg popup keyboard grab redirects
+    // keyboard focus back to the popup, so it must be ended explicitly. The
+    // pressed surface is the only reliable source here: the pointer focus is
+    // whatever got the last pointer enter, which a popup mapped under a
+    // stationary cursor never received.
+    if (event->type() == QEvent::MouseButtonPress && watched) {
+        if (auto *seatContainer = m_server->rootContainer()->getSeatContainer(seat)) {
+            if (seatContainer->hasPopupGrab()) {
+                auto *pressed = wlr_surface_get_root_surface(watched->handle());
+                const bool clickOnPopup = wlr_xdg_popup_try_from_wlr_surface(pressed) != nullptr;
+                // seat->drag is non-null during an active DnD drag, which also
+                // installs a keyboard grab; never end that grab here.
+                if (!clickOnPopup && !seat->handle()->drag)
+                    seatContainer->dismissPopups();
+            }
+        }
     }
 
     return false;
