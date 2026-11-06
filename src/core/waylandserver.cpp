@@ -1180,7 +1180,9 @@ bool WaylandServer::initializeSeatsAndShell()
 void WaylandServer::installRuntimeProtocols(WXdgOutputManager *xdgOutputManager)
 {
     initializeRendering();
-    m_captureManager->installImageCapture(server(), m_surfaceProtocols->toplevelList());
+    m_captureManager->installImageCapture(server(),
+                                          m_surfaceProtocols->toplevelList(),
+                                          m_sessionManager);
     initializeRenderWindow();
 
     auto *xwaylandOutputManager =

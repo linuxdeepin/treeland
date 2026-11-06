@@ -86,12 +86,17 @@ public:
     std::shared_ptr<Session> sessionForXWayland(WXWayland *xwayland) const;
     std::shared_ptr<Session> sessionForSocket(WSocket *socket) const;
     bool isDDEUserClient(WClient *client);
+    bool isActiveSessionClient(WClient *client) const;
     void syncActiveSessionXSettings();
     void syncActiveSessionXWaylandPrimaryOutput();
 
 Q_SIGNALS:
     void socketFileChanged();
     void sessionChanged();
+    // The active session went away without a new one taking over (e.g. the
+    // last user logged out). Unobservable through sessionChanged, which keeps
+    // meaning "a different session is now active".
+    void activeSessionRemoved();
     void xwaylandAuthChanged();
 
 private:
