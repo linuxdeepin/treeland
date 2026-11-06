@@ -58,6 +58,7 @@ class WClientPrivate;
 class WCursor;
 class WExtForeignToplevelListV1;
 class WForeignToplevel;
+class WInputMethodHelper;
 class WOutput;
 class WOutputRenderWindow;
 class WServer;
@@ -192,6 +193,7 @@ public:
     WOutputRenderWindow *window() const;
     GraphicsPlatform *graphicsPlatform() const;
     ShellHandler *shellHandler() const;
+    WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *inputMethodHelper() const;
     Workspace *workspace() const;
     WXdgOutputManager *xwaylandOutputManager() const;
 

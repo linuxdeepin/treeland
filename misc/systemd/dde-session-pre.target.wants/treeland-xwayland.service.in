@@ -17,8 +17,9 @@ ExecCondition=/bin/sh -c 'test "$XDG_SESSION_DESKTOP" = "Treeland" || exit 2'
 Type=notify
 Sockets=treeland-xwayland.socket
 UnsetEnvironment=DISPLAY
+UnsetEnvironment=XAUTHORITY
 ExecStart=@CMAKE_INSTALL_FULL_LIBEXECDIR@/treeland-sd --type xwayland
-ExecStop=-/usr/bin/systemctl --user unset-environment DISPLAY
+ExecStop=-/usr/bin/systemctl --user unset-environment DISPLAY XAUTHORITY
 Restart=on-failure
 RestartSec=3s
 Slice=session.slice

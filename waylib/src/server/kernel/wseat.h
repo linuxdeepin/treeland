@@ -29,6 +29,25 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSurface;
 class WSeat;
+// Intercepts physical key and modifier events before the seat forwards them to
+// the focused client. filterKey()/filterModifiers() returning true consume the
+// event: the seat does not notify the client and does not switch its current
+// keyboard for it.
+//
+// A seat has a single filter slot and does not own the filter. The owner must
+// clear the slot with setKeyboardFilter(nullptr) before destroying the filter
+// (the seat drops it automatically when the seat itself is destroyed).
+class WAYLIB_SERVER_EXPORT WSeatKeyboardFilter
+{
+public:
+    virtual ~WSeatKeyboardFilter() = default;
+
+    virtual bool filterKey(WSeat *seat, WInputDevice *device, uint32_t keycode,
+                           uint32_t state, uint32_t timestamp) = 0;
+    virtual bool filterModifiers(WSeat *seat, WInputDevice *device,
+                                 const wlr_keyboard_modifiers *modifiers) = 0;
+};
+
 class WAYLIB_SERVER_EXPORT WSeatEventFilter : public QObject
 {
     friend class WSeat;
@@ -87,6 +106,8 @@ public:
 
     WSeatEventFilter *eventFilter() const;
     void setEventFilter(WSeatEventFilter *filter);
+    WSeatKeyboardFilter *keyboardFilter() const;
+    void setKeyboardFilter(WSeatKeyboardFilter *filter);
 
     WSurface *pointerFocusSurface() const;
 

@@ -8,7 +8,6 @@
 #include <wscoplistener.h>
 #include <QQuickItem>
 #include <QMap>
-#include <QPointer>
 
 class QTimer;
 
@@ -66,7 +65,7 @@ public:
     // Popup keyboard grab management
     void givePopupFocus(SurfaceWrapper *popupWrapper);
     void dismissPopups();
-    bool hasPopupGrab() const { return m_hasPopupGrab; }
+    bool hasPopupGrab() const;
 
 Q_SIGNALS:
     void activatedSurfaceChanged(SurfaceWrapper *surface);
@@ -74,8 +73,10 @@ Q_SIGNALS:
 
 private:
     void onActivatedSurfaceFocusCapabilityChanged();
-    void onKeyboardGrabBegin();
-    void onKeyboardGrabEnd();
+    void onKeyboardGrabBegin(wlr_seat_keyboard_grab *grab);
+    void onKeyboardGrabEnd(wlr_seat_keyboard_grab *grab);
+    SurfaceWrapper *popupParentFocusTarget(SurfaceWrapper *popup, bool skipPopupParents) const;
+    bool isTrackedPopup(SurfaceWrapper *surface) const;
 
     WSeat *m_seat = nullptr;
     RootSurfaceContainer *m_rootContainer = nullptr;
@@ -87,10 +88,10 @@ private:
     bool m_metaKeyPressed = false;
 
     // Popup grab state
-    bool m_hasPopupGrab = false;
-    // Keyboard focus when the grab began; the surface to return it to once the
-    // popup closes.
-    QPointer<SurfaceWrapper> m_popupRestoreFocusTarget;
+    wlr_seat_keyboard_grab *m_popupKeyboardGrab = nullptr;
+    QPointer<SurfaceWrapper> m_prePopupFocusSurface;
+    QList<QPointer<SurfaceWrapper>> m_popupFocusStack;
+    quint64 m_popupTransitionSerial = 0;
     QTimer *m_edgeTileDelayTimer = nullptr;
 
     bool m_resizeClampActive = false;

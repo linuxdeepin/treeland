@@ -502,6 +502,52 @@ int protocol_test_run(const char *socket_name)
         || grab_events.last_key_state != WL_KEYBOARD_KEY_STATE_RELEASED
         || grab_events.modifiers != 2 || grab_events.last_modifiers != 1)
         goto failed;
+
+    // An xdg-popup keyboard grab owns the seat keyboard. While it is active the
+    // compositor must stop diverting physical keys into the input method,
+    // otherwise a menu or combo box opened over a text field never sees them.
+    struct xdg_positioner *positioner = xdg_wm_base_create_positioner(toplevel.wm_base);
+    if (!positioner)
+        goto failed;
+    xdg_positioner_set_size(positioner, 32, 32);
+    xdg_positioner_set_anchor_rect(positioner, 0, 0, 1, 1);
+    xdg_positioner_set_anchor(positioner, XDG_POSITIONER_ANCHOR_BOTTOM_RIGHT);
+    xdg_positioner_set_gravity(positioner, XDG_POSITIONER_GRAVITY_BOTTOM_RIGHT);
+    struct wl_surface *popup_wl_surface = wl_compositor_create_surface(toplevel.compositor);
+    struct xdg_surface *popup_xdg_surface = popup_wl_surface
+        ? xdg_wm_base_get_xdg_surface(toplevel.wm_base, popup_wl_surface) : NULL;
+    struct xdg_popup *xdg_popup = popup_xdg_surface
+        ? xdg_surface_get_popup(popup_xdg_surface, toplevel.xdg_surface, positioner) : NULL;
+    if (!popup_wl_surface || !popup_xdg_surface || !xdg_popup)
+        goto failed;
+    // The grab has to be requested before the popup is mapped; wlroots does not
+    // validate the serial for it.
+    xdg_popup_grab(xdg_popup, app_seat, 0);
+    wl_surface_commit(popup_wl_surface);
+    if (wl_display_roundtrip(app.display) < 0 || wl_display_roundtrip(im_connection.display) < 0)
+        goto failed;
+    zwp_virtual_keyboard_v1_key(virtual_keyboard, 3, 60, WL_KEYBOARD_KEY_STATE_PRESSED);
+    zwp_virtual_keyboard_v1_key(virtual_keyboard, 4, 60, WL_KEYBOARD_KEY_STATE_RELEASED);
+    if (wl_display_roundtrip(app.display) < 0 || wl_display_roundtrip(im_connection.display) < 0
+        || grab_events.key != 2)
+        goto failed;
+    stage = 6;
+
+    // Closing the popup ends the grab through wlroots, so key delivery returns
+    // to the input method for the same focused text input.
+    xdg_popup_destroy(xdg_popup);
+    xdg_surface_destroy(popup_xdg_surface);
+    wl_surface_destroy(popup_wl_surface);
+    xdg_positioner_destroy(positioner);
+    if (wl_display_roundtrip(app.display) < 0 || wl_display_roundtrip(im_connection.display) < 0)
+        goto failed;
+    zwp_virtual_keyboard_v1_key(virtual_keyboard, 5, 61, WL_KEYBOARD_KEY_STATE_PRESSED);
+    zwp_virtual_keyboard_v1_key(virtual_keyboard, 6, 61, WL_KEYBOARD_KEY_STATE_RELEASED);
+    if (wl_display_roundtrip(app.display) < 0 || wl_display_roundtrip(im_connection.display) < 0
+        || grab_events.key != 4 || grab_events.last_key != 61)
+        goto failed;
+    stage = 7;
+
     zwp_input_method_keyboard_grab_v2_release(grab);
     grab = NULL;
 
@@ -513,7 +559,7 @@ int protocol_test_run(const char *socket_name)
         || second_events.activate || second_events.deactivate || second_events.surrounding_text
         || second_events.text_change_cause || second_events.content_type || second_events.done)
         goto failed;
-    stage = 6;
+    stage = 8;
 
     zwp_input_method_manager_v2_destroy(manager);
     manager = NULL;
@@ -521,7 +567,7 @@ int protocol_test_run(const char *socket_name)
     zwp_input_method_v2_commit(first, input_method_serial);
     if (wl_display_roundtrip(im_connection.display) < 0 || wl_display_roundtrip(app.display) < 0)
         goto failed;
-    stage = 7;
+    stage = 9;
 
     // Regression: the client disables while it is still focused. The compositor
     // must report that transition to the input method, otherwise the helper keeps
@@ -530,13 +576,13 @@ int protocol_test_run(const char *socket_name)
     if (wl_display_roundtrip(app.display) < 0 || wl_display_roundtrip(im_connection.display) < 0
         || first_events.deactivate != 1 || first_events.done != 2)
         goto failed;
-    stage = 8;
+    stage = 10;
 
     zwp_text_input_v2_enable(text_input, toplevel.surface);
     if (wl_display_roundtrip(app.display) < 0 || wl_display_roundtrip(im_connection.display) < 0
         || first_events.activate != 2 || first_events.deactivate != 1 || first_events.done != 3)
         goto failed;
-    stage = 9;
+    stage = 11;
 
     zwp_input_method_v2_destroy(second);
     zwp_input_method_v2_destroy(first);
@@ -547,7 +593,7 @@ int protocol_test_run(const char *socket_name)
         || text_events.preedit_string != 4 || text_events.preedit[0] != '\0'
         || text_events.leave != 1 || text_events.preedit_string_at_leave != 4)
         goto failed;
-    stage = 10;
+    stage = 12;
 
     zwp_text_input_v2_destroy(text_input);
     zwp_text_input_manager_v2_destroy(text_manager);
