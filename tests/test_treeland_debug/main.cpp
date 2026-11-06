@@ -290,6 +290,9 @@ void TreelandDebugTest::testKeyCodeRaw()
     QVERIFY(ok);
     QCOMPARE(keyCode(QStringLiteral("0"), &ok), 11); // KEY_0
     QVERIFY(ok);
+    // Surrounding whitespace must not fall through to the numeric branch.
+    QCOMPARE(keyCode(QStringLiteral(" 5 "), &ok), 6); // KEY_5
+    QVERIFY(ok);
     // Out of the range a keymap can carry.
     ok = true;
     QCOMPARE(keyCode(QStringLiteral("300"), &ok), 0);

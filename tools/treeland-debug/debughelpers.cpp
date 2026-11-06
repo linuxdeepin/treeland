@@ -160,8 +160,11 @@ constexpr KeyMapping kKeyMap[] = {
 int keyCode(const QString &name, bool *ok)
 {
     *ok = true;
+    // Trimmed up front: a stray space would otherwise miss the name lookup and
+    // silently fall through to the numeric branch (" 5" -> evdev 5 = KEY_4).
+    const QString trimmed = name.trimmed();
     static const QMetaEnum meta = QMetaEnum::fromType<Qt::Key>();
-    const QString lower = name.toLower();
+    const QString lower = trimmed.toLower();
     const QString lowerWithPrefix = QLatin1String("key_") + lower;
 
     for (int i = 0; i < meta.keyCount(); ++i) {
@@ -179,7 +182,7 @@ int keyCode(const QString &name, bool *ok)
     }
 
     bool parsed = false;
-    const int numeric = name.toInt(&parsed);
+    const int numeric = trimmed.toInt(&parsed);
     // Keymaps cover keycodes 1..255; anything else cannot be pressed.
     if (parsed && numeric > 0 && numeric <= 255)
         return numeric;

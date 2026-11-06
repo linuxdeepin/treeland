@@ -242,10 +242,10 @@ injecting nothing.
 The injected keycode is a *physical* key position on the US reference layout,
 so which character it produces follows the current layout, exactly like a real
 key press: with a German layout, `event key Z` presses the key `Z` occupies on a
-US keyboard and therefore types `y`. Keys are
-delivered to the currently keyboard-focused surface, so `activate` a window
-first to target it. Pointer buttons are delivered to the surface that currently
-holds pointer focus; move the cursor onto a window before clicking.
+US keyboard and therefore types `y`. Keys are delivered to the currently
+keyboard-focused surface, so `activate` a window first to target it. Pointer
+buttons are delivered to the surface that currently holds pointer focus; move
+the cursor onto a window before clicking.
 
 ```bash
 treeland-debug activate dde-file-manager
