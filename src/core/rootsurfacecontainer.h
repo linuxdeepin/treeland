@@ -95,6 +95,9 @@ public:
     void updateEdgeTilePreview(SurfaceWrapper::TileMode mode, Output *out, WSeat *seat = nullptr);
     Output *primaryOutput() const;
     void setPrimaryOutput(Output *newPrimaryOutput, bool updateDconfig = false);
+    // Moves the primary output off `output` when it is the current primary.
+    // Must run before the per-output surface containers of `output` are torn down.
+    void movePrimaryOutputAwayFrom(const Output *output);
     const QList<Output *> &outputs() const;
 
     void addOutput(Output *output) override;

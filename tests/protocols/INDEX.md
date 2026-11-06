@@ -61,7 +61,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [wlr-export-dmabuf-unstable-v1](wlr-export-dmabuf-unstable-v1/README.md) | P / V（GPU 条件） | pixman temporary-cancel；GPU DMA-BUF export/readback |
 | [wlr-foreign-toplevel-management-unstable-v1](wlr-foreign-toplevel-management-unstable-v1/README.md) | P / E | 标准 foreign manager 的 toplevel 枚举、状态与焦点 |
 | [wlr-gamma-control-unstable-v1](wlr-gamma-control-unstable-v1/README.md) | P / I（DRM 条件） | headless failed 边界及可选 hardware LUT 路径 |
-| [wlr-layer-shell-unstable-v1](wlr-layer-shell-unstable-v1/README.md) | P / E | layer surface 的状态、container 与焦点 |
+| [wlr-layer-shell-unstable-v1](wlr-layer-shell-unstable-v1/README.md) | P / E | layer surface 的状态、container 与焦点；output 移除时的迁移/closed 与主屏清空 |
 | [wlr-output-management-unstable-v1](wlr-output-management-unstable-v1/README.md) | P / E | 真实 output configuration、位置、transform、scale |
 | [wlr-output-power-management-unstable-v1](wlr-output-power-management-unstable-v1/README.md) | P / E | output enable/disable 的生产状态回读 |
 | [wlr-virtual-pointer-unstable-v1](wlr-virtual-pointer-unstable-v1/README.md) | 接入完成；client 待补 | native virtual pointer 的生产 seat 接入 |

@@ -167,8 +167,17 @@ void RootSurfaceContainer::addOutput(Output *output)
 void RootSurfaceContainer::removeOutput(Output *output)
 {
     m_outputModel->removeObject(output);
-    SurfaceContainer::removeOutput(output);
 
+    // Move the primary output away from the removed one *before* the sub containers
+    // are torn down: LayerSurfaceContainer::removeOutput() re-homes layer surfaces
+    // without an explicit output to primaryOutput(), and that must never be the
+    // output being removed (its OutputLayerSurfaceContainer is already gone by
+    // then).
+    movePrimaryOutputAwayFrom(output);
+
+    // Finish any move/resize that grabbed a surface on this output before its
+    // containers are torn down, so the seats still see them (same order as
+    // removeBySubContainer()).
     for (auto *container : std::as_const(m_seatContainers)) {
         if (container->moveResizeSurface() &&
             container->moveResizeSurface()->ownsOutput() == output) {
@@ -177,13 +186,7 @@ void RootSurfaceContainer::removeOutput(Output *output)
     }
 
     m_outputLayout->remove(output->output());
-    if (m_primaryOutput == output) {
-        const auto outputs = m_outputLayout->outputs();
-        if (!outputs.isEmpty()) {
-            auto newPrimaryOutput = WaylandServer::instance()->getOutput(outputs.first());
-            setPrimaryOutput(newPrimaryOutput);
-        }
-    }
+    SurfaceContainer::removeOutput(output);
 
     // ensure cursor within output
     const auto outputPos = output->outputItem()->position();
@@ -427,6 +430,29 @@ void RootSurfaceContainer::setPrimaryOutput(Output *newPrimaryOutput, bool updat
     Q_EMIT primaryOutputChanged();
     if (updateDconfig)
         setPrimaryOutputConfig(newPrimaryOutput);
+}
+
+void RootSurfaceContainer::movePrimaryOutputAwayFrom(const Output *output)
+{
+    if (!output || m_primaryOutput != output)
+        return;
+
+    // Entries of the layout can be in intermediate states (copy mode replacement,
+    // pending outputs) where getOutput() cannot resolve them, so skip those instead
+    // of giving up on the first one. Without a remaining output the primary becomes
+    // null: layer surfaces created without an explicit output are then closed
+    // instead of being re-homed to the output being removed.
+    for (auto *o : m_outputLayout->outputs()) {
+        if (o == output->output()) {
+            continue;
+        }
+        if (auto *candidate = WaylandServer::instance()->getOutput(o)) {
+            setPrimaryOutput(candidate);
+            return;
+        }
+    }
+
+    setPrimaryOutput(nullptr);
 }
 
 const QList<Output *> &RootSurfaceContainer::outputs() const
