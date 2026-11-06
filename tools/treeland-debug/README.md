@@ -142,7 +142,7 @@ Run `treeland-debug <command>` for any of the following.
 | --- | --- |
 | `tree` | Print the complete layout tree as JSON (default). |
 | `cursor` | Print the cursor position as JSON. |
-| `windows` | List all toplevel windows (table, or JSON with `--json`). |
+| `windows` | List all toplevel windows (table, or JSON with `--json`), including every output each window is on and its frame-pacing output. |
 | `clients` | List connected Wayland clients and the windows each owns. |
 | `idle` | Show the idle state (time since the last input activity), whether idle is inhibited, and every idle-inhibit source (window/idle-inhibitor or screensaver) holding it off. |
 | `top [interval-ms]` | Live, `top`-like refreshing view of clients and windows (default 1000 ms, Ctrl+C to quit). Includes an idle summary line. |
@@ -386,11 +386,19 @@ authentication are required.
 
 `tree` and `cursor` always print JSON. `windows` and `clients` print a
 human-readable table by default; pass `--json` for machine-readable JSON, which
-includes the stable `id`, `appId`, `title`, geometry, state and (for `clients`)
-the owning client `pid`/`executable`/`command` (the full command line, read
-from `/proc/<pid>/cmdline`). The `windows`/`clients` tables additionally show
-the server-side decoration (`content`/`titlebar`/`frame`) geometry when the
-window is an SSD toplevel.
+includes the stable `id`, `appId`, `title`, geometry, state, `outputs` (every
+output the window is on), `framePacingOutput` (the output driving its frame
+callbacks: the entered output with the highest refresh rate) and (for
+`clients`) the owning client
+`pid`/`executable`/`command` (the full command line, read from
+`/proc/<pid>/cmdline`). The `output` field is the output the compositor treats
+as the window's owner -- a window spanning several outputs reports all of them
+in `outputs` (taken from the compositor's window wrapper, so a pre-launch
+splash window reports its outputs too). The `windows`/`clients`/`tree` views
+list every output and prefix the frame-pacing one with `+` (`*` keeps its
+existing meaning there: the active window). The `windows`/`clients` tables
+additionally show the server-side decoration (`content`/`titlebar`/`frame`)
+geometry when the window is an SSD toplevel.
 
 ## License
 

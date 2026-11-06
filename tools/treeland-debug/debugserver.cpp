@@ -806,7 +806,7 @@ QJsonObject DebugServer::mcpToolsList() const
             // --- Inspection ---
             QJsonObject{
                 {"name", "tree"},
-                {"description", "Get the complete Treeland window layout tree: layers, workspaces, and all windows with their geometry, state, and output."},
+                {"description", "Get the complete Treeland window layout tree: layers, workspaces, and all windows with their geometry, state, and the outputs they are on (plus the output driving their frame callbacks)."},
                 {"inputSchema", noArgs}
             },
             QJsonObject{
@@ -816,12 +816,12 @@ QJsonObject DebugServer::mcpToolsList() const
             },
             QJsonObject{
                 {"name", "windows"},
-                {"description", "List all toplevel windows with their id, appId, title, geometry, state, and output."},
+                {"description", "List all toplevel windows with their id, appId, title, geometry, state, the outputs each window is on, and its framePacingOutput."},
                 {"inputSchema", noArgs}
             },
             QJsonObject{
                 {"name", "clients"},
-                {"description", "List all connected Wayland clients and the windows each owns (pid, executable, command line)."},
+                {"description", "List all connected Wayland clients and the windows each owns (pid, executable, command line), with each window's outputs and framePacingOutput."},
                 {"inputSchema", noArgs}
             },
             QJsonObject{

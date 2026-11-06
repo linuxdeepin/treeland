@@ -5,6 +5,7 @@
 
 #include <QElapsedTimer>
 #include <QEventLoop>
+#include <QJsonArray>
 #include <QTimer>
 
 bool connectSession(Session &session, const QString &url, const QString &name, int timeoutMs)
@@ -160,6 +161,8 @@ QJsonObject windowToJson(const WindowInfo &window)
         {"appId", window.appId()},
         {"title", window.title()},
         {"output", window.output()},
+        {"outputs", QJsonArray::fromStringList(window.outputs())},
+        {"framePacingOutput", window.framePacingOutput()},
         {"container", window.container()},
         {"workspace", window.workspace()},
         {"layer", window.layer()},

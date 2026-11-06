@@ -36,6 +36,18 @@ QString formatDuration(quint64 ms)
         .arg((rounded % 3600000) / 60000, 2, 10, QLatin1Char('0'));
 }
 
+QString outputsLabel(const QStringList &outputs, const QString &pacing, const QString &owner)
+{
+    if (outputs.isEmpty())
+        return owner;
+
+    QStringList labels;
+    labels.reserve(outputs.size());
+    for (const QString &name : outputs)
+        labels.append(name == pacing ? QLatin1Char('+') + name : name);
+    return labels.join(QLatin1Char(','));
+}
+
 int buttonCode(const QString &name, bool *ok)
 {
     *ok = true;

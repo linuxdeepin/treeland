@@ -44,6 +44,7 @@
 #include <QQuickItemGrabResult>
 #include <QRemoteObjectHost>
 #include <QSet>
+#include <QStringList>
 #include <QTimer>
 #include <QUrl>
 
@@ -331,6 +332,24 @@ WindowInfo TreelandRemoteSource::buildWindowInfo(SurfaceWrapper *surface,
         outputName = output->output()->name();
     }
     info.setOutput(outputName);
+
+    // The outputs the window is on, and the one that drives its frame
+    // callbacks.  A window can span several outputs, so the single owner name
+    // above is not enough to tell where it is drawn.  Take the wrapper's list,
+    // not the wl_surface's: a splash window has no entered outputs yet.
+    QStringList outputNames;
+    for (auto *output : surface->outputs()) {
+        if (output)
+            outputNames.append(output->name());
+    }
+    info.setOutputs(outputNames);
+
+    QString framePacingOutputName;
+    if (auto *w = surface->surface()) {
+        if (auto *pacingOutput = w->framePacingOutput())
+            framePacingOutputName = pacingOutput->name();
+    }
+    info.setFramePacingOutput(framePacingOutputName);
 
     QString title;
     if (auto *shellSurface = surface->shellSurface()) {
