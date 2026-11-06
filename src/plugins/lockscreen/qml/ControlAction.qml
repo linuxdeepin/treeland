@@ -14,7 +14,7 @@ RowLayout {
 
     required property Item rootItem
     property int buttonSize: 30
-    property bool powerVisible: powerList.visible
+    property bool powerVisible: powerShutdownView.visible
 
     signal otherUserRequested()
 
@@ -79,36 +79,20 @@ RowLayout {
             text: qsTr("Power")
         }
 
-        Item {
-            id: powerList
+        ShutdownView {
+            id: powerShutdownView
             parent: rootItem
             visible: powerItem.expand
             width: rootItem.width
             height: rootItem.height
             x: 0
             y: 0
-
-            // Click outside the PowerList to close
-            MouseArea {
-                anchors.fill: parent
-                onClicked: {
-                    powerItem.expand = false
-                    innerPowerList.loopInside = false
-                }
-            }
-
-            PowerList {
-                id: innerPowerList
-                width: rootItem.width
-                height: 140
-                x: 0
-                y: rootItem.height / 5 * 2
-            }
+            onOutsideClicked: powerItem.expand = false
+            onSwitchUser: bottomGroup.otherUserRequested()
         }
         onClicked: {
             powerItem.expand = true
-            innerPowerList.focusPowerOff()
-            innerPowerList.enableLoopInside()
+            powerShutdownView.focusFirstButton()
         }
     }
 
