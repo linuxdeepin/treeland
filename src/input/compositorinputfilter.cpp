@@ -301,6 +301,13 @@ bool CompositorInputFilter::afterHandleEvent([[maybe_unused]] WSeat *seat,
 
         if (eventSeat && surface) {
             m_focus->updateSurfaceSeatInteraction(surface, eventSeat);
+            // A press inside the window on top that lands on none of its client
+            // surfaces (title bar, border, a transparent margin) is delivered to the
+            // window below. Activating that window would raise it above the window the
+            // user pressed, which is not what the press was aimed at.
+            if (!surface->isTopmostWindowAt(
+                    static_cast<QSinglePointEvent *>(event)->scenePosition()))
+                return false;
             m_focus->activateSurface(surface, Qt::MouseFocusReason, eventSeat, true);
         }
     }

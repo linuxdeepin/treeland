@@ -201,6 +201,14 @@ public:
     QRectF titlebarGeometry() const;
     QRectF boundingRect() const override;
 
+    // Whether no other independent window is painted above this one at @p scenePos,
+    // so that a press there belongs to this window rather than to a window below it.
+    Q_INVOKABLE bool isTopmostWindowAt(const QPointF &scenePos) const;
+
+    // The same test at the current cursor position, for the press handlers of the
+    // compositor-drawn window chrome (title bar, resize borders).
+    Q_INVOKABLE bool isTopmostWindowUnderCursor() const;
+
     Type type() const;
     SurfaceWrapper *parentSurface() const;
 

@@ -17,6 +17,7 @@
 #include <wlayersurface.h>
 #include <wlayersurfaceitem.h>
 #include <woutput.h>
+#include <wcursor.h>
 #include <woutputitem.h>
 #include <woutputrenderwindow.h>
 #include <wsocket.h>
@@ -947,6 +948,95 @@ QRectF SurfaceWrapper::titlebarGeometry() const
 QRectF SurfaceWrapper::boundingRect() const
 {
     return m_boundedRect;
+}
+
+namespace {
+
+// Qt Quick paints the children of an item ordered by (z, insertion order), z first.
+// Comparing two items therefore means comparing that pair level by level from the
+// scene root: either the branch containing one of them, or the level where they
+// diverge, decides. Returns > 0 when @p a is painted above @p b, < 0 when below and
+// 0 when they are unrelated.
+int comparePaintOrder(const QQuickItem *a, const QQuickItem *b)
+{
+    QList<const QQuickItem *> pathA;
+    QList<const QQuickItem *> pathB;
+    for (auto *item = a; item; item = item->parentItem())
+        pathA.prepend(item);
+    for (auto *item = b; item; item = item->parentItem())
+        pathB.prepend(item);
+
+    const int sharedDepth = std::min(pathA.size(), pathB.size());
+    for (int i = 0; i < sharedDepth; ++i) {
+        if (pathA[i] == pathB[i])
+            continue;
+
+        auto *parent = pathA[i]->parentItem();
+        if (parent != pathB[i]->parentItem())
+            return 0;
+
+        if (pathA[i]->z() != pathB[i]->z())
+            return pathA[i]->z() < pathB[i]->z() ? -1 : 1;
+
+        const auto siblings = parent->childItems();
+        return siblings.indexOf(const_cast<QQuickItem *>(pathA[i]))
+                 < siblings.indexOf(const_cast<QQuickItem *>(pathB[i]))
+            ? -1
+            : 1;
+    }
+
+    return 0;
+}
+
+} // namespace
+
+bool SurfaceWrapper::isTopmostWindowAt(const QPointF &scenePos) const
+{
+    // Only real windows take part in the window stacking order; layer shells,
+    // popups and other roles keep their own and are activated as before.
+    if (type() != Type::XdgToplevel && type() != Type::XWayland)
+        return true;
+
+    auto *scene = window() ? window()->contentItem() : nullptr;
+    if (!scene)
+        return true;
+
+    // Windows of every container in the scene are compared, so a window shown on all
+    // workspaces or added by another container still covers the ones below it.
+    QList<QQuickItem *> pending{scene};
+    while (!pending.isEmpty()) {
+        auto *item = pending.takeLast();
+        const auto children = item->childItems();
+        for (auto *child : children)
+            pending.append(child);
+
+        auto *other = qobject_cast<SurfaceWrapper *>(item);
+        // Child windows (dialogs, X11 transients) cover like any other window: the
+        // paint order already puts their parent below them. Popups and input popups
+        // are filtered out by the type check below.
+        if (!other || other == this || !other->isVisible())
+            continue;
+        if (other->type() != Type::XdgToplevel && other->type() != Type::XWayland)
+            continue;
+        if (!other->mapRectToScene(QRectF(QPointF(0, 0), other->size())).contains(scenePos))
+            continue;
+        if (comparePaintOrder(other, this) > 0)
+            return false;
+    }
+
+    return true;
+}
+
+bool SurfaceWrapper::isTopmostWindowUnderCursor() const
+{
+    auto *server = WaylandServer::instance();
+    auto *seat = server ? server->seat() : nullptr;
+    auto *cursor = seat ? seat->cursor() : nullptr;
+    auto *win = window();
+    if (!cursor || !win)
+        return true;
+
+    return isTopmostWindowAt(win->mapFromGlobal(cursor->position()));
 }
 
 QRectF SurfaceWrapper::normalGeometry() const

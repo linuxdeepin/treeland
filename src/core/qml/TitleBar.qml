@@ -40,45 +40,59 @@ Control {
         blocking: true
     }
 
-    // Left mouse button handler
-    TapHandler {
-        acceptedButtons: Qt.LeftButton
-        onTapped: {
-            WaylandServer.activateSurface(surface)
+    // Pointer handlers (TapHandler/DragHandler) are delivered to every item under
+    // the cursor, including title bars covered by the window on top, so pressing
+    // the title bar of the active window also activated-and-raised a stacked SSD
+    // window. A MouseArea takes the exclusive grab, which only the topmost item
+    // gets, so a covered title bar stays inert (same reason Decoration.qml uses
+    // MouseArea for the resize borders).
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+
+        property point pressPosition
+        property bool movingWindow: false
+        // A press on a window that a window above covers at the cursor position has
+        // fallen through it (the upper client owns no surface there); it must not
+        // activate or move this window.
+        property bool pressBelongsToWindow: true
+        readonly property real dragThreshold: Qt.styleHints.startDragDistance
+
+        onPressed: function (mouse) {
+            pressPosition = Qt.point(mouse.x, mouse.y)
+            movingWindow = false
+            pressBelongsToWindow = root.surface.isTopmostWindowAt(
+                root.mapToItem(null, Qt.point(mouse.x, mouse.y)))
         }
-        onDoubleTapped: {
-            if (root.canToggleMaximize)
+        onPositionChanged: function (mouse) {
+            if (!pressed || movingWindow || !pressBelongsToWindow
+                || !(mouse.buttons & Qt.LeftButton))
+                return
+            const dx = mouse.x - pressPosition.x
+            const dy = mouse.y - pressPosition.y
+            if (dx * dx + dy * dy < dragThreshold * dragThreshold)
+                return
+            movingWindow = true
+            surface.moveRequested()
+        }
+        onClicked: function (mouse) {
+            if (!pressBelongsToWindow || movingWindow)
+                return
+            if (mouse.button === Qt.LeftButton)
+                WaylandServer.activateSurface(surface)
+            else
+                surface.windowMenuRequested(Qt.point(mouse.x, mouse.y))
+        }
+        onDoubleClicked: function (mouse) {
+            if (pressBelongsToWindow && mouse.button === Qt.LeftButton && root.canToggleMaximize)
                 surface.toggleMaximized()
         }
-    }
-
-    DragHandler {
-        acceptedButtons: Qt.LeftButton
-        target: null
-        dragThreshold: Qt.styleHints.startDragDistance
-        onActiveChanged: {
-            if (active)
-                surface.moveRequested()
+        onPressAndHold: function (mouse) {
+            // Touch screen only: a mouse press held down on the title bar is not
+            // a window menu gesture.
+            if (pressBelongsToWindow && mouse.source !== Qt.MouseEventNotSynthesized)
+                surface.windowMenuRequested(Qt.point(mouse.x, mouse.y))
         }
-    }
-
-    // Right mouse button handler
-    TapHandler {
-        acceptedButtons: Qt.RightButton
-        onTapped: {
-            surface.windowMenuRequested(eventPoint.position)
-        }
-    }
-
-    // Touch screen click
-    TapHandler {
-        acceptedButtons: Qt.NoButton
-        acceptedDevices: PointerDevice.TouchScreen
-        onDoubleTapped: {
-            if (root.canToggleMaximize)
-                surface.toggleMaximized()
-        }
-        onLongPressed: surface.windowMenuRequested(point.position)
     }
 
     Rectangle {
@@ -121,6 +135,10 @@ Control {
                     D.ColorSelector.inactived: !surface.isActivated
 
                     onClicked: {
+                        // A covered title bar can be reached through an area of the
+                        // window above that owns no input; its buttons stay inert then.
+                        if (!surface.isTopmostWindowUnderCursor())
+                            return
                         surface.minimize()
                     }
                 }
@@ -138,6 +156,8 @@ Control {
                     D.ColorSelector.inactived: !surface.isActivated
 
                     onClicked: {
+                        if (!surface.isTopmostWindowUnderCursor())
+                            return
                         WaylandServer.activateSurface(surface)
                         surface.toggleMaximized()
                     }
@@ -162,6 +182,8 @@ Control {
                         D.ColorSelector.inactived: !surface.isActivated
 
                         onClicked: {
+                            if (!surface.isTopmostWindowUnderCursor())
+                                return
                             surface.closeSurface()
                         }
                     }
