@@ -64,6 +64,7 @@ enum class DebugCommand {
     Events,
     Watch,
     Scene,
+    NoAuth,
     Listen,
     Unknown,
 };

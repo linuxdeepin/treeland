@@ -122,6 +122,9 @@ bool DebugServer::listen(const QString &host, int port)
     m_httpServer.route("/api/scene", [this](const QHttpServerRequest &request) {
         return jsonCorsResponse(handleScene(request));
     });
+    m_httpServer.route("/api/no-auth", [this]() {
+        return jsonCorsResponse(handleNoAuth());
+    });
 
     // --- Window control routes ---
     m_httpServer.route("/api/activate", QHttpServerRequest::Method::Post,
@@ -258,6 +261,21 @@ QJsonObject DebugServer::handleIdle()
         if (!waitSlot(session.replica->getIdleInfo(), m_timeoutMs, &info))
             return QJsonObject{{"ok", false}, {"error", "getIdleInfo() failed"}};
         return QJsonObject{{"ok", true}, {"data", idleToJson(info)}};
+    });
+}
+
+QJsonObject DebugServer::handleNoAuth()
+{
+    return sessionRequest([this](Session &session) {
+        bool ok = false;
+        if (!waitSlot(session.replica->requestNoAuth(), m_timeoutMs, &ok))
+            return QJsonObject{{"ok", false}, {"error", "requestNoAuth() failed"}};
+        if (!ok) {
+            return QJsonObject{{"ok", false},
+                               {"error", "the compositor can only open a runtime directory "
+                                         "of its own, so a session instance keeps requiring root"}};
+        }
+        return QJsonObject{{"ok", true}, {"data", QJsonObject{{"noAuth", true}}}};
     });
 }
 
@@ -820,6 +838,11 @@ QJsonObject DebugServer::mcpToolsList() const
                 {"inputSchema", noArgs}
             },
             QJsonObject{
+                {"name", "no-auth"},
+                {"description", "Let any local user connect to this debug socket for 30 minutes without authentication; every later call extends the window, an idle half hour closes it. Refused by a session instance, which keeps requiring root."},
+                {"inputSchema", noArgs}
+            },
+            QJsonObject{
                 {"name", "clients"},
                 {"description", "List all connected Wayland clients and the windows each owns (pid, executable, command line)."},
                 {"inputSchema", noArgs}
@@ -1072,6 +1095,8 @@ QJsonArray DebugServer::mcpDispatchTool(const QString &name, const QJsonObject &
         return formatJson(handleClients());
     if (name == "idle")
         return formatJson(handleIdle());
+    if (name == "no-auth")
+        return formatJson(handleNoAuth());
     if (name == "focused")
         return formatJson(handleFocused());
     if (name == "cursor_window")
@@ -1237,6 +1262,8 @@ void DebugServer::handleWebSocketMessage(QWebSocket *socket, const QString &mess
         result = handleClients();
     } else if (command == "idle") {
         result = handleIdle();
+    } else if (command == "no-auth") {
+        result = handleNoAuth();
     } else if (command == "focused") {
         result = handleFocused();
     } else if (command == "cursor-window") {

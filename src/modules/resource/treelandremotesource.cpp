@@ -28,6 +28,8 @@
 #include <wayland-server-core.h>
 #include <xkbcommon/xkbcommon.h>
 #include <cstring>
+#include <utility>
+
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -54,6 +56,10 @@
 WAYLIB_SERVER_USE_NAMESPACE
 
 namespace {
+
+// A requested no-auth window closes when it went this long without a single
+// call, and every call pushes it out again.
+constexpr int NoAuthIdleTimeout = 30 * 60 * 1000;
 
 QString executableForPid(int pid)
 {
@@ -191,15 +197,15 @@ int qtKeyToEvdev(int qtKey, wlr_keyboard *keyboard)
 TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
     : WindowTreeRemoteSource(parent)
 {
-    // Pick a conflict-free socket path.  The socket is bound inside the
-    // compositor's runtime directory ($XDG_RUNTIME_DIR: /run/treeland for the
-    // global service, /run/user/<uid> for a session), so it is never placed in
-    // world-writable /tmp and a client finds it by probing those directories.
-    // A concurrent instance takes a numeric suffix, selected with a
-    // non-blocking advisory lock.
+    // Pick a conflict-free socket path.  The socket is bound in a directory of
+    // the compositor's own (/run/treeland-debug for the global service,
+    // $XDG_RUNTIME_DIR for a session), so it is never placed in world-writable
+    // /tmp and a client finds it by probing those directories.  A concurrent
+    // instance takes a numeric suffix, selected with a non-blocking advisory
+    // lock.
     const QString socketDir = treelandDebugSocketDir();
     if (socketDir.isEmpty()) {
-        qCWarning(lcTlDebug) << "No usable runtime directory ($XDG_RUNTIME_DIR);"
+        qCWarning(lcTlDebug) << "No usable debug socket directory;"
                                 "debug remote source disabled";
         return;
     }
@@ -215,6 +221,49 @@ TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
         return;
     }
 
+    if (!bindHost(socketPath)) {
+        m_debugSocketLock.release();
+        return;
+    }
+
+    // No-auth mode is a temporary debugging window requested over the debug
+    // protocol itself (WindowTreeRemote::requestNoAuth): the socket opens to
+    // every local user, and a call-free half hour closes it again.
+    m_debugSocketPath = socketPath;
+    m_noAuthIdleTimer = new QTimer(this);
+    m_noAuthIdleTimer->setSingleShot(true);
+    m_noAuthIdleTimer->setInterval(NoAuthIdleTimeout);
+    connect(m_noAuthIdleTimer, &QTimer::timeout,
+            this, &TreelandRemoteSource::closeNoAuthWindow);
+
+    // Seal the socket here rather than trusting what startup found: a crash
+    // during a no-auth window leaves the socket and directory open with no
+    // record of it, so the state is written, not restored.
+    closeNoAuthWindow();
+
+    m_published = true;
+}
+
+TreelandRemoteSource::~TreelandRemoteSource()
+{
+    stopEventCapture();
+    // The window may still be open (remoteDebug turned off, or shutdown): seal it
+    // now instead of leaving it to the timer.  No rebinding here -- the host is
+    // destroyed below, which drops every peer anyway.
+    if (m_noAuthIdleTimer)
+        m_noAuthIdleTimer->stop();
+    if (m_socketRootOnly && !treelandDebugSetSocketAccess(m_debugSocketPath, false))
+        qCWarning(lcTlDebug) << "Cannot seal the debug socket again:" << m_debugSocketPath
+                             << ':' << qt_error_string();
+    // Destroy the host (parent-owned child) before the socket lock member
+    // releases, so the socket stops listening while we still hold the lock.
+    // Otherwise a concurrent instance could acquire the lock and remove the
+    // socket path while the old host is still alive.
+    delete findChild<QRemoteObjectHost *>();
+}
+
+bool TreelandRemoteSource::bindHost(const QString &socketPath)
+{
     auto *host = new QRemoteObjectHost(this);
     // Either way the host must bind the socket itself: enableRemoting() is a
     // no-op until the host has a hostUrl, so an externally managed
@@ -224,10 +273,9 @@ TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
     // are unrestricted).  WorldAccessOption sets the socket to 0666.
     QRemoteObjectHost::setLocalServerOptions(QLocalServer::WorldAccessOption);
     if (!host->setHostUrl(QUrl(QStringLiteral("local:%1").arg(socketPath)))) {
-        qCWarning(lcTlDebug) << "Failed to listen on debug socket" << socketPath
-                             << "; debug remote source disabled";
-        m_debugSocketLock.release();
-        return;
+        qCWarning(lcTlDebug) << "Failed to listen on debug socket" << socketPath;
+        delete host;
+        return false;
     }
 #else
     // Release builds: only root may connect.  The host binds with
@@ -238,41 +286,92 @@ TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
     // with the socket owned by the QtRO host, which enableRemoting() needs.
     QRemoteObjectHost::setLocalServerOptions(QLocalServer::UserAccessOption);
     if (!host->setHostUrl(QUrl(QStringLiteral("local:%1").arg(socketPath)))) {
-        qCWarning(lcTlDebug) << "Failed to listen on debug socket" << socketPath
-                             << "; debug remote source disabled";
-        m_debugSocketLock.release();
-        return;
+        qCWarning(lcTlDebug) << "Failed to listen on debug socket" << socketPath;
+        delete host;
+        return false;
     }
     if (::chmod(QFile::encodeName(socketPath).constData(), 0) < 0) {
         qCWarning(lcTlDebug) << "Failed to restrict debug socket" << socketPath << ':'
-                             << qt_error_string() << "; debug remote source disabled";
+                             << qt_error_string();
         delete host; // unlinks the socket file, so no reachable-but-deaf socket stays
-        m_debugSocketLock.release();
-        return;
+        return false;
     }
+    m_socketRootOnly = true;
 #endif
     if (!host->enableRemoting(this, QStringLiteral("WindowTree"))) {
         qCWarning(lcTlDebug) << "Failed to enable remoting for WindowTree on socket"
-                             << socketPath << "; debug remote source disabled";
+                             << socketPath;
         delete host;
-        m_debugSocketLock.release();
-        return;
+        return false;
     }
-    m_published = true;
+    return true;
 }
 
-TreelandRemoteSource::~TreelandRemoteSource()
+bool TreelandRemoteSource::requestNoAuth()
 {
-    stopEventCapture();
-    // Destroy the host (parent-owned child) before the socket lock member
-    // releases, so the socket stops listening while we still hold the lock.
-    // Otherwise a concurrent instance could acquire the lock and remove the
-    // socket path while the old host is still alive.
-    delete findChild<QRemoteObjectHost *>();
+    // A debug build's socket is world-accessible already, so there is nothing to
+    // open -- but the caller asked for the window, and it is there.
+    if (!m_socketRootOnly)
+        return true;
+
+    if (!treelandDebugSetSocketAccess(m_debugSocketPath, true)) {
+        // Only a directory of Treeland's own can be widened, so a session
+        // instance lands here and keeps requiring root.
+        qCWarning(lcTlDebug) << "Cannot open the debug socket to every user:"
+                             << m_debugSocketPath << ':' << qt_error_string()
+                             << "(only the global service's own debug directory can be opened)";
+        return false;
+    }
+    m_noAuthWindowOpen = true;
+    m_noAuthIdleTimer->start();
+    return true;
+}
+
+void TreelandRemoteSource::closeNoAuthWindow()
+{
+    // The constructor creates the timer last, so every early return (no runtime
+    // directory, no free socket name, bind/chmod/enableRemoting failure) leaves
+    // it null -- and such a source is deleted by WaylandServer to be retried.
+    if (!m_noAuthIdleTimer)
+        return;
+    m_noAuthIdleTimer->stop();
+    if (!m_socketRootOnly)
+        return; // a debug build's socket is 0666 for good; there is no window
+
+    const bool windowWasOpen = std::exchange(m_noAuthWindowOpen, false);
+    if (windowWasOpen) {
+        // chmod 0000 only refuses *new* connects: a peer that got in during the
+        // window keeps its socket and could stay privileged forever.  Rebuilding
+        // the host closes every connection that was opened while it was open; the
+        // seal below then closes the fresh socket and the directory again.
+        if (auto *host = findChild<QRemoteObjectHost *>()) {
+            delete host;
+            if (!bindHost(m_debugSocketPath))
+                qCWarning(lcTlDebug) << "Cannot rebind the debug socket" << m_debugSocketPath
+                                     << "; the debug channel stays closed until the next start";
+        }
+    }
+
+    if (!treelandDebugSetSocketAccess(m_debugSocketPath, false)) {
+        qCWarning(lcTlDebug) << "Cannot seal the debug socket again:" << m_debugSocketPath
+                             << ':' << qt_error_string();
+    }
+}
+
+void TreelandRemoteSource::noteActivity() const
+{
+    // Only a call-free stretch closes the window: every call restarts it, and
+    // the timer runs only while the window is open.
+    if (m_noAuthIdleTimer && m_noAuthIdleTimer->isActive())
+        m_noAuthIdleTimer->start();
 }
 
 QPointF TreelandRemoteSource::cursorPosition() const
 {
+    // The replica fetches this property when it connects, which is a request on
+    // the debug socket like any other (treeland-debug cursor opens a connection
+    // for every invocation), so it keeps the no-auth window alive too.
+    noteActivity();
     // Read the live cursor position on demand. We deliberately do NOT keep a
     // WCursor::positionChanged connection alive between requests, so there is
     // zero per-pointer-motion overhead when no treeland-debug client is
@@ -285,6 +384,7 @@ QPointF TreelandRemoteSource::cursorPosition() const
 
 TreelandInfo TreelandRemoteSource::getTreelandInfo()
 {
+    noteActivity();
     TreelandInfo info;
 
     auto mode = WaylandServer::instance()->currentMode();
@@ -500,6 +600,7 @@ SurfaceWrapper *TreelandRemoteSource::findSurfaceById(qint64 id) const
 
 QList<WindowInfo> TreelandRemoteSource::getWindows()
 {
+    noteActivity();
     QList<SurfaceWrapper *> surfaces;
     collectAllToplevelSurfaces(surfaces);
 
@@ -516,6 +617,7 @@ QList<WindowInfo> TreelandRemoteSource::getWindows()
 
 QList<ClientInfo> TreelandRemoteSource::getClients()
 {
+    noteActivity();
     QList<ClientInfo> result;
     auto *server = WaylandServer::instance();
     auto *nativeServer = server ? server->server() : nullptr;
@@ -599,6 +701,7 @@ QList<ClientInfo> TreelandRemoteSource::getClients()
 
 IdleInfo TreelandRemoteSource::getIdleInfo()
 {
+    noteActivity();
     IdleInfo info;
     auto *server = WaylandServer::instance();
     auto *idle = server ? server->idleManager() : nullptr;
@@ -637,6 +740,7 @@ IdleInfo TreelandRemoteSource::getIdleInfo()
 
 bool TreelandRemoteSource::activateWindow(qint64 id)
 {
+    noteActivity();
     auto *surface = findSurfaceById(id);
     if (!surface)
         return false;
@@ -646,6 +750,7 @@ bool TreelandRemoteSource::activateWindow(qint64 id)
 
 bool TreelandRemoteSource::closeWindow(qint64 id)
 {
+    noteActivity();
     auto *surface = findSurfaceById(id);
     if (!surface)
         return false;
@@ -655,6 +760,7 @@ bool TreelandRemoteSource::closeWindow(qint64 id)
 
 bool TreelandRemoteSource::minimizeWindow(qint64 id)
 {
+    noteActivity();
     auto *surface = findSurfaceById(id);
     if (!surface)
         return false;
@@ -664,6 +770,7 @@ bool TreelandRemoteSource::minimizeWindow(qint64 id)
 
 bool TreelandRemoteSource::toggleMaximized(qint64 id)
 {
+    noteActivity();
     auto *surface = findSurfaceById(id);
     if (!surface)
         return false;
@@ -673,6 +780,7 @@ bool TreelandRemoteSource::toggleMaximized(qint64 id)
 
 bool TreelandRemoteSource::toggleFullscreen(qint64 id)
 {
+    noteActivity();
     auto *surface = findSurfaceById(id);
     if (!surface)
         return false;
@@ -685,6 +793,7 @@ bool TreelandRemoteSource::toggleFullscreen(qint64 id)
 
 bool TreelandRemoteSource::moveWindow(qint64 id, int x, int y)
 {
+    noteActivity();
     auto *surface = findSurfaceById(id);
     if (!surface)
         return false;
@@ -694,6 +803,7 @@ bool TreelandRemoteSource::moveWindow(qint64 id, int x, int y)
 
 bool TreelandRemoteSource::resizeWindow(qint64 id, int w, int h)
 {
+    noteActivity();
     auto *surface = findSurfaceById(id);
     if (!surface || w <= 0 || h <= 0)
         return false;
@@ -702,6 +812,7 @@ bool TreelandRemoteSource::resizeWindow(qint64 id, int w, int h)
 
 bool TreelandRemoteSource::setWindowWorkspace(qint64 id, int workspaceId)
 {
+    noteActivity();
     auto *surface = findSurfaceById(id);
     if (!surface)
         return false;
@@ -720,6 +831,7 @@ bool TreelandRemoteSource::setWindowWorkspace(qint64 id, int workspaceId)
 
 bool TreelandRemoteSource::moveCursor(QPointF pos)
 {
+    noteActivity();
     auto *server = WaylandServer::instance();
     if (!server)
         return false;
@@ -732,6 +844,7 @@ bool TreelandRemoteSource::moveCursor(QPointF pos)
 
 bool TreelandRemoteSource::sendPointerButton(int button, bool pressed)
 {
+    noteActivity();
     auto *seat = WaylandServer::instance()->seat();
     if (!seat || !seat->handle())
         return false;
@@ -745,6 +858,7 @@ bool TreelandRemoteSource::sendPointerButton(int button, bool pressed)
 
 bool TreelandRemoteSource::sendKey(int qtKey, bool pressed)
 {
+    noteActivity();
     auto *seat = WaylandServer::instance()->seat();
     if (!seat || !seat->handle())
         return false;
@@ -773,6 +887,7 @@ bool TreelandRemoteSource::sendKey(int qtKey, bool pressed)
 
 void TreelandRemoteSource::captureOutput(QString outputName)
 {
+    noteActivity();
     auto *root = WaylandServer::instance()->rootSurfaceContainer();
     if (!root) {
         Q_EMIT captureResult({});
@@ -824,6 +939,7 @@ void TreelandRemoteSource::captureOutput(QString outputName)
 
 void TreelandRemoteSource::captureWindow(qint64 id)
 {
+    noteActivity();
     auto *surface = findSurfaceById(id);
     if (!surface || !surface->surfaceItem()) {
         Q_EMIT captureResult({});
@@ -866,6 +982,7 @@ void TreelandRemoteSource::captureWindow(qint64 id)
 
 QList<DebugEvent> TreelandRemoteSource::getEvents(quint64 afterSeq)
 {
+    noteActivity();
     // A live poller keeps the event filter installed; if no poller calls
     // within the idle window the filter is removed and the ring buffer freed,
     // so there is zero per-event overhead when nobody is monitoring.
@@ -888,6 +1005,7 @@ QList<DebugEvent> TreelandRemoteSource::getEvents(quint64 afterSeq)
 
 qint64 TreelandRemoteSource::focusedWindowId()
 {
+    noteActivity();
     auto *seat = WaylandServer::instance()->seat();
     if (!seat) return 0;
     return surfaceId(seat->keyboardFocusSurface());
@@ -895,6 +1013,7 @@ qint64 TreelandRemoteSource::focusedWindowId()
 
 qint64 TreelandRemoteSource::windowUnderCursor()
 {
+    noteActivity();
     auto *seat = WaylandServer::instance()->seat();
     if (!seat) return 0;
     return surfaceId(seat->pointerFocusSurface());
@@ -902,6 +1021,7 @@ qint64 TreelandRemoteSource::windowUnderCursor()
 
 QString TreelandRemoteSource::getSceneTree(qint64 id)
 {
+    noteActivity();
     QQuickItem *root = nullptr;
     if (id != 0) {
         auto *surface = findSurfaceById(id);

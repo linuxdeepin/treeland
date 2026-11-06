@@ -76,16 +76,43 @@ serves the window tree remote source to whoever connects -- the source is a thin
 QObject that only does work per call, so it costs nothing when no client is
 attached. Turn the switch off to forbid debugging entirely; the socket then
 disappears too. Release builds keep the socket root-only (mode 0000). Debug
-builds publish it world-writable (0666), but it lives in the compositor's
-runtime directory, which stays private to that user (0700) -- so in both build
-types the socket is reachable by the compositor's user and by root.
+builds publish it world-writable (0666), but it lives in a directory of the
+compositor's own (0700), so in a debug build the socket is reachable by the
+compositor's user, while a release build's 0000 socket answers root alone.
 
-`treeland-debug` never writes that option, so there is no session state to
-restore: a crash, `SIGKILL`, or a closed terminal leaves nothing behind, and any
-number of clients can attach at once. If no socket is published, either the
-switch is off or Treeland is not running -- the client says so on stderr and
-points at the switch. Toggling `remoteDebug` takes effect immediately: the
-remote source is created or destroyed on the fly, no restart needed.
+The root restriction of a release build can be lifted for a while over the
+debug protocol itself: `treeland-debug no-auth` (the `requestNoAuth` method of
+`WindowTreeRemote`) asks the compositor to open its debug directory (0711) and
+its socket (0666) to every local user. Only a caller that already got through the
+sealed socket can ask, and in a release build that is root alone: mode 0000
+blocks the compositor's own user as well, and only `CAP_DAC_OVERRIDE` passes. So
+that connection is the authentication -- opening the window therefore costs root
+one `pkexec` prompt, and everyone who connects during those 30 minutes needs
+none. The window closes 30 minutes later; every remote call while it is open
+pushes it out again, so a forgotten request cannot leave the channel open for
+longer than an idle half hour. Closing it also drops the connections that were
+opened while it was open, so the window cannot be kept alive by holding a
+client connected.
+
+Only the global service gets this window, and only for a directory of its own:
+`/run/treeland-debug` (`RuntimeDirectory=treeland-debug`), never its
+`$XDG_RUNTIME_DIR` (`/run/treeland`) -- Qt insists that one stays 0700 and would
+move new sessions' wayland sockets to `$TMPDIR` otherwise. A session instance
+runs inside `/run/user/<uid>`, which also holds the session bus and other
+per-session sockets, so Treeland leaves that directory alone there and root
+stays required.
+
+The window is held in memory only, so nothing outlives the compositor: a crash
+or a restart comes back root-only, and every socket is sealed on startup even if
+the previous process died with the window open. The directory itself is widened
+once (0711, traverse but not list) and stays that way until the process exits,
+because several instances may share it and one closing its window must not cut
+off a peer's; a restart under systemd recreates it 0700. Access is gated by the
+socket modes alone. Any number of clients can attach at once while it is open.
+If no socket is published, either the switch is off or Treeland is not running --
+the client says so on stderr and points at the switch. Toggling `remoteDebug`
+takes effect immediately: the remote source is created or destroyed on the fly,
+no restart needed.
 
 Flip the switch as the user Treeland runs as (`dde` in global mode); DConfig
 keeps app-scoped keys per user and rejects a caller with any other uid, root
@@ -105,17 +132,20 @@ All commands below are run as the `dde` user, e.g.
 ### Socket naming and connection
 
 Treeland publishes the debug source on a local socket whose default name is
-`org.deepin.dde.treeland.debug`, bound at an absolute path inside the
-compositor's runtime directory (`QStandardPaths::RuntimeLocation`, i.e.
-`$XDG_RUNTIME_DIR`): `/run/treeland/org.deepin.dde.treeland.debug` for the global
-service (`RuntimeDirectory=treeland`), `/run/user/<uid>/...` for a session.
-Nothing is put in `/tmp`, which is world-writable and where a `$TMPDIR`-resolved
-path is invisible to a client with a different `TMPDIR`; Qt creates that
-directory (mode 0700, owned by the compositor's user) and refuses one owned by
-somebody else, so the socket is reachable by the compositor's user and by root.
+`org.deepin.dde.treeland.debug`, bound at an absolute path in a directory of
+its own: `/run/treeland-debug/org.deepin.dde.treeland.debug` for the global
+service (`RuntimeDirectory=treeland-debug`), `/run/user/<uid>/...` (i.e.
+`$XDG_RUNTIME_DIR`) for a session. Nothing is put in `/tmp`, which is
+world-writable and where a `$TMPDIR`-resolved path is invisible to a client with
+a different `TMPDIR`. The global service's directory is created 0700 by systemd
+and is not its `$XDG_RUNTIME_DIR`, because the no-auth window widens it to 0711
+and Qt requires a runtime directory to stay 0700; `$TREELAND_DEBUG_DIR` overrides
+it for development. The socket is reachable by root, and by the compositor's own
+user in a debug build (0666).
 A `treeland-debug` client probes, in order, its own runtime directory, the
-global service's `/run/treeland`, and every `/run/user/<uid>` it may list (root
-only), because it cannot know the compositor's runtime directory otherwise.
+global service's `/run/treeland-debug`, `/run/treeland` (where compositors from
+before the dedicated directory bound), and every `/run/user/<uid>` it may list
+(root only), because it cannot know the compositor's directory otherwise.
 When the name is already taken
 by another running treeland (global service, session service, local build),
 a numeric suffix is appended (`org.deepin.dde.treeland.debug-1`, `-2`, …),

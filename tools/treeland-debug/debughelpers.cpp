@@ -159,6 +159,11 @@ ParseResult parseCommand(const QString &command, const QStringList &args)
         r.command = DebugCommand::Shell;
         return r;
     }
+    if (command == QLatin1String("no-auth")) {
+        r.ok = true;
+        r.command = DebugCommand::NoAuth;
+        return r;
+    }
 
     // ---- window control (target only) ----
     if (command == QLatin1String("activate") || command == QLatin1String("close")
