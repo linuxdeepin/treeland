@@ -13,7 +13,6 @@ Item {
     required property rect fromGeometry
     required property rect toGeometry
     property int duration: 400 * WaylandServer.animationSpeed
-    property real fadeDurationRatio: 0.5
     property var enableBlur: false
     property var sourceSurface: null
     property int direction: 0
@@ -27,16 +26,6 @@ Item {
 
     function start() {
         animation.start();
-    }
-
-    XdgShadow {
-        anchors.fill: parent
-        visible: surface.visibleDecoration && !surface.noDecoration
-        cornerRadius: surface.radius
-        shadowBlur: surface.shadowBlurRadius
-        shadowOffsetX: surface.shadowOffsetX
-        shadowOffsetY: surface.shadowOffsetY
-        shadowColor: surface.shadowColor
     }
 
     Loader {
@@ -54,6 +43,7 @@ Item {
         readonly property real xScale: root.width / surface.width
         readonly property real yScale: root.height / surface.height
 
+        // boundingRect also covers the decoration shadow.
         live: true
         sourceItem: surface
         hideSource: true
@@ -62,6 +52,8 @@ Item {
         height: sourceRect.height * yScale
         x: sourceRect.x * xScale
         y: sourceRect.y * yScale
+
+        opacity: root.direction === 1 ? (root.sourceSurface ? 0 : 1) : 1
     }
 
     SurfaceItemContent {
@@ -112,18 +104,22 @@ Item {
             to: root.toGeometry.height
         }
 
-        SequentialAnimation {
-            PauseAnimation {
-                duration: root.direction === 1 ? 0 : root.duration * (1 - root.fadeDurationRatio)
-            }
-            PropertyAnimation {
-                target: sourceImage
-                property: "opacity"
-                duration: root.duration * root.fadeDurationRatio
-                from: root.direction === 1 ? 1 : 0
-                to: root.direction === 1 ? 0 : 1
-                easing.type: Easing.Linear
-            }
+        PropertyAnimation {
+            target: backgroundEffect
+            property: "opacity"
+            duration: root.duration
+            easing.type: Easing.OutExpo
+            from: root.direction === 1 ? (root.sourceSurface ? 0 : 1) : 1
+            to: root.direction === 1 ? 1 : (root.sourceSurface ? 0 : 1)
+        }
+
+        PropertyAnimation {
+            target: sourceImage
+            property: "opacity"
+            duration: root.duration
+            easing.type: Easing.OutExpo
+            from: root.direction === 1 ? 1 : 0
+            to: root.direction === 1 ? 0 : 1
         }
 
         onFinished: {
