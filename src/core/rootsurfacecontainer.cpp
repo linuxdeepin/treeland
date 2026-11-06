@@ -147,6 +147,10 @@ void RootSurfaceContainer::destroyForSurface(SurfaceWrapper *wrapper)
 void RootSurfaceContainer::addOutput(Output *output)
 {
     m_outputModel->addObject(output);
+    connect(output->output(),
+            &WOutput::enabledChanged,
+            this,
+            &RootSurfaceContainer::refreshSurfaceOutputs);
     m_outputLayout->autoAdd(output->output());
     if (!m_primaryOutput)
         setPrimaryOutput(output);
@@ -155,17 +159,15 @@ void RootSurfaceContainer::addOutput(Output *output)
     // LayerSurfaceContainer is initialized for every active display.
     SurfaceContainer::addOutput(output);
 
-    // Layer surfaces are re-entered by LayerSurfaceContainer::addOutput
-    // which calls setOutputs. Skip them here to avoid double re-enter.
-    for (auto s : std::as_const(surfaces())) {
-        if (s->type() == SurfaceWrapper::Type::Layer)
-            continue;
-        updateSurfaceOutputs(s);
-    }
+    refreshSurfaceOutputs();
 }
 
 void RootSurfaceContainer::removeOutput(Output *output)
 {
+    disconnect(output->output(),
+               &WOutput::enabledChanged,
+               this,
+               &RootSurfaceContainer::refreshSurfaceOutputs);
     m_outputModel->removeObject(output);
     SurfaceContainer::removeOutput(output);
 
@@ -315,21 +317,21 @@ void RootSurfaceContainer::removeBySubContainer(SurfaceContainer *sub, SurfaceWr
 
 bool RootSurfaceContainer::filterSurfaceGeometryChanged(SurfaceWrapper *surface,
                                                         QRectF &newGeometry,
-                                                        const QRectF &oldGeometry)
+                                                        [[maybe_unused]] const QRectF &oldGeometry)
 {
-    // WaylandServer function to adjust anchor-based position during resize
-    // When resizing from an edge (e.g., right edge), the opposite position remains fixed
+    // Keep the opposite edge fixed at the geometry captured before the drag.
+    // Reusing the previous frame would accumulate fractional-scale rounding.
     auto adjustForResize = [](QRectF &geometry,
-                              const QRectF &oldGeometry,
+                              const QRectF &startGeometry,
                               Qt::Edges edges) {
         if (edges & Qt::RightEdge)
-            geometry.moveLeft(oldGeometry.left());
+            geometry.moveLeft(startGeometry.left());
         if (edges & Qt::BottomEdge)
-            geometry.moveTop(oldGeometry.top());
+            geometry.moveTop(startGeometry.top());
         if (edges & Qt::LeftEdge)
-            geometry.moveRight(oldGeometry.right());
+            geometry.moveRight(startGeometry.right());
         if (edges & Qt::TopEdge)
-            geometry.moveBottom(oldGeometry.bottom());
+            geometry.moveBottom(startGeometry.bottom());
     };
 
     // Check all per-seat containers for move/resize state
@@ -346,14 +348,15 @@ bool RootSurfaceContainer::filterSurfaceGeometryChanged(SurfaceWrapper *surface,
             if (edges != 0) {
                 // Adjust anchor-based position during resize
                 QRectF adjustedGeo = newGeometry;
-                adjustForResize(adjustedGeo, oldGeometry, edges);
+                adjustForResize(adjustedGeo, mrState.startGeometry, edges);
 
                 if (adjustedGeo.topLeft() != newGeometry.topLeft()) {
                     newGeometry = adjustedGeo;
                     mrState.settingPositionFlag = true;
-                    QPointF alignedPos = surface->alignToPixelGrid(newGeometry.topLeft());
-                    newGeometry.moveTopLeft(alignedPos);
-                    surface->setPosition(alignedPos);
+                    // The committed logical size may not span an integer number
+                    // of physical pixels. Rounding the position would move the
+                    // fixed edge, including across successive drag sessions.
+                    surface->setPosition(newGeometry.topLeft());
                     mrState.settingPositionFlag = false;
                 }
                 return false;
@@ -442,6 +445,18 @@ void RootSurfaceContainer::ensureCursorVisible()
 
     if (m_primaryOutput) {
         WaylandServer::instance()->setCursorPosition(m_primaryOutput->geometry().center());
+    }
+}
+
+void RootSurfaceContainer::refreshSurfaceOutputs()
+{
+    // Layer surfaces are re-entered by LayerSurfaceContainer::addOutput
+    // which calls setOutputs. Skip them here to avoid double re-enter.
+    const auto surfaces = this->surfaces();
+    for (auto *surface : surfaces) {
+        if (surface->type() == SurfaceWrapper::Type::Layer)
+            continue;
+        updateSurfaceOutputs(surface);
     }
 }
 
