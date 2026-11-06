@@ -75,14 +75,17 @@ CaptureSourceSelector {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.margins: 10
         visible: toolBarModel.count > 1
-        Behavior on opacity {
-            enabled: WaylandServer.animationConfig.captureToolbar
-            OpacityAnimator {
-                from: 0.0
-                to: 1.0
-                duration: 300
-                easing.type: Easing.OutExpo
-            }
+        Component.onCompleted: {
+            if (WaylandServer.animationConfig.captureToolbar)
+                appearAnimation.start()
+        }
+        OpacityAnimator {
+            id: appearAnimation
+            target: captureToolBar
+            from: 0.0
+            to: 1.0
+            duration: 300
+            easing.type: Easing.OutExpo
         }
         contentItem: Row {
             Repeater {
