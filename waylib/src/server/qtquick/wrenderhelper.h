@@ -6,18 +6,24 @@
 #include <wlr_fwd.h>
 #include <wglobal.h>
 
+#include <QByteArray>
 #include <QObject>
 #include <QQuickRenderTarget>
 #include <QSGRendererInterface>
+
+#include <memory>
 
 QT_BEGIN_NAMESPACE
 class QQuickRenderControl;
 class QSGTexture;
 class QSGPlainTexture;
 class QRhi;
+class QRhiRenderTarget;
+class QRhiRenderPassDescriptor;
+class QRhiTexture;
+class QRhiTextureRenderTarget;
 class QRhiCommandBuffer;
 QT_END_NAMESPACE
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WRenderHelperPrivate;
@@ -59,21 +65,68 @@ public:
     };
 
     RenderTarget acquireRenderTarget(QQuickRenderControl *rc, wlr_buffer *buffer,
-                                     WGlobal::ColorContentsMode mode = WGlobal::ColorContentsMode::DontCare);
+                                     WGlobal::ColorContentsMode mode = WGlobal::ColorContentsMode::DontCare,
+                                     bool useVulkanBackdrop = false);
+    QQuickRenderTarget preserveRenderTarget(wlr_buffer *buffer,
+                                            bool useVulkanBackdrop = false) const;
+    QQuickRenderTarget vulkanBackdropResumeRenderTarget(wlr_buffer *buffer) const;
+    bool acquireRenderBuffer(QQuickRenderControl *rc, wlr_buffer *buffer, const char *purpose);
+    bool releaseRenderBuffer(QQuickRenderControl *rc, wlr_buffer *buffer,
+                             QRhiTexture *renderTargetTexture, const char *purpose);
+    void cleanupRetiredRenderResources(bool force = false);
     RenderTarget lastRenderTarget() const;
-
-#ifdef ENABLE_VULKAN_RENDER
-    // Record wlroots render_buffer FOREIGN acquire/release around Qt RHI pass.
-    void prepareVulkanRenderTarget(QRhiCommandBuffer *cb, const RenderTarget &rt);
-    void finishVulkanRenderTarget(QRhiCommandBuffer *cb, const RenderTarget &rt);
-#endif
     static wlr_renderer *createRenderer(wlr_backend *backend);
     static wlr_renderer *createRenderer(wlr_backend *backend, QSGRendererInterface::GraphicsApi api);
 
     static void setupRendererBackend(wlr_backend *testBackend = nullptr);
-    static QSGRendererInterface::GraphicsApi probe(wlr_backend *testBackend, const QList<QSGRendererInterface::GraphicsApi> &apiList);
+    static QSGRendererInterface::GraphicsApi probe(wlr_backend *testBackend,
+                                                   const QList<QSGRendererInterface::GraphicsApi> &apiList);
 
-    static bool makeTexture(QRhi *rhi, wlr_texture *handle, QSGPlainTexture *texture);
+    static bool makeTexture(QRhi *rhi, wlr_texture *handle, QSGPlainTexture *texture,
+                            bool forceVulkanShaderReadOnlyLayout = false);
+    static bool prepareTextureForSampling(QQuickRenderControl *rc,
+                                          wlr_renderer *renderer,
+                                          wlr_texture *texture,
+                                          wlr_buffer *sampledBuffer,
+                                          const char *purpose);
+    static bool finishTextureSampling(QQuickRenderControl *rc,
+                                      wlr_renderer *renderer,
+                                      wlr_texture *texture,
+                                      const char *purpose);
+    static void markBufferContentDirty(wlr_renderer *renderer, wlr_buffer *buffer);
+    static bool beginTextureSyncBatch(QQuickRenderControl *rc,
+                                      wlr_renderer *renderer,
+                                      bool verifyQueue);
+    static bool flushTextureSyncBatch(wlr_renderer *renderer);
+    static void abortTextureSyncBatch(wlr_renderer *renderer);
+    static bool beginTextureBarrierBatch(wlr_renderer *renderer,
+                                         bool release);
+    static bool flushTextureBarrierBatch(QQuickRenderControl *rc,
+                                         wlr_renderer *renderer,
+                                         const char *purpose);
+    static void abortTextureBarrierBatch(wlr_renderer *renderer);
+    static void setStageAsyncEnabled(wlr_renderer *renderer,
+                                     bool enabled);
+    static bool restrictVulkanTextureFormats(wlr_renderer *renderer);
+    static void resetVulkanFrameAliasLists(wlr_renderer *renderer);
+    // Build a render-pass descriptor for a render target that Waylib does not
+    // create itself (for example the blitter's rotation scratch target), with
+    // the same canonical dependency every Waylib-owned target uses. Qt's
+    // pipeline cache is shared per QSGRenderContext and does not include
+    // subpass dependencies in its key, so a target that keeps Qt's empty
+    // dependency list can end up binding a VkPipeline baked for a different
+    // dependency set (VUID-vkCmdDraw-renderPass-02684). Returns Qt's plain
+    // descriptor on non-Vulkan backends.
+    static std::unique_ptr<QRhiRenderPassDescriptor> newCompatibleRenderPassDescriptor(
+        QRhiTextureRenderTarget *renderTarget, const QByteArray &targetName);
+    // Register a QRhi cleanup callback that force-releases every
+    // Buffer/Texture/RenderBuffer QRhiResource still owned by the QRhi when
+    // it is destroyed, before its Vulkan allocator is torn down. Objects
+    // outside of waylib's control (client QML items, scenegraph caches) that
+    // outlive a QQuickRenderControl would otherwise leak VMA memory and hit
+    // the vmaDestroyAllocator "Some allocations were not freed" assertion.
+    // No-op for non-Vulkan backends; \a key only deduplicates registrations.
+    static void addVulkanTeardownSweep(QRhi *rhi, const void *key);
 
     struct TextureEntry {
         wlr_buffer *buffer;

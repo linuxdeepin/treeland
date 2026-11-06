@@ -75,6 +75,7 @@ public:
 
 Q_SIGNALS:
     void imageReady();
+    void imageFailed();
     void bufferDestroyed();
     void targetDestroyed();
     void targetResized();
@@ -101,7 +102,7 @@ public:
      * @brief copyBuffer render captured contents to a buffer
      * @param buffer buffer prepared by client
      */
-    void copyBuffer(wlr_buffer *buffer);
+    bool copyBuffer(wlr_buffer *buffer);
 
     // Cropped area of source
     virtual QRect cropRect() const = 0;
@@ -241,6 +242,7 @@ private:
     void onCapture(treeland_capture_frame_v1 *frame);
     void onCreateSession(treeland_capture_session_v1 *session);
     void handleFrameCopy(wlr_buffer *buffer);
+    void failFrame(const char *reason);
     void handleSessionStart();
     void handleFrameDone(uint32_t tvSecHi, uint32_t tvSecLo, uint32_t tvUsec);
     void handleRenderEnd();

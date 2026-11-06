@@ -12,6 +12,8 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+QAtomicInt WRenderBufferBlitter::s_liveCount{0};
+
 class Q_DECL_HIDDEN BlitTextureProvider : public QSGTextureProvider {
 public:
     BlitTextureProvider()
@@ -216,11 +218,12 @@ WRenderBufferBlitter::WRenderBufferBlitter(QQuickItem *parent)
     setFlag(ItemHasContents);
     W_D(WRenderBufferBlitter);
     d->init();
+    s_liveCount.fetchAndAddRelaxed(1);
 }
 
 WRenderBufferBlitter::~WRenderBufferBlitter()
 {
-
+    s_liveCount.fetchAndAddRelaxed(-1);
 }
 
 QQuickItem *WRenderBufferBlitter::content() const
