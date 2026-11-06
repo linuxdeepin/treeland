@@ -156,6 +156,15 @@ QString windowOutputsLabel(const WindowInfo &window)
     return outputsLabel(window.outputs(), window.framePacingOutput(), window.output());
 }
 
+// Input and opaque regions are sets of surface-local boxes, and a client can
+// hand the compositor a region with thousands of them, so only the first few
+// are printed and the remainder is summarised as a count.
+QString windowRegionDetail(const WindowInfo &w)
+{
+    return QStringLiteral("      input-region=%1  opaque-region=%2\n")
+        .arg(formatRegion(w.inputRegion()), formatRegion(w.opaqueRegion()));
+}
+
 void printWindowsTable(const QList<WindowInfo> &windows)
 {
     QTextStream out(stdout);
@@ -177,6 +186,7 @@ void printWindowsTable(const QList<WindowInfo> &windows)
             .arg(window.title());
         out << line << Qt::endl;
         out << windowGeometryDetail(window);
+        out << windowRegionDetail(window);
     }
 }
 
@@ -206,6 +216,7 @@ void printClientsTable(const QList<ClientInfo> &clients)
                     .arg(windowOutputsLabel(window))
                     .arg(window.minimized() ? QStringLiteral("  (minimized)") : QString());
             out << windowGeometryDetail(window);
+            out << windowRegionDetail(window);
         }
         out << Qt::endl;
     }

@@ -57,6 +57,10 @@ private Q_SLOTS:
     void testSaveCaptureAutoPath();
     void testPointToJson();
     void testRectToJson();
+    void testRectsToJson();
+    void testFormatRegionEmpty();
+    void testFormatRegionAtLimit();
+    void testFormatRegionOverLimit();
 
     // --- treeland-debug socket naming / conflict avoidance ---
     void testSocketDefaultPath();
@@ -358,6 +362,52 @@ void TreelandDebugTest::testRectToJson()
     QCOMPARE(obj.value("y").toDouble(), 20.0);
     QCOMPARE(obj.value("width").toDouble(), 300.0);
     QCOMPARE(obj.value("height").toDouble(), 400.0);
+}
+
+void TreelandDebugTest::testRectsToJson()
+{
+    // A region is a set of boxes, so it must serialise as an array of rects
+    // and an empty region as an empty array.
+    QVERIFY(rectsToJson(QRegion()).isEmpty());
+
+    const auto array = rectsToJson(QRegion(0, 0, 8, 8) + QRegion(20, 8, 4, 2));
+    QCOMPARE(array.size(), 2);
+    const auto first = array.at(0).toObject();
+    QCOMPARE(first.value("x").toDouble(), 0.0);
+    QCOMPARE(first.value("width").toDouble(), 8.0);
+    const auto second = array.at(1).toObject();
+    QCOMPARE(second.value("x").toDouble(), 20.0);
+    QCOMPARE(second.value("y").toDouble(), 8.0);
+    QCOMPARE(second.value("height").toDouble(), 2.0);
+}
+
+void TreelandDebugTest::testFormatRegionEmpty()
+{
+    // An empty region is not "no boxes to show", it is a meaningful state
+    // (input: accepts nothing; opaque: no opaque area declared), so it must not
+    // render as an empty string.
+    QCOMPARE(formatRegion(QRegion()), QStringLiteral("(empty)"));
+}
+
+void TreelandDebugTest::testFormatRegionAtLimit()
+{
+    QRegion region;
+    for (int i = 0; i < 8; ++i)
+        region += QRect(0, i * 2, 10, 1);
+    const QString text = formatRegion(region);
+    QCOMPARE(text.count(QLatin1Char('[')), 8);
+    QVERIFY(!text.contains(QLatin1String("more")));
+    QVERIFY(text.startsWith(QLatin1String("[0,0 10x1],[0,2 10x1]")));
+}
+
+void TreelandDebugTest::testFormatRegionOverLimit()
+{
+    QRegion region;
+    for (int i = 0; i < 9; ++i)
+        region += QRect(0, i * 2, 10, 1);
+    const QString text = formatRegion(region);
+    QCOMPARE(text.count(QLatin1Char('[')), 8);
+    QVERIFY(text.endsWith(QLatin1String("(+1 more)")));
 }
 
 // ---------------------------------------------------------------------------

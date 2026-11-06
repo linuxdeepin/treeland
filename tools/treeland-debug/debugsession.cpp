@@ -179,6 +179,8 @@ QJsonObject windowToJson(const WindowInfo &window)
         {"position", pointToJson(window.position())},
         {"frames", window.frames()},
         {"damage", rectToJson(window.damage())},
+        {"inputRegion", rectsToJson(window.inputRegion())},
+        {"opaqueRegion", rectsToJson(window.opaqueRegion())},
     };
 }
 
