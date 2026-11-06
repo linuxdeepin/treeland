@@ -34,6 +34,7 @@ struct splash_server_state {
 };
 
 struct test_ctx {
+    const char *socket_name;
     struct client_connection connection;
     struct wl_display *display;
 
@@ -43,7 +44,13 @@ struct test_ctx {
     struct treeland_prelaunch_splash_v2 *splash1;
     struct treeland_prelaunch_splash_v2 *splash2;
     struct treeland_prelaunch_splash_v2 *splash3;
+    struct treeland_prelaunch_splash_v2 *splash4;
     struct wl_buffer *icon_buffer;
+
+    /* Second client, used to check the singleton manager binding. */
+    struct client_connection connection2;
+    struct wl_display *display2;
+    struct treeland_prelaunch_splash_manager_v2 *manager2;
 
     struct splash_server_state server;
 

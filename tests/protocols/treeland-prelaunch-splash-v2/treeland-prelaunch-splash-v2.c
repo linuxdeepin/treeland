@@ -194,6 +194,64 @@ static int destroy_manager(struct test_ctx *ctx)
     return 1;
 }
 
+static char g_client_error[TEST_MSG_MAX];
+
+static void capture_client_error(const char *format, va_list args)
+{
+    vsnprintf(g_client_error, sizeof(g_client_error), format, args);
+}
+
+/* The manager is a per-user singleton: a second client must be rejected with
+ * binding_rejected instead of taking over the binding. */
+static int reject_second_client(struct test_ctx *ctx)
+{
+    int ok = 0;
+    if (!client_connect(&ctx->connection2, ctx->socket_name))
+        return 0;
+    ctx->display2 = ctx->connection2.display;
+
+    g_client_error[0] = '\0';
+    wl_log_set_handler_client(capture_client_error);
+    ctx->manager2 = client_bind(&ctx->connection2, "treeland_prelaunch_splash_manager_v2",
+                                &treeland_prelaunch_splash_manager_v2_interface, 1);
+    const int ret = wl_display_roundtrip(ctx->display2);
+    wl_log_set_handler_client(NULL);
+
+    ok = ret < 0 && strstr(g_client_error, "already bound") != NULL;
+
+    /* The rejected connection is already dead; drop it without sending requests. */
+    wl_display_disconnect(ctx->display2);
+    memset(&ctx->connection2, 0, sizeof(ctx->connection2));
+    ctx->display2 = NULL;
+    ctx->manager2 = NULL;
+    return ok;
+}
+
+static int create_splash_after_reject(struct test_ctx *ctx)
+{
+    ctx->splash4 = treeland_prelaunch_splash_manager_v2_create_splash(
+        ctx->manager, "test-app", "test-instance-4", "org.deepin.Sandbox", NULL);
+    return ctx->splash4 != NULL;
+}
+
+static int splash_requested_after_reject(struct test_ctx *ctx)
+{
+    return ctx->server.request_count == 4
+        && strcmp(ctx->server.requests[3].app_id, "test-app") == 0
+        && strcmp(ctx->server.requests[3].instance_id, "test-instance-4") == 0;
+}
+
+/* Destroying the owner's manager object releases the singleton binding. */
+static int bind_after_manager_destroy(struct test_ctx *ctx)
+{
+    if (!client_connect(&ctx->connection2, ctx->socket_name))
+        return 0;
+    ctx->display2 = ctx->connection2.display;
+    ctx->manager2 = client_bind(&ctx->connection2, "treeland_prelaunch_splash_manager_v2",
+                                &treeland_prelaunch_splash_manager_v2_interface, 1);
+    return ctx->manager2 != NULL && wl_display_roundtrip(ctx->display2) >= 0;
+}
+
 static const struct test_case cases[] = {
     { "manager.bind", bind_manager },
     { "manager.create_splash_null_icon", create_splash_null_icon },
@@ -208,16 +266,24 @@ static const struct test_case cases[] = {
     { "splash.destroy", destroy_splash },
     { "server.splash_close_requested", query_server },
     { "server.assert_splash_close_requested", splash_close_requested },
+    { "manager.reject_second_client", reject_second_client },
+    { "manager.create_splash_after_reject", create_splash_after_reject },
+    { "server.splash_requested_after_reject", query_server },
+    { "server.assert_splash_requested_after_reject", splash_requested_after_reject },
     { "manager.destroy", destroy_manager },
+    { "manager.bind_after_release", bind_after_manager_destroy },
 };
 
 void test_cleanup(struct test_ctx *ctx)
 {
+    if (ctx->splash4) treeland_prelaunch_splash_v2_destroy(ctx->splash4);
     if (ctx->splash3) treeland_prelaunch_splash_v2_destroy(ctx->splash3);
     if (ctx->splash2) treeland_prelaunch_splash_v2_destroy(ctx->splash2);
     if (ctx->splash1) treeland_prelaunch_splash_v2_destroy(ctx->splash1);
     if (ctx->icon_buffer) wl_buffer_destroy(ctx->icon_buffer);
+    if (ctx->manager2) treeland_prelaunch_splash_manager_v2_destroy(ctx->manager2);
     if (ctx->manager) treeland_prelaunch_splash_manager_v2_destroy(ctx->manager);
+    if (ctx->connection2.display) client_disconnect(&ctx->connection2);
     client_disconnect(&ctx->connection);
 }
 
@@ -225,6 +291,7 @@ int protocol_test_run(const char *socket_name)
 {
     struct test_ctx ctx;
     test_init(&ctx);
+    ctx.socket_name = socket_name;
     if (!connect_client(&ctx, socket_name)) {
         fprintf(stderr, "failed to connect to or bind treeland_prelaunch_splash_manager_v2\n");
         test_cleanup(&ctx);
