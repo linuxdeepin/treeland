@@ -107,7 +107,9 @@ private:
     bool isNvidiaCardPresent() const;
 
     void onScreenAdded(Output *output, const QList<SurfaceWrapper *> &surfaces);
-    bool onScreenRemoved(Output *output, const QList<SurfaceWrapper *> &surfaces);
+    bool onScreenRemoved(Output *output,
+                         const QList<SurfaceWrapper *> &surfaces,
+                         bool wasPrimary);
     void onScreenDisabled(Output *output, const QList<SurfaceWrapper *> &surfaces);
     void onScreenEnabled(Output *output);
 
