@@ -70,8 +70,10 @@ sudo cmake --install build --component treeland-debug
 
 ### Enabling the debug source
 
-The debug Remote Object is on by default. `remoteDebug` is Treeland's master
-switch for it: while the switch is on, Treeland publishes its debug socket and
+The debug Remote Object is off by default: it hands out window contents and
+input injection, which a compositor running inside a user session must not offer
+unasked. `remoteDebug` is Treeland's master switch for it: while the switch is
+on, Treeland publishes its debug socket and
 serves the window tree remote source to whoever connects -- the source is a thin
 QObject that only does work per call, so it costs nothing when no client is
 attached. Turn the switch off to forbid debugging entirely; the socket then
@@ -114,12 +116,15 @@ the client says so on stderr and points at the switch. Toggling `remoteDebug`
 takes effect immediately: the remote source is created or destroyed on the fly,
 no restart needed.
 
-Flip the switch as the user Treeland runs as (`dde` in global mode); DConfig
-keeps app-scoped keys per user and rejects a caller with any other uid, root
-included:
+Flip the switch with `treeland-debug debug on` / `treeland-debug debug off`
+(`debug` without an argument reports the current state). The switch is a
+per-user DConfig key that Treeland reads for the user it runs as, so the command
+finds that user through the running compositor and escalates through `pkexec`
+when it is not you; `--no-escalate` reports the requirement instead of prompting.
+Underneath it runs, as root, the equivalent of:
 
 ```bash
-sudo -u dde -- dde-dconfig set \
+dde-dconfig -u <compositor uid> set \
   -a org.deepin.dde.treeland \
   -r org.deepin.dde.treeland \
   -k remoteDebug \

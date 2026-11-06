@@ -66,7 +66,8 @@ sudo cmake --install build --component treeland-debug
 
 ### 开启调试 source
 
-调试 Remote Object 默认开启。`remoteDebug` 是它的总开关：开关为开时，Treeland 会
+调试 Remote Object 默认关闭：它会把窗口内容和输入注入能力交出去，跑在用户会话里的合成器
+不应默认提供。`remoteDebug` 是它的总开关：开关为开时，Treeland 会
 发布调试 socket，并给连上来的客户端提供窗口树远程数据源——该数据源是个薄 QObject，
 只在每次调用时干活，没有客户端连着时不占资源。把开关关掉就完全禁止调试，socket 也会
 一起消失。Release 构建中 socket 只允许 root 连接（权限 0000）；Debug 构建发布的是
@@ -96,11 +97,13 @@ socket 自身的权限位。窗口开着时可以同时挂多个客户端。如�
 开关被关了，要么 Treeland 没在运行——客户端会直接在 stderr 上说明并指向这个开关。
 切换 `remoteDebug` 即时生效：远程源会动态创建或销毁，无需重启。
 
-开关要以 Treeland 运行用户（global 模式下为 `dde`）的身份切换；DConfig 的应用级键
-按用户分开存储，daemon 只接受 uid 与目标用户一致的调用者（root 也不行）：
+用 `treeland-debug debug on` / `treeland-debug debug off` 切换（不带参数的 `debug`
+打印当前状态）。开关是按用户存放的 DConfig 键，Treeland 只读自己运行用户的那个，因此该
+命令会从运行中的合成器查到这个用户，不是你本人时通过 `pkexec` 提权（`--no-escalate`
+只报告需要提权而不弹认证）。它在底层以 root 执行等价于：
 
 ```bash
-sudo -u dde -- dde-dconfig set \
+dde-dconfig -u <合成器 uid> set \
   -a org.deepin.dde.treeland \
   -r org.deepin.dde.treeland \
   -k remoteDebug \

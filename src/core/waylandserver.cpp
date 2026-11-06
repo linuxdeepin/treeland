@@ -138,7 +138,8 @@ WaylandServer::WaylandServer(QObject *parent)
             &Workspace::workspaceAdded,
             m_wallpaperManager,
             &WallpaperManager::syncAddWorkspace);
-    // Follow the remoteDebug master switch (on by default) in every build type,
+    // Follow the remoteDebug master switch (off by default, see
+    // misc/dconfig/org.deepin.dde.treeland.json) in every build type,
     // so the debug socket appears and disappears with it instead of only at
     // startup. The stored value arrives asynchronously -- dtk reports
     // configInitializeSucceed later -- so watch for changes first and only then
@@ -264,8 +265,8 @@ void WaylandServer::syncPaletteTypeWithWindowColorScheme(int32_t colorScheme)
 
 void WaylandServer::tryInitRemoteSource()
 {
-    // remoteDebug is a master switch -- on by default, so the debug socket
-    // exists without anyone enabling it, and off means "no debugging at all".
+    // remoteDebug is a master switch -- off by default, so nothing is exposed
+    // until someone asks for it, and on means "serve debuggers".
     // Toggling it creates or destroys the remote source without restarting the
     // server. The source itself is a thin QObject that only does work per call,
     // so keeping it while the switch is on costs nothing when no client is
