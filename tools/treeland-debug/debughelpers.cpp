@@ -3,12 +3,12 @@
 
 #include "debughelpers.h"
 
+#include <linux/input-event-codes.h>
+
 #include <QDateTime>
 #include <QFile>
 #include <QFileInfo>
 #include <QMetaEnum>
-
-#include <linux/input-event-codes.h>
 
 QString stateName(int state)
 {
@@ -154,21 +154,12 @@ constexpr KeyMapping kKeyMap[] = {
 // Maps a key name to a Linux evdev keycode. A name is a Qt::Key enum name with
 // or without the "Key_" prefix, case-insensitively ("Escape", "escape",
 // "Key_Escape"), resolved through Qt's meta-object system and then translated
-// by kKeyMap. A decimal number is taken as a raw evdev keycode, the same
-// convention as evtest and ydotool. Sets *ok=false when nothing matches.
+// by kKeyMap. Otherwise a decimal number is taken as a raw evdev keycode, the
+// same convention as evtest and ydotool. Names win over numbers, so "5" is
+// Qt::Key_5 and not evdev 5 (KEY_4). Sets *ok=false when nothing matches.
 int keyCode(const QString &name, bool *ok)
 {
     *ok = true;
-    bool parsed = false;
-    const int numeric = name.toInt(&parsed);
-    if (parsed) {
-        // Keymaps cover keycodes 1..255; anything else cannot be pressed.
-        if (numeric > 0 && numeric <= 255)
-            return numeric;
-        *ok = false;
-        return 0;
-    }
-
     static const QMetaEnum meta = QMetaEnum::fromType<Qt::Key>();
     const QString lower = name.toLower();
     const QString lowerWithPrefix = QLatin1String("key_") + lower;
@@ -182,8 +173,16 @@ int keyCode(const QString &name, bool *ok)
             if (mapping.key == qtKey)
                 return mapping.evdev;
         }
-        break; // A known Qt::Key without an evdev keycode.
+        // A known Qt::Key without an evdev keycode.
+        *ok = false;
+        return 0;
     }
+
+    bool parsed = false;
+    const int numeric = name.toInt(&parsed);
+    // Keymaps cover keycodes 1..255; anything else cannot be pressed.
+    if (parsed && numeric > 0 && numeric <= 255)
+        return numeric;
 
     *ok = false;
     return 0;

@@ -285,6 +285,11 @@ void TreelandDebugTest::testKeyCodeRaw()
     bool ok = false;
     QCOMPARE(keyCode(QStringLiteral("200"), &ok), 200);
     QVERIFY(ok);
+    // A single digit is a Qt::Key name, not evdev KEY_ESC..KEY_8.
+    QCOMPARE(keyCode(QStringLiteral("5"), &ok), 6); // KEY_5
+    QVERIFY(ok);
+    QCOMPARE(keyCode(QStringLiteral("0"), &ok), 11); // KEY_0
+    QVERIFY(ok);
     // Out of the range a keymap can carry.
     ok = true;
     QCOMPARE(keyCode(QStringLiteral("300"), &ok), 0);

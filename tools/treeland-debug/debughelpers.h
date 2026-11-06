@@ -24,8 +24,9 @@ int buttonCode(const QString &name, bool *ok);
 
 // Maps a key name to a Linux evdev keycode. Accepts a Qt::Key enum name with
 // or without the "Key_" prefix, case-insensitively (e.g. "Escape", "escape",
-// "Key_Escape" all resolve to KEY_ESC), or a decimal raw evdev keycode. Sets
-// *ok=false for unknown names or keycodes outside the 1..255 range.
+// "Key_Escape" all resolve to KEY_ESC); names win over numbers, so "5" is the
+// 5 key and "57" is a raw evdev keycode. Sets *ok=false for unknown names or
+// keycodes outside the 1..255 range.
 int keyCode(const QString &name, bool *ok);
 
 // Writes captured image bytes to @p userPath (or a generated /tmp path when
