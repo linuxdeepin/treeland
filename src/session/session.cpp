@@ -254,6 +254,9 @@ void SessionManager::removeSession(std::shared_ptr<Session> session)
         m_activeSession.reset();
         WaylandServer::instance()->workspace()->clearActivedSurface();
         WaylandServer::instance()->activateSurface(nullptr);
+        // No session is active anymore, so nothing may see the screen from now
+        // on (the pending screen captures are paused by this notification).
+        Q_EMIT activeSessionRemoved();
     }
 
     for (auto s : std::as_const(m_sessions)) {
@@ -509,6 +512,23 @@ bool SessionManager::isDDEUserClient(WClient *client)
     if (!global || !global->socket())
         return false;
     return client->socket() == global->socket();
+}
+
+/**
+ * Whether the client belongs to the active session
+ *
+ * Clients created through wp_security_context_v1 live on a child socket, so
+ * the comparison is done on root sockets.
+ *
+ * @param client Client to check
+ * @returns true if the client belongs to the active session
+ */
+bool SessionManager::isActiveSessionClient(WClient *client) const
+{
+    const auto session = m_activeSession.lock();
+    if (!client || !client->socket() || !session || !session->socket())
+        return false;
+    return client->socket()->rootSocket() == session->socket()->rootSocket();
 }
 
 void SessionManager::syncActiveSessionXSettings()

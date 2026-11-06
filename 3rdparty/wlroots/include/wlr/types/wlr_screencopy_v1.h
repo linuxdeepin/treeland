@@ -21,6 +21,8 @@
  * Consider using `wlr_ext_image_capture_source_v1` instead.
  */
 
+struct wlr_screencopy_frame_v1;
+
 struct wlr_screencopy_manager_v1 {
 	struct wl_global *global;
 	struct wl_list frames; // wlr_screencopy_frame_v1.link
@@ -33,6 +35,9 @@ struct wlr_screencopy_manager_v1 {
 
 	struct {
 		struct wl_listener display_destroy;
+
+		bool (*can_capture)(struct wlr_screencopy_frame_v1 *frame, void *data);
+		void *capture_data;
 	} WLR_PRIVATE;
 };
 
@@ -55,6 +60,10 @@ struct wlr_screencopy_frame_v1 {
 
 	bool with_damage;
 
+	bool paused;
+
+	bool render_locked;
+
 	enum wlr_buffer_cap buffer_cap;
 	struct wlr_buffer *buffer;
 
@@ -70,5 +79,30 @@ struct wlr_screencopy_frame_v1 {
 
 struct wlr_screencopy_manager_v1 *wlr_screencopy_manager_v1_create(
 	struct wl_display *display);
+
+/**
+ * Set the callback deciding whether a frame may capture the output.
+ *
+ * `can_capture` is called when a frame is created and again when the client
+ * supplies its buffer, so a capture requested before the compositor policy
+ * changed cannot slip through. A refused frame is frozen like a paused frame:
+ * it keeps its buffer until the compositor resumes it with
+ * wlr_screencopy_frame_v1_set_paused().
+ */
+void wlr_screencopy_manager_v1_set_capture_filter(
+	struct wlr_screencopy_manager_v1 *manager,
+	bool (*can_capture)(struct wlr_screencopy_frame_v1 *frame, void *data),
+	void *data);
+
+/**
+ * Pause or resume a frame.
+ *
+ * A paused frame keeps the buffer it was given and receives no event: output
+ * commits are ignored, so the client keeps the last captured image, and the
+ * output render locks it took are released meanwhile. The frame is completed on
+ * the first commit after it is resumed, never before.
+ */
+void wlr_screencopy_frame_v1_set_paused(struct wlr_screencopy_frame_v1 *frame,
+	bool paused);
 
 #endif
