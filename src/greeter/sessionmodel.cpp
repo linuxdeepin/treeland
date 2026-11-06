@@ -25,7 +25,6 @@
 
 #include <QDir>
 #include <QFileInfo>
-#include <QFileSystemWatcher>
 #include <QProcessEnvironment>
 #include <QSet>
 #include <QVector>
@@ -76,19 +75,11 @@ namespace {
 SessionModel::SessionModel(QObject *parent)
     : QAbstractListModel(parent)
 {
-    // refresh everytime a file is changed, added or removed
-    m_watcher = new QFileSystemWatcher(this);
-    connect(m_watcher, &QFileSystemWatcher::directoryChanged, this, &SessionModel::reload);
 }
 
 void SessionModel::setSessionDirs(const QStringList &waylandSessionDirs,
                                   const QStringList &x11SessionDirs)
 {
-    m_watcher->removePaths(m_waylandSessionDirs);
-    m_watcher->removePaths(m_x11SessionDirs);
-    m_watcher->addPaths(waylandSessionDirs);
-    m_watcher->addPaths(x11SessionDirs);
-
     m_waylandSessionDirs = waylandSessionDirs;
     m_x11SessionDirs = x11SessionDirs;
 
@@ -109,8 +100,8 @@ void SessionModel::reload()
     // Recheck for flag to show Wayland sessions
     const bool dri_active = QFileInfo::exists(QStringLiteral("/dev/dri"));
 
-    // Keep the session the user selected across directory changes, e.g. when
-    // a package installs or removes a session file.
+    // Keep the session the user selected across reloads, e.g. when a package
+    // installs or removes a session file.
     QString currentSession;
     if (m_currentIndex >= 0 && m_currentIndex < m_sessions.size())
         currentSession = m_sessions.at(m_currentIndex).filePath;
