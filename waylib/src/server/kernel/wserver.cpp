@@ -36,6 +36,32 @@
 W_DECLARE_PRIVATE_STATIC_MEMBER(QHighDpiScaling_m_globalScalingActive_tag, QHighDpiScaling, m_globalScalingActive, bool);
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+void WServerInterface::setOwnsSocket(WSocket *socket)
+{
+    if (m_ownsSocket == socket)
+        return;
+
+    m_ownsSocket = socket;
+}
+
+WSocket *WServerInterface::ownsSocket() const
+{
+    return m_ownsSocket.data();
+}
+
+bool WServerInterface::ownsClient(WClient *client) const
+{
+    if (!ownsSocket())
+        return true;
+
+    for (auto *socket = client->socket(); socket; socket = socket->parentSocket()) {
+        if (socket == m_ownsSocket.data())
+            return true;
+    }
+
+    return false;
+}
+
 static bool globalFilter(const wl_client *client,
                          const wl_global *global,
                          void *data) {
@@ -44,6 +70,9 @@ static bool globalFilter(const wl_client *client,
     do {
         if (auto interface = d->q_func()->findInterface(global)) {
             auto wclient = WClient::get(client);
+            if (!interface->ownsClient(wclient))
+                return false;
+
             if (!wclient) {
                 auto client_cred = WClient::getCredentials(client);
                 if (client_cred->pid == getpid()) {
