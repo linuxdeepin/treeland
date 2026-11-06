@@ -299,6 +299,7 @@ public:
 
     RootSurfaceContainer *rootContainer() const { return m_rootSurfaceContainer; }
     WBackend *backend() const;
+    InputManager *inputManager() const { return m_inputManager; }
 public Q_SLOTS:
     void initializeWallpaper();
     void activateSurface(SurfaceWrapper *wrapper,

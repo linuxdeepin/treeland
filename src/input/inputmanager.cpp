@@ -96,6 +96,8 @@ void InputManager::setupSeat(WSeat *seat)
     Q_ASSERT(!m_userName.isEmpty());
 
     auto *config = seatUserConfig(seat);
+    Q_EMIT seatConfigChanged(config);
+
     if (auto *cursor = seat->cursor())
         cursor->setScrollFactor(config->pointerScrollFactor());
 
