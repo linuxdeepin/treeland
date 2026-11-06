@@ -141,6 +141,7 @@ private:
     void ensureCursorVisible();
     void updateCursorOutput();
     void updateSurfaceOutputs(SurfaceWrapper *surface);
+    void refreshSurfaceOutputs();
     QQuickItem *ensureEdgeTilePreview();
     void onSeatAdded(WSeat *seat);
     void onSeatRemoved(WSeat *seat);
