@@ -367,6 +367,19 @@ qt_add_shaders(libtreeland "treeland_wallpaper_luma_dim_shaders"
         ${PROJECT_RESOURCES_DIR}/shaders/wallpaper_luma_dim.frag
 )
 
+# Cross-fades the icon and the window content of a window transition in a
+# single pass, so the two layers never let the desktop through.
+qt_add_shaders(libtreeland "treeland_window_transition_shaders"
+    PRECOMPILE
+    OPTIMIZED
+    PREFIX
+        "/shaders"
+    BASE
+        ${PROJECT_RESOURCES_DIR}/shaders
+    FILES
+        ${PROJECT_RESOURCES_DIR}/shaders/window_transition.frag
+)
+
 set_source_files_properties(core/qml/overridable/InWindowBlur.qml
     PROPERTIES
         QT_RESOURCE_ALIAS "+treeland/InWindowBlur.qml"
