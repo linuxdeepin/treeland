@@ -30,6 +30,13 @@ public:
     QPointF cursorPosition() const override;
     TreelandInfo getTreelandInfo() override;
 
+    // ---- access ----
+    // Opens the debug socket to every local user for 30 minutes; every later
+    // remote call pushes the window out again. Only a caller that already
+    // passed the sealed socket can ask, and in a release build that is root alone:
+    // mode 0000 blocks the compositor's own user too, only CAP_DAC_OVERRIDE passes.
+    bool requestNoAuth() override;
+
     // ---- inspection ----
     QList<WindowInfo> getWindows() override;
     QList<ClientInfo> getClients() override;
@@ -108,6 +115,17 @@ private:
     void stopEventCapture();
     void appendEvent(int type, qint64 target, const QString &detail);
 
+    // Closes the no-auth window: the timer expired, or the source is being torn
+    // down. Idempotent -- a closed socket and a 0700 directory are the target
+    // state, not a transition. Rebinding the host is what revokes the
+    // connections a peer opened while the window was open.
+    void closeNoAuthWindow();
+    // Binds the debug socket and publishes WindowTree on it. Used by the
+    // constructor and by closeNoAuthWindow() when it has to drop peers.
+    bool bindHost(const QString &socketPath);
+    // Called by every remote method: a call is what keeps no-auth mode alive.
+    void noteActivity() const;
+
     // Event ring buffer for real-time monitoring; populated only while a client
     // is actively polling getEvents().
     QList<DebugEvent> m_events;
@@ -119,5 +137,15 @@ private:
     // claimed in the constructor stays ours (Wayland-style flock lock file,
     // see TreelandDebugSocketLock).
     TreelandDebugSocketLock m_debugSocketLock;
+    QString m_debugSocketPath;
+    // Release builds are the only ones that restrict the socket, so they are
+    // also the only ones the access policy has to touch.
+    bool m_socketRootOnly = false;
+    // Turns no-auth mode off after a call-free window, so a forgotten request
+    // cannot leave the debug channel open.
+    QTimer *m_noAuthIdleTimer = nullptr;
+    // True while the socket is open to every local user, so the teardown knows
+    // whether peers may be holding a connection that has to be revoked.
+    bool m_noAuthWindowOpen = false;
     bool m_published = false;
 };

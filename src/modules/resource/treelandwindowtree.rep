@@ -103,6 +103,14 @@ POD IdleInfo(
 )
 
 class WindowTreeRemote {
+    // Opens the debug socket to every local user for 30 minutes (taken back by
+    // itself, and extended by every later call), and closes the connections that
+    // were opened while it was open. Only a caller that already got
+    // through the socket can send it, and in a release build that is root alone
+    // (mode 0000 blocks the compositor's own user too; only CAP_DAC_OVERRIDE
+    // passes), so the sealed socket is the authentication. Returns false when the
+    // directory is not one Treeland may widen (a session instance).
+    SLOT(bool requestNoAuth());
     SLOT(TreelandInfo getTreelandInfo());
     SLOT(QList<WindowInfo> getWindows());
     SLOT(QList<ClientInfo> getClients());

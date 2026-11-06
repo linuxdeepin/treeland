@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <csignal>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <utility>
@@ -408,6 +409,12 @@ QString helpText()
         "                             Screenshots return raw bytes instead of saving to disk.\n"
         "\n"
 #endif
+        "Access:\n"
+        "  no-auth                    Ask the compositor to let any local user connect for\n"
+        "                             30 minutes (needs the connection this command arrives\n"
+        "                             on, and in a release build that is root alone); every later\n"
+        "                             call extends the window, an idle half hour closes it.\n"
+        "\n"
         "Interactive:\n"
         "  shell                      Start an interactive REPL (shell mode)\n"
         "                             All commands above (including top/events/watch)\n"
@@ -494,12 +501,40 @@ static void printSocketNotes(const QStringList &leftover, const QStringList &ina
     if (!inaccessible.isEmpty())
         QTextStream(stderr) << "treeland-debug: note that "
                             << inaccessible.join(QStringLiteral(", "))
-                            << " is a release instance, whose socket only root may connect to\n";
+                            << " is a release instance, whose socket only root may connect to; "
+                               "`treeland-debug no-auth`, run as root, opens it to every user "
+                               "for 30 minutes\n";
     if (!unanswered.isEmpty())
         QTextStream(stderr) << "treeland-debug: note that " << unanswered.join(QStringLiteral(", "))
                             << " did not answer the probe; it may be a live but unresponsive "
                                "process, so it is not reported as removable\n";
 }
+
+#ifndef TREELAND_DEBUG_DEV_BUILD
+// Without root, a release socket that is switched off is not merely "slower to
+// answer": it is mode 0000 inside a directory we may not traverse, so
+// `geteuid() != 0` can neither stat() it nor connect to it -- a probe on it just
+// burns the whole --timeout-ms (30 s by default) before the password prompt that
+// would make it reachable.  Keep only the candidates our own credentials can
+// reach.  The mode is a sufficient test because the only socket modes here are
+// 0000 (root only) and 0666 (open to every user, either the no-auth window or a
+// debug build) -- see treelandDebugSetSocketAccess().
+// Only a release build can be restricted, so only a release build calls this;
+// the definition is guarded too because the presets build with -Werror.
+static QStringList reachableWithoutRoot(const QStringList &urls)
+{
+    QStringList reachable;
+    for (const QString &url : urls) {
+        const QString path = treelandDebugSocketPathForUrl(url);
+        struct stat st {};
+        if (!path.isEmpty() && ::stat(QFile::encodeName(path).constData(), &st) == 0
+            && (st.st_mode & S_IWOTH)) {
+            reachable << url;
+        }
+    }
+    return reachable;
+}
+#endif
 
 // Explains the failures a bare "failed to connect" cannot tell apart. It inspects
 // the socket filesystem after the attempt, so the wording stays a hint about the
@@ -782,35 +817,16 @@ int main(int argc, char *argv[])
     }
 
 #ifndef TREELAND_DEBUG_DEV_BUILD
-    // Release builds: the server-side socket enforces uid == 0 via SO_PEERCRED
-    // — only root can connect.  The compositor runs as dde, but root can access
-    // the socket due to privileges.  This client-side pkexec escalation is a
-    // convenience: it re-execs as root via polkit so the connection succeeds
-    // and the user gets an authentication prompt instead of a silent failure.
-    // --no-escalate skips the prompt and fails immediately instead.
+    // Release builds: the server-side socket is chmod'd to 0000 inside a runtime
+    // directory only its owner may enter, so only root can connect -- unless a
+    // no-auth window was requested over the protocol, which opens the socket to
+    // every local user for 30 call-free minutes.  The connect attempt below
+    // therefore comes first: escalating up front would prompt for a password
+    // even while that window makes root unnecessary.  A re-executed (root) copy
+    // sees geteuid() == 0 and never escalates again.
+    const bool mayEscalate = ::geteuid() != 0;
+#else
     // Debug builds allow all users unconditionally.
-    if (::geteuid() != 0) {
-        if (noEscalate) {
-            return fail(QStringLiteral("root privileges required (release build); "
-                                        "remove --no-escalate to escalate via polkit"));
-        }
-        const QString pkexec = QStandardPaths::findExecutable(QStringLiteral("pkexec"));
-        if (pkexec.isEmpty()) {
-            return fail(QStringLiteral("root privileges required (release build), "
-                                        "but pkexec was not found — install polkit "
-                                        "or run as root"));
-        }
-        // Re-exec ourselves through pkexec, forwarding every original argument
-        // so the elevated copy runs the same command.  Since the elevated
-        // process runs as root, geteuid() == 0 and the check is skipped on
-        // re-entry.
-        const QString exe = QCoreApplication::applicationFilePath();
-        QStringList pkArgs;
-        pkArgs << exe;
-        for (int i = 1; i < argc; ++i)
-            pkArgs << QString::fromUtf8(argv[i]);
-        return QProcess::execute(pkexec, pkArgs);
-    }
 #endif
 
     // Resolve the URL to connect to.  An explicit --url or $TREELAND_DEBUG_SOCKET
@@ -846,12 +862,46 @@ int main(int argc, char *argv[])
     // live socket later in the list is reached.  If none exists, keep the full
     // list so the diagnostics below still name every place that was searched.
     const QStringList connectUrls = treelandDebugExistingSocketUrls(candidateUrls);
+    // A root-only socket is not worth probing from here (see
+    // reachableWithoutRoot()); an empty result falls straight through to the
+    // escalation below.
+    const QStringList probeUrls =
+#ifdef TREELAND_DEBUG_DEV_BUILD
+        connectUrls;
+#else
+        mayEscalate ? reachableWithoutRoot(connectUrls) : connectUrls;
+#endif
 
     Session session;
     QString connectedUrl;
-    if (!connectSession(session, connectUrls, name, timeoutMs, &connectedUrl)) {
+    if (!connectSession(session, probeUrls, name, timeoutMs, &connectedUrl)) {
+#ifndef TREELAND_DEBUG_DEV_BUILD
+        // Only now, with the socket proven unreachable as ourselves, is a polkit
+        // password prompt worth asking for.  --no-escalate never prompts: it
+        // reports the root requirement instead.
+        if (mayEscalate) {
+            if (noEscalate) {
+                return fail(QStringLiteral("root privileges required (release build); "
+                                            "remove --no-escalate to escalate via polkit"));
+            }
+            const QString pkexec = QStandardPaths::findExecutable(QStringLiteral("pkexec"));
+            if (pkexec.isEmpty()) {
+                return fail(QStringLiteral("root privileges required (release build), "
+                                            "but pkexec was not found — install polkit "
+                                            "or run as root"));
+            }
+            // Re-exec ourselves through pkexec, forwarding every original
+            // argument so the elevated copy runs the same command.
+            const QString exe = QCoreApplication::applicationFilePath();
+            QStringList pkArgs;
+            pkArgs << exe;
+            for (int i = 1; i < argc; ++i)
+                pkArgs << QString::fromUtf8(argv[i]);
+            return QProcess::execute(pkexec, pkArgs);
+        }
+#endif
         if (!urlConfigured)
-            explainConnectFailure(candidateUrls, connectUrls);
+            explainConnectFailure(candidateUrls, probeUrls);
         return fail(QStringLiteral("failed to connect to remote object node (tried: %1)")
                         .arg(candidateUrls.join(" or ")));
     }
@@ -931,6 +981,21 @@ static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt
             printJson(QJsonDocument(idleToJson(info)));
         else
             printIdle(info);
+        return EXIT_SUCCESS;
+    }
+    case DebugCommand::NoAuth: {
+        bool result = false;
+        if (!waitSlot(replica->requestNoAuth(), timeoutMs, &result))
+            return fail("requestNoAuth() failed");
+        if (!result) {
+            return fail(QStringLiteral("the compositor refused: it can only open a runtime "
+                                       "directory of its own, so a session instance keeps "
+                                       "requiring root"));
+        }
+        if (json)
+            printJson(QJsonDocument(QJsonObject{ { "noAuth", true } }));
+        else
+            QTextStream(stdout) << "the debug socket is open to every user for 30 minutes\n";
         return EXIT_SUCCESS;
     }
     // ---- window control ----

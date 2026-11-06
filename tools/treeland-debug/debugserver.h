@@ -47,6 +47,7 @@ private:
     QJsonObject handleFocused();
     QJsonObject handleCursorWindow();
     QJsonObject handleScene(const QHttpServerRequest &request);
+    QJsonObject handleNoAuth();
 
     // --- HTTP route handlers (window control) ---
     QJsonObject handleActivate(const QHttpServerRequest &request);
