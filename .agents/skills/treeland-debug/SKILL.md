@@ -185,7 +185,8 @@ sudo journalctl -u treeland.service -f
 **输入不落地 / 目标不对：**
 1. `treeland-debug move-cursor <x> <y>` 后 `treeland-debug event button left click`；`treeland-debug event key enter tap`。
 2. 用 `windows`（`active`）确认指针/键盘焦点 —— 键盘事件发往键盘聚焦的 surface，按键发往光标下的 surface。
-3. 相关分类：`treeland.input`、`treeland.seat`、`waylib.input.pointer`、`waylib.seat`。检查 seatd：`sudo journalctl -u dde-seatd -f`，以及 `LIBSEAT_BACKEND=seatd`/`SEATD_SOCK=/run/dde-seatd.sock` 是否已设置（见 `misc/systemd/treeland.service.in`）。
+3. 输入区域不对时看 `windows` 的 `inputRegion`（surface 局部坐标的 box 列表）：未设置（`NULL`）的输入区域按协议是**无穷大**，打印出来是覆盖整面的一个 box；为空则要么是客户端显式提交了空 region（完全不接受输入），要么是 surface 还没提交过 buffer。出现多个小块通常是客户端只为命中区设了输入区域（如标题栏、按钮）。`opaqueRegion` 为空只表示客户端没有声明不透明区域（默认值），不要读成窗口透明，也不要和“不接收输入”混。
+4. 相关分类：`treeland.input`、`treeland.seat`、`waylib.input.pointer`、`waylib.seat`。检查 seatd：`sudo journalctl -u dde-seatd -f`，以及 `LIBSEAT_BACKEND=seatd`/`SEATD_SOCK=/run/dde-seatd.sock` 是否已设置（见 `misc/systemd/treeland.service.in`）。
 
 **输出黑屏 / 缺失 / 分辨率不对：**
 1. `treeland-debug tree` —— 确认 output 存在；`treeland-debug --json windows` 按 output 查看。
