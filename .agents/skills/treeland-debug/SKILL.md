@@ -67,23 +67,30 @@ WLR_BACKENDS=x11 ./build/src/treeland.sh
 
 `treeland.sh` 包装 `treeland`（在 `dri2` 失败时回退到 pixman 软件渲染，与 service 行为一致）。调试该实例时：
 
-- **debug source 默认已开**：`remoteDebug` 总开关默认是开，Release 与 Debug 构建都一样 —— 直接跑 `treeland-debug` 即可。
+- **debug source 默认关闭**：`remoteDebug` 总开关默认是关（会话级运行时不默认暴露窗口内容与输入注入），Release 与 Debug 构建都一样。先 `treeland-debug debug on` 打开，再跑其它命令。
 - **不需要 `sudo -u dde`**：以**当前用户**运行 `treeland-debug`，与实例处于同一会话。因为 socket 仅属主可访问，默认就连到你自己的实例。
 - **日志进终端，不进 journalctl**：treeland 的 stdout/stderr（Qt 分类日志）落在你启动它的地方。在该进程环境里设置 `QT_LOGGING_RULES`；Release 构建可传 `--console-log` 强制开启控制台日志（Debug 构建总是输出到控制台）。
 - **与全局服务无 socket 冲突**：Debug 构建使用独立的 `-dev` socket 名，并对并发实例自动加后缀（见上面的 socket 命名），因此嵌套 dev 实例与全局 `treeland.service` 可以共存 —— 不必停掉后者。Debug 构建的 `treeland-debug` 默认优先连你的 dev 实例。
 
 ## 启用 debug source（第一步）
-`remoteDebug` 是调试功能的总开关，**默认开启**，所以一般情况下什么都不用做：开关打开时 Treeland 就会发布调试 socket，谁连上来就给谁提供 `WindowTree` 远程对象。
+`remoteDebug` 是调试功能的总开关，**默认关闭**：开关打开时 Treeland 就会发布调试 socket，谁连上来就给谁提供 `WindowTree` 远程对象。
 
-- 连不上时先看 stderr：`treeland-debug` 会提示"没有发布调试 socket"，此时要么开关被关了，要么 Treeland 没在运行。
-- 开关归属合成器运行用户：DConfig 的应用级键按用户分开存储，daemon 只接受 uid 与目标用户一致的调用者（root 也不例外），所以要用该用户身份切换（global 模式下是 `dde`）。
+- 连不上时先看 stderr：`treeland-debug` 会提示"没有发布调试 socket"，此时要么开关没开，要么 Treeland 没在运行。
+- 开关归属合成器运行用户：DConfig 的应用级键按用户分开存储，Treeland 只读自己运行用户的那一个，所以要用该用户身份（global 模式下是 `dde`）由 root 以 `dde-dconfig -u <uid>` 写入。`treeland-debug debug on|off` 已经封装了这一步：它从运行中的合成器查出该 uid，必要时自己走 `pkexec` 提权。
 - 远程源是个无状态薄壳：窗口树、截图、场景树都在每次调用时现场采集。唯一的会话级资源是输入事件捕获 —— 只在客户端轮询 `getEvents()` 时挂上 `eventFilter` 与环形缓冲（`startEventCapture()`），空闲后自动拆掉（`stopEventCapture()`）。所以没人连时除了那条 socket 没有别的开销；要彻底禁止调试就把开关关掉（socket 也随之消失）。
 
 ```bash
-# 关闭调试（Release 构建里默认是开）
-sudo -u dde -- dde-dconfig set -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k remoteDebug -v false
-# 重新打开
-sudo -u dde -- dde-dconfig set -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k remoteDebug -v true
+# 打开调试（默认是关），必要时会通过 polkit 提权
+treeland-debug debug on
+# 关回去 / 只看当前状态
+treeland-debug debug off
+treeland-debug debug
+```
+
+等价的底层命令（root 身份，`<uid>` 为合成器运行用户）：
+
+```bash
+dde-dconfig -u <uid> set -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k remoteDebug -v true
 ```
 
 切换 `remoteDebug` **立即生效** —— remote source 会在运行时被创建或销毁，无需重启（合成器运行时监听 `remoteDebugChanged`）。`treeland-debug` 连接的是构建类型对应的调试 socket（见上面的 socket 命名），remote object 名为 `WindowTree`。
@@ -92,6 +99,9 @@ sudo -u dde -- dde-dconfig set -a org.deepin.dde.treeland -r org.deepin.dde.tree
 `treeland-debug` 是 adb 风格的检查/控制工具。两种模式：一次性 `treeland-debug <cmd> [args]` 与 REPL `treeland-debug shell`。Release 构建中它会通过 polkit 自动提权到 root；Debug 构建中以与 treeland 实例相同的用户运行。`--json` 为 `tree`/`cursor`/`windows`/`clients`/`idle` 提供机器可读输出。
 
 全局选项：`--url <url>`（优先级最低的是自动探测：构建类型对应的 socket，Debug 构建优先调试 socket 再回退到 Release socket）、`--name <name>`（默认 `WindowTree`）、`--timeout-ms <n>`（默认 30000）、`--json`、`--preview` / `--no-preview`（终端内联图片预览，默认自动探测）。socket 的选择顺序：`--url` → `$TREELAND_DEBUG_SOCKET` → 自动探测。`TREELAND_DEBUG_SOCKET` 取 socket 路径或裸名（等价 `local:<值>`），带 scheme 的值原样使用；`--url` / 环境变量都是原样使用、不做隐式处理（指定某个实例、或连旧版留在 `/tmp` 的 socket 时用它们）。
+
+### 开关
+`treeland-debug debug [on|off|status]` —— 读写 `remoteDebug` 总开关（默认关，见上面「启用 debug source」）。它是唯一不需要调试 socket 的命令（socket 本来就是它开出来的），开关按用户存放，所以合成器不是以你的身份运行时它会自己走 `pkexec`；`--no-escalate` 只报告需要提权。REPL 里不能提权，需以一次性命令运行。
 
 ### 检查
 | 命令 | 输出 |
@@ -122,8 +132,8 @@ sudo -u dde -- dde-dconfig set -a org.deepin.dde.treeland -r org.deepin.dde.tree
 
 ### 快速上手
 ```bash
-# remoteDebug 是总开关、默认开启，工具不会改它：直接跑就行，也没有残留状态要清理
-# 连不上时会提示"没有发布调试 socket" —— 那就是开关被关了或 treeland 没在运行
+# remoteDebug 是总开关、默认关闭，普通命令不会改它：先 treeland-debug debug on
+# 连不上时会提示"没有发布调试 socket" —— 那就是开关没开或 treeland 没在运行
 
 # 检查 —— Release 构建会通过 polkit 自动提权到 root；Debug 构建以当前用户运行
 treeland-debug tree
