@@ -37,7 +37,9 @@ socket depends on the build type:
 - **Release builds** — the socket is `chmod 0000` (the kernel then rejects every
   `connect()` except root's), so the client must run as `root`; a non-root
   caller is escalated through `pkexec` automatically (see
-  [Access control](#access-control)).
+  [Access control](#access-control)). Once `treeland-debug no-auth` has asked the
+  compositor to open a window, the socket accepts every user instead and the
+  client connects without a prompt.
 
 `remoteDebug` is Treeland's master switch for debugging, and it is **on by
 default**. While it is on, Treeland publishes its debug socket and serves the
@@ -78,14 +80,31 @@ another one off.
 
 - **Release builds** — only `root` may run `treeland-debug`; the compositor
   side enforces the same rule on the socket itself (mode 0000, so any non-root
-  `connect()` is refused with `EACCES`). A non-root caller is automatically
-  re-executed through `pkexec` (polkit), which prompts for authentication. Pass
-  `--no-escalate` to skip the prompt and fail immediately instead (useful in
-  scripts or CI).
+  `connect()` is refused with `EACCES`). The client first tries to connect as
+  itself -- an unprivileged caller cannot even reach a root-only socket, so that
+  attempt is skipped rather than probed for the whole timeout -- and, only if it
+  fails, re-executes itself through `pkexec` (polkit), which prompts for
+  authentication. Pass `--no-escalate` to
+  skip the prompt and fail instead (useful in scripts or CI).
+  `treeland-debug no-auth` lifts this for a temporary debugging window: it asks
+  the compositor (the `requestNoAuth` method of `WindowTreeRemote`) to make the
+  socket (0666) and its own debug directory (0711) reachable for every local
+  user, so no prompt appears afterwards. Only a caller that already got through
+  the sealed socket can ask, and in a release build that is root alone: mode 0000
+  blocks the compositor's own user too, only `CAP_DAC_OVERRIDE` passes. The
+  window closes after 30 minutes without a debug call, and every call pushes it
+  out again; closing it also drops the connections opened while it was open. It
+  only applies to the global service's own directory (`/run/treeland-debug`, not
+  its `$XDG_RUNTIME_DIR`) -- a session instance lives in `/run/user/<uid>`, which
+  is never widened, so there root stays required (and `no-auth` fails).
 - **Debug builds** — `treeland-debug` does not restrict the caller, and the
-  socket is published with mode 0666. It still lives in the compositor's
-  runtime directory, which is private to the compositor's user (0700), so in
-  practice it is that user and `root` who can connect.
+  socket is published with mode 0666. It still lives in a directory of the
+  compositor's own (0700), so in practice it is that user and `root` who can
+  connect.
+
+`listen` is the one exception to all of this: it starts the HTTP/WebSocket
+server before any connection exists, so it never escalates -- run it as root
+(or as `dde` during a no-auth window) when the compositor is a release build.
 
 A polkit policy (`misc/polkit/org.deepin.dde.treeland-debug.policy`) is
 installed alongside the executable so that the `pkexec` escalation works out of
@@ -97,7 +116,8 @@ receive an error explaining how to proceed.
 ```
 --url <url>          Remote object host URL (default: $TREELAND_DEBUG_SOCKET,
                      else the socket found by probing the runtime dirs, i.e.
-                     /run/treeland/... or /run/user/<uid>/...)
+                     /run/treeland-debug/..., /run/treeland/... or
+                     /run/user/<uid>/...)
 --name <name>        Remote object name (default: WindowTree)
 --timeout-ms <n>     Request timeout in milliseconds (default: 30000)
 --json               Emit machine-readable JSON for `windows`/`clients`
@@ -113,7 +133,7 @@ as-is. It is handy when the compositor runs under a runtime directory the
 client cannot guess:
 
 ```bash
-TREELAND_DEBUG_SOCKET=/run/treeland/org.deepin.dde.treeland.debug treeland-debug windows
+TREELAND_DEBUG_SOCKET=/run/treeland-debug/org.deepin.dde.treeland.debug treeland-debug windows
 ```
 
 Backward compatibility: `--tree` and `--cursor` are accepted as aliases for the
@@ -135,6 +155,12 @@ nothing else.
 ## Commands
 
 Run `treeland-debug <command>` for any of the following.
+
+### Access
+
+| Command | Description |
+| --- | --- |
+| `no-auth` | Ask the compositor to let any local user connect to this debug socket for 30 minutes (see Access control above; needs root unless the window is already open). |
 
 ### Inspection
 
@@ -273,6 +299,7 @@ OPTIONS preflight is handled, so a browser frontend can call the API directly.
 | GET | `/api/windows` | — | All windows JSON |
 | GET | `/api/clients` | — | All clients JSON |
 | GET | `/api/idle` | — | Idle state and idle-inhibit sources JSON |
+| GET | `/api/no-auth` | — | Ask the compositor to open this debug socket to every local user for 30 minutes. This API has no authentication of its own, so bind it to a trusted address (see Access control). |
 | GET | `/api/focused` | — | Focused window id |
 | GET | `/api/cursor-window` | — | Window under cursor id |
 | GET | `/api/scene` | `?target=...` | QtQuick scene tree of a window (or the whole scene if `target` is omitted), as pre-formatted text |
@@ -336,7 +363,7 @@ Supported JSON-RPC methods:
 | `tools/call` | Invokes a tool by name with arguments |
 | `ping` | Health check |
 
-The 23 available tools mirror the HTTP REST API and CLI commands:
+The 24 available tools mirror the HTTP REST API and CLI commands:
 
 | Tool | Args | Description |
 | --- | --- | --- |
@@ -345,6 +372,7 @@ The 23 available tools mirror the HTTP REST API and CLI commands:
 | `windows` | — | All windows |
 | `clients` | — | All clients |
 | `idle` | — | Idle state and idle-inhibit sources |
+| `no-auth` | — | Open this debug socket to every local user for 30 minutes |
 | `focused` | — | Focused window id |
 | `cursor_window` | — | Window under cursor id |
 | `scene` | `target?` | QtQuick scene tree of a window (or whole scene) |

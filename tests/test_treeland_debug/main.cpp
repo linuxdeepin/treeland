@@ -20,6 +20,7 @@
 #include <fcntl.h>
 #include <sys/file.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -73,6 +74,7 @@ private Q_SLOTS:
     void testSocketPeerTextSanitized();
     void testInstanceSocketUrls();
     void testExistingSocketUrls();
+    void testSocketAccessSwitch();
 
     // --- parseCommand: no-argument commands ---
     void testParseTree();
@@ -82,6 +84,7 @@ private Q_SLOTS:
     void testParseIdle();
     void testParseHelp();
     void testParseShell();
+    void testParseNoAuth();
 
     // --- parseCommand: window control ---
     void testParseActivateMissingTarget();
@@ -169,6 +172,9 @@ private:
     // Only used when the machine's XDG_RUNTIME_DIR is not writable: the socket
     // directory resolution reads it once per process.
     QTemporaryDir m_runtimeDir;
+    // The global service's own debug directory; a real one is /run/treeland-debug
+    // and needs root, so the tests point $TREELAND_DEBUG_DIR here.
+    QTemporaryDir m_debugDir;
 };
 
 // ---------------------------------------------------------------------------
@@ -359,9 +365,16 @@ void TreelandDebugTest::testRectToJson()
 
 void TreelandDebugTest::initTestCase()
 {
-    // The socket lives in the process' runtime directory, and QStandardPaths
-    // rejects a $XDG_RUNTIME_DIR that is not a 0700 directory owned by us.
-    // Give the run a usable one so the tests do not depend on the machine.
+    // The socket lives in the global service's own directory
+    // (/run/treeland-debug, created by systemd) -- not in $XDG_RUNTIME_DIR, which
+    // Qt requires to stay 0700.  Point the tests at a temporary one so they do
+    // not need root and stay off the machine's real socket.
+    QVERIFY(m_debugDir.isValid());
+    QVERIFY(qputenv("TREELAND_DEBUG_DIR", m_debugDir.path().toLocal8Bit()));
+
+    // The session fallback still reads $XDG_RUNTIME_DIR, and QStandardPaths
+    // rejects one that is not a 0700 directory owned by us.  Give the run a
+    // usable one so the tests do not depend on the machine.
     if (treelandDebugSocketDir().isEmpty()) {
         QVERIFY(m_runtimeDir.isValid());
         QVERIFY(qputenv("XDG_RUNTIME_DIR", m_runtimeDir.path().toLocal8Bit()));
@@ -386,25 +399,36 @@ void TreelandDebugTest::testSocketDefaultPath()
 
 void TreelandDebugTest::testSocketDirs()
 {
-    // The compositor's runtime directory comes first, then the global service's
-    // well-known one, then whatever session directories this process may list.
+    // This process' own directory comes first, then the global service's one,
+    // then whatever session directories this process may list.
     const QStringList dirs = treelandDebugSocketDirs();
     QVERIFY(!dirs.isEmpty());
     QCOMPARE(dirs.first(), treelandDebugSocketDir());
+    QCOMPARE(dirs.first(), m_debugDir.path());
+    QVERIFY(dirs.contains(treelandDebugGlobalSocketDir()));
     QVERIFY(dirs.contains(QStringLiteral("/run/treeland")));
     QVERIFY(QFileInfo(treelandDebugSocketDir()).isDir());
     QCOMPARE(dirs.size(), QSet<QString>(dirs.begin(), dirs.end()).size());
     for (const QString &dir : dirs)
         QVERIFY(dir.startsWith(QLatin1Char('/')));
 
-    // QStandardPaths substitutes "$TMPDIR/runtime-<user>" when the variable is
+    // A session instance binds in its runtime directory instead, and
+    // QStandardPaths substitutes "$TMPDIR/runtime-<user>" when that variable is
     // unusable; publishing there would put the socket back in /tmp, so it is
-    // treated as "no runtime directory" instead.
-    const QByteArray saved = qgetenv("XDG_RUNTIME_DIR");
+    // treated as "no runtime directory" rather than used.
+    const QByteArray savedMode = qgetenv("TREELAND_RUN_MODE");
+    const QByteArray savedRuntime = qgetenv("XDG_RUNTIME_DIR");
+    qputenv("TREELAND_RUN_MODE", "user");
+    QCOMPARE(treelandDebugSocketDir(), savedRuntime);
     qunsetenv("XDG_RUNTIME_DIR");
     QVERIFY(treelandDebugSocketDir().isEmpty());
-    QVERIFY(qputenv("XDG_RUNTIME_DIR", saved));
-    QCOMPARE(treelandDebugSocketDir(), saved);
+    QVERIFY(qputenv("XDG_RUNTIME_DIR", savedRuntime));
+    QCOMPARE(treelandDebugSocketDir(), savedRuntime);
+    if (savedMode.isEmpty())
+        qunsetenv("TREELAND_RUN_MODE");
+    else
+        qputenv("TREELAND_RUN_MODE", savedMode);
+    QCOMPARE(treelandDebugSocketDir(), m_debugDir.path());
 }
 
 void TreelandDebugTest::testSocketPickFreeName()
@@ -816,6 +840,65 @@ void TreelandDebugTest::testExistingSocketUrls()
     QCOMPARE(treelandDebugExistingSocketUrls({ url, absent }), (QStringList{ url, absent }));
 }
 
+void TreelandDebugTest::testSocketAccessSwitch()
+{
+    // No-auth mode opens the socket of the global service's own directory to
+    // every user and restores 0700 afterwards -- the directory is what lets
+    // another user reach the socket at all, so it is the half that is easy to
+    // forget.
+    const QString path = treelandDebugSocketDir() + QStringLiteral("/debug.socket");
+    QFile socket(path);
+    QVERIFY(socket.open(QIODevice::WriteOnly));
+    socket.close();
+    QCOMPARE(::chmod(QFile::encodeName(path).constData(), 0), 0);
+    // Another socket next to ours must keep its own mode: widening the directory
+    // does not touch what is inside it.
+    const QString neighbour = treelandDebugSocketDir() + QStringLiteral("/neighbour.socket");
+    QFile neighbourSocket(neighbour);
+    QVERIFY(neighbourSocket.open(QIODevice::WriteOnly));
+    neighbourSocket.close();
+    QCOMPARE(::chmod(QFile::encodeName(neighbour).constData(), 0755), 0);
+
+    const auto modeOf = [](const QString &file) {
+        struct stat st {};
+        return ::stat(QFile::encodeName(file).constData(), &st) == 0 ? (st.st_mode & 07777) : 0u;
+    };
+
+    QVERIFY(treelandDebugSetSocketAccess(path, true));
+    QCOMPARE(modeOf(path), 0666u);
+    QCOMPARE(modeOf(treelandDebugSocketDir()), 0711u);
+
+    // A second open is idempotent.
+    QVERIFY(treelandDebugSetSocketAccess(path, true));
+    QCOMPARE(modeOf(treelandDebugSocketDir()), 0711u);
+
+    QVERIFY(treelandDebugSetSocketAccess(path, false));
+    QCOMPARE(modeOf(path), 0u);
+    // The directory is not narrowed again: another instance may share it and
+    // still have its own window open.  Only the sockets gate access.
+    QCOMPARE(modeOf(treelandDebugSocketDir()), 0711u);
+    QCOMPARE(modeOf(neighbour), 0755u);
+    QFile::remove(path);
+    QFile::remove(neighbour);
+
+    // Anything but the global service's own directory is refused before it is
+    // touched: a session instance lives in the per-user runtime directory, which
+    // holds sockets it does not own (the session bus among them).
+    QVERIFY(!treelandDebugSetSocketAccess(QStringLiteral("/run/user/0/treeland/x.socket"), true));
+    QTemporaryDir elsewhere;
+    QVERIFY(elsewhere.isValid());
+    const QString foreign = elsewhere.filePath(QStringLiteral("debug.socket"));
+    QFile foreignSocket(foreign);
+    QVERIFY(foreignSocket.open(QIODevice::WriteOnly));
+    foreignSocket.close();
+    QCOMPARE(::chmod(QFile::encodeName(foreign).constData(), 0), 0);
+    QVERIFY(!treelandDebugSetSocketAccess(foreign, true));
+    QCOMPARE(modeOf(foreign), 0u);
+    QCOMPARE(modeOf(elsewhere.path()), 0700u);
+    // Sealing is always allowed: that is the direction that only removes access.
+    QVERIFY(treelandDebugSetSocketAccess(foreign, false));
+}
+
 // ---------------------------------------------------------------------------
 // parseCommand: no-argument commands
 // ---------------------------------------------------------------------------
@@ -869,6 +952,16 @@ void TreelandDebugTest::testParseShell()
     const auto r = parseCommand(QStringLiteral("shell"), {});
     QVERIFY(r.ok);
     QCOMPARE(r.command, DebugCommand::Shell);
+}
+
+void TreelandDebugTest::testParseNoAuth()
+{
+    // The no-auth window is requested over the protocol; the command that sends
+    // it takes no arguments, like the other inspection commands.
+    const auto r = parseCommand(QStringLiteral("no-auth"), {});
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::NoAuth);
+    QVERIFY(r.error.isEmpty());
 }
 
 // ---------------------------------------------------------------------------
