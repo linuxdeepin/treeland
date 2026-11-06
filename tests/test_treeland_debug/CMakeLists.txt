@@ -1,4 +1,4 @@
-find_package(Qt6 REQUIRED COMPONENTS Test Core Network)
+find_package(Qt6 REQUIRED COMPONENTS Test Core Gui Network)
 
 # Reuse the extracted helpers from the treeland-debug tool.
 set(debug_helpers_dir "${PROJECT_SOURCE_DIR}/tools/treeland-debug")
@@ -18,6 +18,7 @@ target_link_libraries(test_treeland_debug
     PRIVATE
         Qt6::Test
         Qt6::Core
+        Qt6::Gui
         Qt6::Network
 )
 

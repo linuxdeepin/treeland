@@ -274,6 +274,8 @@ Window JSON object (`WindowInfo`):
 | `position` | object | `{"x","y"}`. |
 | `frames` | integer | Number of committed frames (from `wlr_surface`). |
 | `damage` | object | Last committed buffer-damage rectangle `{"x","y","width","height"}`. |
+| `inputRegion` | array of object | Input region as surface-local boxes (`[{"x","y","width","height"}, ...]`), already clipped to the surface size. An unset (`NULL`) input region is *infinite* per protocol and therefore reads back as one box covering the whole surface; the list is empty only when the client committed an empty region (the surface then accepts no input) or before the surface has committed a buffer. |
+| `opaqueRegion` | array of object | Opaque region as surface-local boxes, same shape. Empty means the client declared no opaque area — the protocol default, and also the value before the first commit. It is a repaint optimization hint, not a statement that the window is actually transparent. |
 
 Client JSON object (`ClientInfo`): `id` (integer), `appId` (string), `pid`
 (integer, `0` when unavailable), `executable` (string), `windows` (array of

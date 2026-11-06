@@ -462,7 +462,29 @@ splash window reports its outputs too). The `windows`/`clients`/`tree` views
 list every output and prefix the frame-pacing one with `+` (`*` keeps its
 existing meaning there: the active window). The `windows`/`clients` tables
 additionally show the server-side decoration (`content`/`titlebar`/`frame`)
-geometry when the window is an SSD toplevel.
+geometry when the window is an SSD toplevel, plus the window's input region
+and opaque region.
+Those two are sets of surface-local boxes (`inputRegion`/`opaqueRegion` in
+JSON, a list of `{x,y,width,height}` rects; the table prints the first few
+boxes and summarises the rest).
+
+`(empty)` means the committed region has no boxes. A `NULL` input region is
+*not* empty: the protocol defines it as infinite, and wlroots clips every region
+to the surface size, so it is reported as one box covering the whole surface.
+An empty `inputRegion` therefore means the client committed an empty region
+(the surface accepts no input), or the surface has not committed a buffer yet.
+The same applies to `opaqueRegion`: empty means no opaque area was declared
+(also its value before the first commit), not that the window is actually
+transparent.
+
+`damage`/region data is serialised on every `windows`/`clients` call, so a
+client committing a region with thousands of boxes inflates the polls of `top`
+as well, which does not display them.
+
+`WindowInfo` is a `WindowTreeRemote` POD, and Qt Remote Objects serialises a POD
+by field order with no version negotiation: a `treeland-debug` built from a
+different revision than the running `treeland` can mis-parse every window after
+the first. Build both from the same revision.
 
 ## License
 

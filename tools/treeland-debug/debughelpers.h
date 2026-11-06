@@ -4,9 +4,11 @@
 #pragma once
 
 #include <QByteArray>
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QPointF>
 #include <QRectF>
+#include <QRegion>
 #include <QString>
 #include <QStringList>
 
@@ -36,6 +38,14 @@ QString saveCapture(const QByteArray &data, const QString &userPath);
 // JSON helpers for geometry primitives.
 QJsonObject pointToJson(const QPointF &point);
 QJsonObject rectToJson(const QRectF &rect);
+// A region is a set of boxes, so it serialises as an array of rects.
+QJsonArray rectsToJson(const QRegion &region);
+
+// Formats a region's boxes as "[x,y wxh],[...]" for the human-readable views.
+// A client can commit a region with thousands of boxes, so only the first
+// @p maxBoxes are printed and the rest is summarised as "(+N more)"; an empty
+// region prints as "(empty)".
+QString formatRegion(const QRegion &region, int maxBoxes = 8);
 
 // Joins the outputs a window is on for the one-line views, marking the
 // frame-pacing one with '+' ('*' already means "active window" on those

@@ -7,7 +7,7 @@ if (NOT BUILD_TREELAND_DEBUG)
     return()
 endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Core RemoteObjects Network HttpServer WebSockets)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui RemoteObjects Network HttpServer WebSockets)
 set(windowtree_rep_file
     "${PROJECT_SOURCE_DIR}/src/modules/resource/treelandwindowtree.rep"
 )
@@ -53,6 +53,7 @@ target_include_directories(treeland-debug PRIVATE
 
 target_link_libraries(treeland-debug PRIVATE
     Qt6::Core
+    Qt6::Gui  # QRegion travels in WindowInfo
     Qt6::RemoteObjects
     Qt6::Network
 )
