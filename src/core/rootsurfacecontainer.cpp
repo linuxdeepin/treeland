@@ -147,6 +147,10 @@ void RootSurfaceContainer::destroyForSurface(SurfaceWrapper *wrapper)
 void RootSurfaceContainer::addOutput(Output *output)
 {
     m_outputModel->addObject(output);
+    connect(output->output(),
+            &WOutput::enabledChanged,
+            this,
+            &RootSurfaceContainer::refreshSurfaceOutputs);
     m_outputLayout->autoAdd(output->output());
     if (!m_primaryOutput)
         setPrimaryOutput(output);
@@ -155,17 +159,15 @@ void RootSurfaceContainer::addOutput(Output *output)
     // LayerSurfaceContainer is initialized for every active display.
     SurfaceContainer::addOutput(output);
 
-    // Layer surfaces are re-entered by LayerSurfaceContainer::addOutput
-    // which calls setOutputs. Skip them here to avoid double re-enter.
-    for (auto s : std::as_const(surfaces())) {
-        if (s->type() == SurfaceWrapper::Type::Layer)
-            continue;
-        updateSurfaceOutputs(s);
-    }
+    refreshSurfaceOutputs();
 }
 
 void RootSurfaceContainer::removeOutput(Output *output)
 {
+    disconnect(output->output(),
+               &WOutput::enabledChanged,
+               this,
+               &RootSurfaceContainer::refreshSurfaceOutputs);
     m_outputModel->removeObject(output);
     SurfaceContainer::removeOutput(output);
 
@@ -443,6 +445,18 @@ void RootSurfaceContainer::ensureCursorVisible()
 
     if (m_primaryOutput) {
         WaylandServer::instance()->setCursorPosition(m_primaryOutput->geometry().center());
+    }
+}
+
+void RootSurfaceContainer::refreshSurfaceOutputs()
+{
+    // Layer surfaces are re-entered by LayerSurfaceContainer::addOutput
+    // which calls setOutputs. Skip them here to avoid double re-enter.
+    const auto surfaces = this->surfaces();
+    for (auto *surface : surfaces) {
+        if (surface->type() == SurfaceWrapper::Type::Layer)
+            continue;
+        updateSurfaceOutputs(surface);
     }
 }
 
