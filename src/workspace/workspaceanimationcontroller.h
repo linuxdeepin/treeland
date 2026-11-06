@@ -74,8 +74,6 @@ private:
     void finishAnimation();
     qreal gestureObstruction(qreal gestureValue);
     bool animationConfigEnabled(bool (AnimationConfig::*key)() const) const;
-    void setupAnimationConfig();
-    void onAnimationConfigChanged();
 
     qreal m_refWidth = 1920;
     qreal m_refGap = 30;
@@ -95,5 +93,4 @@ private:
     QPropertyAnimation *m_posAnimation;
     QPropertyAnimation *m_bounceOutAnimation;
     QPropertyAnimation *m_bounceInAnimation;
-    QMetaObject::Connection m_animationConfigConnection;
 };

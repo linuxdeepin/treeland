@@ -185,8 +185,6 @@ WaylandServer::WaylandServer(QObject *parent)
             &QQuickWindow::activeFocusItemChanged,
             this,
             &WaylandServer::onRenderWindowActiveFocusItemChanged);
-
-    updateAnimationConfigConnections();
 }
 
 WaylandServer::~WaylandServer()
@@ -248,7 +246,6 @@ void WaylandServer::setAnimationConfig(AnimationConfig *config)
         connect(config, &AnimationConfig::configInitializeFailed,
                 this, &WaylandServer::animationConfigChanged);
     }
-    updateAnimationConfigConnections();
     Q_EMIT animationConfigChanged();
 }
 
@@ -321,14 +318,15 @@ void WaylandServer::setWorkspaceVisible(bool visible)
         }
     }
 
-    m_workspaceVisibleTarget = visible;
-
     // A config that has not finished initializing is not a valid "disabled"
     // answer: keep the default animated behavior in that case.
     const bool animationDisabled = m_animationConfig && m_animationConfig->isInitializeSucceeded()
         && !m_animationConfig->workspaceVisibility();
     if (m_noAnimation || animationDisabled) {
-        applyWorkspaceVisible(visible);
+        m_workspaceScaleAnimation->stop();
+        m_workspaceOpacityAnimation->stop();
+        m_shellHandler->workspace()->setOpacity(visible ? 1.0 : 0.0);
+        m_shellHandler->workspace()->setScale(visible ? 1.0 : 1.4);
         return;
     }
 
@@ -353,48 +351,6 @@ void WaylandServer::setWorkspaceVisible(bool visible)
         m_workspaceOpacityAnimation->setEndValue(0.0);
         m_workspaceOpacityAnimation->start();
     }
-}
-
-void WaylandServer::applyWorkspaceVisible(bool visible)
-{
-    m_workspaceScaleAnimation->stop();
-    m_workspaceOpacityAnimation->stop();
-    m_shellHandler->workspace()->setOpacity(visible ? 1.0 : 0.0);
-    m_shellHandler->workspace()->setScale(visible ? 1.0 : 1.4);
-}
-
-void WaylandServer::updateAnimationConfigConnections()
-{
-    if (m_animationConfigConnection)
-        disconnect(m_animationConfigConnection);
-
-    if (m_animationConfig) {
-        m_animationConfigConnection =
-            connect(m_animationConfig,
-                    &AnimationConfig::valueChanged,
-                    this,
-                    &WaylandServer::onWorkspaceVisibilityAnimationConfigChanged);
-    }
-
-    onWorkspaceVisibilityAnimationConfigChanged();
-}
-
-void WaylandServer::onWorkspaceVisibilityAnimationConfigChanged()
-{
-    if (!m_workspaceScaleAnimation)
-        return;
-
-    if (m_workspaceScaleAnimation->state() != QAbstractAnimation::Running
-        && m_workspaceOpacityAnimation->state() != QAbstractAnimation::Running) {
-        return;
-    }
-
-    if (!m_animationConfig || !m_animationConfig->isInitializeSucceeded()
-        || m_animationConfig->workspaceVisibility()) {
-        return;
-    }
-
-    applyWorkspaceVisible(m_workspaceVisibleTarget);
 }
 
 QmlEngine *WaylandServer::qmlEngine() const

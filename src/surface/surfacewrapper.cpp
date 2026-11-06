@@ -77,7 +77,6 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
 
     setup();
-    setupAnimationConfig();
 }
 
 SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
@@ -145,8 +144,6 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
             setup();
         });
     }
-
-    setupAnimationConfig();
 }
 
 // Constructor used for the prelaunch splash
@@ -206,7 +203,6 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     setNoDecoration(false);
     updateHasActiveCapability(ActiveControlState::HasActivateCapability, true);
     updateHasActiveCapability(ActiveControlState::MappedOrSplash, true); // Splash is true
-    setupAnimationConfig();
 }
 
 // Each animated effect reads its own AnimationConfig switch. An uninitialized
@@ -221,42 +217,46 @@ bool SurfaceWrapper::animationEnabled(bool (AnimationConfig::*key)() const) cons
     return (config->*key)();
 }
 
-bool SurfaceWrapper::windowAnimationEnabled(WindowAnimationEffect effect) const
+bool SurfaceWrapper::windowAnimationEnabled(uint direction) const
 {
-    switch (effect) {
-    case WindowAnimationEffect::WindowOpen:
-        return animationEnabled(&AnimationConfig::windowOpen);
-    case WindowAnimationEffect::WindowClose:
-        return animationEnabled(&AnimationConfig::windowClose);
-    case WindowAnimationEffect::LaunchpadOpen:
-        return animationEnabled(&AnimationConfig::launchpadOpen);
-    case WindowAnimationEffect::LaunchpadClose:
-        return animationEnabled(&AnimationConfig::launchpadClose);
-    case WindowAnimationEffect::LayerShellOpen:
-        return animationEnabled(&AnimationConfig::layerShellOpen);
-    case WindowAnimationEffect::LayerShellClose:
-        return animationEnabled(&AnimationConfig::layerShellClose);
-    case WindowAnimationEffect::None:
+    const bool open = direction == OPEN_ANIMATION;
+    switch (m_type) {
+    case Type::SplashScreen:
+    case Type::XdgToplevel:
+    case Type::XWayland:
+        return animationEnabled(open ? &AnimationConfig::windowOpen : &AnimationConfig::windowClose);
+    case Type::Layer: {
+        auto *layerItem = qobject_cast<WLayerSurfaceItem *>(m_surfaceItem);
+        auto *layerSurface = qobject_cast<WLayerSurface *>(m_shellSurface.data());
+        if (!layerItem || !layerSurface)
+            return true;
+        const auto scope = QString(layerItem->layerSurface()->handle()->scope);
+        if (scope == "dde-shell/launchpad")
+            return animationEnabled(open ? &AnimationConfig::launchpadOpen
+                                         : &AnimationConfig::launchpadClose);
+        if (layerSurface->getExclusiveZoneEdge() != WLayerSurface::AnchorType::None)
+            return animationEnabled(open ? &AnimationConfig::layerShellOpen
+                                         : &AnimationConfig::layerShellClose);
         return true;
     }
-    return true;
+    default:
+        return true;
+    }
 }
 
-bool SurfaceWrapper::geometryAnimationEnabled(GeometryAnimationEffect effect) const
+bool SurfaceWrapper::geometryAnimationEnabled(State state) const
 {
-    switch (effect) {
-    case GeometryAnimationEffect::Maximize:
+    switch (state) {
+    case State::Maximized:
         return animationEnabled(&AnimationConfig::maximize);
-    case GeometryAnimationEffect::Fullscreen:
+    case State::Fullscreen:
         return animationEnabled(&AnimationConfig::fullscreen);
-    case GeometryAnimationEffect::Restore:
+    case State::Normal:
+    case State::Tiling:
         return animationEnabled(&AnimationConfig::restoreWindow);
-    case GeometryAnimationEffect::Splash:
-        return animationEnabled(&AnimationConfig::splashTransition);
-    case GeometryAnimationEffect::None:
+    default:
         return true;
     }
-    return true;
 }
 
 bool SurfaceWrapper::minimizeAnimationEnabled(uint direction) const
@@ -270,105 +270,6 @@ bool SurfaceWrapper::showDesktopAnimationEnabled(bool restoring) const
 {
     return animationEnabled(restoring ? &AnimationConfig::restoreShowDesktop
                                       : &AnimationConfig::showDesktop);
-}
-
-SurfaceWrapper::WindowAnimationEffect SurfaceWrapper::windowAnimationEffectFor(uint direction) const
-{
-    const bool open = direction == OPEN_ANIMATION;
-    switch (m_type) {
-    case Type::SplashScreen:
-        [[fallthrough]];
-    case Type::XdgToplevel:
-        [[fallthrough]];
-    case Type::XWayland:
-        return open ? WindowAnimationEffect::WindowOpen : WindowAnimationEffect::WindowClose;
-    case Type::Layer: {
-        auto *layerItem = qobject_cast<WLayerSurfaceItem *>(m_surfaceItem);
-        auto *layerSurface = qobject_cast<WLayerSurface *>(m_shellSurface.data());
-        if (!layerItem || !layerSurface)
-            return WindowAnimationEffect::None;
-        const auto scope =
-            QString(layerItem->layerSurface()->handle()->scope);
-        if (scope == "dde-shell/launchpad")
-            return open ? WindowAnimationEffect::LaunchpadOpen : WindowAnimationEffect::LaunchpadClose;
-        if (layerSurface->getExclusiveZoneEdge() != WLayerSurface::AnchorType::None)
-            return open ? WindowAnimationEffect::LayerShellOpen : WindowAnimationEffect::LayerShellClose;
-        return WindowAnimationEffect::None;
-    }
-    default:
-        return WindowAnimationEffect::None;
-    }
-}
-
-SurfaceWrapper::GeometryAnimationEffect
-SurfaceWrapper::geometryAnimationEffectFor(State state) const
-{
-    switch (state) {
-    case State::Maximized:
-        return GeometryAnimationEffect::Maximize;
-    case State::Fullscreen:
-        return GeometryAnimationEffect::Fullscreen;
-    case State::Normal:
-        [[fallthrough]];
-    case State::Tiling:
-        return GeometryAnimationEffect::Restore;
-    default:
-        return GeometryAnimationEffect::None;
-    }
-}
-
-void SurfaceWrapper::setupAnimationConfig()
-{
-    auto *server = WaylandServer::instance();
-    if (!server)
-        return;
-
-    // The active-user config object is replaced on user switch: drop the old
-    // connection so a previous user's config cannot keep driving this wrapper.
-    QObject::disconnect(m_animationConfigConnection);
-    if (auto *config = server->animationConfig()) {
-        m_animationConfigConnection = connect(config,
-                                              &AnimationConfig::valueChanged,
-                                              this,
-                                              &SurfaceWrapper::onAnimationConfigChanged);
-    }
-    connect(server,
-            &WaylandServer::animationConfigChanged,
-            this,
-            &SurfaceWrapper::setupAnimationConfig,
-            Qt::UniqueConnection);
-    onAnimationConfigChanged();
-}
-
-void SurfaceWrapper::onAnimationConfigChanged()
-{
-    // Only effects that are currently playing are affected: re-enabling a
-    // switch must not replay anything, and nothing here starts an animation.
-    if (m_geometryAnimation
-        && m_geometryAnimationEffect != GeometryAnimationEffect::None
-        && m_geometryAnimationEffect != GeometryAnimationEffect::Splash
-        && !geometryAnimationEnabled(m_geometryAnimationEffect)) {
-        finishGeometryAnimation();
-    }
-
-    if (m_windowAnimation && !windowAnimationEnabled(m_windowAnimationEffect)) {
-        const bool opens = m_windowAnimationEffect == WindowAnimationEffect::WindowOpen
-            || m_windowAnimationEffect == WindowAnimationEffect::LaunchpadOpen
-            || m_windowAnimationEffect == WindowAnimationEffect::LayerShellOpen;
-        // Prevent the still-running QML animation from reporting finished after
-        // the business completion below has already run.
-        m_windowAnimation->disconnect(this);
-        if (opens)
-            onShowAnimationFinished();
-        else
-            onHideAnimationFinished();
-    }
-
-    if (m_minimizeAnimation && !minimizeAnimationEnabled(m_minimizeAnimationDirection))
-        finishMinimizeAnimation();
-
-    if (m_showDesktopAnimation && !showDesktopAnimationEnabled(m_showDesktopAnimationRestoring))
-        finishShowDesktopAnimation();
 }
 
 void SurfaceWrapper::invalidate()
@@ -952,7 +853,7 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
             toGeometry = QRectF(toTopLeft, targetImplicitSize);
         }
 
-        if (!geometryAnimationEnabled(GeometryAnimationEffect::Splash)) {
+        if (!animationEnabled(&AnimationConfig::splashTransition)) {
             // Land on the same final state as the animated path: the wrapper ends at
             // toGeometry, the real surface is revealed and the decoration restored.
             setPosition(toGeometry.topLeft());
@@ -964,7 +865,6 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
             return;
         }
 
-        m_geometryAnimationEffect = GeometryAnimationEffect::Splash;
         m_geometryAnimation =
             m_engine->createGeometryAnimation(this, fromGeometry, toGeometry, container());
 
@@ -1410,7 +1310,7 @@ void SurfaceWrapper::setSurfaceState(State newSurfaceState)
 
     const QRectF targetGeometry = targetGeometryForState(newSurfaceState);
     if (targetGeometry.isValid() && isVisible()
-        && geometryAnimationEnabled(geometryAnimationEffectFor(newSurfaceState)))
+        && geometryAnimationEnabled(newSurfaceState))
         startStateChangeAnimation(targetGeometry);
     else
         applySurfaceState();
@@ -1474,7 +1374,6 @@ void SurfaceWrapper::abortGeometryAnimation()
         m_geometryAnimation->deleteLater();
         m_geometryAnimation = nullptr;
     }
-    m_geometryAnimationEffect = GeometryAnimationEffect::None;
 }
 
 void SurfaceWrapper::resetXdgToplevelSize()
@@ -1902,7 +1801,7 @@ void SurfaceWrapper::finishWindowTransitionOpen()
     m_windowAnimation->setProperty("toGeometry", toGeometry);
 
     if (WaylandServer::instance()->noAnimation()
-        || !windowAnimationEnabled(m_windowAnimationEffect)) {
+        || !windowAnimationEnabled(OPEN_ANIMATION)) {
         onShowAnimationFinished();
         return;
     }
@@ -1930,7 +1829,7 @@ void SurfaceWrapper::startWindowCloseTransition()
     restackWindowAnimationAbove();
 
     if (WaylandServer::instance()->noAnimation()
-        || !windowAnimationEnabled(m_windowAnimationEffect)) {
+        || !windowAnimationEnabled(CLOSE_ANIMATION)) {
         onHideAnimationFinished();
         return;
     }
@@ -1955,7 +1854,6 @@ void SurfaceWrapper::beginWindowTransition(int direction,
                                                          m_windowTransition->sourceSurface(),
                                                          direction);
     m_windowAnimation->setProperty("enableBlur", blur());
-    m_windowAnimationEffect = windowAnimationEffectFor(direction);
 }
 
 void SurfaceWrapper::createNewOrClose(uint direction)
@@ -2013,12 +1911,11 @@ void SurfaceWrapper::createNewOrClose(uint direction)
     }
 
     if (m_windowAnimation) {
-        m_windowAnimationEffect = windowAnimationEffectFor(direction);
         restackWindowAnimationAbove();
         // The animation object is created above, so the existing direct-completion
         // path (also used by noAnimation) can finish the business safely.
         if (WaylandServer::instance()->noAnimation()
-            || !windowAnimationEnabled(m_windowAnimationEffect)) {
+            || !windowAnimationEnabled(direction)) {
             if (direction == OPEN_ANIMATION) {
                 onShowAnimationFinished();
             } else {
@@ -2129,13 +2026,6 @@ void SurfaceWrapper::onAnimationReady()
 void SurfaceWrapper::onAnimationFinished()
 {
     Q_ASSERT(m_geometryAnimation);
-    finishGeometryAnimation();
-}
-
-void SurfaceWrapper::finishGeometryAnimation()
-{
-    if (!m_geometryAnimation)
-        return;
 
     setXwaylandPositionFromSurface(true);
     // The ready signal is driven by ShaderEffectSource's scheduled update.
@@ -2151,7 +2041,6 @@ bool SurfaceWrapper::startStateChangeAnimation(const QRectF &targetGeometry)
     if (m_geometryAnimation) // animation running
         return false;
 
-    m_geometryAnimationEffect = geometryAnimationEffectFor(m_surfaceState);
     m_geometryAnimation =
         m_engine->createGeometryAnimation(this, geometry(), targetGeometry, container());
     m_geometryAnimation->setProperty("enableBlur", blur());
@@ -2174,7 +2063,6 @@ void SurfaceWrapper::finishWindowAnimation()
         m_windowAnimation->deleteLater();
         m_windowAnimation = nullptr;
     }
-    m_windowAnimationEffect = WindowAnimationEffect::None;
     m_windowTransitionPending = false;
 
     // Stop pacing the transition source now that the animation is over. The
@@ -2267,17 +2155,9 @@ void SurfaceWrapper::onSocketEnabledChanged()
 void SurfaceWrapper::onMinimizeAnimationFinished()
 {
     Q_ASSERT(m_minimizeAnimation);
-    finishMinimizeAnimation();
-}
-
-void SurfaceWrapper::finishMinimizeAnimation()
-{
-    if (m_minimizeAnimation) {
-        m_minimizeAnimation->disconnect(this);
-        m_minimizeAnimation->deleteLater();
-        m_minimizeAnimation = nullptr;
-    }
-    m_minimizeAnimationDirection = 0;
+    m_minimizeAnimation->disconnect(this);
+    m_minimizeAnimation->deleteLater();
+    m_minimizeAnimation = nullptr;
 }
 
 void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint direction)
@@ -2297,7 +2177,6 @@ void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint dir
     if (!WaylandServer::instance()->surfaceBelongsToCurrentSession(this))
         return;
 
-    m_minimizeAnimationDirection = direction;
     m_minimizeAnimation =
         m_engine->createMinimizeAnimation(this, container(), iconGeometry, direction);
 
@@ -2331,17 +2210,9 @@ void SurfaceWrapper::setHideByLockScreen(bool hide)
 void SurfaceWrapper::onShowDesktopAnimationFinished()
 {
     Q_ASSERT(m_showDesktopAnimation);
-    finishShowDesktopAnimation();
-}
-
-void SurfaceWrapper::finishShowDesktopAnimation()
-{
-    if (m_showDesktopAnimation) {
-        m_showDesktopAnimation->disconnect(this);
-        m_showDesktopAnimation->deleteLater();
-        m_showDesktopAnimation = nullptr;
-    }
-    m_showDesktopAnimationRestoring = false;
+    m_showDesktopAnimation->disconnect(this);
+    m_showDesktopAnimation->deleteLater();
+    m_showDesktopAnimation = nullptr;
     updateVisible();
 }
 
@@ -2354,7 +2225,6 @@ void SurfaceWrapper::startShowDesktopAnimation(bool show)
     }
 
     setHideByShowDesk(show);
-    m_showDesktopAnimationRestoring = show;
 
     // The final visibility is driven by m_hideByshowDesk, so the disabled path
     // finishes exactly like the animation's finished handler.

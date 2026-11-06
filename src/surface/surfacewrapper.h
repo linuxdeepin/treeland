@@ -523,35 +523,17 @@ private:
     void setModal(bool modal);
     void startMinimizeAnimation(const QRectF &iconGeometry, uint direction);
     Q_SLOT void onMinimizeAnimationFinished();
-    void finishMinimizeAnimation();
     void startShowDesktopAnimation(bool show);
     Q_SLOT void onShowDesktopAnimationFinished();
-    void finishShowDesktopAnimation();
-    void finishGeometryAnimation();
     void finishWindowAnimation();
 
     // Per-effect animation switches. Each animated effect reads its own
     // AnimationConfig key so products can combine them freely.
-    enum class WindowAnimationEffect {
-        None,
-        WindowOpen,
-        WindowClose,
-        LaunchpadOpen,
-        LaunchpadClose,
-        LayerShellOpen,
-        LayerShellClose
-    };
-    enum class GeometryAnimationEffect { None, Maximize, Fullscreen, Restore, Splash };
-
     bool animationEnabled(bool (AnimationConfig::*key)() const) const;
-    bool windowAnimationEnabled(WindowAnimationEffect effect) const;
-    bool geometryAnimationEnabled(GeometryAnimationEffect effect) const;
+    bool windowAnimationEnabled(uint direction) const;
+    bool geometryAnimationEnabled(State state) const;
     bool minimizeAnimationEnabled(uint direction) const;
     bool showDesktopAnimationEnabled(bool restoring) const;
-    WindowAnimationEffect windowAnimationEffectFor(uint direction) const;
-    GeometryAnimationEffect geometryAnimationEffectFor(State state) const;
-    void setupAnimationConfig();
-    void onAnimationConfigChanged();
     void updateHasActiveCapability(ActiveControlState state, bool value);
     void updateFocusControlState(FocusControlState state, bool value);
     void updateActivateCapability();
@@ -666,12 +648,6 @@ private:
 
     bool m_socketEnabled{ false };
     bool m_windowAnimationEnabled{ true };
-
-    WindowAnimationEffect m_windowAnimationEffect{ WindowAnimationEffect::None };
-    GeometryAnimationEffect m_geometryAnimationEffect{ GeometryAnimationEffect::None };
-    uint m_minimizeAnimationDirection{ 0 };
-    bool m_showDesktopAnimationRestoring{ false };
-    QMetaObject::Connection m_animationConfigConnection;
 
     QPointer<WSeat> m_pendingActivationSeat;
     std::unique_ptr<SurfaceWindowTransition> m_windowTransition;

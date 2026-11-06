@@ -49,8 +49,6 @@ WallpaperSwitcherItem::WallpaperSwitcherItem(QQuickItem *parent)
             &Workspace::workspaceAdded,
             this,
             &WallpaperSwitcherItem::handleWorkspaceAdded);
-
-    setupAnimationConfig();
 }
 
 WallpaperSwitcherItem::~WallpaperSwitcherItem()
@@ -184,33 +182,27 @@ void WallpaperSwitcherItem::switchToNewSlot()
         return;
     }
 
-    // A previous cross fade is superseded: release its leftover slot now so its
-    // finished callback can never touch the slot of this switch.
-    if (m_oldSlot) {
-        m_oldSlot->deleteLater();
-        m_oldSlot = nullptr;
-    }
-
     m_oldSlot = m_currentSlot;
     m_currentSlot = newSlot;
 
     Q_EMIT sourceChanged();
 
-    if (crossFadeEnabled())
+    const bool animated = crossFadeEnabled();
+    if (animated)
         startFadeOut(m_oldSlot);
 
     auto *interface = TreelandWallpaperSurfaceInterfaceV1::get(newSlot->source());
     if (interface && interface->wallpaperReady()) {
-        startFadeIn(newSlot);
+        startFadeIn(newSlot, animated);
     } else if (interface) {
         // Waiting for the content to load is not an animation: keep it even when
         // the cross fade is disabled.
         connect(interface,
                 &TreelandWallpaperSurfaceInterfaceV1::ready,
                 this,
-                [this, newSlot]() {
+                [this, newSlot, animated]() {
                     if (m_currentSlot == newSlot)
-                        startFadeIn(newSlot);
+                        startFadeIn(newSlot, animated);
                 },
                 Qt::SingleShotConnection);
     }
@@ -226,25 +218,17 @@ void WallpaperSwitcherItem::startFadeOut(WallpaperSlot *slot)
     fadeOut->setStartValue(1.0);
     fadeOut->setEndValue(0.0);
     fadeOut->setEasingCurve(QEasingCurve::InOutQuad);
-    connect(fadeOut, &QPropertyAnimation::finished, this, [this, slot]() {
-        if (m_oldSlot != slot)
-            return;
-        m_oldSlot->deleteLater();
-        m_oldSlot = nullptr;
-    });
+    connect(fadeOut, &QPropertyAnimation::finished, this, &WallpaperSwitcherItem::onAnimationFinished);
     fadeOut->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
-void WallpaperSwitcherItem::startFadeIn(WallpaperSlot *slot)
+void WallpaperSwitcherItem::startFadeIn(WallpaperSlot *slot, bool animated)
 {
-    if (!crossFadeEnabled()) {
+    if (!animated) {
         // The new content is ready: show it and release the previous wallpaper in
         // one step instead of fading.
         slot->setOpacity(1.0);
-        if (m_oldSlot) {
-            m_oldSlot->deleteLater();
-            m_oldSlot = nullptr;
-        }
+        onAnimationFinished();
         return;
     }
 
@@ -266,37 +250,10 @@ bool WallpaperSwitcherItem::crossFadeEnabled() const
     return config->wallpaperCrossFade();
 }
 
-void WallpaperSwitcherItem::setupAnimationConfig()
+void WallpaperSwitcherItem::onAnimationFinished()
 {
-    auto *server = WaylandServer::instance();
-    if (!server)
-        return;
-
-    QObject::disconnect(m_animationConfigConnection);
-    if (auto *config = server->animationConfig()) {
-        m_animationConfigConnection = connect(config,
-                                              &AnimationConfig::valueChanged,
-                                              this,
-                                              &WallpaperSwitcherItem::onAnimationConfigChanged);
+    if (m_oldSlot) {
+        m_oldSlot->deleteLater();
+        m_oldSlot = nullptr;
     }
-    connect(server,
-            &WaylandServer::animationConfigChanged,
-            this,
-            &WallpaperSwitcherItem::setupAnimationConfig,
-            Qt::UniqueConnection);
-    onAnimationConfigChanged();
-}
-
-void WallpaperSwitcherItem::onAnimationConfigChanged()
-{
-    if (crossFadeEnabled() || !m_currentSlot)
-        return;
-
-    // Never drop the old wallpaper before the new content is ready: that would
-    // leave an empty desktop until the client maps its surface.
-    auto *interface = TreelandWallpaperSurfaceInterfaceV1::get(m_currentSlot->source());
-    if (!interface || !interface->wallpaperReady())
-        return;
-
-    startFadeIn(m_currentSlot);
 }

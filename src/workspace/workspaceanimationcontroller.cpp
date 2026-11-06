@@ -43,8 +43,6 @@ WorkspaceAnimationController::WorkspaceAnimationController(QObject *parent)
             &QSequentialAnimationGroup::finished,
             this,
             &WorkspaceAnimationController::finishAnimation);
-
-    setupAnimationConfig();
 }
 
 bool WorkspaceAnimationController::animationConfigEnabled(bool (AnimationConfig::*key)() const) const
@@ -66,42 +64,6 @@ bool WorkspaceAnimationController::slideEnabled() const
 bool WorkspaceAnimationController::bounceEnabled() const
 {
     return animationConfigEnabled(&AnimationConfig::workspaceBounce);
-}
-
-void WorkspaceAnimationController::setupAnimationConfig()
-{
-    auto *server = WaylandServer::instance();
-    if (!server)
-        return;
-
-    // Reconnect on user switch so the previous user's config cannot keep
-    // affecting the running transition.
-    QObject::disconnect(m_animationConfigConnection);
-    if (auto *config = server->animationConfig()) {
-        m_animationConfigConnection = connect(config,
-                                              &AnimationConfig::valueChanged,
-                                              this,
-                                              &WorkspaceAnimationController::onAnimationConfigChanged);
-    }
-    connect(server,
-            &WaylandServer::animationConfigChanged,
-            this,
-            &WorkspaceAnimationController::setupAnimationConfig,
-            Qt::UniqueConnection);
-    onAnimationConfigChanged();
-}
-
-void WorkspaceAnimationController::onAnimationConfigChanged()
-{
-    if (m_slideAnimation->state() == QAbstractAnimation::Running && !slideEnabled()) {
-        m_slideAnimation->stop();
-        setViewportPos(m_animationDestination);
-        finishAnimation();
-    } else if (m_bounceAnimation->state() == QAbstractAnimation::Running && !bounceEnabled()) {
-        m_bounceAnimation->stop();
-        setViewportPos(m_animationDestination);
-        finishAnimation();
-    }
 }
 
 qreal WorkspaceAnimationController::refWidth() const

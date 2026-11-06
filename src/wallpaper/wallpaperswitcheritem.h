@@ -62,18 +62,16 @@ private:
     void handleWallpaperUpdate();
     void handleWorkspaceAdded();
     void switchToNewSlot();
-    void startFadeIn(WallpaperSlot *slot);
+    void startFadeIn(WallpaperSlot *slot, bool animated);
     void startFadeOut(WallpaperSlot *slot);
     bool crossFadeEnabled() const;
-    void setupAnimationConfig();
-    void onAnimationConfigChanged();
+    void onAnimationFinished();
 
     QPointer<WorkspaceModel> m_workspace;
     QPointer<WOutput> m_output;
     bool m_play = true;
     QString m_source;
     int m_opacityDuration = 500;
-    QMetaObject::Connection m_animationConfigConnection;
 
     WallpaperSlot *m_currentSlot = nullptr;
     WallpaperSlot *m_oldSlot = nullptr;
