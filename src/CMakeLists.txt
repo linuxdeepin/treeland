@@ -165,6 +165,9 @@ qt_add_qml_module(libtreeland
         core/treeland.h
         core/windowconfigstore.cpp
         core/windowconfigstore.h
+        effects/radiuseffectitem.cpp
+        effects/radiuseffectitem.h
+        effects/radiuseffectitem_p.h
         $<$<OR:$<NOT:$<BOOL:${DISABLE_DDM}>>,$<BOOL:${EXT_SESSION_LOCK_V1}>>:lockscreen/lockscreen.h>
         $<$<OR:$<NOT:$<BOOL:${DISABLE_DDM}>>,$<BOOL:${EXT_SESSION_LOCK_V1}>>:lockscreen/lockscreen.cpp>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/greeterproxy.cpp>

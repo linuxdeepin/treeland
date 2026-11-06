@@ -23,7 +23,7 @@ jobs:
           # Vendored waylib-wlroots deps from Arch wlroots0.19 package metadata
           # (do not install system wlroots0.19)
           pacman -S --noconfirm --noprogressbar base-devel \
-            qt6-base qt6-declarative cmake pkgconfig ninja clang make git \
+            qt6-base qt6-declarative qt6-shadertools cmake pkgconfig ninja clang make git \
             pixman wayland wayland-protocols wlr-protocols \
             libxcb libx11 libxkbcommon libdrm libinput seatd \
             libdisplay-info libliftoff lcms2 \
