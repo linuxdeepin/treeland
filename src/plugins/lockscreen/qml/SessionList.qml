@@ -87,6 +87,8 @@ Popup {
         }
     }
     onAboutToShow: {
+        // Fetch the session list on demand instead of watching the session dirs.
+        SessionModel.reload()
         list.currentIndex = SessionModel.currentIndex
     }
 }
