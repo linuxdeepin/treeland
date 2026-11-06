@@ -7,6 +7,8 @@
 #include "common/treelandlogging.h"
 #include "dconfig/dconfigmanager.h"
 #include "core/rootsurfacecontainer.h"
+#include "core/waylandserver.h"
+#include "utils/graphicsplatform.h"
 #include "modules/output-group/outputgroupmanagerinterfacev1.h"
 #include "output.h"
 #include "outputconfig.hpp"
@@ -207,17 +209,6 @@ void OutputManager::setXdgOutputManagers(WXdgOutputManager *manager,
 WXdgOutputManager *OutputManager::xwaylandOutputManager() const
 {
     return m_xwaylandOutputManager;
-}
-
-bool OutputManager::isNvidiaCardPresent() const
-{
-    auto *rhi = m_renderWindow->rhi();
-    if (!rhi)
-        return false;
-
-    const QString deviceName = rhi->driverInfo().deviceName;
-    qCDebug(lcTlOutput) << "Graphics Device:" << deviceName;
-    return deviceName.contains("NVIDIA", Qt::CaseInsensitive);
 }
 
 void OutputManager::processOutputAdded(WOutput *output)
@@ -540,7 +531,8 @@ const QList<Output *> &OutputManager::outputs() const
 Output *OutputManager::createNormalOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output)
 {
     Output *result = Output::create(output, ::qmlEngine(m_renderWindow), parent());
-    if (isNvidiaCardPresent()) {
+    auto *platform = WaylandServer::instance()->graphicsPlatform();
+    if (platform && platform->isNvidia()) {
         result->outputItem()->setProperty("forceSoftwareCursor", true);
     }
     result->outputItem()->stackBefore(m_rootContainer);

@@ -55,6 +55,7 @@
 #include "treelandconfig.hpp"
 #include "treelanduserconfig.hpp"
 #include "utils/fpsdisplaymanager.h"
+#include "utils/graphicsplatform.h"
 #include "wallpaper/wallpapermanager.h"
 #include "wallpapershellinterfacev1.h"
 #include "workspace/workspace.h"
@@ -333,6 +334,11 @@ WOutputRenderWindow *WaylandServer::window() const
     return m_renderWindow;
 }
 
+GraphicsPlatform *WaylandServer::graphicsPlatform() const
+{
+    return m_graphicsPlatform.get();
+}
+
 SessionManager *WaylandServer::sessionManager() const
 {
     return m_sessionManager;
@@ -497,6 +503,11 @@ void WaylandServer::initializeRendering()
 void WaylandServer::initializeRenderWindow()
 {
     m_renderWindow->init(m_renderer.get(), m_allocator.get());
+
+    // The QRhi only exists once the render window is initialized, so detect the
+    // GPU here once and share the result instead of probing it at every use site.
+    m_graphicsPlatform = std::make_unique<GraphicsPlatform>(m_renderWindow->rhi());
+    qCInfo(lcTlCore) << "Graphics platform:" << m_graphicsPlatform->toString();
 }
 
 void WaylandServer::installPointerProtocols()

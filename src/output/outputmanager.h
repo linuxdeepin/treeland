@@ -104,8 +104,6 @@ private:
     void outputAdded(WAYLIB_SERVER_NAMESPACE::WOutput *output);
     void outputRemoved(WAYLIB_SERVER_NAMESPACE::WOutput *output);
     void processOutputAdded(WAYLIB_SERVER_NAMESPACE::WOutput *output);
-    bool isNvidiaCardPresent() const;
-
     void onScreenAdded(Output *output, const QList<SurfaceWrapper *> &surfaces);
     bool onScreenRemoved(Output *output, const QList<SurfaceWrapper *> &surfaces);
     void onScreenDisabled(Output *output, const QList<SurfaceWrapper *> &surfaces);
