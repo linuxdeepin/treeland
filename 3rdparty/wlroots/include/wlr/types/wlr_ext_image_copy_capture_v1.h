@@ -32,6 +32,9 @@ struct wlr_ext_image_copy_capture_session_v1 {
 	struct wl_resource *resource;
 	struct wlr_ext_image_capture_source_v1 *source;
 	struct wlr_ext_image_copy_capture_frame_v1 *frame;
+	/** Whether frame updates are paused, see
+	 * wlr_ext_image_copy_capture_session_v1_set_paused(). */
+	bool paused;
 
 	struct {
 		struct wl_signal destroy;
@@ -63,6 +66,23 @@ struct wlr_ext_image_copy_capture_frame_v1 {
 
 struct wlr_ext_image_copy_capture_manager_v1 *wlr_ext_image_copy_capture_manager_v1_create(
 	struct wl_display *display, uint32_t version);
+
+/**
+ * Pause or resume frame updates for a capture session.
+ *
+ * While paused, the session does not copy frames into the client's buffer and
+ * does not send frame events. Damage is accumulated and delivered when the
+ * session is resumed, and a capture submitted before the pause completes
+ * after the session is resumed.
+ *
+ * This allows the compositor to freeze the captured content, for instance
+ * when the capture client's user session is no longer active.
+ *
+ * A capture submitted while paused can wait indefinitely, including the
+ * session's first capture: the compositor controls when the session resumes.
+ */
+void wlr_ext_image_copy_capture_session_v1_set_paused(
+	struct wlr_ext_image_copy_capture_session_v1 *session, bool paused);
 
 /**
  * Notify the client that the frame is ready.

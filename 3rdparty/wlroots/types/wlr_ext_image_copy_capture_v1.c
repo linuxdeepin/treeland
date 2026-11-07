@@ -255,6 +255,19 @@ static void frame_handle_damage_buffer(struct wl_client *client,
 		x, y, width, height);
 }
 
+static void session_request_frame(struct wlr_ext_image_copy_capture_session_v1 *session) {
+	struct wlr_ext_image_copy_capture_frame_v1 *frame = session->frame;
+	if (frame == NULL || !frame->capturing) {
+		return;
+	}
+
+	struct wlr_ext_image_capture_source_v1 *source = session->source;
+	if (source->impl->request_frame) {
+		source->impl->request_frame(source,
+			!pixman_region32_empty(&session->damage));
+	}
+}
+
 static void frame_handle_capture(struct wl_client *client,
 		struct wl_resource *frame_resource) {
 	struct wlr_ext_image_copy_capture_frame_v1 *frame = frame_from_resource(frame_resource);
@@ -278,10 +291,8 @@ static void frame_handle_capture(struct wl_client *client,
 
 	frame->capturing = true;
 
-	bool schedule_frame = !pixman_region32_empty(&frame->session->damage);
-	struct wlr_ext_image_capture_source_v1 *source = frame->session->source;
-	if (source->impl->request_frame) {
-		source->impl->request_frame(source, schedule_frame);
+	if (!frame->session->paused) {
+		session_request_frame(frame->session);
 	}
 }
 
@@ -418,11 +429,38 @@ static void session_handle_source_constraints_update(struct wl_listener *listene
 	session_send_constraints(session);
 }
 
+void wlr_ext_image_copy_capture_session_v1_set_paused(
+		struct wlr_ext_image_copy_capture_session_v1 *session, bool paused) {
+	if (session == NULL || session->paused == paused) {
+		return;
+	}
+
+	session->paused = paused;
+	if (!paused) {
+		// The source may have been resized while paused, and the accumulated
+		// damage may not fit it anymore: restart from a full-frame region. A
+		// source without constraints yet keeps its accumulated damage.
+		if (session->source->width > 0 && session->source->height > 0) {
+			pixman_region32_clear(&session->damage);
+			pixman_region32_union_rect(&session->damage, &session->damage, 0, 0,
+				session->source->width, session->source->height);
+		}
+		// Frames received while paused weren't copied, so ask the source for
+		// a new one to complete the pending capture.
+		session_request_frame(session);
+	}
+}
+
 static void session_handle_source_frame(struct wl_listener *listener, void *data) {
 	struct wlr_ext_image_copy_capture_session_v1 *session = wl_container_of(listener, session, source_frame);
 	struct wlr_ext_image_capture_source_v1_frame_event *event = data;
 
 	pixman_region32_union(&session->damage, &session->damage, event->damage);
+
+	if (session->paused) {
+		// Keep accumulating damage, it is delivered once the session resumes.
+		return;
+	}
 
 	struct wlr_ext_image_copy_capture_frame_v1 *frame = session->frame;
 	if (frame != NULL && frame->capturing &&
