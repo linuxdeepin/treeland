@@ -144,6 +144,9 @@ private:
     void ensureCursorVisible();
     void updateCursorOutput();
     void updateSurfaceOutputs(SurfaceWrapper *surface);
+    // Recomputes the outputs of every window after an output became enabled: a
+    // surface that left all outputs would otherwise never be re-entered.
+    void onOutputEnabledChanged();
     QQuickItem *ensureEdgeTilePreview();
     void onSeatAdded(WSeat *seat);
     void onSeatRemoved(WSeat *seat);
