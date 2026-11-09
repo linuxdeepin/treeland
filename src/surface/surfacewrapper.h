@@ -206,26 +206,37 @@ public:
 
     Output *ownsOutput() const;
     void setOwnsOutput(Output *newOwnsOutput);
-    void setOutputs(const QList<WOutput *> &outputs);
+    // `recordDiagnostics` is set by RootSurfaceContainer::updateSurfaceOutputs()
+    // only: a layer container re-homes its surface straight through this call and
+    // the prelaunch splash path applies its outputs through it too, and neither
+    // leave must be reported as an output recompute.
+    void setOutputs(const QList<WOutput *> &outputs, bool recordDiagnostics = false);
     const QList<WOutput *> &outputs() const;
 
     // Why this window is on no output at all, exposed by treeland-debug: the
     // last leave caused by a RootSurfaceContainer output recompute, and the last
     // RootSurfaceContainer::updateSurfaceOutputs() call that rebuilt the list.
     // A bool has no "never happened" value: read lastLeaveOutput /
-    // updateReason empty as "nothing recorded yet" and ignore the rest.
+    // updateReason Unknown as "nothing recorded yet" and ignore the rest.
+    enum class OutputsUpdateReason {
+        Unknown,
+        GeometryChanged,
+        SurfaceAdded,
+        AddOutput,
+        EnabledChanged,
+    };
     struct OutputsDiagnostics
     {
         QString lastLeaveOutput;
         bool lastLeaveOutputEnabled = false;
         bool lastLeaveEmptiedOutputs = false;
-        QString updateReason;
+        OutputsUpdateReason updateReason = OutputsUpdateReason::Unknown;
         int updateEnabledOutputs = -1;
         int updateTotalOutputs = -1;
         int updateComputedOutputs = -1;
         bool updateAutomatic = false;
     };
-    void noteOutputsUpdate(const QString &reason,
+    void noteOutputsUpdate(OutputsUpdateReason reason,
                            int enabledOutputs,
                            int totalOutputs,
                            int computedOutputs);

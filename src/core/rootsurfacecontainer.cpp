@@ -160,7 +160,7 @@ void RootSurfaceContainer::addOutput(Output *output)
     for (auto s : std::as_const(surfaces())) {
         if (s->type() == SurfaceWrapper::Type::Layer)
             continue;
-        updateSurfaceOutputs(s, QStringLiteral("addOutput"));
+        updateSurfaceOutputs(s, SurfaceWrapper::OutputsUpdateReason::AddOutput);
     }
 
     // A disabled output is dropped by updateSurfaceOutputs(), and a surface can
@@ -189,10 +189,15 @@ void RootSurfaceContainer::onOutputEnabledChanged()
     if (!woutput || !woutput->isEnabled())
         return;
 
+    // Layer surfaces keep the outputs their OutputLayerSurfaceContainer gave
+    // them: updateSurfaceOutputs() intersects their geometry without filtering
+    // disabled outputs, so calling it here would put a layer surface back on an
+    // output that is still off. Skip them here for the same reason as the loop in
+    // addOutput() above.
     for (auto s : std::as_const(surfaces())) {
         if (s->type() == SurfaceWrapper::Type::Layer)
             continue;
-        updateSurfaceOutputs(s, QStringLiteral("enabledChanged"));
+        updateSurfaceOutputs(s, SurfaceWrapper::OutputsUpdateReason::EnabledChanged);
     }
 }
 
@@ -329,10 +334,10 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
         }
 
         connect(surface, &SurfaceWrapper::geometryChanged, this, [this, surface] {
-            updateSurfaceOutputs(surface, QStringLiteral("geometryChanged"));
+            updateSurfaceOutputs(surface, SurfaceWrapper::OutputsUpdateReason::GeometryChanged);
         });
 
-        updateSurfaceOutputs(surface, QStringLiteral("surfaceAdded"));
+        updateSurfaceOutputs(surface, SurfaceWrapper::OutputsUpdateReason::SurfaceAdded);
     }
 }
 
@@ -503,7 +508,8 @@ void RootSurfaceContainer::ensureCursorVisible()
     }
 }
 
-void RootSurfaceContainer::updateSurfaceOutputs(SurfaceWrapper *surface, const QString &reason)
+void RootSurfaceContainer::updateSurfaceOutputs(SurfaceWrapper *surface,
+                                                SurfaceWrapper::OutputsUpdateReason reason)
 {
     QList<WOutput *> outputs;
 
@@ -532,6 +538,10 @@ void RootSurfaceContainer::updateSurfaceOutputs(SurfaceWrapper *surface, const Q
             });
         }
     } else {
+        // Unreachable today: every caller skips layer surfaces (see the loops in
+        // addOutput() and onOutputEnabledChanged()). This branch has no
+        // isEnabled() filter, so making it reachable needs one first, or a layer
+        // surface lands back on an output that is still off.
         const QRectF geometry = surface->geometry();
         outputs = m_outputLayout->getIntersectedOutputs(geometry.toRect());
     }
@@ -544,7 +554,7 @@ void RootSurfaceContainer::updateSurfaceOutputs(SurfaceWrapper *surface, const Q
                                enabledOutputs,
                                static_cast<int>(allOutputs.size()),
                                static_cast<int>(outputs.size()));
-    surface->setOutputs(outputs);
+    surface->setOutputs(outputs, /*recordDiagnostics=*/true);
 
     if (auto *ws = WaylandServer::instance()->workspace())
         ws->updateSurfaceOwnsOutput(surface);
