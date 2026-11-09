@@ -7,6 +7,7 @@
 #include <memory>
 
 class QGuiApplication;
+class QDeepinTheme;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
@@ -16,4 +17,5 @@ namespace Treeland {
 std::unique_ptr<QGuiApplication> preInit(int &argc, char *argv[]);
 void postInit();
 void initTestServer(WAYLIB_SERVER_NAMESPACE::WServer *server);
+QDeepinTheme *deepinTheme();
 }

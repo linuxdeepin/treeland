@@ -5,6 +5,9 @@
 #include "dconfig/dconfigmanager.h"
 #include "core/treeland.h"
 #include "core/treelandinit.h"
+#include "core/waylandserver.h"
+#include "deepintheme.h"
+#include "input/inputmanager.h"
 #include "utils/cmdline.h"
 
 #include <wrenderhelper.h>
@@ -15,6 +18,16 @@
 #include <QGuiApplication>
 
 #include <memory>
+
+static void bindThemeConfig()
+{
+    auto *server = WaylandServer::instance();
+    auto *theme = Treeland::deepinTheme();
+    if (!server || !theme)
+        return;
+
+    theme->bindConfig(server->config());
+}
 
 int main(int argc, char *argv[])
 {
@@ -45,6 +58,16 @@ int main(int argc, char *argv[])
             if (!treeland) {
                 qCInfo(lcTlConfig) << "DConfig initialization completed; starting Treeland";
                 treeland = std::make_unique<Treeland::Treeland>();
+
+                auto *server = WaylandServer::instance();
+                bindThemeConfig();
+                QObject::connect(server, &WaylandServer::configChanged, server, &bindThemeConfig);
+                QObject::connect(server->inputManager(),
+                                 &InputManager::seatConfigChanged,
+                                 server,
+                                 [](SeatUserDConfig *config) {
+                                     Treeland::deepinTheme()->bindSeatConfig(config);
+                                 });
             }
         };
 
