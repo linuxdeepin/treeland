@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "modules/dde-shell/ddeshellmanagerinterfacev2.h"
 #include "server-bridge.h"
+#include "core/rootsurfacecontainer.h"
+#include "surface/surfacewrapper.h"
 #include "core/waylandserver.h"
 #include "treeland-dde-shell-v2.h"
 
@@ -24,8 +26,9 @@ void protocol_test_setup(WaylandServer *server)
     QObject::connect(manager, &DDEShellManagerInterfaceV2::surfaceCreated,
                      [](DDEShellSurfaceV2 *surface) {
                          g_shellSurface = surface;
-                         QObject::connect(surface, &QObject::destroyed, [] {
-                             g_shellSurface = nullptr;
+                         QObject::connect(surface, &QObject::destroyed, [surface] {
+                             if (g_shellSurface == surface)
+                                 g_shellSurface = nullptr;
                          });
                      });
 }
@@ -42,6 +45,11 @@ extern "C" void dde_shell_v2_query_surface_state(void *data)
 
     state->role_overlay = g_shellSurface->role() == DDEShellSurfaceV2::Role::OVERLAY;
     state->role_normal = g_shellSurface->role() == DDEShellSurfaceV2::Role::NORMAL;
+    if (auto *wrapper = WaylandServer::instance()->rootSurfaceContainer()->getSurface(g_shellSurface->wSurface())) {
+        state->wrapper_found = 1;
+        state->wrapper_always_on_top = wrapper->alwaysOnTop();
+        state->wrapper_z = int(wrapper->z());
+    }
     state->skip_flags = int(g_shellSurface->skipFlags());
     state->accept_keyboard_focus = g_shellSurface->acceptKeyboardFocus();
 
@@ -56,4 +64,13 @@ extern "C" void dde_shell_v2_query_surface_state(void *data)
         state->cursor_y = cursor->y();
     }
     state->duplicate_errors = g_manager ? g_manager->alreadyShellSurfaceErrorCount() : 0;
+}
+
+extern "C" void dde_shell_v2_user_set_always_on_top(void *data)
+{
+    if (!g_shellSurface)
+        return;
+    auto *wrapper = WaylandServer::instance()->rootSurfaceContainer()->getSurface(g_shellSurface->wSurface());
+    if (wrapper)
+        wrapper->setAlwaysOnTop(*static_cast<int *>(data) != 0);
 }

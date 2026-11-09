@@ -163,8 +163,9 @@ public:
 
     enum class SurfaceRole
     {
-        Normal,
-        Overlay,
+        Normal = 0,
+        Overlay = 1,
+        AlwaysOnTop = 2,
         PrivilegedOverlay, // Privileged overlay, exempt from lock-screen hiding
     };
     Q_ENUM(SurfaceRole)
@@ -465,7 +466,7 @@ Q_SIGNALS:
     void noCornerRadiusChanged();
     void iconGeometryChanged();
     void workspaceIdChanged();
-    void alwaysOnTopChanged();
+    void alwaysOnTopChanged(bool alwaysOnTop);
     void showOnAllWorkspaceChanged();
     void activationRequested();
     void inactivationRequested();
@@ -548,6 +549,7 @@ private:
     void onWindowAnimationFinished();
     Q_SLOT void onShowAnimationFinished();
     Q_SLOT void onHideAnimationFinished();
+    int effectiveStackingZ() const;
     void updateStackingLayer();
 #ifndef DISABLE_XWAYLAND
     void updateXWaylandStackingState();
@@ -642,7 +644,6 @@ private:
     uint m_noDecoration : 1;
     uint m_noTitleBar : 1;
     uint m_noCornerRadius : 1;
-    uint m_alwaysOnTop : 1;
     uint m_alwaysOnBottom : 1;
     uint m_skipSwitcher : 1;
     uint m_skipDockPreView : 1;

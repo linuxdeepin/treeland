@@ -22,6 +22,9 @@ struct dde_shell_surface_v2_state {
     int cursor_set;
     int role_overlay;
     int role_normal;
+    int wrapper_found;
+    int wrapper_always_on_top;
+    int wrapper_z;
     int skip_flags;
     int accept_keyboard_focus;
     int duplicate_errors;

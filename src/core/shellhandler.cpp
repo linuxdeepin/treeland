@@ -66,6 +66,15 @@ WAYLIB_SERVER_USE_NAMESPACE
 const QLatin1String PRIVILEGED_OVERLAY_TAG("org.deepin.treeland.privileged-overlay");
 const QLatin1String SNAP_MASK_TAG("org.deepin.treeland.snap-mask");
 
+using SurfaceRole = SurfaceWrapper::SurfaceRole;
+using ProtocolRole = DDEShellSurfaceV2::Role;
+
+static_assert(
+    static_cast<ProtocolRole>(SurfaceRole::Normal) == ProtocolRole::NORMAL &&
+    static_cast<ProtocolRole>(SurfaceRole::Overlay) == ProtocolRole::OVERLAY &&
+    static_cast<ProtocolRole>(SurfaceRole::AlwaysOnTop) == ProtocolRole::ALWAYS_ON_TOP,
+    "DDE Shell v2 role values must match SurfaceWrapper::SurfaceRole");
+
 ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     : m_rootSurfaceContainer(rootContainer)
     , m_backgroundContainer(new LayerSurfaceContainer(rootContainer))
@@ -1489,16 +1498,14 @@ void ShellHandler::handleDdeShellSurfaceV2Added(DDEShellSurfaceV2 *shellSurface,
 {
     wrapper->setIsDDEShellSurface(true);
 
-    // The overlay role is the default of the v2 protocol; the normal role
-    // returns the surface to the regular window layer.
-    auto updateLayer = [shellSurface, wrapper] {
-        wrapper->setSurfaceRole(shellSurface->role() == DDEShellSurfaceV2::OVERLAY
-                                    ? SurfaceWrapper::SurfaceRole::Overlay
-                                    : SurfaceWrapper::SurfaceRole::Normal);
-    };
-    updateLayer();
-    connect(shellSurface, &DDEShellSurfaceV2::roleChanged, this, [updateLayer] {
-        updateLayer();
+    wrapper->setSurfaceRole(static_cast<SurfaceRole>(shellSurface->role()));
+    connect(shellSurface, &DDEShellSurfaceV2::roleChanged, wrapper, [wrapper](ProtocolRole role) {
+        wrapper->setSurfaceRole(static_cast<SurfaceRole>(role));
+    });
+    connect(wrapper, &SurfaceWrapper::surfaceRoleChanged, shellSurface, [wrapper, shellSurface] {
+        const auto role = wrapper->surfaceRole();
+        if (role != SurfaceRole::PrivilegedOverlay)
+            shellSurface->setRole(static_cast<ProtocolRole>(role));
     });
 
     // Placement hints (set_position_hint / set_cursor_placement_hint) only

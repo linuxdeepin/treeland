@@ -26,7 +26,7 @@ public:
     ~DDEShellManagerInterfaceV2() override;
 
     QByteArrayView interfaceName() const override;
-    static constexpr int InterfaceVersion = 1;
+    static constexpr int InterfaceVersion = 2;
     // Number of already_shell_surface protocol errors raised on this global;
     // used by the protocol test to assert the duplicate path server-side,
     // since the error tears down the client connection before it can read
@@ -55,6 +55,7 @@ public:
     enum Role {
         NORMAL = 0,
         OVERLAY = 1,
+        ALWAYS_ON_TOP = 2,
     };
 
     // treeland_dde_shell_surface_v2.skip_flag bitfield
@@ -68,6 +69,7 @@ public:
 
     WSurface *wSurface() const;
     DDEShellSurfaceV2::Role role() const;
+    void setRole(Role role);
     // Global-space position hint, resolved at request time from the
     // output-relative coordinates of set_position_hint. Has a value iff the
     // most recent placement hint was set_position_hint.

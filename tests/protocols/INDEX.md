@@ -29,7 +29,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [compositor-action-v1](treeland-compositor-action-v1/README.md) | E / P | trigger 路由到真实 Workspace 切换与 show-desktop 状态；zoom/未知动作被忽略不断连 |
 | [dde-shell-v1](treeland-dde-shell-v1/README.md) | E / P | mapped wrapper 的 DDE 元数据、锁屏；window picker 功能已移除 |
 | [active-notify-unstable-v1](treeland-active-notify-unstable-v1/README.md) | P | notifier 创建/重建与无输入不发事件边界 |
-| [dde-shell-v2](treeland-dde-shell-v2/README.md) | E / P | v2 shell surface 元数据、placement hint 互斥切换与 (0,0) 边界、skip 位域、重复创建报错码、wl_surface 销毁自动回收；wrapper 集成 fixture 随 v1 清理任务补 |
+| [dde-shell-v2](treeland-dde-shell-v2/README.md) | E / P / I | v2 元数据、placement hint、skip 位域、重复创建报错；接口版本 2 的 role 初始与变化通知、always_on_top 真实层级、用户置顶/取消置顶双向同步、Overlay 子窗口层级及旧版本兼容；定位与 skip 的 wrapper 集成仍待补 |
 | [ddm-v1](treeland-ddm-v1/README.md) | I | 客户端连接生命周期 |
 | [foreign-toplevel-manager-v3](treeland-foreign-toplevel-manager-v3/README.md) | E | 真实 toplevel、dock preview、窗口状态（含最小化与布局正交）、激活/焦点与 icon rectangle |
 | [input-manager-unstable-v1](treeland-input-manager-unstable-v1/README.md) | I / E（可选） | 默认空设备 manager 生命周期；uinput 驱动真实 libinput capability 热插拔 |

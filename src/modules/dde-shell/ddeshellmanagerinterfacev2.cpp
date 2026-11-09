@@ -78,6 +78,9 @@ void DDEShellManagerInterfaceV2Private::get_shell_surface(Resource *resource,
         s_shellSurfacesV2.removeOne(shellSurface);
     });
 
+    if (wl_resource_get_version(shell_resource) >= TREELAND_DDE_SHELL_SURFACE_V2_ROLE_SINCE_VERSION)
+        treeland_dde_shell_surface_v2_send_role(shell_resource, shellSurface->role());
+
     Q_EMIT q->surfaceCreated(shellSurface);
 }
 
@@ -168,18 +171,9 @@ void DDEShellSurfaceV2Private::destroy([[maybe_unused]] Resource *resource)
     wl_resource_destroy(resource->handle);
 }
 
-void DDEShellSurfaceV2Private::set_role([[maybe_unused]] Resource *resource,
-                                        uint32_t value)
+void DDEShellSurfaceV2Private::set_role(Resource *resource, uint32_t value)
 {
-    DDEShellSurfaceV2::Role newRole;
-    switch (value) {
-    case QtWaylandServer::treeland_dde_shell_surface_v2::role::role_normal:
-        newRole = DDEShellSurfaceV2::NORMAL;
-        break;
-    case QtWaylandServer::treeland_dde_shell_surface_v2::role::role_overlay:
-        newRole = DDEShellSurfaceV2::OVERLAY;
-        break;
-    default:
+    if (!treeland_dde_shell_surface_v2_role_is_valid(value, resource->version())) {
         wl_resource_post_error(resource->handle,
                                0,
                                "Invalid treeland_dde_shell_surface_v2::role: %u",
@@ -187,12 +181,7 @@ void DDEShellSurfaceV2Private::set_role([[maybe_unused]] Resource *resource,
         return;
     }
 
-    if (role == newRole) {
-        return;
-    }
-
-    role = newRole;
-    Q_EMIT q->roleChanged(newRole);
+    q->setRole(static_cast<DDEShellSurfaceV2::Role>(value));
 }
 
 void DDEShellSurfaceV2Private::set_position_hint([[maybe_unused]] Resource *resource,
@@ -293,6 +282,17 @@ WSurface *DDEShellSurfaceV2::wSurface() const
 DDEShellSurfaceV2::Role DDEShellSurfaceV2::role() const
 {
     return d->role;
+}
+
+void DDEShellSurfaceV2::setRole(Role role)
+{
+    if (d->role == role)
+        return;
+
+    d->role = role;
+    Q_EMIT roleChanged(role);
+    if (d->resource()->version() >= TREELAND_DDE_SHELL_SURFACE_V2_ROLE_SINCE_VERSION)
+        d->send_role(d->role);
 }
 
 std::optional<QPoint> DDEShellSurfaceV2::positionHint() const

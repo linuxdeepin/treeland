@@ -13,6 +13,23 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
+namespace {
+using ShellSurface = QtWayland::treeland_dde_shell_surface_v2;
+
+QString roleName(DDEShellWayland::Role role)
+{
+    switch (role) {
+    case ShellSurface::role_normal:
+        return QStringLiteral("normal");
+    case ShellSurface::role_overlay:
+        return QStringLiteral("overlay");
+    case ShellSurface::role_always_on_top:
+        return QStringLiteral("always_on_top");
+    }
+    return QStringLiteral("未知角色 (%1)").arg(static_cast<uint32_t>(role));
+}
+}
+
 DDEShelSurfaceWindow::DDEShelSurfaceWindow(TestMode mode, QWidget *parent)
     : QWidget{ parent }
     , m_mode(mode)
@@ -28,6 +45,8 @@ DDEShelSurfaceWindow::DDEShelSurfaceWindow(TestMode mode, QWidget *parent)
     m_roleCombo = new QComboBox;
     m_roleCombo->addItem(QStringLiteral("role_overlay（overlay 层，位于普通窗口之上）"), int(QtWayland::treeland_dde_shell_surface_v2::role_overlay));
     m_roleCombo->addItem(QStringLiteral("role_normal（普通窗口层）"), int(QtWayland::treeland_dde_shell_surface_v2::role_normal));
+    m_roleCombo->addItem(QStringLiteral("role_always_on_top（始终置顶）"),
+                         int(ShellSurface::role_always_on_top));
 
     // skip 位域
     auto *skipGroup = new QGroupBox(QStringLiteral("set_skip_flags 位域"));
@@ -106,17 +125,24 @@ void DDEShelSurfaceWindow::updateStatusLabel()
         | (m_skipDockPreview->isChecked() ? 0x2 : 0)
         | (m_skipMultitask->isChecked() ? 0x4 : 0);
 
-    const QString roleText = m_roleCombo->currentData().toInt() == int(QtWayland::treeland_dde_shell_surface_v2::role_overlay)
-        ? QStringLiteral("overlay")
-        : QStringLiteral("normal");
+    const auto requestedRole = static_cast<DDEShellWayland::Role>(m_roleCombo->currentData().toInt());
+    QString effectiveRoleText = QStringLiteral("等待 role 事件");
+    if (auto *window = windowHandle()) {
+        const auto *dde = DDEShellWayland::get(window);
+        if (const auto effectiveRole = dde->effectiveRole()) {
+            effectiveRoleText = roleName(*effectiveRole);
+        } else if (dde->protocolVersion() == 1) {
+            effectiveRoleText = QStringLiteral("接口版本 1 不支持 role 事件");
+        }
+    }
 
     m_statusLabel->setText(
         QStringLiteral("当前配置：%1\n"
-                       "role: %2\n"
-                       "skip_flags: 0x%3\n"
-                       "accept_keyboard_focus: %4")
-            .arg(modeText)
-            .arg(roleText)
+                       "请求角色: %2\n"
+                       "实际角色（服务端）: %3\n"
+                       "skip_flags: 0x%4\n"
+                       "accept_keyboard_focus: %5")
+            .arg(modeText, roleName(requestedRole), effectiveRoleText)
             .arg(skip, 0, 16)
             .arg(m_acceptFocus->isChecked() ? QStringLiteral("true") : QStringLiteral("false")));
 }
@@ -124,6 +150,8 @@ void DDEShelSurfaceWindow::updateStatusLabel()
 void DDEShelSurfaceWindow::apply()
 {
     auto *dde = DDEShellWayland::get(windowHandle());
+    connect(dde, &DDEShellWayland::roleStateChanged,
+            this, &DDEShelSurfaceWindow::updateStatusLabel, Qt::UniqueConnection);
 
     dde->setRole(static_cast<QtWayland::treeland_dde_shell_surface_v2::role>(m_roleCombo->currentData().toInt()));
 
