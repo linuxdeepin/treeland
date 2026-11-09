@@ -40,45 +40,65 @@ Control {
         blocking: true
     }
 
-    // Left mouse button handler
-    TapHandler {
-        acceptedButtons: Qt.LeftButton
-        onTapped: {
-            WaylandServer.activateSurface(surface)
+    // One MouseArea owns every title bar press, so the ownership test below runs once per
+    // press and a window move starts from the same grab. The TapHandler/DragHandler variant
+    // could only gate its drag on the cursor position at drag time, and it was reverted after
+    // the pointer wedged on real hardware; that cause is still unknown and is not addressed
+    // by this file.
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+
+        property point pressPosition
+        property bool movingWindow: false
+        // A press the window above covers reached this title bar only through a hole
+        // in that window's input: do not activate or move this window on it.
+        property bool pressBelongsToWindow: true
+        // onPressAndHold cannot tell the device, Qt stamps that event as
+        // MouseEventSynthesizedByQt for mice too. Real pointer events arrive as
+        // NotSynthesized (WSeat sends them so, see waylib wseat.cpp), touch screens as
+        // a synthesized press. Compared by equality since MouseEvent.source is
+        // deprecated: a Qt build without it then only loses touch long press.
+        property bool pressWasTouch: false
+
+        onPressed: function (mouse) {
+            pressPosition = Qt.point(mouse.x, mouse.y)
+            movingWindow = false
+            pressWasTouch = mouse.source === Qt.MouseEventSynthesizedByQt
+                || mouse.source === Qt.MouseEventSynthesizedBySystem
+            pressBelongsToWindow = root.surface.isTopmostWindowAt(
+                root.mapToItem(null, Qt.point(mouse.x, mouse.y)))
         }
-        onDoubleTapped: {
-            if (root.canToggleMaximize)
+        onPositionChanged: function (mouse) {
+            if (!pressed || movingWindow || !pressBelongsToWindow
+                || !(mouse.buttons & Qt.LeftButton))
+                return
+            const dx = mouse.x - pressPosition.x
+            const dy = mouse.y - pressPosition.y
+            const threshold = Qt.styleHints.startDragDistance
+            if (dx * dx + dy * dy < threshold * threshold)
+                return
+            movingWindow = true
+            surface.moveRequested()
+        }
+        onClicked: function (mouse) {
+            if (!pressBelongsToWindow || movingWindow)
+                return
+            if (mouse.button === Qt.LeftButton)
+                WaylandServer.activateSurface(surface)
+            else
+                surface.windowMenuRequested(Qt.point(mouse.x, mouse.y))
+        }
+        onDoubleClicked: function (mouse) {
+            if (pressBelongsToWindow && mouse.button === Qt.LeftButton && root.canToggleMaximize)
                 surface.toggleMaximized()
         }
-    }
-
-    DragHandler {
-        acceptedButtons: Qt.LeftButton
-        target: null
-        dragThreshold: Qt.styleHints.startDragDistance
-        onActiveChanged: {
-            if (active)
-                surface.moveRequested()
+        onPressAndHold: function (mouse) {
+            // Touch screen only, and never mid-drag: this timer is not stopped by
+            // movement, while a dragged window keeps the cursor over the same spot.
+            if (pressBelongsToWindow && pressWasTouch && !movingWindow)
+                surface.windowMenuRequested(Qt.point(mouse.x, mouse.y))
         }
-    }
-
-    // Right mouse button handler
-    TapHandler {
-        acceptedButtons: Qt.RightButton
-        onTapped: {
-            surface.windowMenuRequested(eventPoint.position)
-        }
-    }
-
-    // Touch screen click
-    TapHandler {
-        acceptedButtons: Qt.NoButton
-        acceptedDevices: PointerDevice.TouchScreen
-        onDoubleTapped: {
-            if (root.canToggleMaximize)
-                surface.toggleMaximized()
-        }
-        onLongPressed: surface.windowMenuRequested(point.position)
     }
 
     Rectangle {
@@ -121,6 +141,10 @@ Control {
                     D.ColorSelector.inactived: !surface.isActivated
 
                     onClicked: {
+                        // A covered title bar can be reached through an area of the
+                        // window above that owns no input; its buttons stay inert then.
+                        if (!surface.isTopmostWindowUnderCursor())
+                            return
                         surface.minimize()
                     }
                 }
@@ -138,6 +162,8 @@ Control {
                     D.ColorSelector.inactived: !surface.isActivated
 
                     onClicked: {
+                        if (!surface.isTopmostWindowUnderCursor())
+                            return
                         WaylandServer.activateSurface(surface)
                         surface.toggleMaximized()
                     }
@@ -162,6 +188,8 @@ Control {
                         D.ColorSelector.inactived: !surface.isActivated
 
                         onClicked: {
+                            if (!surface.isTopmostWindowUnderCursor())
+                                return
                             surface.closeSurface()
                         }
                     }
