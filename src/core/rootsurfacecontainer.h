@@ -143,7 +143,9 @@ private:
 
     void ensureCursorVisible();
     void updateCursorOutput();
-    void updateSurfaceOutputs(SurfaceWrapper *surface);
+    // `reason` names the trigger and is reported by treeland-debug: H1 (DPMS
+    // off) and H2 (output added, not yet enabled) both empty the list.
+    void updateSurfaceOutputs(SurfaceWrapper *surface, const QString &reason);
     // Recomputes the outputs of every window after an output became enabled: a
     // surface that left all outputs would otherwise never be re-entered.
     void onOutputEnabledChanged();

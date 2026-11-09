@@ -32,6 +32,24 @@ POD WindowInfo(
     // entered one on a tie.
     QList<QString> outputs,
     QString framePacingOutput,
+    // Why the window is on no output at all. lastLeave fields: the most recent
+    // leave caused by an output recompute, its output name, whether that output
+    // was enabled then, and whether the surface was left without outputs.
+    // lastOutputsUpdate fields: the last updateSurfaceOutputs call, its trigger
+    // -- geometryChanged, surfaceAdded, addOutput or enabledChanged -- how many
+    // outputs the compositor had enabled vs total in its output model then, the
+    // size of the list handed to setOutputs, and positionAutomatic at that
+    // moment. Total counts output model entries: a mirrored screen is two of
+    // them, not two connectors. The bools have no never-happened value, so read
+    // an empty lastLeaveOutput or lastOutputsUpdateReason as nothing recorded.
+    QString lastLeaveOutput,
+    bool lastLeaveOutputEnabled,
+    bool lastLeaveEmptiedOutputs,
+    QString lastOutputsUpdateReason,
+    int lastOutputsUpdateEnabled,
+    int lastOutputsUpdateTotal,
+    int lastOutputsUpdateComputed,
+    bool lastOutputsUpdateAutomatic,
     // Input and opaque regions of the wlr_surface, in surface-local
     // coordinates.
     QRegion inputRegion,
