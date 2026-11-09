@@ -1131,7 +1131,7 @@ void SurfaceWrapper::setOwnsOutput(Output *newOwnsOutput)
     Q_EMIT ownsOutputChanged();
 }
 
-void SurfaceWrapper::setOutputs(const QList<WOutput *> &outputs)
+void SurfaceWrapper::setOutputs(const QList<WOutput *> &outputs, bool recordDiagnostics)
 {
     if (m_wrapperAboutToRemove)
         return;
@@ -1148,10 +1148,13 @@ void SurfaceWrapper::setOutputs(const QList<WOutput *> &outputs)
         if (outputs.contains(output)) {
             continue;
         }
-        m_outputsDiagnostics.lastLeaveOutput = output->name();
-        m_outputsDiagnostics.lastLeaveOutputEnabled = output->isEnabled();
+        if (recordDiagnostics) {
+            m_outputsDiagnostics.lastLeaveOutput = output->name();
+            m_outputsDiagnostics.lastLeaveOutputEnabled = output->isEnabled();
+        }
         surface()->leaveOutput(output);
-        m_outputsDiagnostics.lastLeaveEmptiedOutputs = surface()->outputs().isEmpty();
+        if (recordDiagnostics)
+            m_outputsDiagnostics.lastLeaveEmptiedOutputs = surface()->outputs().isEmpty();
     }
 
     for (auto output : outputs) {
@@ -1161,7 +1164,7 @@ void SurfaceWrapper::setOutputs(const QList<WOutput *> &outputs)
     }
 }
 
-void SurfaceWrapper::noteOutputsUpdate(const QString &reason,
+void SurfaceWrapper::noteOutputsUpdate(OutputsUpdateReason reason,
                                        int enabledOutputs,
                                        int totalOutputs,
                                        int computedOutputs)
