@@ -170,6 +170,18 @@ void SurfaceProtocolController::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         // The frozen Personalization above handles the deprecated
         // treeland-personalization-manager-v1 window context; per-window
         // customization for the new protocol is applied via Decoration.
+        //
+        // An xdg popup negotiates no xdg-decoration and has no titlebar of its
+        // own: its frame follows the parent's decoration state. This must run
+        // BEFORE the Decoration adapter below — its constructor applies an
+        // existing decoration context, and that opt-in must win over the
+        // parent-following default.
+        if (isXdgPopup) {
+            wrapper->setNoTitleBar(true);
+            wrapper->setNoDecoration(wrapper->parentSurface()
+                                     && wrapper->parentSurface()->noDecoration());
+        }
+
         auto *decoration =
             new Decoration(wrapper->shellSurface(), m_decorationInterfaceV1, wrapper);
         connect(wrapper, &SurfaceWrapper::aboutToBeInvalidated,
@@ -204,19 +216,11 @@ void SurfaceProtocolController::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         // deprecated personalization protocol, whose NoTitleBar state used to
         // switch the wrapper back to compositor decoration (SSD frame). Keep
         // that side effect only for the quick launchpad so it keeps drawing
-        // its frame during the migration period. Revisit once dde-shell stops
-        // sending set_titlebar for the quick launchpad; drop this block together
-        // with the deprecated personalization protocol.
+        // its frame during the migration period.
+        // TODO: drop once dde-shell migrates the quick launchpad to the new
+        // treeland-decoration protocol (together with the deprecated
+        // personalization protocol).
         if (wrapper->isQuickLaunchpad() && attached->noTitlebar()) {
-            wrapper->setNoDecoration(false);
-        }
-
-        // An xdg popup negotiates no xdg-decoration and has no titlebar of its
-        // own: it always uses the compositor's shadow, border and rounded
-        // corners. Both axes are stated explicitly here rather than left to
-        // Personalization::noTitlebar() hard-coding true for popups.
-        if (isXdgPopup) {
-            wrapper->setNoTitleBar(true);
             wrapper->setNoDecoration(false);
         }
 
