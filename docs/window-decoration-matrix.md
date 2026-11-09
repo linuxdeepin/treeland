@@ -44,9 +44,9 @@
 | Type | 装饰器（边框+阴影） | 标题栏 | 默认圆角 | 说明 |
 | --- | --- | --- | --- | --- |
 | `XdgToplevel` | 取决于 xdg-decoration（见 §3） | 取决于 personalization / decoration 协议 | DConfig `windowRadius`（12） | 唯一常规「有标题栏」的类型 |
-| `XdgPopup` | ✅ 强制有（`setNoDecoration(false)`） | ❌ 无 | **8**（硬编码） | 无尺寸调整 MouseArea |
+| `XdgPopup` | 跟随 parent；treeland-decoration 调用后强制有 | ❌ 无 | **8**（硬编码） | 无尺寸调整 MouseArea |
 | `XWayland` | 取决于 X11 装饰 hints | 取决于 X11 装饰 hints | DConfig `windowRadius`（12） | 默认有边框 + 标题栏 |
-| `Layer` | ❌ 无（默认 `true`） | ❌ 无 | **0** | 不参与 DConfig 圆角回退；quick-launchpad 有兼容特判 |
+| `Layer` | ❌ 无（默认 `true`）；treeland-decoration 调用后强制有 | ❌ 无 | **0** | 不参与 DConfig 圆角回退；quick-launchpad 有兼容特判 |
 | `InputPopup` | ❌ 无 | ❌ 无 | **0** | `isInputPopupLike()` |
 | `LockScreen` | ❌ 无（显式 `setNoDecoration(true)`） | ❌ 无 | 名义 12，但无装饰器故不生效 | 全屏锁屏面 |
 | `SplashScreen`（prelaunch） | ✅ 有（`setNoDecoration(false)`） | ❌ 无 | DConfig `windowRadius`（12） | `updateDecoration()` 显式跳过标题栏；未指定尺寸时默认 800×600 |
@@ -117,8 +117,8 @@ setNoCornerRadius(Maximized || Fullscreen || Tiling);     // 非 Normal 无圆�
 
 | # | 特判 | 代码位置 | 行为 |
 | --- | --- | --- | --- |
-| 1 | `XdgPopup` | `surfaceprotocolcontroller.cpp` popup 分支 | `setNoTitleBar(true)` + `setNoDecoration(false)`：无标题栏但有阴影边框，圆角固定 8 |
-| 2 | **quick-launchpad 兼容**（COMPAT） | `surfaceprotocolcontroller.cpp` | 旧 personalization 协议仍驱动 quick-launchpad；`isQuickLaunchpad() && noTitlebar()` 时 `setNoDecoration(false)` 恢复边框。**迁移完成后连同旧协议一起删** |
+| 1 | `XdgPopup` | `surfaceprotocolcontroller.cpp` popup 分支 | `setNoTitleBar(true)`；装饰器跟随 parent（`parentSurface()->noDecoration()`），treeland-decoration 调用后强制有。圆角固定 8 |
+| 2 | **quick-launchpad 兼容**（COMPAT） | `surfaceprotocolcontroller.cpp` | 旧 personalization 协议仍驱动 quick-launchpad；`isQuickLaunchpad() && noTitlebar()` 时 `setNoDecoration(false)` 恢复边框。**TODO：dde-shell 迁移到新 decoration 协议后连同旧协议一起删** |
 | 3 | 大启动器 cover | `surfaceprotocolcontroller.cpp` | `isLaunchpad()` → `setCoverEnabled(true)`（`LaunchpadCover.qml` 壁纸背景） |
 | 4 | 启动器层级 | `shellhandler.cpp` | layer Top 的 `isLaunchpad() \|\| isQuickLaunchpad()` → `setZ(-1)` |
 | 5 | 桌面层级 | `shellhandler.cpp` | layer Background 的 `isDesktop()` → `setZ(1)` |
@@ -128,6 +128,11 @@ setNoCornerRadius(Maximized || Fullscreen || Tiling);     // 非 Normal 无圆�
 | 9 | 锁屏面 | `lockscreen.cpp` | `setNoDecoration(true)` + skip switcher/multitask |
 | 10 | prelaunch splash | `surfacewrapper.cpp` 构造函数 | `setNoDecoration(false)` 给启动画面画边框阴影；`updateDecoration()` 对 SplashScreen 跳过标题栏 |
 | 11 | 全屏/最大化/平铺 | `applySurfaceState()` | 隐藏装饰器 + 无圆角（见 §3.3） |
+| 12 | treeland-decoration 强制装饰器 | `decorationmanagerinterfacev1.cpp` | 非 toplevel（popup/layer）一旦调用 decoration 协议任意接口，即 `setNoDecoration(false)` 启用合成器边框，**不可撤销**（popup 的 parent 跟随需在 Decoration 之前完成，见下方注）；其 `set_titlebar_mode` 被忽略 |
+
+> 注（顺序敏感）：`onSurfaceWrapperAdded` 里 popup 的「跟随 parent 装饰状态」分支必须
+> 在 `new Decoration(...)` 之前执行。`Decoration` 构造会应用已存在的 decoration context，
+> 该 opt-in 必须覆盖 popup 的 parent 跟随默认值。不要把 popup 分支移到 Decoration 之后。
 
 ---
 
@@ -175,5 +180,5 @@ return radius;
 - [ ] 新增窗口类型时补全矩阵：装饰器 / 标题栏 / 圆角三列都要说明。
 - [ ] 涉及 `Type::Layer` 的圆角时，记得它**不参与** DConfig 回退。
 - [ ] 旧 personalization 协议的 quick-launchpad COMPAT 块（§4 #2）是临时迁移代码，
-      删除旧协议时一并清理。
+      TODO：dde-shell 迁移到新 decoration 协议后连同旧协议一起删。
 - [ ] 圆角渲染依赖 `decoration && visibleDecoration`，只设 radius 不设 decoration 不生效。

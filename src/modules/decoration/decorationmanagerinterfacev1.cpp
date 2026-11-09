@@ -418,6 +418,15 @@ void Decoration::applyContext(DecorationContextV1 *context)
     if (!wrapper)
         return;
 
+    // Non-toplevel roles (popup / layer shell) have no xdg-decoration
+    // negotiation of their own: any decoration request opts them into a
+    // compositor frame, one-way. Callers must not later call
+    // setNoDecoration(true) on these wrappers (see the popup parent-follow
+    // ordering in onSurfaceWrapperAdded).
+    if (wrapper->type() != SurfaceWrapper::Type::XdgToplevel) {
+        wrapper->setNoDecoration(false);
+    }
+
     // Corner radius: a set value (including 0 = square corners) overrides the
     // compositor default; an unset value keeps the wrapper default.
     if (auto radius = context->cornerRadius()) {
@@ -458,22 +467,27 @@ void Decoration::applyContext(DecorationContextV1 *context)
 
     // Titlebar: hide keeps the rest of the SSD (half-CSD half-SSD).
     //
-    // This adapter only records the override and notifies WaylandServer; the actual
-    // SurfaceWrapper::noTitleBar write is arbitrated in WaylandServer so the frozen
-    // personalization path and the new protocol can't clobber each other.
-    if (auto mode = context->titlebarMode()) {
-        m_titlebarOverridden = true;
-        m_noTitleBar = *mode == TREELAND_DECORATION_CONTEXT_V1_TITLEBAR_MODE_HIDE;
-        Q_EMIT titlebarOverrideChanged();
+    // Only toplevels may toggle the titlebar through this protocol. Popups and
+    // layer shells have no SSD titlebar, so their set_titlebar_mode requests
+    // are ignored entirely.
+    if (wrapper->type() == SurfaceWrapper::Type::XdgToplevel) {
+        // This adapter only records the override and notifies WaylandServer; the actual
+        // SurfaceWrapper::noTitleBar write is arbitrated in WaylandServer so the frozen
+        // personalization path and the new protocol can't clobber each other.
+        if (auto mode = context->titlebarMode()) {
+            m_titlebarOverridden = true;
+            m_noTitleBar = *mode == TREELAND_DECORATION_CONTEXT_V1_TITLEBAR_MODE_HIDE;
+            Q_EMIT titlebarOverrideChanged();
+        }
+        connect(context, &DecorationContextV1::titlebarModeChanged, this, [this, context] {
+            const auto mode = context->titlebarMode();
+            if (!mode)
+                return;
+            m_titlebarOverridden = true;
+            m_noTitleBar = *mode == TREELAND_DECORATION_CONTEXT_V1_TITLEBAR_MODE_HIDE;
+            Q_EMIT titlebarOverrideChanged();
+        });
     }
-    connect(context, &DecorationContextV1::titlebarModeChanged, this, [this, context] {
-        const auto mode = context->titlebarMode();
-        if (!mode)
-            return;
-        m_titlebarOverridden = true;
-        m_noTitleBar = *mode == TREELAND_DECORATION_CONTEXT_V1_TITLEBAR_MODE_HIDE;
-        Q_EMIT titlebarOverrideChanged();
-    });
 
     // When the context is destroyed the compositor may revert customized
     // properties to their defaults (per protocol spec).
