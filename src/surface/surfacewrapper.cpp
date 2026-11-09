@@ -17,6 +17,7 @@
 #include <wlayersurface.h>
 #include <wlayersurfaceitem.h>
 #include <woutput.h>
+#include <wcursor.h>
 #include <woutputitem.h>
 #include <woutputrenderwindow.h>
 #include <wsocket.h>
@@ -947,6 +948,59 @@ QRectF SurfaceWrapper::titlebarGeometry() const
 QRectF SurfaceWrapper::boundingRect() const
 {
     return m_boundedRect;
+}
+
+bool SurfaceWrapper::isTopmostWindowAt(const QPointF &scenePos) const
+{
+    // Only real windows take part in the window stacking order; layer shells, popups
+    // and other roles keep their own stacking and are activated as before. Child
+    // windows (dialogs, X11 transients) are ordinary windows here: paint order already
+    // puts their parent below them.
+    if (type() != Type::XdgToplevel && type() != Type::XWayland)
+        return true;
+
+    auto *renderWindow = qobject_cast<WOutputRenderWindow *>(window());
+    if (!renderWindow || !renderWindow->contentItem())
+        return true;
+
+    // paintOrderItemList() runs bottom to top, so walk it backwards: the first window
+    // that covers the position decides. If it is this window, nothing hides it. The
+    // whole scene is walked, so this belongs to press/click paths only, never to a
+    // per-frame one (hover, motion).
+    const auto items = WOutputRenderWindow::paintOrderItemList(
+        renderWindow->contentItem(), [](QQuickItem *item) { return item->isVisible(); });
+    for (auto it = items.crbegin(); it != items.crend(); ++it) {
+        auto *window = qobject_cast<SurfaceWrapper *>(it->data());
+        if (!window)
+            continue;
+        if (window == this)
+            return true;
+        // A snap mask is the full-screen overlay a client (dde-shell) draws for edge tiling.
+        // It covers every window by rectangle and is expected to have an empty input region,
+        // so it never takes a press; counting it would make the whole screen look covered and
+        // stop windows from being activated at all. That the region stays empty is a client
+        // convention, not something enforced here.
+        if (window->isSnapMask())
+            continue;
+        if (window->type() != Type::XdgToplevel && window->type() != Type::XWayland)
+            continue;
+        if (window->mapRectToScene(QRectF(QPointF(0, 0), window->size())).contains(scenePos))
+            return false;
+    }
+
+    return true;
+}
+
+bool SurfaceWrapper::isTopmostWindowUnderCursor() const
+{
+    auto *server = WaylandServer::instance();
+    auto *seat = server ? server->seat() : nullptr;
+    auto *cursor = seat ? seat->cursor() : nullptr;
+    auto *win = window();
+    if (!cursor || !win)
+        return true;
+
+    return isTopmostWindowAt(win->mapFromGlobal(cursor->position()));
 }
 
 QRectF SurfaceWrapper::normalGeometry() const
