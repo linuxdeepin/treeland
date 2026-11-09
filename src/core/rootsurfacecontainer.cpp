@@ -162,6 +162,38 @@ void RootSurfaceContainer::addOutput(Output *output)
             continue;
         updateSurfaceOutputs(s);
     }
+
+    // A disabled output is dropped by updateSurfaceOutputs(), and a surface can
+    // be left with no output at all (e.g. the screen was turned off by DPMS)
+    // until it is re-enabled. That is not a geometry change, so nothing would
+    // recompute the outputs: the surface would keep an empty frame pacing output
+    // and freeze forever. Recompute here once the output is really enabled
+    // again, which also covers the first enable commit of a newly added output.
+    // A member slot instead of a lambda: Output is recreated (mirror/extension
+    // switching) while its WOutput lives on, so the handler must not capture it,
+    // and UniqueConnection keeps one handler per WOutput however often the
+    // output is registered again.
+    QObject::connect(output->output(),
+                     &WOutput::enabledChanged,
+                     this,
+                     &RootSurfaceContainer::onOutputEnabledChanged,
+                     Qt::UniqueConnection);
+}
+
+void RootSurfaceContainer::onOutputEnabledChanged()
+{
+    // enabledChanged() carries no argument, read the new state from the sender.
+    // Disabling keeps the previous behaviour (the lists are cleared only when
+    // something recomputes them); re-enabling is the case that has to heal.
+    auto *woutput = qobject_cast<WOutput *>(sender());
+    if (!woutput || !woutput->isEnabled())
+        return;
+
+    for (auto s : std::as_const(surfaces())) {
+        if (s->type() == SurfaceWrapper::Type::Layer)
+            continue;
+        updateSurfaceOutputs(s);
+    }
 }
 
 void RootSurfaceContainer::removeOutput(Output *output)
