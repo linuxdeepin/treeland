@@ -439,6 +439,27 @@ TreelandInfo TreelandRemoteSource::getTreelandInfo()
     return info;
 }
 
+// The rep field stays a string: treeland-debug prints it and a name reads better
+// than a number in the JSON. This is the only place the enum becomes text, and
+// the names below are the wire contract: camelCase on purpose, so
+// QMetaEnum::valueToKey() (which would answer GeometryChanged) cannot be used.
+static QString outputsUpdateReasonName(SurfaceWrapper::OutputsUpdateReason reason)
+{
+    switch (reason) {
+    case SurfaceWrapper::OutputsUpdateReason::GeometryChanged:
+        return QStringLiteral("geometryChanged");
+    case SurfaceWrapper::OutputsUpdateReason::SurfaceAdded:
+        return QStringLiteral("surfaceAdded");
+    case SurfaceWrapper::OutputsUpdateReason::AddOutput:
+        return QStringLiteral("addOutput");
+    case SurfaceWrapper::OutputsUpdateReason::EnabledChanged:
+        return QStringLiteral("enabledChanged");
+    case SurfaceWrapper::OutputsUpdateReason::Unknown:
+        break;
+    }
+    return {};
+}
+
 WindowInfo TreelandRemoteSource::buildWindowInfo(SurfaceWrapper *surface,
                                                  int layer,
                                                  const QString &containerName,
@@ -490,7 +511,7 @@ WindowInfo TreelandRemoteSource::buildWindowInfo(SurfaceWrapper *surface,
     info.setLastLeaveOutput(diag.lastLeaveOutput);
     info.setLastLeaveOutputEnabled(diag.lastLeaveOutputEnabled);
     info.setLastLeaveEmptiedOutputs(diag.lastLeaveEmptiedOutputs);
-    info.setLastOutputsUpdateReason(diag.updateReason);
+    info.setLastOutputsUpdateReason(outputsUpdateReasonName(diag.updateReason));
     info.setLastOutputsUpdateEnabled(diag.updateEnabledOutputs);
     info.setLastOutputsUpdateTotal(diag.updateTotalOutputs);
     info.setLastOutputsUpdateComputed(diag.updateComputedOutputs);
