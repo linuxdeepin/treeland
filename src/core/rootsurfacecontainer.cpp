@@ -160,7 +160,7 @@ void RootSurfaceContainer::addOutput(Output *output)
     for (auto s : std::as_const(surfaces())) {
         if (s->type() == SurfaceWrapper::Type::Layer)
             continue;
-        updateSurfaceOutputs(s);
+        updateSurfaceOutputs(s, QStringLiteral("addOutput"));
     }
 
     // A disabled output is dropped by updateSurfaceOutputs(), and a surface can
@@ -192,7 +192,7 @@ void RootSurfaceContainer::onOutputEnabledChanged()
     for (auto s : std::as_const(surfaces())) {
         if (s->type() == SurfaceWrapper::Type::Layer)
             continue;
-        updateSurfaceOutputs(s);
+        updateSurfaceOutputs(s, QStringLiteral("enabledChanged"));
     }
 }
 
@@ -329,10 +329,10 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
         }
 
         connect(surface, &SurfaceWrapper::geometryChanged, this, [this, surface] {
-            updateSurfaceOutputs(surface);
+            updateSurfaceOutputs(surface, QStringLiteral("geometryChanged"));
         });
 
-        updateSurfaceOutputs(surface);
+        updateSurfaceOutputs(surface, QStringLiteral("surfaceAdded"));
     }
 }
 
@@ -503,9 +503,16 @@ void RootSurfaceContainer::ensureCursorVisible()
     }
 }
 
-void RootSurfaceContainer::updateSurfaceOutputs(SurfaceWrapper *surface)
+void RootSurfaceContainer::updateSurfaceOutputs(SurfaceWrapper *surface, const QString &reason)
 {
     QList<WOutput *> outputs;
+
+    const auto &allOutputs = m_outputModel->objects();
+    int enabledOutputs = 0;
+    for (auto *output : allOutputs) {
+        if (output->output()->isEnabled())
+            ++enabledOutputs;
+    }
 
     if (surface->type() != SurfaceWrapper::Type::Layer) {
         for (auto *output : m_outputModel->objects()) {
@@ -533,6 +540,10 @@ void RootSurfaceContainer::updateSurfaceOutputs(SurfaceWrapper *surface)
     if (surface->positionAutomatic() && surface->ownsOutput()
         && !outputs.contains(surface->ownsOutput()->output()))
         outputs.append(surface->ownsOutput()->output());
+    surface->noteOutputsUpdate(reason,
+                               enabledOutputs,
+                               static_cast<int>(allOutputs.size()),
+                               static_cast<int>(outputs.size()));
     surface->setOutputs(outputs);
 
     if (auto *ws = WaylandServer::instance()->workspace())

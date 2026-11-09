@@ -486,6 +486,16 @@ WindowInfo TreelandRemoteSource::buildWindowInfo(SurfaceWrapper *surface,
     }
     info.setFramePacingOutput(framePacingOutputName);
 
+    const auto &diag = surface->outputsDiagnostics();
+    info.setLastLeaveOutput(diag.lastLeaveOutput);
+    info.setLastLeaveOutputEnabled(diag.lastLeaveOutputEnabled);
+    info.setLastLeaveEmptiedOutputs(diag.lastLeaveEmptiedOutputs);
+    info.setLastOutputsUpdateReason(diag.updateReason);
+    info.setLastOutputsUpdateEnabled(diag.updateEnabledOutputs);
+    info.setLastOutputsUpdateTotal(diag.updateTotalOutputs);
+    info.setLastOutputsUpdateComputed(diag.updateComputedOutputs);
+    info.setLastOutputsUpdateAutomatic(diag.updateAutomatic);
+
     QString title;
     if (auto *shellSurface = surface->shellSurface()) {
         title = shellSurface->property("title").toString();

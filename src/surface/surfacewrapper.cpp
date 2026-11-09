@@ -1148,7 +1148,10 @@ void SurfaceWrapper::setOutputs(const QList<WOutput *> &outputs)
         if (outputs.contains(output)) {
             continue;
         }
+        m_outputsDiagnostics.lastLeaveOutput = output->name();
+        m_outputsDiagnostics.lastLeaveOutputEnabled = output->isEnabled();
         surface()->leaveOutput(output);
+        m_outputsDiagnostics.lastLeaveEmptiedOutputs = surface()->outputs().isEmpty();
     }
 
     for (auto output : outputs) {
@@ -1156,6 +1159,20 @@ void SurfaceWrapper::setOutputs(const QList<WOutput *> &outputs)
             continue;
         surface()->enterOutput(output);
     }
+}
+
+void SurfaceWrapper::noteOutputsUpdate(const QString &reason,
+                                       int enabledOutputs,
+                                       int totalOutputs,
+                                       int computedOutputs)
+{
+    // Every lastOutputsUpdate* field is written here and nowhere else, so the
+    // eight values always describe the same updateSurfaceOutputs() call.
+    m_outputsDiagnostics.updateReason = reason;
+    m_outputsDiagnostics.updateEnabledOutputs = enabledOutputs;
+    m_outputsDiagnostics.updateTotalOutputs = totalOutputs;
+    m_outputsDiagnostics.updateComputedOutputs = computedOutputs;
+    m_outputsDiagnostics.updateAutomatic = positionAutomatic();
 }
 
 const QList<WOutput *> &SurfaceWrapper::outputs() const
