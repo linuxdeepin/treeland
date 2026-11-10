@@ -25,6 +25,7 @@
 #include <woutputlayout.h>
 #include <woutputrenderwindow.h>
 #include <wquicktextureproxy.h>
+#include <wseat.h>
 #include <wsurfaceitem.h>
 #include <wxdgpopupsurface.h>
 #include <wxdgpopupsurfaceitem.h>
@@ -915,6 +916,62 @@ void Output::adjustToOutputBounds(QPointF &pos, const QRectF &normalGeo, const Q
     }
 }
 
+// Layout-space position a popup should be moved to, or nullopt when it cannot be
+// determined (yet).
+std::optional<QPointF> Output::popupPosition(SurfaceWrapper *surface) const
+{
+    if (auto fallback = inputPopupFallbackPosition(surface))
+        return fallback;
+
+    auto dPos = popupDPos(surface);
+    if (!dPos.has_value())
+        return std::nullopt;
+
+    const QPointF pos = calculateBasePosition(surface, dPos.value());
+    if (pos.isNull()) {
+        return std::nullopt;
+    }
+    return pos;
+}
+
+// A text-input panel is anchored at the cursor rectangle its client reports, but
+// Chromium and Electron clients (VSCode, Thorium) only send it with their first
+// text update. Until then there is no anchor at all, and the panel used to end up
+// in the output's top-left corner. Anchor it at the pointer instead - the user
+// just clicked into the text field - clamped to the parent window, and fall back
+// to the parent's content origin when the pointer is elsewhere (focus moved by
+// Tab, pointer left on another window or output). The client's rectangle
+// re-anchors the panel as soon as it arrives.
+// XWayland candidate panels (isInputPopupLike() but not Type::InputPopup) are left
+// alone: their X11 client positions them, they never wait for a cursor rectangle.
+std::optional<QPointF> Output::inputPopupFallbackPosition(SurfaceWrapper *surface) const
+{
+    if (surface->type() != SurfaceWrapper::Type::InputPopup)
+        return std::nullopt;
+
+    auto *popup = qobject_cast<WInputPopupSurface *>(surface->shellSurface());
+    if (!popup || !popup->cursorRect().isEmpty())
+        return std::nullopt;
+
+    auto *parent = surface->parentSurface();
+    if (!parent || !parent->surfaceItem())
+        return std::nullopt;
+
+    auto *seat = WaylandServer::instance()->seat();
+    auto *cursor = seat ? seat->cursor() : nullptr;
+    // The current window geometry, not normalGeometry(): the latter keeps the
+    // pre-maximized rect (or stays empty for a window mapped maximized), which is
+    // not the rect the pointer clicked into.
+    const QRectF parentGeo(parent->x(), parent->y(), parent->width(), parent->height());
+    const QPointF pos = (cursor && parentGeo.isValid() && parentGeo.contains(cursor->position()))
+        ? cursor->position()
+        : calculateBasePosition(surface, QPointF(0, 0));
+
+    qCDebug(lcTlSurface) << "[popup] no cursor rectangle yet, anchoring input popup"
+                         << "surface=" << surface << "pos=" << pos;
+    return pos;
+}
+
 void Output::handleLayerShellPopup(SurfaceWrapper *surface, const QRectF &normalGeo)
 {
     if (!surface->parentSurface() || !surface->parentSurface()->ownsOutput()) {
@@ -923,18 +980,14 @@ void Output::handleLayerShellPopup(SurfaceWrapper *surface, const QRectF &normal
     }
 
     auto parentOutput = surface->parentSurface()->ownsOutput()->outputItem();
-    auto dPos = popupDPos(surface);
-    if (!dPos.has_value())
+    auto pos = popupPosition(surface);
+    if (!pos.has_value())
         return;
-
-    QPointF pos = calculateBasePosition(surface, dPos.value());
-    if (pos.isNull()) {
-        return;
-    }
 
     QRectF outputRect(parentOutput->position(), parentOutput->size());
-    adjustToOutputBounds(pos, normalGeo, outputRect);
-    surface->moveNormalGeometryInOutput(pos);
+    QPointF targetPos = pos.value();
+    adjustToOutputBounds(targetPos, normalGeo, outputRect);
+    surface->moveNormalGeometryInOutput(targetPos);
 }
 
 void Output::handleRegularPopup(SurfaceWrapper *surface, const QRectF &normalGeo, WOutputItem *targetOutput)
@@ -943,31 +996,26 @@ void Output::handleRegularPopup(SurfaceWrapper *surface, const QRectF &normalGeo
         return;
     }
 
-    auto dPos = popupDPos(surface);
-    if (!dPos.has_value())
-        return;
-
-    QPointF pos = calculateBasePosition(surface, dPos.value());
-    if (pos.isNull()) {
-        return;
-    }
-
     QRectF outputRect(targetOutput->position(), targetOutput->size());
+    auto pos = popupPosition(surface);
+    if (!pos.has_value())
+        return;
 
+    QPointF targetPos = pos.value();
     // TODO: Use xdg_positioner::constraint_adjustment to properly respect client's positioning constraints
-    if (pos.x() < outputRect.left()) {
-        pos.setX(outputRect.left());
+    if (targetPos.x() < outputRect.left()) {
+        targetPos.setX(outputRect.left());
     }
-    if (pos.x() + normalGeo.width() > outputRect.right()) {
-        pos.setX(outputRect.right() - normalGeo.width());
+    if (targetPos.x() + normalGeo.width() > outputRect.right()) {
+        targetPos.setX(outputRect.right() - normalGeo.width());
     }
 
-    adjustToOutputBounds(pos, normalGeo, outputRect);
+    adjustToOutputBounds(targetPos, normalGeo, outputRect);
 
     QRectF newGeo = normalGeo;
-    newGeo.moveTopLeft(pos);
-    m_positionCache[surface] = qMakePair(pos, newGeo);
-    surface->moveNormalGeometryInOutput(pos);
+    newGeo.moveTopLeft(targetPos);
+    m_positionCache[surface] = qMakePair(targetPos, newGeo);
+    surface->moveNormalGeometryInOutput(targetPos);
 }
 
 void Output::clearPopupCache(SurfaceWrapper *surface)
