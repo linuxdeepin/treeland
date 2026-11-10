@@ -245,13 +245,15 @@ void SeatSurfaceManager::doMoveResize(const QPointF &delta)
     }
 }
 
-void SeatSurfaceManager::endMoveResize()
+void SeatSurfaceManager::endMoveResize(bool alignLayerPosition)
 {
     stopEdgeTileDelay();
     if (!m_moveResizeState.surface)
         return;
 
     auto surface = m_moveResizeState.surface;
+    const bool alignPosition = alignLayerPosition && m_moveResizeState.edges != Qt::Edges()
+        && surface->type() == SurfaceWrapper::Type::Layer && surface->ownsOutput();
     const auto detectedMode = m_moveResizeState.detectedTileMode;
     const bool previewActive = m_moveResizeState.edgeTilePreviewActive;
 
@@ -266,6 +268,10 @@ void SeatSurfaceManager::endMoveResize()
     m_moveResizeState.edgeTilePreviewActive = false;
     m_moveResizeState.edgeTileInnerBorder = false;
     m_moveResizeState.detectedTileOutput = nullptr;
+
+    // Snap after clearing the resize state so the fixed-edge adjustment cannot undo it.
+    if (alignPosition)
+        surface->setPosition(surface->alignToPixelGrid(surface->position()));
 
     auto *sh = surface->shellSurface();
     if (sh && sh->isInitialized()) {
