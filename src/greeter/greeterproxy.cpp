@@ -524,6 +524,7 @@ void GreeterProxy::readyRead()
             // Q_EMIT signal
             Q_EMIT hostNameChanged(m_hostName);
         } break;
+#ifdef DDM_HAS_LAST_LOGIN_SESSION_DIRS
         case DaemonMessages::LastLogin: {
             qCDebug(lcTlGreeter) << "Message received from daemon: LastLogin";
 
@@ -547,6 +548,7 @@ void GreeterProxy::readyRead()
 
             sessionModel()->setSessionDirs(waylandSessionDirs, x11SessionDirs);
         } break;
+#endif
         case DaemonMessages::LoginFailed: {
             QString user;
             input >> user;
