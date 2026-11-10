@@ -297,7 +297,9 @@ void ForeignToplevelManagerInterfaceV3Private::setupHandleForWrapper(SurfaceEntr
                      });
 
     if (wrapper->type() == SurfaceWrapper::Type::SplashScreen) {
-        handle->set_title(QStringLiteral("SplashScreen: ") + wrapper->appId());
+        // A splash has no real window yet, so no title is sent here: the taskbar would
+        // otherwise show a placeholder title. initializeToplevelHandle() sends the real
+        // title once the toplevel surface exists.
         handle->set_app_id(wrapper->appId());
         handle->set_minimized(false);
         handle->set_maximized(false);
