@@ -50,6 +50,9 @@ public:
     QList<WOutputState> stateListPending(
         wlr_output_configuration_v1 *config = nullptr) const;
 
+    // Answers and destroys a configuration created by an apply/test request.
+    // Configurations that are not pending any more (already answered) are
+    // ignored, so the same config is never destroyed twice.
     void sendResult(wlr_output_configuration_v1 *config, bool ok);
     void sendResult(wlr_output_configuration_v1 *config,
                     bool ok,
