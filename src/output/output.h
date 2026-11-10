@@ -144,6 +144,11 @@ private:
     void arrangeLayerSurface(SurfaceWrapper *surface);
     void arrangeLayerSurfaces();
     void arrangeNonLayerSurface(SurfaceWrapper *surface, ArrangeReason reason);
+    // Single entry point for the placement policy of a non-layer surface: place
+    // it on its first placement, only clamp it on later geometry changes.
+    void layoutSurface(SurfaceWrapper *surface, ArrangeReason reason);
+    void handleSurfaceSizeChanged();
+    void handleSurfaceContainerReady();
     void arrangePopupSurface(SurfaceWrapper *surface);
     void arrangeNonLayerSurfaces(ArrangeReason reason);
     void arrangeAllSurfaces();
