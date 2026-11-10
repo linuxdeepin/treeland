@@ -9,7 +9,10 @@ After=dde-seatd.service
 
 [Service]
 User=dde
-RuntimeDirectory=treeland
+# The debug socket lives in a directory of its own: its no-auth window widens that
+# directory to 0711, which must never be %t/treeland -- Qt requires XDG_RUNTIME_DIR
+# to stay 0700 and moves new sessions' wayland sockets to $TMPDIR otherwise.
+RuntimeDirectory=treeland treeland-debug
 RuntimeDirectoryMode=0700
 Environment="XDG_RUNTIME_DIR=%t/treeland"
 Environment=LIBSEAT_BACKEND=seatd

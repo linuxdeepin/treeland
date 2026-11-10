@@ -206,8 +206,41 @@ public:
 
     Output *ownsOutput() const;
     void setOwnsOutput(Output *newOwnsOutput);
-    void setOutputs(const QList<WOutput *> &outputs);
+    // `recordDiagnostics` is set by RootSurfaceContainer::updateSurfaceOutputs()
+    // only: a layer container re-homes its surface straight through this call and
+    // the prelaunch splash path applies its outputs through it too, and neither
+    // leave must be reported as an output recompute.
+    void setOutputs(const QList<WOutput *> &outputs, bool recordDiagnostics = false);
     const QList<WOutput *> &outputs() const;
+
+    // Why this window is on no output at all, exposed by treeland-debug: the
+    // last leave caused by a RootSurfaceContainer output recompute, and the last
+    // RootSurfaceContainer::updateSurfaceOutputs() call that rebuilt the list.
+    // A bool has no "never happened" value: read lastLeaveOutput /
+    // updateReason Unknown as "nothing recorded yet" and ignore the rest.
+    enum class OutputsUpdateReason {
+        Unknown,
+        GeometryChanged,
+        SurfaceAdded,
+        AddOutput,
+        EnabledChanged,
+    };
+    struct OutputsDiagnostics
+    {
+        QString lastLeaveOutput;
+        bool lastLeaveOutputEnabled = false;
+        bool lastLeaveEmptiedOutputs = false;
+        OutputsUpdateReason updateReason = OutputsUpdateReason::Unknown;
+        int updateEnabledOutputs = -1;
+        int updateTotalOutputs = -1;
+        int updateComputedOutputs = -1;
+        bool updateAutomatic = false;
+    };
+    void noteOutputsUpdate(OutputsUpdateReason reason,
+                           int enabledOutputs,
+                           int totalOutputs,
+                           int computedOutputs);
+    const OutputsDiagnostics &outputsDiagnostics() const { return m_outputsDiagnostics; }
 
     QRectF geometry() const;
     QRectF normalGeometry() const;
@@ -516,7 +549,9 @@ private:
     Q_SLOT void onShowAnimationFinished();
     Q_SLOT void onHideAnimationFinished();
     void updateStackingLayer();
+#ifndef DISABLE_XWAYLAND
     void updateXWaylandStackingState();
+#endif
     void updateSizeCapabilities();
     void setModal(bool modal);
     void startMinimizeAnimation(const QRectF &iconGeometry, uint direction);
@@ -547,6 +582,7 @@ private:
     QPointer<QQuickItem> m_coverContent;
     QPointer<QQuickItem> m_prelaunchSplash; // Pre-launch splash item
     QList<WOutput *> m_prelaunchOutputs;    // Outputs for pre-launch splash
+    OutputsDiagnostics m_outputsDiagnostics;
     QRectF m_boundedRect;
     QRectF m_normalGeometry;
     QRectF m_maximizedGeometry;

@@ -95,6 +95,9 @@ public:
     void updateEdgeTilePreview(SurfaceWrapper::TileMode mode, Output *out, WSeat *seat = nullptr);
     Output *primaryOutput() const;
     void setPrimaryOutput(Output *newPrimaryOutput, bool updateDconfig = false);
+    // Moves the primary output off `output` when it is the current primary.
+    // Must run before the per-output surface containers of `output` are torn down.
+    void movePrimaryOutputAwayFrom(const Output *output);
     const QList<Output *> &outputs() const;
 
     void addOutput(Output *output) override;
@@ -140,7 +143,13 @@ private:
 
     void ensureCursorVisible();
     void updateCursorOutput();
-    void updateSurfaceOutputs(SurfaceWrapper *surface);
+    // `reason` names the trigger and is reported by treeland-debug: GeometryChanged
+    // and AddOutput are the shapes that empty the list, EnabledChanged is the one
+    // that refills it.
+    void updateSurfaceOutputs(SurfaceWrapper *surface, SurfaceWrapper::OutputsUpdateReason reason);
+    // Recomputes the outputs of every window after an output became enabled: a
+    // surface that left all outputs would otherwise never be re-entered.
+    void onOutputEnabledChanged();
     QQuickItem *ensureEdgeTilePreview();
     void onSeatAdded(WSeat *seat);
     void onSeatRemoved(WSeat *seat);

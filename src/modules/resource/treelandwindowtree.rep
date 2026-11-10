@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include <QtCore/QVariant>
+#include <QtGui/QRegion>
 #include <QtCore/QRectF>
 #include <QtCore/QPointF>
 
@@ -30,7 +31,29 @@ POD WindowInfo(
     // callbacks: the entered output with the highest refresh rate, the first
     // entered one on a tie.
     QList<QString> outputs,
-    QString framePacingOutput
+    QString framePacingOutput,
+    // Why the window is on no output at all. lastLeave fields: the most recent
+    // leave caused by an output recompute, its output name, whether that output
+    // was enabled then, and whether the surface was left without outputs.
+    // lastOutputsUpdate fields: the last updateSurfaceOutputs call, its trigger
+    // -- geometryChanged, surfaceAdded, addOutput or enabledChanged -- how many
+    // outputs the compositor had enabled vs total in its output model then, the
+    // size of the list handed to setOutputs, and positionAutomatic at that
+    // moment. Total counts output model entries: a mirrored screen is two of
+    // them, not two connectors. The bools have no never-happened value, so read
+    // an empty lastLeaveOutput or lastOutputsUpdateReason as nothing recorded.
+    QString lastLeaveOutput,
+    bool lastLeaveOutputEnabled,
+    bool lastLeaveEmptiedOutputs,
+    QString lastOutputsUpdateReason,
+    int lastOutputsUpdateEnabled,
+    int lastOutputsUpdateTotal,
+    int lastOutputsUpdateComputed,
+    bool lastOutputsUpdateAutomatic,
+    // Input and opaque regions of the wlr_surface, in surface-local
+    // coordinates.
+    QRegion inputRegion,
+    QRegion opaqueRegion
 )
 
 POD WorkspaceInfo(
@@ -63,8 +86,24 @@ POD ClientInfo(
     QList<WindowInfo> windows
 )
 
+// A registered shortcut (key binding or touchpad gesture), as reported by
+// the compositor's shortcut manager. `type`: 0=key 1=swipe 2=hold. `key` is the
+// portable-text key sequence for key bindings (empty for gestures), `flags` the
+// keybind flag mask (1=press 2=release 4=repeat), and `fingers`/`direction`
+// describe gestures.
+POD ShortcutInfo(
+    QString name,
+    int type,
+    QString key,
+    uint flags,
+    QString action,
+    uint fingers,
+    QString direction
+)
+
 // Real-time debug event: input events, window state changes, etc.
 // type: 1=pointerMotion 2=pointerButton 3=keyboardKey 4=focusChanged 5=cursorWindowChanged
+//       6=shortcutRegistered 7=shortcutUnregistered 8=shortcutTriggered
 POD DebugEvent(
     quint64 seq,
     int type,
@@ -103,10 +142,19 @@ POD IdleInfo(
 )
 
 class WindowTreeRemote {
+    // Opens the debug socket to every local user for 30 minutes (taken back by
+    // itself, and extended by every later call), and closes the connections that
+    // were opened while it was open. Only a caller that already got
+    // through the socket can send it, and in a release build that is root alone
+    // (mode 0000 blocks the compositor's own user too; only CAP_DAC_OVERRIDE
+    // passes), so the sealed socket is the authentication. Returns false when the
+    // directory is not one Treeland may widen (a session instance).
+    SLOT(bool requestNoAuth());
     SLOT(TreelandInfo getTreelandInfo());
     SLOT(QList<WindowInfo> getWindows());
     SLOT(QList<ClientInfo> getClients());
     SLOT(IdleInfo getIdleInfo());
+    SLOT(QList<ShortcutInfo> getShortcuts());
     SLOT(bool activateWindow(qint64 id));
     SLOT(bool closeWindow(qint64 id));
     SLOT(bool minimizeWindow(qint64 id));

@@ -163,6 +163,14 @@ QJsonObject windowToJson(const WindowInfo &window)
         {"output", window.output()},
         {"outputs", QJsonArray::fromStringList(window.outputs())},
         {"framePacingOutput", window.framePacingOutput()},
+        {"lastLeaveOutput", window.lastLeaveOutput()},
+        {"lastLeaveOutputEnabled", window.lastLeaveOutputEnabled()},
+        {"lastLeaveEmptiedOutputs", window.lastLeaveEmptiedOutputs()},
+        {"lastOutputsUpdateReason", window.lastOutputsUpdateReason()},
+        {"lastOutputsUpdateEnabled", window.lastOutputsUpdateEnabled()},
+        {"lastOutputsUpdateTotal", window.lastOutputsUpdateTotal()},
+        {"lastOutputsUpdateComputed", window.lastOutputsUpdateComputed()},
+        {"lastOutputsUpdateAutomatic", window.lastOutputsUpdateAutomatic()},
         {"container", window.container()},
         {"workspace", window.workspace()},
         {"layer", window.layer()},
@@ -179,6 +187,8 @@ QJsonObject windowToJson(const WindowInfo &window)
         {"position", pointToJson(window.position())},
         {"frames", window.frames()},
         {"damage", rectToJson(window.damage())},
+        {"inputRegion", rectsToJson(window.inputRegion())},
+        {"opaqueRegion", rectsToJson(window.opaqueRegion())},
     };
 }
 
@@ -250,6 +260,27 @@ QJsonArray clientsToJson(const QList<ClientInfo> &clients)
     QJsonArray result;
     for (const auto &client : clients)
         result.append(clientToJson(client));
+    return result;
+}
+
+QJsonObject shortcutToJson(const ShortcutInfo &shortcut)
+{
+    return {
+        {"name", shortcut.name()},
+        {"type", shortcut.type()},
+        {"key", shortcut.key()},
+        {"flags", static_cast<qint64>(shortcut.flags())},
+        {"action", shortcut.action()},
+        {"fingers", static_cast<qint64>(shortcut.fingers())},
+        {"direction", shortcut.direction()},
+    };
+}
+
+QJsonArray shortcutsToJson(const QList<ShortcutInfo> &shortcuts)
+{
+    QJsonArray result;
+    for (const auto &shortcut : shortcuts)
+        result.append(shortcutToJson(shortcut));
     return result;
 }
 

@@ -55,6 +55,7 @@
 #include "treelandconfig.hpp"
 #include "treelanduserconfig.hpp"
 #include "utils/fpsdisplaymanager.h"
+#include "utils/graphicsplatform.h"
 #include "wallpaper/wallpapermanager.h"
 #include "wallpapershellinterfacev1.h"
 #include "workspace/workspace.h"
@@ -80,8 +81,10 @@
 #include <wsocket.h>
 #include <ext-background-effect-v1-protocol.h>
 #include <wlr_all.h>
+#ifndef DISABLE_XWAYLAND
 #include <wxwayland.h>
 #include <wxwaylandsurface.h>
+#endif
 
 #include <DGuiApplicationHelper>
 
@@ -137,7 +140,8 @@ WaylandServer::WaylandServer(QObject *parent)
             &Workspace::workspaceAdded,
             m_wallpaperManager,
             &WallpaperManager::syncAddWorkspace);
-    // Follow the remoteDebug master switch (on by default) in every build type,
+    // Follow the remoteDebug master switch (off by default in release builds,
+    // always on in debug builds -- see misc/dconfig/org.deepin.dde.treeland.json),
     // so the debug socket appears and disappears with it instead of only at
     // startup. The stored value arrives asynchronously -- dtk reports
     // configInitializeSucceed later -- so watch for changes first and only then
@@ -263,18 +267,29 @@ void WaylandServer::syncPaletteTypeWithWindowColorScheme(int32_t colorScheme)
 
 void WaylandServer::tryInitRemoteSource()
 {
-    // remoteDebug is a master switch -- on by default, so the debug socket
-    // exists without anyone enabling it, and off means "no debugging at all".
-    // Toggling it creates or destroys the remote source without restarting the
-    // server. The source itself is a thin QObject that only does work per call,
-    // so keeping it while the switch is on costs nothing when no client is
-    // attached.
+    // remoteDebug is a master switch -- off by default in release builds, so
+    // nothing is exposed until someone asks for it, and on means "serve
+    // debuggers". Toggling it creates or destroys the remote source without
+    // restarting the server. The source itself is a thin QObject that only does
+    // work per call, so keeping it while the switch is on costs nothing when no
+    // client is attached.
+    //
+    // A debug build never looks at the switch: that instance is the thing being
+    // developed, so waiting for a per-user key to be flipped there only costs
+    // time (and a stale `false` left by an earlier session looks like "debug is
+    // broken"). Its socket is the `-dev` one, so this cannot open a release
+    // instance's channel.
+#ifdef TREELAND_DEBUG_DEV_BUILD
+    const bool remoteDebug = true;
+#else
+    const bool remoteDebug = m_globalConfig->remoteDebug();
+#endif
     if (m_treelandRemoteSource) {
-        if (!m_globalConfig->remoteDebug()) {
+        if (!remoteDebug) {
             delete m_treelandRemoteSource;
             m_treelandRemoteSource = nullptr;
         }
-    } else if (m_globalConfig->remoteDebug()) {
+    } else if (remoteDebug) {
         auto *source = new TreelandRemoteSource(this);
         // Binding or publishing can fail while the switch stays on; keep it
         // retryable rather than caching an object that never published.
@@ -331,6 +346,11 @@ QmlEngine *WaylandServer::qmlEngine() const
 WOutputRenderWindow *WaylandServer::window() const
 {
     return m_renderWindow;
+}
+
+GraphicsPlatform *WaylandServer::graphicsPlatform() const
+{
+    return m_graphicsPlatform.get();
 }
 
 SessionManager *WaylandServer::sessionManager() const
@@ -497,6 +517,11 @@ void WaylandServer::initializeRendering()
 void WaylandServer::initializeRenderWindow()
 {
     m_renderWindow->init(m_renderer.get(), m_allocator.get());
+
+    // The QRhi only exists once the render window is initialized, so detect the
+    // GPU here once and share the result instead of probing it at every use site.
+    m_graphicsPlatform = std::make_unique<GraphicsPlatform>(m_renderWindow->rhi());
+    qCInfo(lcTlCore) << "Graphics platform:" << m_graphicsPlatform->toString();
 }
 
 void WaylandServer::installPointerProtocols()
@@ -783,6 +808,11 @@ WSeat *WaylandServer::seat() const
     return m_primarySeat;
 }
 
+ShortcutController *WaylandServer::shortcutController() const
+{
+    return m_shortcutManager ? m_shortcutManager->controller() : nullptr;
+}
+
 Output *WaylandServer::getOutputAtCursor() const
 {
     return m_outputManager->outputAtCursor();
@@ -849,6 +879,7 @@ void WaylandServer::toggleFpsDisplay()
     m_fpsDisplay = qmlEngine()->createFpsDisplay(m_renderWindow->contentItem());
 }
 
+#ifndef DISABLE_XWAYLAND
 /**
  * Move a XWayland window's surface corresponding to wid, to a
  * position relative to a WSurface. Top-left point is always used.
@@ -899,6 +930,7 @@ WXWayland *WaylandServer::createXWayland()
 {
     return shellHandler()->createXWayland(server(), m_primarySeat, m_compositor, false);
 }
+#endif
 
 WSeat *WaylandServer::findSeatForSurface(SurfaceWrapper *wrapper) const
 {
@@ -1090,7 +1122,9 @@ WXdgOutputManager *WaylandServer::installDesktopProtocols(QmlEngine *engine)
             &SessionManager::syncActiveSessionXWaylandPrimaryOutput);
     m_wallpaperColorV1 = server()->attach<WallpaperColorInterfaceV1>();
     m_showDesktop->initialize(server());
+#ifndef DISABLE_XWAYLAND
     m_xWindowControlInterfaceV1 = server()->attach<XWindowControlInterfaceV1>();
+#endif
     auto *outputGroupInterface = server()->attach<OutputGroupManagerInterfaceV1>();
     m_outputManager->setOutputGroupInterface(outputGroupInterface);
 
@@ -1183,10 +1217,14 @@ void WaylandServer::installRuntimeProtocols(WXdgOutputManager *xdgOutputManager)
     m_captureManager->installImageCapture(server(), m_surfaceProtocols->toplevelList());
     initializeRenderWindow();
 
+#ifndef DISABLE_XWAYLAND
     auto *xwaylandOutputManager =
         server()->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
     m_outputManager->setXdgOutputManagers(
         xdgOutputManager, xwaylandOutputManager, m_sessionManager);
+#else
+    m_outputManager->setXdgOutputManagers(xdgOutputManager, nullptr, m_sessionManager);
+#endif
     // User dde does not has a real Logind session, so just pass "0" as id
     m_sessionManager->updateActiveUserSession(QStringLiteral("dde"), QStringLiteral("0"));
     connect(m_userModel, &UserModel::userLoggedIn, m_sessionManager, &SessionManager::updateActiveUserSession);

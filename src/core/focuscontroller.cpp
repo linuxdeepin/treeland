@@ -10,10 +10,14 @@
 #include "common/treelandlogging.h"
 
 #include <wserver.h>
+#ifndef DISABLE_XWAYLAND
 #include <wxwayland.h>
+#endif
 #include <wsurfaceitem.h>
 #include <wxdgpopupsurface.h>
+#ifndef DISABLE_XWAYLAND
 #include <wxwaylandsurface.h>
+#endif
 #include <woutputrenderwindow.h>
 
 #include <wlr_all.h>
@@ -184,12 +188,14 @@ void FocusController::setActivatedSurface(SurfaceWrapper *newActivateSurface, WS
         Q_ASSERT(newActivateSurface->showOnWorkspace(m_server->workspace()->current()->id()));
         if (raise) {
             newActivateSurface->stackToLast();
+#ifndef DISABLE_XWAYLAND
             if (newActivateSurface->type() == SurfaceWrapper::Type::XWayland) {
                 auto xwaylandSurface =
                     qobject_cast<WXWaylandSurface *>(newActivateSurface->shellSurface());
                 Q_ASSERT(!xwaylandSurface->isBypassManager());
                 xwaylandSurface->restack(nullptr, WXWaylandSurface::XCB_STACK_MODE_ABOVE);
             }
+#endif
         }
     }
 

@@ -56,12 +56,10 @@ QString Output::getOutputId()
 
 Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 {
-    auto isSoftwareCursor = [](WOutput *output) -> bool {
-        return wlr_output_is_x11(output->handle()) || WaylandServer::instance()->globalConfig()->forceSoftwareCursor();
-    };
+    auto *config = WaylandServer::instance()->globalConfig();
     QQmlComponent delegate(engine, "Treeland", "SourceOutput");
     QObject *obj = delegate.beginCreate(engine->rootContext());
-    delegate.setInitialProperties(obj, { { "forceSoftwareCursor", isSoftwareCursor(output) } });
+    delegate.setInitialProperties(obj, { { "forceSoftwareCursor", config->forceSoftwareCursor() } });
     delegate.completeCreate();
     WOutputItem *outputItem = qobject_cast<WOutputItem *>(obj);
     Q_ASSERT(outputItem);
@@ -74,8 +72,8 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
     connect(WaylandServer::instance()->globalConfig(),
             &TreelandConfig::forceSoftwareCursorChanged,
             obj,
-            [obj, output, isSoftwareCursor]() {
-                auto forceSoftwareCursor = isSoftwareCursor(output);
+            [obj, config]() {
+                auto forceSoftwareCursor = config->forceSoftwareCursor();
                 qCInfo(lcTlOutput) << "forceSoftwareCursor changed to" << forceSoftwareCursor;
                 obj->setProperty("forceSoftwareCursor", forceSoftwareCursor);
             });

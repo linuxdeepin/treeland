@@ -160,15 +160,61 @@ void RootSurfaceContainer::addOutput(Output *output)
     for (auto s : std::as_const(surfaces())) {
         if (s->type() == SurfaceWrapper::Type::Layer)
             continue;
-        updateSurfaceOutputs(s);
+        updateSurfaceOutputs(s, SurfaceWrapper::OutputsUpdateReason::AddOutput);
+    }
+
+    // A disabled output is dropped by updateSurfaceOutputs(), and a surface can
+    // be left with no output at all (e.g. the screen was turned off by DPMS)
+    // until it is re-enabled. That is not a geometry change, so nothing would
+    // recompute the outputs: the surface would keep an empty frame pacing output
+    // and freeze forever. Recompute here once the output is really enabled
+    // again, which also covers the first enable commit of a newly added output.
+    // A member slot instead of a lambda: Output is recreated (mirror/extension
+    // switching) while its WOutput lives on, so the handler must not capture it,
+    // and UniqueConnection keeps one handler per WOutput however often the
+    // output is registered again.
+    QObject::connect(output->output(),
+                     &WOutput::enabledChanged,
+                     this,
+                     &RootSurfaceContainer::onOutputEnabledChanged,
+                     Qt::UniqueConnection);
+}
+
+void RootSurfaceContainer::onOutputEnabledChanged()
+{
+    // enabledChanged() carries no argument, read the new state from the sender.
+    // Disabling keeps the previous behaviour (the lists are cleared only when
+    // something recomputes them); re-enabling is the case that has to heal.
+    auto *woutput = qobject_cast<WOutput *>(sender());
+    if (!woutput || !woutput->isEnabled())
+        return;
+
+    // Layer surfaces keep the outputs their OutputLayerSurfaceContainer gave
+    // them: updateSurfaceOutputs() intersects their geometry without filtering
+    // disabled outputs, so calling it here would put a layer surface back on an
+    // output that is still off. Skip them here for the same reason as the loop in
+    // addOutput() above.
+    for (auto s : std::as_const(surfaces())) {
+        if (s->type() == SurfaceWrapper::Type::Layer)
+            continue;
+        updateSurfaceOutputs(s, SurfaceWrapper::OutputsUpdateReason::EnabledChanged);
     }
 }
 
 void RootSurfaceContainer::removeOutput(Output *output)
 {
     m_outputModel->removeObject(output);
-    SurfaceContainer::removeOutput(output);
 
+    // Move the primary output away from the removed one *before* the sub containers
+    // are torn down: LayerSurfaceContainer::removeOutput() re-homes layer surfaces
+    // without an explicit output to primaryOutput(), and that must never be the
+    // output being removed (its OutputLayerSurfaceContainer is already gone by
+    // then).
+    movePrimaryOutputAwayFrom(output);
+
+    // Finish any move/resize that grabbed a surface on this output before its
+    // containers are torn down, so the seats still see them (same order as
+    // removeBySubContainer()).
     for (auto *container : std::as_const(m_seatContainers)) {
         if (container->moveResizeSurface() &&
             container->moveResizeSurface()->ownsOutput() == output) {
@@ -177,13 +223,7 @@ void RootSurfaceContainer::removeOutput(Output *output)
     }
 
     m_outputLayout->remove(output->output());
-    if (m_primaryOutput == output) {
-        const auto outputs = m_outputLayout->outputs();
-        if (!outputs.isEmpty()) {
-            auto newPrimaryOutput = WaylandServer::instance()->getOutput(outputs.first());
-            setPrimaryOutput(newPrimaryOutput);
-        }
-    }
+    SurfaceContainer::removeOutput(output);
 
     // ensure cursor within output
     const auto outputPos = output->outputItem()->position();
@@ -294,10 +334,10 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
         }
 
         connect(surface, &SurfaceWrapper::geometryChanged, this, [this, surface] {
-            updateSurfaceOutputs(surface);
+            updateSurfaceOutputs(surface, SurfaceWrapper::OutputsUpdateReason::GeometryChanged);
         });
 
-        updateSurfaceOutputs(surface);
+        updateSurfaceOutputs(surface, SurfaceWrapper::OutputsUpdateReason::SurfaceAdded);
     }
 }
 
@@ -429,6 +469,29 @@ void RootSurfaceContainer::setPrimaryOutput(Output *newPrimaryOutput, bool updat
         setPrimaryOutputConfig(newPrimaryOutput);
 }
 
+void RootSurfaceContainer::movePrimaryOutputAwayFrom(const Output *output)
+{
+    if (!output || m_primaryOutput != output)
+        return;
+
+    // Entries of the layout can be in intermediate states (copy mode replacement,
+    // pending outputs) where getOutput() cannot resolve them, so skip those instead
+    // of giving up on the first one. Without a remaining output the primary becomes
+    // null: layer surfaces created without an explicit output are then closed
+    // instead of being re-homed to the output being removed.
+    for (auto *o : m_outputLayout->outputs()) {
+        if (o == output->output()) {
+            continue;
+        }
+        if (auto *candidate = WaylandServer::instance()->getOutput(o)) {
+            setPrimaryOutput(candidate);
+            return;
+        }
+    }
+
+    setPrimaryOutput(nullptr);
+}
+
 const QList<Output *> &RootSurfaceContainer::outputs() const
 {
     return m_outputModel->objects();
@@ -445,9 +508,17 @@ void RootSurfaceContainer::ensureCursorVisible()
     }
 }
 
-void RootSurfaceContainer::updateSurfaceOutputs(SurfaceWrapper *surface)
+void RootSurfaceContainer::updateSurfaceOutputs(SurfaceWrapper *surface,
+                                                SurfaceWrapper::OutputsUpdateReason reason)
 {
     QList<WOutput *> outputs;
+
+    const auto &allOutputs = m_outputModel->objects();
+    int enabledOutputs = 0;
+    for (auto *output : allOutputs) {
+        if (output->output()->isEnabled())
+            ++enabledOutputs;
+    }
 
     if (surface->type() != SurfaceWrapper::Type::Layer) {
         for (auto *output : m_outputModel->objects()) {
@@ -467,6 +538,10 @@ void RootSurfaceContainer::updateSurfaceOutputs(SurfaceWrapper *surface)
             });
         }
     } else {
+        // Unreachable today: every caller skips layer surfaces (see the loops in
+        // addOutput() and onOutputEnabledChanged()). This branch has no
+        // isEnabled() filter, so making it reachable needs one first, or a layer
+        // surface lands back on an output that is still off.
         const QRectF geometry = surface->geometry();
         outputs = m_outputLayout->getIntersectedOutputs(geometry.toRect());
     }
@@ -475,7 +550,11 @@ void RootSurfaceContainer::updateSurfaceOutputs(SurfaceWrapper *surface)
     if (surface->positionAutomatic() && surface->ownsOutput()
         && !outputs.contains(surface->ownsOutput()->output()))
         outputs.append(surface->ownsOutput()->output());
-    surface->setOutputs(outputs);
+    surface->noteOutputsUpdate(reason,
+                               enabledOutputs,
+                               static_cast<int>(allOutputs.size()),
+                               static_cast<int>(outputs.size()));
+    surface->setOutputs(outputs, /*recordDiagnostics=*/true);
 
     if (auto *ws = WaylandServer::instance()->workspace())
         ws->updateSurfaceOwnsOutput(surface);

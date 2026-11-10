@@ -15,6 +15,7 @@
 #include <xcb/composite.h>
 #include <xcb/render.h>
 #include <xcb/res.h>
+#include <xcb/shape.h>
 #include <xcb/xfixes.h>
 #include "xwayland/xwm.h"
 
@@ -138,6 +139,138 @@ static struct wlr_xwayland_surface *lookup_surface(struct wlr_xwm *xwm,
 	return NULL;
 }
 
+void wlr_xwayland_surface_get_input_region(const struct wlr_xwayland_surface *xsurface,
+		pixman_region32_t *region) {
+	pixman_region32_copy(region, &xsurface->surface->input_region);
+	pixman_region32_intersect_rect(region, region, 0, 0,
+		xsurface->width, xsurface->height);
+	if (xsurface->has_input_shape) {
+		pixman_region32_intersect(region, region, &xsurface->input_shape);
+	}
+}
+
+bool wlr_xwayland_surface_point_accepts_input(
+		const struct wlr_xwayland_surface *xsurface, double sx, double sy) {
+	if (sx < 0 || sx >= xsurface->width ||
+			sy < 0 || sy >= xsurface->height ||
+			!wlr_surface_point_accepts_input(xsurface->surface, sx, sy)) {
+		return false;
+	}
+
+	return !xsurface->has_input_shape ||
+		pixman_region32_contains_point(&xsurface->input_shape,
+			floor(sx), floor(sy), NULL);
+}
+
+static bool read_surface_shape_region(struct wlr_xwm *xwm,
+		xcb_shape_get_rectangles_cookie_t cookie, pixman_region32_t *region) {
+	xcb_shape_get_rectangles_reply_t *reply =
+		xcb_shape_get_rectangles_reply(xwm->xcb_conn, cookie, NULL);
+	if (reply == NULL) {
+		return false;
+	}
+
+	int len = xcb_shape_get_rectangles_rectangles_length(reply);
+	xcb_rectangle_t *rects = xcb_shape_get_rectangles_rectangles(reply);
+	for (int i = 0; i < len; i++) {
+		pixman_region32_union_rect(region, region, rects[i].x, rects[i].y,
+			rects[i].width, rects[i].height);
+	}
+
+	free(reply);
+	return true;
+}
+
+static void xwm_update_surface_shape(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *xsurface, xcb_shape_sk_t changed_kind) {
+	if (changed_kind != XCB_SHAPE_SK_BOUNDING &&
+			changed_kind != XCB_SHAPE_SK_INPUT) {
+		return;
+	}
+
+	const xcb_shape_sk_t kinds[] = {XCB_SHAPE_SK_BOUNDING, XCB_SHAPE_SK_INPUT};
+	for (size_t i = 0; i < sizeof(kinds) / sizeof(kinds[0]); i++) {
+		xcb_shape_sk_t shape_sk = kinds[i];
+		if ((shape_sk == XCB_SHAPE_SK_BOUNDING &&
+				changed_kind != XCB_SHAPE_SK_BOUNDING) ||
+				(shape_sk == XCB_SHAPE_SK_INPUT && !xwm->shape_input_supported)) {
+			continue;
+		}
+
+		bool is_input = shape_sk == XCB_SHAPE_SK_INPUT;
+		bool *has_shape = is_input ?
+			&xsurface->has_input_shape : &xsurface->has_clip_shape;
+		pixman_region32_t *region = is_input ?
+			&xsurface->input_shape : &xsurface->clip_shape;
+		struct wl_signal *signal = is_input ?
+			&xsurface->events.set_input_shape : &xsurface->events.set_clip_shape;
+		bool has_new_shape = true;
+		if (shape_sk == XCB_SHAPE_SK_BOUNDING) {
+			xcb_shape_query_extents_cookie_t cookie =
+				xcb_shape_query_extents(xwm->xcb_conn, xsurface->window_id);
+			xcb_shape_query_extents_reply_t *reply =
+				xcb_shape_query_extents_reply(xwm->xcb_conn, cookie, NULL);
+			if (reply == NULL) {
+				continue;
+			}
+			has_new_shape = reply->bounding_shaped;
+			free(reply);
+		}
+
+		pixman_region32_t new_region;
+		pixman_region32_init(&new_region);
+		if (has_new_shape) {
+			xcb_shape_get_rectangles_cookie_t cookie =
+				xcb_shape_get_rectangles(xwm->xcb_conn, xsurface->window_id, shape_sk);
+			xcb_shape_get_rectangles_cookie_t bounding_cookie = {0};
+			if (shape_sk == XCB_SHAPE_SK_INPUT) {
+				bounding_cookie = xcb_shape_get_rectangles(xwm->xcb_conn,
+					xsurface->window_id, XCB_SHAPE_SK_BOUNDING);
+			}
+			bool shape_ok = read_surface_shape_region(xwm, cookie, &new_region);
+			if (shape_sk == XCB_SHAPE_SK_INPUT) {
+				pixman_region32_t bounding_region;
+				pixman_region32_init(&bounding_region);
+				bool bounding_ok = read_surface_shape_region(xwm, bounding_cookie,
+					&bounding_region);
+				// Input is constrained by both the input and bounding regions.
+				pixman_region32_intersect(&new_region, &new_region, &bounding_region);
+				pixman_region32_fini(&bounding_region);
+				if (!shape_ok || !bounding_ok) {
+					pixman_region32_fini(&new_region);
+					continue;
+				}
+
+				pixman_region32_t full_region;
+				pixman_region32_init_rect(&full_region, 0, 0,
+					xsurface->width, xsurface->height);
+				has_new_shape = !pixman_region32_equal(&new_region, &full_region);
+				pixman_region32_fini(&full_region);
+			} else if (!shape_ok) {
+				pixman_region32_fini(&new_region);
+				continue;
+			}
+		}
+
+		// Rendering caches the client bounding region; the caller applies the
+		// size-dependent default region. ShapeClip does not clip the visible border.
+		bool changed = *has_shape != has_new_shape ||
+			(has_new_shape && !pixman_region32_equal(region, &new_region));
+		if (changed) {
+			*has_shape = has_new_shape;
+			if (has_new_shape) {
+				pixman_region32_copy(region, &new_region);
+			} else {
+				pixman_region32_clear(region);
+			}
+		}
+		pixman_region32_fini(&new_region);
+		if (changed) {
+			wl_signal_emit_mutable(signal, NULL);
+		}
+	}
+}
+
 static int xwayland_surface_handle_ping_timeout(void *data) {
 	struct wlr_xwayland_surface *surface = data;
 
@@ -214,6 +347,8 @@ static struct wlr_xwayland_surface *xwayland_surface_create(
 	wl_list_init(&surface->stack_link);
 	wl_list_init(&surface->parent_link);
 	wl_list_init(&surface->unpaired_link);
+	pixman_region32_init(&surface->input_shape);
+	pixman_region32_init(&surface->clip_shape);
 
 	wl_signal_init(&surface->events.destroy);
 	wl_signal_init(&surface->events.request_configure);
@@ -247,6 +382,8 @@ static struct wlr_xwayland_surface *xwayland_surface_create(
 	wl_signal_init(&surface->events.set_geometry);
 	wl_signal_init(&surface->events.set_opacity);
 	wl_signal_init(&surface->events.set_icon);
+	wl_signal_init(&surface->events.set_input_shape);
+	wl_signal_init(&surface->events.set_clip_shape);
 	wl_signal_init(&surface->events.focus_in);
 	wl_signal_init(&surface->events.grab_focus);
 	wl_signal_init(&surface->events.map_request);
@@ -259,11 +396,18 @@ static struct wlr_xwayland_surface *xwayland_surface_create(
 	}
 	free(geometry_reply);
 
+	if (xwm->shape != NULL && xwm->shape->present) {
+		xcb_shape_select_input(xwm->xcb_conn, window_id, true);
+		xwm_update_surface_shape(xwm, surface, XCB_SHAPE_SK_BOUNDING);
+	}
+
 	struct wl_display *display = xwm->xwayland->wl_display;
 	struct wl_event_loop *loop = wl_display_get_event_loop(display);
 	surface->ping_timer = wl_event_loop_add_timer(loop,
 		xwayland_surface_handle_ping_timeout, surface);
 	if (surface->ping_timer == NULL) {
+		pixman_region32_fini(&surface->input_shape);
+		pixman_region32_fini(&surface->clip_shape);
 		free(surface);
 		wlr_log(WLR_ERROR, "Could not add timer to event loop");
 		return NULL;
@@ -610,6 +754,8 @@ static void xwayland_surface_destroy(struct wlr_xwayland_surface *xsurface) {
 	assert(wl_list_empty(&xsurface->events.set_geometry.listener_list));
 	assert(wl_list_empty(&xsurface->events.set_opacity.listener_list));
 	assert(wl_list_empty(&xsurface->events.set_icon.listener_list));
+	assert(wl_list_empty(&xsurface->events.set_input_shape.listener_list));
+	assert(wl_list_empty(&xsurface->events.set_clip_shape.listener_list));
 	assert(wl_list_empty(&xsurface->events.focus_in.listener_list));
 	assert(wl_list_empty(&xsurface->events.grab_focus.listener_list));
 	assert(wl_list_empty(&xsurface->events.map_request.listener_list));
@@ -648,6 +794,8 @@ static void xwayland_surface_destroy(struct wlr_xwayland_surface *xsurface) {
 	free(xsurface->hints);
 	free(xsurface->size_hints);
 	free(xsurface->strut_partial);
+	pixman_region32_fini(&xsurface->input_shape);
+	pixman_region32_fini(&xsurface->clip_shape);
 	free(xsurface);
 }
 
@@ -1331,6 +1479,17 @@ static void xwm_handle_configure_notify(struct wlr_xwm *xwm,
 	if (geometry_changed) {
 		wl_signal_emit_mutable(&xsurface->events.set_geometry, NULL);
 	}
+}
+
+static void xwm_handle_shape_notify(struct wlr_xwm *xwm,
+		xcb_shape_notify_event_t *ev) {
+	struct wlr_xwayland_surface *xsurface =
+		lookup_surface(xwm, ev->affected_window);
+	if (xsurface == NULL) {
+		return;
+	}
+
+	xwm_update_surface_shape(xwm, xsurface, ev->shape_kind);
 }
 
 static void xsurface_set_wm_state(struct wlr_xwayland_surface *xsurface) {
@@ -2040,6 +2199,14 @@ static int read_x11_events(struct wlr_xwm *xwm) {
 			continue;
 		}
 
+		if (xwm->shape != NULL && xwm->shape->present &&
+				(event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK) ==
+					xwm->shape->first_event + XCB_SHAPE_NOTIFY) {
+			xwm_handle_shape_notify(xwm, (xcb_shape_notify_event_t *)event);
+			free(event);
+			continue;
+		}
+
 		switch (event->response_type & XCB_EVENT_RESPONSE_TYPE_MASK) {
 		case XCB_CREATE_NOTIFY:
 			xwm_handle_create_notify(xwm, (xcb_create_notify_event_t *)event);
@@ -2221,6 +2388,10 @@ void wlr_xwayland_surface_configure(struct wlr_xwayland_surface *xsurface,
 	}
 
 	xwm_schedule_flush(xwm);
+
+	if ((width != old_w || height != old_h) && xsurface->has_clip_shape) {
+		wl_signal_emit_mutable(&xsurface->events.set_clip_shape, NULL);
+	}
 }
 
 void wlr_xwayland_surface_close(struct wlr_xwayland_surface *xsurface) {
@@ -2319,6 +2490,7 @@ static void xwm_get_resources(struct wlr_xwm *xwm) {
 	xcb_prefetch_extension_data(xwm->xcb_conn, &xcb_xfixes_id);
 	xcb_prefetch_extension_data(xwm->xcb_conn, &xcb_composite_id);
 	xcb_prefetch_extension_data(xwm->xcb_conn, &xcb_res_id);
+	xcb_prefetch_extension_data(xwm->xcb_conn, &xcb_shape_id);
 
 	size_t i;
 	xcb_intern_atom_cookie_t cookies[ATOM_LAST];
@@ -2363,6 +2535,28 @@ static void xwm_get_resources(struct wlr_xwm *xwm) {
 	xwm->xfixes_major_version = xfixes_reply->major_version;
 
 	free(xfixes_reply);
+
+	xwm->shape = xcb_get_extension_data(xwm->xcb_conn, &xcb_shape_id);
+	if (!xwm->shape || !xwm->shape->present) {
+		wlr_log(WLR_DEBUG, "shape not available");
+	} else {
+		xcb_shape_query_version_cookie_t shape_cookie =
+			xcb_shape_query_version(xwm->xcb_conn);
+		xcb_shape_query_version_reply_t *shape_reply =
+			xcb_shape_query_version_reply(xwm->xcb_conn, shape_cookie, NULL);
+		if (shape_reply != NULL) {
+			wlr_log(WLR_DEBUG, "shape version: %" PRIu16 ".%" PRIu16,
+				shape_reply->major_version, shape_reply->minor_version);
+			// Input regions were added in Shape version 1.1.
+			xwm->shape_input_supported = shape_reply->major_version > 1 ||
+				(shape_reply->major_version == 1 &&
+					shape_reply->minor_version >= 1);
+		}
+		free(shape_reply);
+		if (!xwm->shape_input_supported) {
+			wlr_log(WLR_DEBUG, "shape input regions are not supported");
+		}
+	}
 
 	const xcb_query_extension_reply_t *xres =
 		xcb_get_extension_data(xwm->xcb_conn, &xcb_res_id);

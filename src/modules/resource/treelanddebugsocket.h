@@ -3,14 +3,15 @@
 //
 // Shared socket-naming logic for the treeland-debug remote-object channel.
 //
-// The socket lives in the compositor's runtime directory, i.e.
-// $XDG_RUNTIME_DIR as reported by QStandardPaths::RuntimeLocation:
-// /run/treeland for the global service, /run/user/<uid> for a session.  Never
-// in $TMPDIR: /tmp is world-writable, so any local user could squat the name,
-// and a $TMPDIR-resolved path is invisible to a client whose TMPDIR differs.
-// A client probes the runtime directories it can reach (see
-// treelandDebugSocketDirs()), so it finds the compositor's socket even when
-// the two run under different runtime directories (global service as user dde
+// The socket lives in a directory of the compositor's own: the global service
+// binds in /run/treeland-debug (see treelandDebugGlobalSocketDir()), a session
+// in its per-user runtime directory.  Never in $XDG_RUNTIME_DIR for the global
+// service, which must stay 0700 for Qt (QStandardPaths then falls back to
+// $TMPDIR), and never in $TMPDIR itself: /tmp is world-writable, so any local
+// user could squat the name, and a $TMPDIR-resolved path is invisible to a
+// client whose TMPDIR differs.  A client probes every directory it can reach
+// (see treelandDebugSocketDirs()), so it finds the compositor's socket even
+// when the two run under different directories (global service as user dde
 // vs. a normal user or root running treeland-debug).
 //
 // When the default name is already held by a live instance, a numeric suffix
@@ -36,19 +37,28 @@ class QLocalSocket;
 // Build-specific socket base name (bare name, no path, no "local:" scheme).
 QString treelandDebugDefaultSocketName();
 
-// Runtime directory of this process (QStandardPaths::RuntimeLocation), where
-// the compositor binds its socket and where the qtests below expect clients to
-// look first: "/run/treeland" for the global service, "/run/user/<uid>" for a
-// session.  Qt creates it (0700, owned by the caller) when missing and rejects
-// one owned by another user; an unusable or "$TMPDIR/runtime-<user>" fallback
-// yields an empty string, which leaves the debug channel unpublished.
+// Directory of the global service's debug socket: a directory of its own
+// (/run/treeland-debug, created by RuntimeDirectory= in
+// misc/systemd/treeland.service.in), never the process's XDG_RUNTIME_DIR --
+// Qt requires that one to stay 0700 and would move new sessions' wayland
+// sockets to $TMPDIR if it were widened.  $TREELAND_DEBUG_DIR overrides it, for
+// development and tests; the no-auth window still only opens this directory.
+QString treelandDebugGlobalSocketDir();
+
+// Directory this process binds its socket in: the global service's own
+// treelandDebugGlobalSocketDir() (created 0700 if missing), and for a session
+// (TREELAND_RUN_MODE=user) the runtime directory (QStandardPaths
+// RuntimeLocation, "/run/user/<uid>").  Empty when neither is usable -- an
+// unusable or "$TMPDIR/runtime-<user>" fallback -- which leaves the debug
+// channel unpublished.
 QString treelandDebugSocketDir();
 
 // Candidate directories holding the debug socket, most-preferred first: this
-// process' runtime directory, then the global service's "/run/treeland", then
-// every "/run/user/<uid>" session directory it can list (root only).  A client
-// needs this because it cannot know the compositor's runtime directory.
-// Pure: neither directory is created or probed here.
+// process' own directory, then the global service's one, then the runtime
+// directory older global services used ("/run/treeland"), then every
+// "/run/user/<uid>" session directory it can list (root only).  A client needs
+// this because it cannot know the compositor's directory.
+// Pure: no directory is created or probed here.
 QStringList treelandDebugSocketDirs();
 
 // Release-build socket base name (always defined so a debug-built client can
@@ -119,6 +129,27 @@ QStringList treelandDebugInstanceSocketUrls(const QStringList &candidateUrls);
 // naming the process replaces guessing whether the socket belongs to another
 // instance.
 QString treelandDebugSocketPeerText(const QLocalSocket &socket);
+
+// Applies the socket's caller policy: with @p anyUser the debug socket becomes
+// connectable by every local user, otherwise only root keeps access (mode 0000,
+// so the kernel refuses every other connect()).  A socket is only reachable from
+// inside a traversable directory, so the directory goes to 0711 too -- traverse
+// but not list, which keeps the socket names unenumerable.  The directory is not
+// narrowed again when @p anyUser is off: several instances can share it (see
+// treelandDebugPickFreeSocketName), and one instance closing its window must not
+// cut off a peer's still-open one.  The sockets are the access gate.
+//
+// Only one directory is ever widened: treelandDebugGlobalSocketDir(), which
+// holds nothing but this socket.  A session instance binds in
+// /run/user/<uid> next to the session bus, so it is refused before anything is
+// touched and root stays required there; any other path is refused the same
+// way, since widening a directory of somebody else's is exactly what this
+// function must not do.  Returns false when the policy could not be applied; the
+// socket stays usable for its owner either way, so callers only log it.
+//
+// Called with @p anyUser by the no-auth window of a release build and, once at
+// startup, by a debug build: whoever debugs there must not need a polkit prompt.
+bool treelandDebugSetSocketAccess(const QString &socketPath, bool anyUser);
 
 // RAII lock that claims a local-socket name, mirroring wl_socket_lock() in
 // libwayland.  An exclusive flock on "<path>.lock" (placed next to the socket)

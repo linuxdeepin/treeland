@@ -7,6 +7,8 @@
 #include "common/treelandlogging.h"
 #include "dconfig/dconfigmanager.h"
 #include "core/rootsurfacecontainer.h"
+#include "core/waylandserver.h"
+#include "utils/graphicsplatform.h"
 #include "modules/output-group/outputgroupmanagerinterfacev1.h"
 #include "output.h"
 #include "outputconfig.hpp"
@@ -26,7 +28,9 @@
 #include <utility>
 
 #include <WBackend>
+#ifndef DISABLE_XWAYLAND
 #include <WXWayland>
+#endif
 #include <wlr_all.h>
 #include <woutputhelper.h>
 #include <woutputlayout.h>
@@ -171,6 +175,7 @@ void OutputManager::setXdgOutputManagers(WXdgOutputManager *manager,
 {
     Q_ASSERT(!m_xwaylandOutputManager);
 
+#ifndef DISABLE_XWAYLAND
     m_xwaylandOutputManager = xwaylandManager;
     m_xwaylandOutputManager->setScaleOverride(1.0);
 
@@ -202,22 +207,16 @@ void OutputManager::setXdgOutputManagers(WXdgOutputManager *manager,
             this,
             updateXWaylandOutputScale);
     updateXWaylandOutputScale();
+#else
+    Q_UNUSED(manager);
+    Q_UNUSED(xwaylandManager);
+    Q_UNUSED(sessionManager);
+#endif
 }
 
 WXdgOutputManager *OutputManager::xwaylandOutputManager() const
 {
     return m_xwaylandOutputManager;
-}
-
-bool OutputManager::isNvidiaCardPresent() const
-{
-    auto *rhi = m_renderWindow->rhi();
-    if (!rhi)
-        return false;
-
-    const QString deviceName = rhi->driverInfo().deviceName;
-    qCDebug(lcTlOutput) << "Graphics Device:" << deviceName;
-    return deviceName.contains("NVIDIA", Qt::CaseInsensitive);
 }
 
 void OutputManager::processOutputAdded(WOutput *output)
@@ -499,8 +498,12 @@ void OutputManager::outputRemoved(WOutput *output)
     const auto o = m_outputs.takeAt(index);
 
     const auto &surfaces = workspaceSurfaces(o);
+    // Capture before removeFromRootContainer(): removing the output moves the
+    // primary away from it, and onScreenRemoved() must still know whether the
+    // output it is told about was the primary one.
+    const bool removedWasPrimary = m_rootContainer->primaryOutput() == o;
     removeFromRootContainer(o);
-    const bool removedConfiguredSingleOutput = onScreenRemoved(o, surfaces);
+    const bool removedConfiguredSingleOutput = onScreenRemoved(o, surfaces, removedWasPrimary);
     // When the seat becomes inactive (e.g. VT switch), wlroots tears down every
     // DRM output synchronously. The restore below re-enables the remaining
     // outputs, but no DRM commit can succeed while the session is inactive, so
@@ -540,7 +543,8 @@ const QList<Output *> &OutputManager::outputs() const
 Output *OutputManager::createNormalOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output)
 {
     Output *result = Output::create(output, ::qmlEngine(m_renderWindow), parent());
-    if (isNvidiaCardPresent()) {
+    auto *platform = WaylandServer::instance()->graphicsPlatform();
+    if (platform && platform->isNvidia()) {
         result->outputItem()->setProperty("forceSoftwareCursor", true);
     }
     result->outputItem()->stackBefore(m_rootContainer);
@@ -611,6 +615,11 @@ void OutputManager::removeFromRootContainer(Output *output)
                             << "in layout:" << inLayout;
         if (inRoot && !inLayout) {
             m_rootContainer->outputModel()->removeObject(output);
+            // Same ordering rule as RootSurfaceContainer::removeOutput(): the
+            // primary must move away before the per-output containers go away,
+            // otherwise layer surfaces without an output look up the container
+            // of the output being removed.
+            m_rootContainer->movePrimaryOutputAwayFrom(output);
             m_rootContainer->SurfaceContainer::removeOutput(output);
         } else if (!inRoot && inLayout) {
             layout->remove(output->output());
@@ -1867,27 +1876,32 @@ void OutputManager::onScreenAdded(Output *output, const QList<SurfaceWrapper *> 
 }
 
 bool OutputManager::onScreenRemoved(Output *output,
-                                    const QList<SurfaceWrapper *> &surfaces)
+                                    const QList<SurfaceWrapper *> &surfaces,
+                                    bool wasPrimary)
 {
     if (!output || !m_rootContainer) {
         return false;
     }
 
-    const bool isCurrentPrimary = (m_rootContainer->primaryOutput() == output);
     const bool wasPrimaryBeforeRemoval = m_primaryRestoreIntents.value(output->getOutputId());
 
     if (output->getOutputId() == m_config->singleOutputId()) {
         return true;
     }
 
-    if (isCurrentPrimary && !wasPrimaryBeforeRemoval) {
+    // Only a screen that was primary *and* left no primary behind (it was the last
+    // output) is restored as primary when it comes back. A multi-screen primary
+    // removal keeps the remaining primary in charge, as it always did.
+    if (wasPrimary && !wasPrimaryBeforeRemoval && !m_rootContainer->primaryOutput()) {
         markScreenAsPrimaryIntent(output);
     }
 
-    if (!isCurrentPrimary) {
-        if (auto *primaryOutput = m_rootContainer->primaryOutput()) {
-            m_rootContainer->moveSurfacesToOutput(surfaces, primaryOutput, output);
-        }
+    // Windows of the removed screen move to the primary that is left. This must not
+    // depend on whether the removed screen was the primary: with other outputs still
+    // around, the primary has already moved to one of them and the windows have to
+    // follow it, or they end up outside every visible screen.
+    if (auto *primaryOutput = m_rootContainer->primaryOutput()) {
+        m_rootContainer->moveSurfacesToOutput(surfaces, primaryOutput, output);
     }
     return false;
 }

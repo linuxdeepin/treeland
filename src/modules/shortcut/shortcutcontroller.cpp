@@ -35,6 +35,7 @@ ShortcutController::ShortcutController(QObject *parent)
 
 ShortcutController::~ShortcutController()
 {
+    m_destroying = true;
     clear();
 }
 
@@ -72,6 +73,8 @@ uint ShortcutController::registerKey(const QString &name, const QString& key, Sh
             return BindError::bind_error_name_conflict;
         }
         m_deleters.remove(prevName);
+        if (prevName != name)
+            Q_EMIT shortcutUnregistered(prevName);
         qCInfo(lcTlShortcut).noquote() << "Overriding existing key binding of"
                                  << keyComb << "for action" << actionName(action)
                                  << "by name" << prevName << "with new name" << name << "and flags" << keybindFlags;
@@ -93,6 +96,11 @@ uint ShortcutController::registerKey(const QString &name, const QString& key, Sh
         qCInfo(lcTlShortcut).noquote() << "register shortcut:" << key << "->" << name
             << "flags:" << flagNames.join('|');
     }
+    Q_EMIT shortcutRegistered(Binding{Binding::Key,
+                                     name,
+                                     QKeySequence(keyComb).toString(QKeySequence::PortableText),
+                                     keybindFlags,
+                                     action});
     return 0;
 }
 
@@ -157,6 +165,8 @@ uint ShortcutController::registerSwipeGesture(const QString &name, uint finger, 
             << "direction:" << dirNames[direction]
             << "action:" << actionName(action);
     }
+    Q_EMIT shortcutRegistered(
+        Binding{Binding::Swipe, name, {}, {}, action, finger, direction});
     return 0;
 }
 
@@ -214,14 +224,57 @@ uint ShortcutController::registerHoldGesture(const QString &name, uint finger, S
             << "finger:" << finger
             << "action:" << actionName(action);
     }
+    Q_EMIT shortcutRegistered(Binding{Binding::Hold,
+                                     name,
+                                     {},
+                                     {},
+                                     action,
+                                     finger,
+                                     SwipeGesture::Direction::Invalid});
     return 0;
+}
+
+void ShortcutController::setTriggerTargetProvider(TriggerTargetProvider provider)
+{
+    m_triggerTargetProvider = std::move(provider);
 }
 
 void ShortcutController::unregisterShortcut(const QString &name)
 {
     if (m_deleters.contains(name)) {
         m_deleters.take(name)();
+        Q_EMIT shortcutUnregistered(name);
     }
+}
+
+QList<ShortcutController::Binding> ShortcutController::bindings() const
+{
+    QList<Binding> result;
+    for (const auto &[combined, actions] : m_keyMap.asKeyValueRange()) {
+        for (const auto &[action, entry] : actions.asKeyValueRange()) {
+            const auto &[name, flags] = entry;
+            result.append(Binding{Binding::Key,
+                                  name,
+                                  QKeySequence(QKeyCombination::fromCombined(combined))
+                                      .toString(QKeySequence::PortableText),
+                                  flags,
+                                  action});
+        }
+    }
+    for (const auto &[gestureKey, actions] : m_gesturemap.asKeyValueRange()) {
+        const auto &[finger, direction] = gestureKey;
+        for (const auto &[action, name] : actions.asKeyValueRange()) {
+            result.append(Binding{direction == SwipeGesture::Direction::Invalid ? Binding::Hold
+                                                                              : Binding::Swipe,
+                                  name,
+                                  {},
+                                  {},
+                                  action,
+                                  finger,
+                                  direction});
+        }
+    }
+    return result;
 }
 
 bool ShortcutController::matchesShortcut(const QKeyEvent *event) const
@@ -245,6 +298,10 @@ bool ShortcutController::dispatchKeyEvent(const QKeyEvent *kevent)
     }
     if (!matched)
         return false;
+
+    // Sample the focus before emitting: the action may switch workspaces or
+    // tasks and move the keyboard focus away from the origin window.
+    m_lastTriggerTarget = m_triggerTargetProvider ? m_triggerTargetProvider() : 0;
 
     for (const auto &[action, keybind] : std::as_const(m_keyMap[combined]).asKeyValueRange()) {
         const auto& [name, bindFlags] = keybind;
@@ -273,8 +330,13 @@ Qt::KeyboardModifiers ShortcutController::modifierForAction(ShortcutAction actio
 
 void ShortcutController::clear()
 {
-    for (const auto& deleter : std::as_const(m_deleters)) {
+    for (const auto& [name, deleter] : m_deleters.asKeyValueRange()) {
         deleter();
+        // Dropping the whole registry (session switch) must be visible in the
+        // registration stream too, otherwise old bindings look permanently
+        // registered. Skip while destructing: receivers may already be gone.
+        if (!m_destroying)
+            Q_EMIT shortcutUnregistered(name);
     }
     m_deleters.clear();
     m_actionCombinedMap.clear();

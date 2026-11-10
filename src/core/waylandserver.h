@@ -9,7 +9,9 @@
 #include "modules/wallpaper/wallpapermanagerinterfacev1.h"
 #include "modules/wallpaper/wallpapernotifierinterfacev1.h"
 #include "modules/show-desktop/showdesktopinterfacev1.h"
+#ifndef DISABLE_XWAYLAND
 #include "modules/xwindow-control/xwindowcontrolinterfacev1.h"
+#endif
 #include "utils/fpsdisplaymanager.h"
 
 #include <xcb/xproto.h>
@@ -29,6 +31,7 @@
 #include <QMap>
 #include <QEvent>
 
+#include <memory>
 #include <optional>
 
 class QJsonObject;
@@ -68,7 +71,9 @@ class WSurfaceItem;
 class WToplevelSurface;
 class WXdgDecorationManager;
 class WXdgOutputManager;
+#ifndef DISABLE_XWAYLAND
 class WXWayland;
+#endif
 class WPointerConstraintsV1;
 
 class WForeignToplevel;
@@ -97,6 +102,7 @@ class DDEShellManagerInterfaceV2;
 class DDMInterfaceV1;
 class ForeignToplevelManagerInterfaceV3;
 class FpsDisplayManager;
+class GraphicsPlatform;
 class GreeterProxy;
 class ILockScreen;
 class IMultitaskView;
@@ -113,10 +119,10 @@ class DecorationManagerInterfaceV1;
 class RootSurfaceContainer;
 class ScreensaverInterfaceV2;
 class SessionManager;
-class SettingManager;
 class SessionModel;
 class ShellHandler;
 class ShellActionExecutor;
+class ShortcutController;
 class ShortcutManagerV3;
 class ShortcutRunner;
 class SurfaceContainer;
@@ -187,6 +193,7 @@ public:
     SessionManager *sessionManager() const;
     QmlEngine *qmlEngine() const;
     WOutputRenderWindow *window() const;
+    GraphicsPlatform *graphicsPlatform() const;
     ShellHandler *shellHandler() const;
     Workspace *workspace() const;
     WXdgOutputManager *xwaylandOutputManager() const;
@@ -207,9 +214,15 @@ public:
     Q_INVOKABLE void addOutput();
 
     void addSocket(WSocket *socket);
+#ifndef DISABLE_XWAYLAND
     [[nodiscard]] WXWayland *createXWayland();
+#endif
 
     WSeat *seat() const;
+
+    // The shortcut manager's controller, i.e. the live registry of bound
+    // shortcuts. Exposed for the debug remote source; null before init.
+    ShortcutController *shortcutController() const;
 
     // Moves the primary seat cursor to @p position, first ending any
     // in-progress interactive move/resize for every seat so the motion is
@@ -279,7 +292,9 @@ public:
     void restoreFromShowDesktop(SurfaceWrapper *activeSurface = nullptr);
     void restoreShowDesktopFocus();
 
+#ifndef DISABLE_XWAYLAND
     bool setXWindowPositionRelative(uint wid, WSurface *anchor, wl_fixed_t dx, wl_fixed_t dy) const;
+#endif
     SeatManager *seatManager() const;
 
     WSeat *getSeatForEvent(QInputEvent *event) const;
@@ -380,6 +395,7 @@ private:
 
     // QtQuick scene and presentation
     WOutputRenderWindow *m_renderWindow = nullptr;
+    std::unique_ptr<GraphicsPlatform> m_graphicsPlatform;
     QQuickItem *m_dockPreview = nullptr;
     QQuickItem *m_fpsDisplay = nullptr;
 
@@ -401,7 +417,9 @@ private:
     AppearanceManagerInterfaceV1 *m_appearanceManagerInterfaceV1 = nullptr;
     CompositorActionInterfaceV1 *m_compositorActionInterfaceV1 = nullptr;
     WallpaperColorInterfaceV1 *m_wallpaperColorV1 = nullptr;
+#ifndef DISABLE_XWAYLAND
     XWindowControlInterfaceV1 *m_xWindowControlInterfaceV1 = nullptr;
+#endif
     DDEShellManagerInterfaceV1 *m_ddeShellV1 = nullptr;
     DDEShellManagerInterfaceV2 *m_ddeShellV2 = nullptr;
     DDMInterfaceV1 *m_ddmInterfaceV1 = nullptr;

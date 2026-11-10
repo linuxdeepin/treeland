@@ -3,11 +3,13 @@
 
 #pragma once
 
+#include "modules/shortcut/shortcutcontroller.h"
 #include "rep_treelandwindowtree_source.h"
 #include "treelanddebugsocket.h"
 
 
 #include <QPointF>
+#include <QPointer>
 #include <QTimer>
 
 class SurfaceWrapper;
@@ -29,6 +31,13 @@ public:
 
     QPointF cursorPosition() const override;
     TreelandInfo getTreelandInfo() override;
+
+    // ---- access ----
+    // Opens the debug socket to every local user for 30 minutes; every later
+    // remote call pushes the window out again. Only a caller that already
+    // passed the sealed socket can ask, and in a release build that is root alone:
+    // mode 0000 blocks the compositor's own user too, only CAP_DAC_OVERRIDE passes.
+    bool requestNoAuth() override;
 
     // ---- inspection ----
     QList<WindowInfo> getWindows() override;
@@ -58,6 +67,8 @@ public:
 
     // ---- real-time monitoring ----
     QList<DebugEvent> getEvents(quint64 afterSeq) override;
+    // ---- shortcut registry ----
+    QList<ShortcutInfo> getShortcuts() override;
     qint64 focusedWindowId() override;
     qint64 windowUnderCursor() override;
     // ---- QtQuick scene inspection ----
@@ -70,6 +81,16 @@ protected:
     // only while a treeland-debug client is actively polling getEvents(), so
     // there is zero per-event overhead when nobody is monitoring.
     bool eventFilter(QObject *watched, QEvent *event) override;
+
+private Q_SLOTS:
+    // Feed the shortcut registration/trigger stream into the event ring
+    // buffer while capture is armed.
+    void onShortcutRegistered(const ShortcutController::Binding &binding);
+    void onShortcutUnregistered(const QString &name);
+    void onShortcutTriggered(ShortcutAction action, const QString &name, bool isGesture,
+                             ShortcutController::KeyFlags keyFlags);
+    // Swipe gestures report only actionFinished() — never actionTriggered().
+    void onShortcutFinished(ShortcutAction action, const QString &name, bool isTriggered);
 
 private:
     void collectSurfaceInfos(QList<WindowInfo> &infos,
@@ -108,6 +129,17 @@ private:
     void stopEventCapture();
     void appendEvent(int type, qint64 target, const QString &detail);
 
+    // Closes the no-auth window: the timer expired, or the source is being torn
+    // down. Idempotent -- a closed socket and a 0700 directory are the target
+    // state, not a transition. Rebinding the host is what revokes the
+    // connections a peer opened while the window was open.
+    void closeNoAuthWindow();
+    // Binds the debug socket and publishes WindowTree on it. Used by the
+    // constructor and by closeNoAuthWindow() when it has to drop peers.
+    bool bindHost(const QString &socketPath);
+    // Called by every remote method: a call is what keeps no-auth mode alive.
+    void noteActivity() const;
+
     // Event ring buffer for real-time monitoring; populated only while a client
     // is actively polling getEvents().
     QList<DebugEvent> m_events;
@@ -115,9 +147,23 @@ private:
     static constexpr int MAX_EVENTS = 2000;
     bool m_eventCaptureActive = false;
     QTimer *m_eventIdleTimer = nullptr;
+    // Controller whose shortcut signals feed the event ring buffer while
+    // capture is armed (null when capture is off). Guarded: the source can
+    // outlive the manager's controller when remoteDebug is toggled.
+    QPointer<ShortcutController> m_shortcutController;
     // Held for the lifetime of the QRemoteObjectHost so the socket name
     // claimed in the constructor stays ours (Wayland-style flock lock file,
     // see TreelandDebugSocketLock).
     TreelandDebugSocketLock m_debugSocketLock;
+    QString m_debugSocketPath;
+    // Release builds are the only ones that restrict the socket, so they are
+    // also the only ones the access policy has to touch.
+    bool m_socketRootOnly = false;
+    // Turns no-auth mode off after a call-free window, so a forgotten request
+    // cannot leave the debug channel open.
+    QTimer *m_noAuthIdleTimer = nullptr;
+    // True while the socket is open to every local user, so the teardown knows
+    // whether peers may be holding a connection that has to be revoked.
+    bool m_noAuthWindowOpen = false;
     bool m_published = false;
 };

@@ -78,6 +78,31 @@ public:
         All = KeyPress | KeyRelease | Repeat
     };
     Q_DECLARE_FLAGS(KeyFlags, KeyFlag)
+
+    // A bound shortcut as reported to the debug interface (treeland-debug
+    // `shortcuts`): a key binding (Key) or a touchpad swipe/hold gesture.
+    struct Binding
+    {
+        enum Type { Key = 0, Swipe = 1, Hold = 2 };
+
+        Type type = Key;
+        QString name;
+        QString key; // portable-text key sequence, empty for gestures
+        KeyFlags flags;
+        ShortcutAction action = ShortcutAction::Notify;
+        uint fingers = 0; // gestures
+        SwipeGesture::Direction direction = SwipeGesture::Direction::Invalid; // gestures
+    };
+    // Every currently bound shortcut, for the debug interface.
+    QList<Binding> bindings() const;
+
+    // Debug interface only: resolves the window that currently has keyboard
+    // focus. Sampled when a key shortcut is dispatched, so an observer sees the
+    // window the shortcut was pressed on even when the action moves the focus.
+    using TriggerTargetProvider = std::function<qint64()>;
+    void setTriggerTargetProvider(TriggerTargetProvider provider);
+    qint64 lastTriggerTarget() const { return m_lastTriggerTarget; }
+
     explicit ShortcutController(QObject *parent = nullptr);
     ~ShortcutController() override;
 
@@ -100,6 +125,10 @@ public:
 
 Q_SIGNALS:
     void actionTriggered(ShortcutAction action, const QString &name, bool isGesture, KeyFlags keyFlags = {});
+    // Emitted when a binding appears or disappears, so treeland-debug can
+    // stream shortcut registration without polling.
+    void shortcutRegistered(const ShortcutController::Binding &binding);
+    void shortcutUnregistered(const QString &name);
     void actionProgress(ShortcutAction action, qreal progress, const QString &name);
     void actionFinished(ShortcutAction action, const QString &name, bool isTriggered);
 
@@ -110,6 +139,10 @@ private:
     QMap<std::pair<uint, SwipeGesture::Direction>, QObject*> m_gestures;
     QMap<QString, std::function<void()>> m_deleters;
     QMap<ShortcutAction, int> m_actionCombinedMap;
+    // Suppresses shortcutUnregistered() while the object is being destroyed.
+    bool m_destroying = false;
+    TriggerTargetProvider m_triggerTargetProvider;
+    qint64 m_lastTriggerTarget = 0;
 };
 
 // Convenience alias so existing bare `ShortcutAction` references keep working

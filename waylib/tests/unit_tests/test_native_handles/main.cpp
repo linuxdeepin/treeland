@@ -20,8 +20,10 @@
 #include <WSessionLock>
 #include <WSessionLockManager>
 #include <WSessionLockSurface>
+#ifndef DISABLE_XWAYLAND
 #include <WXWayland>
 #include <WXWaylandSurface>
+#endif
 #include <wxdgdialogmanagerv1.h>
 #include <wextforeigntoplevellistv1.h>
 #include <wxdgpopupsurface.h>
@@ -66,8 +68,10 @@ struct wlr_xdg_popup;
 struct wlr_xdg_shell;
 struct wlr_xdg_toplevel;
 struct wlr_xdg_wm_dialog_v1;
+#ifndef DISABLE_XWAYLAND
 struct wlr_xwayland;
 struct wlr_xwayland_surface;
+#endif
 struct wlr_session_lock_manager_v1;
 struct wlr_session_lock_surface_v1;
 struct wlr_session_lock_v1;
@@ -111,9 +115,11 @@ static_assert(std::is_same_v<decltype(std::declval<WSessionLock &>().handle()),
                              wlr_session_lock_v1 *>);
 static_assert(std::is_same_v<decltype(std::declval<WSessionLockSurface &>().handle()),
                              wlr_session_lock_surface_v1 *>);
+#ifndef DISABLE_XWAYLAND
 static_assert(std::is_same_v<decltype(std::declval<WXWayland &>().handle()), wlr_xwayland *>);
 static_assert(std::is_same_v<decltype(std::declval<WXWaylandSurface &>().handle()),
                              wlr_xwayland_surface *>);
+#endif
 static_assert(std::is_same_v<decltype(std::declval<WInputMethodManagerV2 &>().handle()),
                              wlr_input_method_manager_v2 *>);
 static_assert(std::is_same_v<decltype(std::declval<WInputMethodV2 &>().handle()),
@@ -148,6 +154,7 @@ class NativeHandlesTest : public QObject
 {
     Q_OBJECT
 
+#ifndef DISABLE_XWAYLAND
     static void initXWaylandSurface(wlr_xwayland_surface *surface)
     {
         wl_list_init(&surface->children);
@@ -176,6 +183,7 @@ class NativeHandlesTest : public QObject
             wl_signal_init(signal);
         }
     }
+#endif
 
 private Q_SLOTS:
     void serverExposesNativeDisplay()
@@ -344,6 +352,7 @@ private Q_SLOTS:
         wl_signal_emit_mutable(&nativeTextInput.events.destroy, &nativeTextInput);
     }
 
+#ifndef DISABLE_XWAYLAND
     void xwaylandSurfaceTracksNativeLifetime()
     {
         wlr_xwayland_surface nativeSurface {};
@@ -401,6 +410,7 @@ private Q_SLOTS:
         QCOMPARE(belowChanged.count(), 1);
         QVERIFY(belowChanged.takeFirst().at(0).toBool());
     }
+#endif
 
     void inputDeviceTracksNativeLifetime()
     {

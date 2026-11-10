@@ -25,8 +25,6 @@
 #include <QHash>
 #include <QQmlEngine>
 
-class QFileSystemWatcher;
-
 class SessionModel : public QAbstractListModel
 {
     Q_OBJECT
@@ -61,6 +59,10 @@ public:
     // model is populated or the value arrives after the dirs.
     void setLastSession(const QString &filePath);
 
+    // Re-reads the session files. Called by the greeter each time the session
+    // list is about to be shown, so no filesystem watching is needed.
+    Q_INVOKABLE void reload();
+
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
@@ -81,7 +83,6 @@ private:
     };
 
     void populate(bool wayland, const QStringList &dirPaths);
-    void reload();
     int indexOfSession(const QString &filePath) const;
 
     int m_currentIndex{ 0 };
@@ -90,7 +91,6 @@ private:
     QList<SessionEntry> m_sessions{};
     QStringList m_waylandSessionDirs{};
     QStringList m_x11SessionDirs{};
-    QFileSystemWatcher *m_watcher{ nullptr };
 };
 
 QML_DECLARE_TYPE(SessionModel)

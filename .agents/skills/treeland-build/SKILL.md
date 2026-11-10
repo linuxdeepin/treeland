@@ -41,7 +41,7 @@ cmake --preset default -DCMAKE_BUILD_TYPE=Debug
 - 定义 `TREELAND_DEBUG_DEV_BUILD`：socket 名变成 `org.deepin.dde.treeland.debug-dev`，`treeland-debug` 免 polkit 提权
 - 不传 `CMAKE_BUILD_TYPE` 时既不是 Debug 也不是 Release，上面这个宏都不会定义
 
-调试 Remote Object 的开关在两种构建里都是 `remoteDebug`（默认开），Debug 构建不再有自己的覆盖开关。
+调试 Remote Object 的开关是 `remoteDebug`（默认关，用 `treeland-debug debug on` 打开）；**Debug 构建不看这个开关，始终开启**（socket 名带 `-dev`），所以 dev 实例里不需要也不应该去改它。
 
 ## 常用配置选项
 | 选项 | 默认 | 说明 |
@@ -53,8 +53,13 @@ cmake --preset default -DCMAKE_BUILD_TYPE=Debug
 | `BUILD_TREELAND_EXAMPLES` | `OFF` | 示例客户端 |
 | `TREELAND_INSTALL_DEV` | `OFF` | 装开发文件（头文件、CMake config、`.so` 链接） |
 | `DISABLE_DDM` | `OFF` | 关掉 DDM 与 greeter |
+| `DISABLE_XWAYLAND` | `OFF` | 关闭 Treeland/waylib 的 Xwayland 路径，并覆盖 wlroots 的有效 `WLROOTS_XWAYLAND` 为 `OFF`；不构建 Xwayland helper、xwindow-control 模块及其测试 |
 | `EXT_SESSION_LOCK_V1` | `ON` | 用 ext-session-lock 作为 DDM 之外的锁屏方案 |
 | `USE_BUILD_TREE_WALLPAPER_FACTORY` | `OFF` | 直接用构建树里的 wallpaper factory |
+
+使用系统 Waylib（`WITH_SUBMODULE_WAYLIB=OFF`）时，若其没有 Xwayland 支持，必须同时设置 `DISABLE_XWAYLAND=ON`；配置阶段会编译探测系统头文件，提前拒绝特性不匹配的组合。探测失败的其他原因见 CMake configure 日志。
+
+直接覆盖安装时，从启用 Xwayland 切换到禁用会清理本项目先前安装的 Xwayland user units、wants 链接和 drop-in；清理遵守 `DESTDIR`，不会删除 `/etc` 中的用户覆盖配置。安装后需重新加载对应的 systemd user manager（`systemctl --user daemon-reload`）；当前已启动的 helper 会在会话重启后退出。
 
 `WITH_SUBMODULE_WAYLIB` 的名字是历史遗留：`waylib/` 是直接提交在本仓库里的源码，不是 git submodule（没有 `.gitmodules`），`git clone --recursive` 对它是空操作。
 
@@ -102,6 +107,6 @@ sudo systemctl daemon-reload
 ## 常见问题
 1. `find_package(TreelandProtocols)` 失败：它不会被自动发现，必须装包，或用 `-DTreelandProtocols_DIR=<dir>` 指向它的 CMake 配置目录。CMake 按 `/usr/local` → `/usr` 的顺序搜索，`/usr/local` 下残留的旧 config 会遮蔽 `/usr` 下的正确版本；此时清掉缓存项重新 configure（`cmake -S . -B build -U TreelandProtocols_DIR`）。
 2. 装完发现二进制在 `/usr/local/bin` 而 unit 在 `/usr/lib/systemd/system`：前缀给晚了。systemd 目录是 pkg-config 的绝对路径，跟前缀无关，重来一次 configure（见铁律）。
-3. 新增目录或改了 `CMakeLists.txt` 后新 target 不出现：重新 configure，`cmake --build` 不会重新生成工程。
+3. 新增目录或改了 `CMakeLists.txt` 后新 target 不出现：重新 configure；正常的 `cmake --build` 会自动触发 CMake 重新生成，但新增 target 的 IDE 缓存或直接指定新 target 的构建入口可能仍需手动 configure。
 4. `-Werror` 报错但不确定是不是自己引入的：`cmake --preset ci` 复现；只用 `default` 编译会漏掉这类告警。
 5. 运行的是刚装的版本还是构建树里的版本：构建树里跑 `./build/src/treeland.sh`，装好的走 `treeland.sh`，两者调试 socket 与日志去向不同，见 `treeland-debug` skill。

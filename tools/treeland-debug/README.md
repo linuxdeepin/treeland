@@ -37,13 +37,19 @@ socket depends on the build type:
 - **Release builds** — the socket is `chmod 0000` (the kernel then rejects every
   `connect()` except root's), so the client must run as `root`; a non-root
   caller is escalated through `pkexec` automatically (see
-  [Access control](#access-control)).
+  [Access control](#access-control)). Once `treeland-debug no-auth` has asked the
+  compositor to open a window, the socket accepts every user instead and the
+  client connects without a prompt.
 
-`remoteDebug` is Treeland's master switch for debugging, and it is **on by
-default**. While it is on, Treeland publishes its debug socket and serves the
-`WindowTree` Remote Object to whoever connects; the client never writes DConfig,
-it just connects. Release builds only let root connect (mode 0000) -- turn the
-switch off to forbid debugging entirely, and the socket disappears with it.
+`remoteDebug` is Treeland's master switch for debugging, and it is **off by
+default** -- debugging hands out window contents and input injection, which a
+compositor running inside a user session must not offer unasked. While it is on,
+Treeland publishes its debug socket and serves the `WindowTree` Remote Object to
+whoever connects; a plain command never writes DConfig, it just connects.
+Release builds only let root connect (mode 0000) -- turn the switch off to forbid
+debugging entirely, and the socket disappears with it. A debug build
+(`CMAKE_BUILD_TYPE=Debug`) is the exception: it ignores the switch and always
+publishes its `-dev` socket, because that instance is the one being developed.
 
 The remote source is a stateless shell: the window tree, screenshots and scene
 trees are all collected per call. The one session-scoped resource is input-event
@@ -52,19 +58,20 @@ after it goes idle, so nothing but the socket exists while nobody is connected.
 
 Because the client has nothing to restore, a crash, `SIGKILL` or a closed
 terminal cannot leave any state behind: there is no session-scoped setting at
-all. If you find no socket, either the switch was turned off or Treeland is not
-running; `treeland-debug` says so on stderr. Turn the switch back on as the user
-Treeland runs as (`dde` in global mode): DConfig keeps app-scoped keys per user
-and its daemon only accepts a caller with that uid -- root is rejected even with
-`-u`, so switch to that user instead:
+all. If you find no socket, either the switch is off (the default) or Treeland
+is not running; `treeland-debug` says so on stderr. Turn it on -- or off again --
+with the one command that writes the switch, `treeland-debug debug on|off`:
 
 ```bash
-sudo -u dde -- dde-dconfig set \
-  -a org.deepin.dde.treeland \
-  -r org.deepin.dde.treeland \
-  -k remoteDebug \
-  -v true
+treeland-debug debug on    # or: treeland-debug debug off / treeland-debug debug
 ```
+
+The switch is a per-user DConfig key and Treeland reads the one of the user it
+runs as, so the command finds that user through the running compositor and
+escalates through `pkexec` when it is not you (`--no-escalate` reports the
+requirement instead of prompting). With root, the same thing by hand is
+`dde-dconfig -u <compositor uid> set -a org.deepin.dde.treeland -r
+org.deepin.dde.treeland -k remoteDebug -v true`.
 
 Toggling `remoteDebug` takes effect immediately: the compositor watches
 `remoteDebugChanged` and creates or destroys the Remote Object source on the
@@ -78,14 +85,38 @@ another one off.
 
 - **Release builds** — only `root` may run `treeland-debug`; the compositor
   side enforces the same rule on the socket itself (mode 0000, so any non-root
-  `connect()` is refused with `EACCES`). A non-root caller is automatically
-  re-executed through `pkexec` (polkit), which prompts for authentication. Pass
-  `--no-escalate` to skip the prompt and fail immediately instead (useful in
-  scripts or CI).
-- **Debug builds** — `treeland-debug` does not restrict the caller, and the
-  socket is published with mode 0666. It still lives in the compositor's
-  runtime directory, which is private to the compositor's user (0700), so in
-  practice it is that user and `root` who can connect.
+  `connect()` is refused with `EACCES`). The client first tries to connect as
+  itself -- an unprivileged caller cannot even reach a root-only socket, so that
+  attempt is skipped rather than probed for the whole timeout -- and, only if it
+  fails, re-executes itself through `pkexec` (polkit), which prompts for
+  authentication. Pass `--no-escalate` to
+  skip the prompt and fail instead (useful in scripts or CI).
+  `treeland-debug no-auth` lifts this for a temporary debugging window: it asks
+  the compositor (the `requestNoAuth` method of `WindowTreeRemote`) to make the
+  socket (0666) and its own debug directory (0711) reachable for every local
+  user, so no prompt appears afterwards. Only a caller that already got through
+  the sealed socket can ask, and in a release build that is root alone: mode 0000
+  blocks the compositor's own user too, only `CAP_DAC_OVERRIDE` passes. The
+  window closes after 30 minutes without a debug call, and every call pushes it
+  out again; closing it also drops the connections opened while it was open. It
+  only applies to the global service's own directory (`/run/treeland-debug`, not
+  its `$XDG_RUNTIME_DIR`) -- a session instance lives in `/run/user/<uid>`, which
+  is never widened, so there root stays required (and `no-auth` fails).
+- **Debug builds** — nothing is restricted and nothing is asked: the `-dev`
+  socket is 0666 and, when it lives in Treeland's own directory
+  (`/run/treeland-debug`, which systemd creates 0700), that directory is widened
+  to 0711 at startup. So a deb-installed debug compositor running as its own user
+  accepts any local `treeland-debug` without a polkit prompt. Its own `-dev` name
+  keeps it apart from a release instance, whose 0000 socket still answers root
+  alone. A session instance's socket sits in `$XDG_RUNTIME_DIR`, which is never
+  widened, so there only that user and `root` connect.
+
+`listen` and `debug` are the exceptions to all of this: `listen` starts the
+HTTP/WebSocket server before any connection exists, and `debug` writes the
+switch of the compositor's user, so neither connects first. `listen` therefore
+never escalates -- run it as root (or as `dde` during a no-auth window) when the
+compositor is a release build. `debug` escalates only when the compositor runs
+as another user, which is exactly when DConfig needs root.
 
 A polkit policy (`misc/polkit/org.deepin.dde.treeland-debug.policy`) is
 installed alongside the executable so that the `pkexec` escalation works out of
@@ -97,11 +128,13 @@ receive an error explaining how to proceed.
 ```
 --url <url>          Remote object host URL (default: $TREELAND_DEBUG_SOCKET,
                      else the socket found by probing the runtime dirs, i.e.
-                     /run/treeland/... or /run/user/<uid>/...)
+                     /run/treeland-debug/..., /run/treeland/... or
+                     /run/user/<uid>/...)
 --name <name>        Remote object name (default: WindowTree)
 --timeout-ms <n>     Request timeout in milliseconds (default: 30000)
 --json               Emit machine-readable JSON for `windows`/`clients`
---no-escalate        Do not attempt polkit privilege escalation (release builds only)
+--no-escalate        Do not attempt polkit privilege escalation; report the
+                     requirement instead (scripts, CI)
 -h, --help           Show help
 -v, --version        Show version
 ```
@@ -113,7 +146,7 @@ as-is. It is handy when the compositor runs under a runtime directory the
 client cannot guess:
 
 ```bash
-TREELAND_DEBUG_SOCKET=/run/treeland/org.deepin.dde.treeland.debug treeland-debug windows
+TREELAND_DEBUG_SOCKET=/run/treeland-debug/org.deepin.dde.treeland.debug treeland-debug windows
 ```
 
 Backward compatibility: `--tree` and `--cursor` are accepted as aliases for the
@@ -136,6 +169,13 @@ nothing else.
 
 Run `treeland-debug <command>` for any of the following.
 
+### Access
+
+| Command | Description |
+| --- | --- |
+| `debug [on\|off\|status]` | Read or write treeland's `remoteDebug` switch (default: `status`). The only command that runs without the debug socket -- it is what makes one exist, so it works while the switch is off. Escalates through `pkexec` when the compositor runs as another user. A debug-build compositor ignores the switch, so this only changes what a release build does. |
+| `no-auth` | Ask the compositor to let any local user connect to this debug socket for 30 minutes (see Access control above; needs root unless the window is already open). |
+
 ### Inspection
 
 | Command | Description |
@@ -145,8 +185,16 @@ Run `treeland-debug <command>` for any of the following.
 | `windows` | List all toplevel windows (table, or JSON with `--json`), including every output each window is on and its frame-pacing output. |
 | `clients` | List connected Wayland clients and the windows each owns. |
 | `idle` | Show the idle state (time since the last input activity), whether idle is inhibited, and every idle-inhibit source (window/idle-inhibitor or screensaver) holding it off. |
+| `shortcuts` | List the registered shortcuts (key bindings and touchpad gestures). |
 | `top [interval-ms]` | Live, `top`-like refreshing view of clients and windows (default 1000 ms, Ctrl+C to quit). Includes an idle summary line. |
 | `scene [id]` | Dump the QtQuick scene tree of one window (by `id`/`appId`) or, with no id, the whole render scene. Useful for inspecting menus, popups and decorations that do not show up in the layout `tree`. |
+
+`shortcuts` prints one line per registered shortcut — name, trigger
+(`Ctrl+Alt+T`, `swipe 3-finger left`, `hold 4-finger`), target action and, for
+key bindings, the trigger flags (`press`/`release`/`repeat`). Use `--json` for
+`[{name,type,key,flags,action,fingers,direction}]`, where `type` is
+`0`=key, `1`=swipe, `2`=hold. Registrations come from clients, so the list is
+empty until a shell binds shortcuts through `treeland-shortcut-manager-v3`.
 
 The `windows`/`clients`/`top` views report a stable numeric `id` for every
 window. That id (or the window's `appId`) is accepted by every control command.
@@ -234,6 +282,32 @@ If `file` is omitted a path under `/tmp` is generated.
 treeland-debug screenshot window 93824992268800
 ```
 
+### Shortcut monitoring
+
+`events` also carries the shortcut stream, so `treeland-debug events` is the
+place to watch shortcuts being bound and used:
+
+- `type 6` — `shortcut registered: "<name>" = <trigger> -> <action> [flags]`
+- `type 7` — `shortcut unregistered: "<name>"`; also emitted for every binding
+  when the active session changes (the registry is cleared and re-populated)
+  and for the old name when a binding is re-bound under a new one.
+- `type 8` — `shortcut triggered: "<name>" -> <action> [flags]`, with `target`
+  set to the window that was keyboard-focused when the shortcut fired (sampled
+  before the action runs, so a workspace or task switch does not report the
+  destination window). Gesture triggers (swipe and hold) are reported too,
+  marked `(gesture)` and with `target` 0 — a gesture has no keyboard focus to
+  blame.
+
+`treeland-debug events` prints the event type next to the timestamp
+(`motion`, `button`, `key`, `shortcut-registered`, …), the same names the
+`type` field uses.
+
+Like the other live streams, capture is armed only while a client is polling
+`getEvents()`, so bind a shortcut that was already registered before you
+attached (restart the client that owns it, or re-login) to see a registration
+event, and use any bound shortcut — key, swipe or hold — to see a trigger
+event.
+
 ### Interactive shell mode
 
 ```bash
@@ -273,6 +347,8 @@ OPTIONS preflight is handled, so a browser frontend can call the API directly.
 | GET | `/api/windows` | — | All windows JSON |
 | GET | `/api/clients` | — | All clients JSON |
 | GET | `/api/idle` | — | Idle state and idle-inhibit sources JSON |
+| GET | `/api/no-auth` | — | Ask the compositor to open this debug socket to every local user for 30 minutes. This API has no authentication of its own, so bind it to a trusted address (see Access control). |
+| GET | `/api/shortcuts` | — | Registered shortcuts JSON |
 | GET | `/api/focused` | — | Focused window id |
 | GET | `/api/cursor-window` | — | Window under cursor id |
 | GET | `/api/scene` | `?target=...` | QtQuick scene tree of a window (or the whole scene if `target` is omitted), as pre-formatted text |
@@ -336,7 +412,7 @@ Supported JSON-RPC methods:
 | `tools/call` | Invokes a tool by name with arguments |
 | `ping` | Health check |
 
-The 23 available tools mirror the HTTP REST API and CLI commands:
+The 24 available tools mirror the HTTP REST API and CLI commands:
 
 | Tool | Args | Description |
 | --- | --- | --- |
@@ -345,6 +421,8 @@ The 23 available tools mirror the HTTP REST API and CLI commands:
 | `windows` | — | All windows |
 | `clients` | — | All clients |
 | `idle` | — | Idle state and idle-inhibit sources |
+| `no-auth` | — | Open this debug socket to every local user for 30 minutes |
+| `shortcuts` | — | Registered shortcuts |
 | `focused` | — | Focused window id |
 | `cursor_window` | — | Window under cursor id |
 | `scene` | `target?` | QtQuick scene tree of a window (or whole scene) |
@@ -398,7 +476,29 @@ splash window reports its outputs too). The `windows`/`clients`/`tree` views
 list every output and prefix the frame-pacing one with `+` (`*` keeps its
 existing meaning there: the active window). The `windows`/`clients` tables
 additionally show the server-side decoration (`content`/`titlebar`/`frame`)
-geometry when the window is an SSD toplevel.
+geometry when the window is an SSD toplevel, plus the window's input region
+and opaque region.
+Those two are sets of surface-local boxes (`inputRegion`/`opaqueRegion` in
+JSON, a list of `{x,y,width,height}` rects; the table prints the first few
+boxes and summarises the rest).
+
+`(empty)` means the committed region has no boxes. A `NULL` input region is
+*not* empty: the protocol defines it as infinite, and wlroots clips every region
+to the surface size, so it is reported as one box covering the whole surface.
+An empty `inputRegion` therefore means the client committed an empty region
+(the surface accepts no input), or the surface has not committed a buffer yet.
+The same applies to `opaqueRegion`: empty means no opaque area was declared
+(also its value before the first commit), not that the window is actually
+transparent.
+
+`damage`/region data is serialised on every `windows`/`clients` call, so a
+client committing a region with thousands of boxes inflates the polls of `top`
+as well, which does not display them.
+
+`WindowInfo` is a `WindowTreeRemote` POD, and Qt Remote Objects serialises a POD
+by field order with no version negotiation: a `treeland-debug` built from a
+different revision than the running `treeland` can mis-parse every window after
+the first. Build both from the same revision.
 
 ## License
 
