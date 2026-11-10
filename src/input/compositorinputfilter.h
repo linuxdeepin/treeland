@@ -7,6 +7,7 @@
 
 #include <QKeyEvent>
 
+class QSinglePointEvent;
 class SeatManager;
 class WaylandServer;
 
@@ -44,8 +45,7 @@ private:
     void trackSeat(WSeat *seat);
     WRelativePointerManagerV1 *m_relativePointerManager = nullptr;
     bool beforeDisposeEvent(WSeat *seat, QWindow *window, QInputEvent *event) override;
-    bool afterHandleEvent(WSeat *seat, WSurface *watched, QObject *shellObject,
-                          QObject *eventObject, QInputEvent *event) override;
+    void updatePressOwner(WSeat *seat, QSinglePointEvent *event, QWindow *window);
     bool unacceptedEvent(WSeat *seat, QWindow *window, QInputEvent *event) override;
     bool doGesture(QInputEvent *event);
     void handleLeftButtonStateChanged(const QInputEvent *event);
