@@ -4,6 +4,7 @@
 #include "woutputmanagerv1.h"
 #include "wscoplistener.h"
 #include "private/wglobal_p.h"
+#include "wayliblogging.h"
 
 #include <wlr_all.h>
 
@@ -144,6 +145,15 @@ void WOutputManagerV1::sendResult(wlr_output_configuration_v1 *config,
                                   const QList<WOutputState> &appliedStates)
 {
     W_D(WOutputManagerV1);
+
+    // Only a pending config is ours to answer and destroy: the first answer
+    // already freed it. A duplicated or late answer must not free it again.
+    if (!d->pendingStateLists.contains(config)) {
+        qCWarning(lcWlOutput) << "Ignored a result for a configuration that is not pending"
+                                 " (already answered, or not created from an apply/test request):"
+                              << config;
+        return;
+    }
 
     d->pendingStateLists.remove(config);
     if (d->currentPendingConfig == config)

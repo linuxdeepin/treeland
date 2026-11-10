@@ -1458,6 +1458,19 @@ void OutputManager::testOrApplyConfiguration(wlr_output_configuration_v1 *config
     m_pendingOutputConfig.pendingCommits = 0;
     m_pendingOutputConfig.allSuccess = true;
 
+    // render(viewport, true) below commits the scheduled job right away, so
+    // onOutputCommitFinished() can already have answered the client and
+    // destroyed `config` while this function is still running. Answer at most
+    // once, and only clear the pending state while it is still ours.
+    const auto answerOnce = [this, config](bool ok) {
+        if (m_pendingOutputConfig.config != config) {
+            qCDebug(lcTlCore) << "Not answering a configuration that is no longer pending" << config;
+            return;
+        }
+        m_outputManagementProtocol->sendResult(config, ok);
+        m_pendingOutputConfig = {};
+    };
+
     if (m_initialOutputScanFinished && !m_config->singleOutputId().isEmpty()) {
         const QString singleOutputId = m_config->singleOutputId();
         for (const auto &state : std::as_const(states)) {
@@ -1499,16 +1512,14 @@ void OutputManager::testOrApplyConfiguration(wlr_output_configuration_v1 *config
 
         WOutputViewport *viewport = ownOutputViewport(state.output);
         if (!viewport) {
-            m_outputManagementProtocol->sendResult(config, false);
-            m_pendingOutputConfig = {};
+            answerOnce(false);
             return;
         }
 
         WOutputRenderWindow *renderWindow = viewport->outputRenderWindow();
         if (!renderWindow) {
             qCWarning(lcTlCore) << "No renderWindow for output" << state.output->name();
-            m_outputManagementProtocol->sendResult(config, false);
-            m_pendingOutputConfig = {};
+            answerOnce(false);
             return;
         }
 
@@ -1518,8 +1529,7 @@ void OutputManager::testOrApplyConfiguration(wlr_output_configuration_v1 *config
                 qCWarning(lcTlCore)
                     << "Cannot apply enabled output configuration; output is not in root container"
                     << state.output->name();
-                m_outputManagementProtocol->sendResult(config, false);
-                m_pendingOutputConfig = {};
+                answerOnce(false);
                 return;
             }
             if (layout->outputs().contains(state.output)) {
@@ -1530,8 +1540,7 @@ void OutputManager::testOrApplyConfiguration(wlr_output_configuration_v1 *config
         auto outputHelper = renderWindow->getOutputHelper(viewport);
         if (!outputHelper) {
             qCWarning(lcTlCore) << "No output helper for viewport" << viewport;
-            m_outputManagementProtocol->sendResult(config, false);
-            m_pendingOutputConfig = {};
+            answerOnce(false);
             return;
         }
 
@@ -1565,8 +1574,7 @@ void OutputManager::testOrApplyConfiguration(wlr_output_configuration_v1 *config
         if (!outputHelper->setExtraState(extraState)) {
             qCWarning(lcTlCore) << "Failed to set extra state for output"
                                 << state.output->name();
-            m_outputManagementProtocol->sendResult(config, false);
-            m_pendingOutputConfig = {};
+            answerOnce(false);
             return;
         }
 
@@ -1639,11 +1647,10 @@ void OutputManager::testOrApplyConfiguration(wlr_output_configuration_v1 *config
         }
     }
 
-    if (m_pendingOutputConfig.pendingCommits == 0) {
+    if (m_pendingOutputConfig.config == config && m_pendingOutputConfig.pendingCommits == 0) {
         // Nothing was scheduled (empty configuration or no matching output), so
         // no commit callback will ever finish this apply.
-        m_outputManagementProtocol->sendResult(config, true);
-        m_pendingOutputConfig = {};
+        answerOnce(true);
         notifyOutputGroupsChanged();
     }
 }
