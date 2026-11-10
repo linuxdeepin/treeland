@@ -9,7 +9,10 @@
 #include <QPlatformSurfaceEvent>
 #include <QWaylandClientExtension>
 
-#define TREELANDDDESHELLMANAGERV2VERSION 1
+#include <functional>
+#include <utility>
+
+#define TREELANDDDESHELLMANAGERV2VERSION 2
 
 class DDEShellManageV2
     : public QWaylandClientExtensionTemplate<DDEShellManageV2>
@@ -26,8 +29,10 @@ public:
 class DDEShellSurface : public QtWayland::treeland_dde_shell_surface_v2
 {
 public:
-    DDEShellSurface(struct ::treeland_dde_shell_surface_v2 *id)
+    DDEShellSurface(struct ::treeland_dde_shell_surface_v2 *id,
+                    std::function<void(DDEShellWayland::Role)> onRole)
         : QtWayland::treeland_dde_shell_surface_v2(id)
+        , m_onRole(std::move(onRole))
     {
     }
 
@@ -35,6 +40,15 @@ public:
     {
         destroy();
     }
+
+protected:
+    void treeland_dde_shell_surface_v2_role(uint32_t role) override
+    {
+        m_onRole(static_cast<DDEShellWayland::Role>(role));
+    }
+
+private:
+    std::function<void(DDEShellWayland::Role)> m_onRole;
 };
 
 class ShellIntegrationSingleton
@@ -100,7 +114,7 @@ bool DDEShellWayland::eventFilter(QObject *watched, QEvent *event)
             // before the wl_surface. Destroy it now; otherwise the shell
             // surface proxy would outlive the wl_surface and the compositor
             // rejects the stale object ("invalid object") on teardown.
-            m_shellSurface.reset();
+            surfaceDestroyed();
         }
     }
     return false;
@@ -121,16 +135,24 @@ void DDEShellWayland::setPosition(const QPoint &position)
     }
 }
 
-void DDEShellWayland::setRole(QtWayland::treeland_dde_shell_surface_v2::role role)
+void DDEShellWayland::setRole(Role role)
 {
-    if (role == m_role) {
-        return;
-    }
-
+    // Applying the same request again must work after a compositor-side change.
     m_role = role;
-    if (m_shellSurface) {
+    if (m_shellSurface && (role != Role::role_always_on_top || protocolVersion() >= 2)) {
         m_shellSurface->set_role(role);
     }
+}
+
+void DDEShellWayland::setEffectiveRole(Role role)
+{
+    m_effectiveRole = role;
+    Q_EMIT roleStateChanged();
+}
+
+uint32_t DDEShellWayland::protocolVersion() const
+{
+    return m_shellSurface ? m_shellSurface->version() : 0;
 }
 
 void DDEShellWayland::setCursorPlacement(int32_t xOffset, int32_t yOffset)
@@ -228,31 +250,41 @@ void DDEShellWayland::surfaceCreated()
         return;
     }
 
-    m_shellSurface = std::make_unique<DDEShellSurface>(
-        s_waylandIntegration->shellManager->get_shell_surface(surface));
-    if (m_shellSurface) {
-        if (m_role) {
-            m_shellSurface->set_role(m_role.value());
-        }
-
-        if (m_position) {
-            m_shellSurface->set_position_hint(nullptr, m_position->x(), m_position->y());
-        }
-
-        if (m_cursorPlacement) {
-            m_shellSurface->set_cursor_placement_hint(m_cursorPlacement->x(),
-                                                      m_cursorPlacement->y());
-        }
-
-        m_shellSurface->set_skip_flags(m_skipFlags);
-
-        if (!m_acceptKeyboardFocus) {
-            m_shellSurface->set_accept_keyboard_focus(m_acceptKeyboardFocus);
-        }
+    auto *id = s_waylandIntegration->shellManager->get_shell_surface(surface);
+    if (!id) {
+        return;
     }
+
+    m_shellSurface = std::make_unique<DDEShellSurface>(id, [this](Role role) {
+        setEffectiveRole(role);
+    });
+    m_effectiveRole.reset();
+    if (m_role) {
+        setRole(*m_role);
+    }
+
+    if (m_position) {
+        m_shellSurface->set_position_hint(nullptr, m_position->x(), m_position->y());
+    }
+
+    if (m_cursorPlacement) {
+        m_shellSurface->set_cursor_placement_hint(m_cursorPlacement->x(), m_cursorPlacement->y());
+    }
+
+    m_shellSurface->set_skip_flags(m_skipFlags);
+
+    if (!m_acceptKeyboardFocus) {
+        m_shellSurface->set_accept_keyboard_focus(m_acceptKeyboardFocus);
+    }
+    Q_EMIT roleStateChanged();
 }
 
 void DDEShellWayland::surfaceDestroyed()
 {
+    if (!m_shellSurface) {
+        return;
+    }
     m_shellSurface.reset();
+    m_effectiveRole.reset();
+    Q_EMIT roleStateChanged();
 }

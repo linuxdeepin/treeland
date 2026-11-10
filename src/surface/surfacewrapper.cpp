@@ -34,6 +34,8 @@
 #define CLOSE_ANIMATION 2
 #define ALWAYSONTOPLAYER 1
 #define ALWAYSONBOTTOMLAYER -1
+#define OVERLAYLAYER 2
+#define PRIVILEGEDOVERLAYLAYER 3
 
 SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
                                WToplevelSurface *shellSurface,
@@ -50,7 +52,6 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_noDecoration(true)
     , m_noTitleBar(true)
     , m_noCornerRadius(false)
-    , m_alwaysOnTop(false)
     , m_alwaysOnBottom(false)
     , m_skipSwitcher(false)
     , m_skipDockPreView(true)
@@ -91,7 +92,6 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     , m_noDecoration(true)
     , m_noTitleBar(true)
     , m_noCornerRadius(false)
-    , m_alwaysOnTop(false)
     , m_alwaysOnBottom(false)
     , m_skipSwitcher(false)
     , m_skipDockPreView(true)
@@ -164,7 +164,6 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_noDecoration(true)
     , m_noTitleBar(true)
     , m_noCornerRadius(false)
-    , m_alwaysOnTop(false)
     , m_alwaysOnBottom(false)
     , m_skipSwitcher(false)
     , m_skipDockPreView(false)
@@ -2809,7 +2808,7 @@ void SurfaceWrapper::setHideByWorkspace(bool hide)
 
 bool SurfaceWrapper::alwaysOnTop() const
 {
-    return m_alwaysOnTop;
+    return m_surfaceRole == SurfaceRole::AlwaysOnTop;
 }
 
 bool SurfaceWrapper::effectiveAlwaysOnTop() const
@@ -2819,12 +2818,10 @@ bool SurfaceWrapper::effectiveAlwaysOnTop() const
 
 void SurfaceWrapper::setAlwaysOnTop(bool alwaysOnTop)
 {
-    if (m_alwaysOnTop == alwaysOnTop)
+    if (this->alwaysOnTop() == alwaysOnTop || m_surfaceRole == SurfaceRole::PrivilegedOverlay)
         return;
-    m_alwaysOnTop = alwaysOnTop;
-    updateStackingLayer();
 
-    Q_EMIT alwaysOnTopChanged();
+    setSurfaceRole(alwaysOnTop ? SurfaceRole::AlwaysOnTop : SurfaceRole::Normal);
 }
 
 void SurfaceWrapper::setAlwaysOnBottom(bool alwaysOnBottom)
@@ -3018,9 +3015,20 @@ void SurfaceWrapper::updateWindowTransitionAnimationSource()
                                        QVariant::fromValue(m_windowTransition->sourceSurface()));
 }
 
+int SurfaceWrapper::effectiveStackingZ() const
+{
+    if (m_surfaceRole == SurfaceRole::Overlay)
+        return OVERLAYLAYER;
+    if (m_surfaceRole == SurfaceRole::PrivilegedOverlay)
+        return PRIVILEGEDOVERLAYLAYER;
+    if (m_explicitAlwaysOnTop)
+        return ALWAYSONTOPLAYER;
+    return m_explicitAlwaysOnBottom ? ALWAYSONBOTTOMLAYER : 0;
+}
+
 void SurfaceWrapper::updateStackingLayer()
 {
-    int newExplicitAlwaysOnTop = m_alwaysOnTop;
+    int newExplicitAlwaysOnTop = alwaysOnTop();
     bool newExplicitAlwaysOnBottom = m_alwaysOnBottom;
     if (m_parentSurface) {
         newExplicitAlwaysOnTop += m_parentSurface->m_explicitAlwaysOnTop;
@@ -3037,8 +3045,7 @@ void SurfaceWrapper::updateStackingLayer()
 
     m_explicitAlwaysOnTop = newExplicitAlwaysOnTop;
     m_explicitAlwaysOnBottom = newExplicitAlwaysOnBottom;
-    setZ(m_explicitAlwaysOnTop ? ALWAYSONTOPLAYER
-                               : (m_explicitAlwaysOnBottom ? ALWAYSONBOTTOMLAYER : 0));
+    setZ(effectiveStackingZ());
     for (const auto &sub : std::as_const(m_subSurfaces))
         sub->updateStackingLayer();
 }
@@ -3214,17 +3221,23 @@ void SurfaceWrapper::setSurfaceRole(SurfaceRole role)
     if (m_surfaceRole == role)
         return;
 
+    const bool wasAlwaysOnTop = alwaysOnTop();
     m_surfaceRole = role;
-    if (role != SurfaceRole::Normal) {
-        setZ(ALWAYSONTOPLAYER + static_cast<int>(role));
+    updateStackingLayer();
+
+    if (role == SurfaceRole::Overlay || role == SurfaceRole::PrivilegedOverlay) {
+        const int overlayZ = effectiveStackingZ();
+        setZ(overlayZ);
         for (const auto &sub : std::as_const(m_subSurfaces))
-            sub->setZ(ALWAYSONTOPLAYER + static_cast<int>(role));
-    } else {
-        setZ(0);
+            sub->setZ(overlayZ);
+    } else if (role == SurfaceRole::Normal) {
+        setZ(effectiveStackingZ());
         for (const auto &sub : std::as_const(m_subSurfaces))
-            sub->setZ(0);
+            sub->setZ(sub->effectiveStackingZ());
     }
 
+    if (wasAlwaysOnTop != alwaysOnTop())
+        Q_EMIT alwaysOnTopChanged(alwaysOnTop());
     Q_EMIT surfaceRoleChanged();
 }
 

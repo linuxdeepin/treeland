@@ -51,9 +51,16 @@ Menu {
     }
 
     MenuItem {
-        checked: surface ? surface.alwaysOnTop : false
+        readonly property bool isOverlay: menu.surface
+            ? menu.surface.surfaceRole === SurfaceWrapper.Overlay
+                || menu.surface.surfaceRole === SurfaceWrapper.PrivilegedOverlay
+            : false
+
         text: qsTr("Always on Top")
-        onTriggered: surface.alwaysOnTop = !surface.alwaysOnTop;
+        checkable: true
+        checked: menu.surface ? isOverlay || menu.surface.alwaysOnTop : false
+        enabled: menu.surface ? !isOverlay : false
+        onTriggered: menu.surface.alwaysOnTop = !menu.surface.alwaysOnTop
     }
 
     MenuItem {
