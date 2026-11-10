@@ -73,7 +73,7 @@ public:
     WSeat *getDefaultSeat() const;
     SeatSurfaceManager *getSeatContainerOrDefault(WSeat *seat = nullptr) const;
 
-    void beginMoveResizeForSeat(WSeat *seat, SurfaceWrapper *surface, Qt::Edges edges);
+    bool beginMoveResizeForSeat(WSeat *seat, SurfaceWrapper *surface, Qt::Edges edges);
     void doMoveResizeForSeat(WSeat *seat, const QPointF &delta);
     void detectEdgeTilingForSeat(WSeat *seat);
     void endMoveResizeForSeat(WSeat *seat);

@@ -50,7 +50,7 @@ public:
     const MoveResizeState &moveResizeState() const { return m_moveResizeState; }
     void beginMoveResize(SurfaceWrapper *surface, Qt::Edges edges);
     void doMoveResize(const QPointF &delta);
-    void endMoveResize();
+    void endMoveResize(bool alignLayerPosition = false);
     SurfaceWrapper *moveResizeSurface() const;
     void cancelMoveResize(SurfaceWrapper *surface);
     void cancelMoveResize();

@@ -278,8 +278,8 @@ bool RootSurfaceContainer::isInMoveResize() const
 
 void RootSurfaceContainer::startMove(SurfaceWrapper *surface)
 {
-    beginMoveResizeForSeat(nullptr, surface, Qt::Edges{});
-    WaylandServer::instance()->activateSurface(surface);
+    if (beginMoveResizeForSeat(nullptr, surface, Qt::Edges{}))
+        WaylandServer::instance()->activateSurface(surface);
 }
 
 void RootSurfaceContainer::startResize(SurfaceWrapper *surface, Qt::Edges edges)
@@ -288,7 +288,8 @@ void RootSurfaceContainer::startResize(SurfaceWrapper *surface, Qt::Edges edges)
     if (!surface || !surface->isResizable())
         return;
 
-    beginMoveResizeForSeat(nullptr, surface, edges);
+    if (!beginMoveResizeForSeat(nullptr, surface, edges))
+        return;
 
     surface->shellSurface()->setResizeing(true);
     WaylandServer::instance()->activateSurface(surface);
@@ -355,21 +356,20 @@ void RootSurfaceContainer::removeBySubContainer(SurfaceContainer *sub, SurfaceWr
 
 bool RootSurfaceContainer::filterSurfaceGeometryChanged(SurfaceWrapper *surface,
                                                         QRectF &newGeometry,
-                                                        const QRectF &oldGeometry)
+                                                        [[maybe_unused]] const QRectF &oldGeometry)
 {
-    // WaylandServer function to adjust anchor-based position during resize
-    // When resizing from an edge (e.g., right edge), the opposite position remains fixed
+    // Keep the opposite edge at its position when the drag began.
     auto adjustForResize = [](QRectF &geometry,
-                              const QRectF &oldGeometry,
+                              const QRectF &startGeometry,
                               Qt::Edges edges) {
         if (edges & Qt::RightEdge)
-            geometry.moveLeft(oldGeometry.left());
+            geometry.moveLeft(startGeometry.left());
         if (edges & Qt::BottomEdge)
-            geometry.moveTop(oldGeometry.top());
+            geometry.moveTop(startGeometry.top());
         if (edges & Qt::LeftEdge)
-            geometry.moveRight(oldGeometry.right());
+            geometry.moveRight(startGeometry.right());
         if (edges & Qt::TopEdge)
-            geometry.moveBottom(oldGeometry.bottom());
+            geometry.moveBottom(startGeometry.bottom());
     };
 
     // Check all per-seat containers for move/resize state
@@ -384,16 +384,13 @@ bool RootSurfaceContainer::filterSurfaceGeometryChanged(SurfaceWrapper *surface,
             }
 
             if (edges != 0) {
-                // Adjust anchor-based position during resize
                 QRectF adjustedGeo = newGeometry;
-                adjustForResize(adjustedGeo, oldGeometry, edges);
+                adjustForResize(adjustedGeo, mrState.startGeometry, edges);
 
                 if (adjustedGeo.topLeft() != newGeometry.topLeft()) {
                     newGeometry = adjustedGeo;
                     mrState.settingPositionFlag = true;
-                    QPointF alignedPos = surface->alignToPixelGrid(newGeometry.topLeft());
-                    newGeometry.moveTopLeft(alignedPos);
-                    surface->setPosition(alignedPos);
+                    surface->setPosition(newGeometry.topLeft());
                     mrState.settingPositionFlag = false;
                 }
                 return false;
@@ -732,7 +729,8 @@ void RootSurfaceContainer::setupSurfaceRequestHandlers(SurfaceWrapper *surface)
                 return;
             }
 
-            beginMoveResizeForSeat(requestingSeat, surface, Qt::Edges{});
+            if (!beginMoveResizeForSeat(requestingSeat, surface, Qt::Edges{}))
+                return;
             auto *server = WaylandServer::instance();
             if (server) {
                 server->activateSurface(surface);
@@ -751,7 +749,8 @@ void RootSurfaceContainer::setupSurfaceRequestHandlers(SurfaceWrapper *surface)
                 return;
             }
 
-            beginMoveResizeForSeat(requestingSeat, surface, edges);
+            if (!beginMoveResizeForSeat(requestingSeat, surface, edges))
+                return;
             if (auto *sh = surface->shellSurface()) {
                 sh->setResizeing(true);
             }
@@ -890,14 +889,20 @@ void RootSurfaceContainer::givePopupFocus(SurfaceWrapper *popupWrapper)
     }
 }
 
-void RootSurfaceContainer::beginMoveResizeForSeat(WSeat *seat, SurfaceWrapper *surface, Qt::Edges edges)
+bool RootSurfaceContainer::beginMoveResizeForSeat(WSeat *seat, SurfaceWrapper *surface, Qt::Edges edges)
 {
     if (!surface)
-        return;
+        return false;
 
     auto *container = getSeatContainerOrDefault(seat);
     if (!container)
-        return;
+        return false;
+
+    // Geometry changes can only use one seat's drag state for a given surface.
+    for (auto *other : std::as_const(m_seatContainers)) {
+        if (other != container && other->moveResizeSurface() == surface)
+            return false;
+    }
 
     if (container->moveResizeState().surface &&
         container->moveResizeState().surface != surface) {
@@ -910,6 +915,8 @@ void RootSurfaceContainer::beginMoveResizeForSeat(WSeat *seat, SurfaceWrapper *s
     const QRectF tiledGeo = wasTiled ? surface->geometry() : QRectF();
 
     container->beginMoveResize(surface, edges);
+    if (container->moveResizeSurface() != surface)
+        return false;
 
     WSeat *actualSeat = seat ? seat : getDefaultSeat();
     const bool hasCursor = actualSeat && actualSeat->cursor();
@@ -917,8 +924,7 @@ void RootSurfaceContainer::beginMoveResizeForSeat(WSeat *seat, SurfaceWrapper *s
 
     // De-tile: restore saved size, reposition so the cursor stays at the same
     // relative grab ratio within the window
-    if (wasTiled && !tiledGeo.isEmpty() && hasCursor
-        && container->moveResizeState().surface == surface) {
+    if (wasTiled && !tiledGeo.isEmpty() && hasCursor) {
         const QSizeF restoredSize = surface->normalGeometry().isValid()
             ? surface->normalGeometry().size()
             : tiledGeo.size();
@@ -935,6 +941,8 @@ void RootSurfaceContainer::beginMoveResizeForSeat(WSeat *seat, SurfaceWrapper *s
 
     if (actualSeat && actualSeat->cursor())
         container->moveResizeState().initialPosition = cursor;
+
+    return true;
 }
 
 void RootSurfaceContainer::doMoveResizeForSeat(WSeat *seat, const QPointF &delta)
@@ -1104,7 +1112,7 @@ void RootSurfaceContainer::endMoveResizeForSeat(WSeat *seat)
 {
     auto *container = getSeatContainerOrDefault(seat);
     if (container) {
-        container->endMoveResize();
+        container->endMoveResize(/*alignLayerPosition=*/true);
     }
     updateEdgeTilePreview(SurfaceWrapper::TileMode::None, nullptr);
 }
