@@ -501,16 +501,32 @@ void Output::addSurface(SurfaceWrapper *surface)
 
         arrangeLayerSurfaces();
     } else {
-        auto layoutSurface = [surface, this] {
-            if (!surface->hasInitializeContainer())
+        // A window is placed once: when its container becomes ready or when it
+        // receives its first non-empty geometry (windows are created 0x0).
+        // Later size changes only clamp the position -- they are not initial
+        // placements, and re-running the placement makes a resizing window
+        // (e.g. an animated dialog) jump on every frame.
+        auto layoutSurface = [surface, this](ArrangeReason reason) {
+            if (!surface->hasInitializeContainer() || surface->normalGeometry().isEmpty())
                 return;
-            arrangeNonLayerSurface(surface, ArrangeReason::InitialPlacement);
+            if (reason != ArrangeReason::InitialPlacement
+                && !m_initialPlacementDone.contains(surface))
+                reason = ArrangeReason::InitialPlacement;
+            if (reason == ArrangeReason::InitialPlacement)
+                m_initialPlacementDone.insert(surface);
+            arrangeNonLayerSurface(surface, reason);
+        };
+        auto onGeometryChanged = [layoutSurface] {
+            layoutSurface(ArrangeReason::SurfaceGeometryChanged);
+        };
+        auto onContainerReady = [layoutSurface] {
+            layoutSurface(ArrangeReason::InitialPlacement);
         };
 
-        connect(surface, &SurfaceWrapper::widthChanged, this, layoutSurface);
-        connect(surface, &SurfaceWrapper::heightChanged, this, layoutSurface);
-        connect(surface, &SurfaceWrapper::hasInitializeContainerChanged, this, layoutSurface);
-        layoutSurface();
+        connect(surface, &SurfaceWrapper::widthChanged, this, onGeometryChanged);
+        connect(surface, &SurfaceWrapper::heightChanged, this, onGeometryChanged);
+        connect(surface, &SurfaceWrapper::hasInitializeContainerChanged, this, onContainerReady);
+        onContainerReady();
 
         if (surface->type() == SurfaceWrapper::Type::XdgPopup) {
             auto xdgPopupSurfaceItem = qobject_cast<WXdgPopupSurfaceItem *>(surface->surfaceItem());
@@ -532,6 +548,7 @@ void Output::removeSurface(SurfaceWrapper *surface)
 {
     clearPopupCache(surface);
     m_initialWindowPositionRatio.remove(surface);
+    m_initialPlacementDone.remove(surface);
     Q_ASSERT(hasSurface(surface));
     SurfaceListModel::removeSurface(surface);
     surface->disconnect(this);

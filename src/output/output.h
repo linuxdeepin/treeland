@@ -11,6 +11,7 @@
 #include <QMargins>
 #include <QObject>
 #include <QQmlComponent>
+#include <QSet>
 #include <QString>
 
 Q_MOC_INCLUDE(<woutputitem.h>)
@@ -60,6 +61,7 @@ public:
     enum class ArrangeReason
     {
         InitialPlacement,
+        SurfaceGeometryChanged,
         ExclusiveZoneChanged,
         LayerSurfaceRemoved,
         OutputGeometryChanged,
@@ -191,6 +193,8 @@ private:
 
     QMap<SurfaceWrapper*, QPair<QPointF, QRectF>> m_positionCache;
     QHash<SurfaceWrapper*, QPointF> m_initialWindowPositionRatio;
+    // Surfaces that already got their initial placement on this output.
+    QSet<SurfaceWrapper *> m_initialPlacementDone;
 
     std::unique_ptr<Backlight> m_backlight = nullptr;
     OutputConfig *m_config;
