@@ -11,6 +11,8 @@ Item {
 
     required property SurfaceWrapper surface
 
+    readonly property real edgeSize: 10
+
     visible: surface && surface.visibleDecoration && surface.visible
     x: shadow.boundingRect.x
     y: shadow.boundingRect.y
@@ -24,7 +26,7 @@ Item {
         // including holes in an X11 input shape. Only the resize rim is ours.
         containmentMask: QtObject {
             function contains(position: point): bool {
-                return WaylibHelper.getEdges(Qt.rect(0, 0, resizeArea.width, resizeArea.height), position, 10) !== 0;
+                return WaylibHelper.getEdges(Qt.rect(0, 0, resizeArea.width, resizeArea.height), position, root.edgeSize) !== 0;
             }
         }
 
@@ -35,7 +37,7 @@ Item {
 
         anchors {
             fill: shadow
-            margins: -10
+            margins: -root.edgeSize
         }
 
         hoverEnabled: true
@@ -63,12 +65,12 @@ Item {
         }
 
         onPositionChanged: function (event) {
-            edges = WaylibHelper.getEdges(Qt.rect(0, 0, width, height), Qt.point(event.x, event.y), 10)
+            edges = WaylibHelper.getEdges(Qt.rect(0, 0, width, height), Qt.point(event.x, event.y), root.edgeSize)
         }
 
         onPressed: function (event) {
             // Maybe missing onPositionChanged when use touchscreen
-            edges = WaylibHelper.getEdges(Qt.rect(0, 0, width, height), Qt.point(event.x, event.y), 10)
+            edges = WaylibHelper.getEdges(Qt.rect(0, 0, width, height), Qt.point(event.x, event.y), root.edgeSize)
             if (edges)
                 surface.resizeRequested(edges)
         }
