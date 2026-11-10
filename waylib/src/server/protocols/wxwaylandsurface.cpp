@@ -114,6 +114,7 @@ void WXWaylandSurfacePrivate::init()
     });
     q->listeners()->add(&m_handle->events.set_override_redirect, q, &WXWaylandSurface::bypassManagerChanged);
     q->listeners()->add(&m_handle->events.set_geometry, q, &WXWaylandSurface::geometryChanged);
+    q->listeners()->add(&m_handle->events.set_input_shape, q, &WXWaylandSurface::inputShapeChanged);
     q->listeners()->add(&m_handle->events.set_clip_shape, this, &WXWaylandSurfacePrivate::updateClipShape);
     q->listeners()->add(&m_handle->events.set_size_hints, this, &WXWaylandSurfacePrivate::updateSizeHints);
     q->listeners()->add(&m_handle->events.set_window_type, this, &WXWaylandSurfacePrivate::updateWindowTypes);
@@ -439,6 +440,11 @@ QRect WXWaylandSurface::geometry() const
     geometry.moveTopLeft(QPoint(d->handle()->x, d->handle()->y));
 
     return geometry;
+}
+
+bool WXWaylandSurface::hasInputShape() const
+{
+    return handle()->has_input_shape;
 }
 
 bool WXWaylandSurface::hasClipShape() const
