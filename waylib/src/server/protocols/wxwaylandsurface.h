@@ -30,6 +30,7 @@ class WAYLIB_SERVER_EXPORT WXWaylandSurface : public WToplevelSurface
     Q_PROPERTY(QRect geometry READ geometry NOTIFY geometryChanged FINAL)
     Q_PROPERTY(WindowTypes windowTypes READ windowTypes NOTIFY windowTypesChanged FINAL)
     Q_PROPERTY(DecorationsFlags decorationsFlags READ decorationsFlags NOTIFY decorationsFlagsChanged FINAL)
+    Q_PROPERTY(bool hasInputShape READ hasInputShape NOTIFY inputShapeChanged FINAL)
     Q_PROPERTY(bool hasClipShape READ hasClipShape NOTIFY clipShapeChanged FINAL)
     Q_PROPERTY(QVariantList clipShape READ clipShape NOTIFY clipShapeChanged FINAL)
     QML_NAMED_ELEMENT(XWaylandSurface)
@@ -105,6 +106,7 @@ public:
     QSize minSize() const override;
     QSize maxSize() const override;
     QRect geometry() const;
+    bool hasInputShape() const;
     bool hasClipShape() const;
     QVariantList clipShape() const;
 
@@ -151,6 +153,7 @@ Q_SIGNALS:
     void aboveChanged(bool above);
     void belowChanged(bool below);
     void geometryChanged();
+    void inputShapeChanged();
     void clipShapeChanged();
     void windowTypesChanged();
     void decorationsFlagsChanged();
