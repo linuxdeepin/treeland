@@ -669,8 +669,7 @@ bool SurfaceWrapper::startStateChangeAnimation(State targetState, const QRectF &
 
 qreal SurfaceWrapper::radius() const
 {
-    // RoundedClipEffect is use ShaderEffectSource to clip, its only
-    // supports RHI backend.
+    // Rounded clipping is only supported by the RHI backends.
     if (window()->sceneGraphBackend() == "software")
         return 0;
 

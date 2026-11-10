@@ -23,7 +23,7 @@ option(WAYLIB_USE_PERCOMPILE_HEADERS "Use precompile headers to build waylib" OF
 # wins. See the Treeland top-level CMakeLists.txt.
 option(TREELAND_INSTALL_DEV "Install development files (headers, CMake config, pkg-config, .so symlinks)" ON)
 
-find_package(Qt6 COMPONENTS Core Gui Quick REQUIRED)
+find_package(Qt6 COMPONENTS Core Gui Quick ShaderTools REQUIRED)
 if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
     find_package(Qt6 REQUIRED COMPONENTS GuiPrivate QuickPrivate)
 endif()
