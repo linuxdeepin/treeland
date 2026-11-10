@@ -51,6 +51,8 @@ public:
     struct DecorationListeners {
         wlr_xdg_toplevel_decoration_v1 *decoration = nullptr;
         std::unique_ptr<WListenerOwner> owner;
+        // Fires once the toplevel initializes.
+        QMetaObject::Connection initConnection;
     };
     std::vector<DecorationListeners> decorationListeners;
 };
@@ -85,14 +87,28 @@ void WXdgDecorationManagerPrivate::onNewToplevelDecoration(wlr_xdg_toplevel_deco
         owner->removeListeners(q);
         for (auto it = decorationListeners.begin(); it != decorationListeners.end(); ++it) {
             if (it->decoration == decorat) {
+                QObject::disconnect(it->initConnection);
                 decorationListeners.erase(it);
                 break;
             }
         }
     });
     decorationListeners.push_back(std::move(entry));
-    /* For some reason, a lot of clients don't emit the request_mode signal. */
-    updateDecorationMode(decorat);
+    auto &storedEntry = decorationListeners.back();
+
+    // set_mode() asserts surface->initialized. Clients like alacritty send
+    // set_mode before the first commit; defer it to the commit where the
+    // toplevel initializes, otherwise they never get a configure and draw a
+    // second titlebar.
+    if (!decorat->toplevel->base->initialized) {
+        storedEntry.initConnection =
+            QObject::connect(surface, &WSurface::commit, q, [decorat, this] (quint32) {
+                updateDecorationMode(decorat);
+            }, Qt::SingleShotConnection);
+    } else {
+        /* For some reason, a lot of clients don't emit the request_mode signal. */
+        updateDecorationMode(decorat);
+    }
 }
 
 void WXdgDecorationManagerPrivate::updateDecorationMode(wlr_xdg_toplevel_decoration_v1 *decorat)
@@ -116,20 +132,23 @@ void WXdgDecorationManagerPrivate::updateDecorationMode(wlr_xdg_toplevel_decorat
     }
     if (mode == WXdgDecorationManager::None) {
         mode = preferredMode;
-        switch (preferredMode) {
+    }
+    decorations.insert(surface, mode);
+
+    // Emit the configure the client waits for; requires an initialized
+    // toplevel, otherwise the commit listener above re-runs us later.
+    if (decorat->toplevel->base->initialized) {
+        switch (mode) {
             case WXdgDecorationManager::Client:
-                if (decorat->toplevel->base->initialized)
-                    wlr_xdg_toplevel_decoration_v1_set_mode(decorat, WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
+                wlr_xdg_toplevel_decoration_v1_set_mode(decorat, WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
                 break;
             case WXdgDecorationManager::Server:
-                if (decorat->toplevel->base->initialized)
-                    wlr_xdg_toplevel_decoration_v1_set_mode(decorat, WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+                wlr_xdg_toplevel_decoration_v1_set_mode(decorat, WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
                 break;
             default:
                 Q_UNREACHABLE();
         }
     }
-    decorations.insert(surface, mode);
 
     Q_EMIT q->surfaceModeChanged(surface, mode);
 }
