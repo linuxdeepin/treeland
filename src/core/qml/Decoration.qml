@@ -22,11 +22,24 @@ Item {
     MouseArea {
         id: resizeArea
 
-        // The decoration must not catch input rejected by the client surface,
-        // including holes in an X11 input shape. Only the resize rim is ours.
-        containmentMask: QtObject {
+        readonly property XWaylandSurface xwaylandSurface: root.surface.shellSurface as XWaylandSurface
+
+        // Respect the input region only when the X11 client has an input shape.
+        containmentMask: xwaylandSurface && xwaylandSurface.hasInputShape ? inputShapeMask : null
+
+        QtObject {
+            id: inputShapeMask
+
             function contains(position: point): bool {
-                return WaylibHelper.getEdges(Qt.rect(0, 0, resizeArea.width, resizeArea.height), position, root.edgeSize) !== 0;
+                const eventItem = root.surface.surfaceItem?.eventItem;
+                if (!eventItem)
+                    return false;
+
+                // Mapping to the event item already accounts for surfaceSizeRatio.
+                const local = eventItem.mapFromItem(resizeArea, position);
+                return local.x >= 0 && local.y >= 0
+                        && local.x < eventItem.width && local.y < eventItem.height
+                        && eventItem.contains(local);
             }
         }
 
