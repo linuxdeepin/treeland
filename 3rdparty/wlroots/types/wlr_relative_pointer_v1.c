@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <wayland-server-core.h>
@@ -7,6 +8,7 @@
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
 #include "relative-pointer-unstable-v1-protocol.h"
+#include "util/global.h"
 
 #define RELATIVE_POINTER_MANAGER_VERSION 1
 
@@ -137,17 +139,30 @@ static void relative_pointer_manager_v1_bind(struct wl_client *wl_client, void *
 		manager, NULL);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_relative_pointer_manager_v1 *manager =
-		wl_container_of(listener, manager, display_destroy_listener);
+static void relative_pointer_manager_v1_destroy(struct wlr_relative_pointer_manager_v1 *manager,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&manager->events.destroy, manager);
 
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
 	assert(wl_list_empty(&manager->events.new_relative_pointer.listener_list));
 
 	wl_list_remove(&manager->display_destroy_listener.link);
-	wl_global_destroy(manager->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
 	free(manager);
+}
+
+void wlr_relative_pointer_manager_v1_destroy(struct wlr_relative_pointer_manager_v1 *manager) {
+	relative_pointer_manager_v1_destroy(manager, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_relative_pointer_manager_v1 *manager =
+		wl_container_of(listener, manager, display_destroy_listener);
+	relative_pointer_manager_v1_destroy(manager, false);
 }
 
 static const struct zwp_relative_pointer_manager_v1_interface relative_pointer_manager_v1_impl = {
