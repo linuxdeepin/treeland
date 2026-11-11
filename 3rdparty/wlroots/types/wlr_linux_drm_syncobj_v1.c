@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,6 +14,7 @@
 #include "config.h"
 #include "linux-drm-syncobj-v1-protocol.h"
 #include "render/drm_syncobj_merger.h"
+#include "util/global.h"
 
 #define LINUX_DRM_SYNCOBJ_V1_VERSION 1
 
@@ -413,13 +415,26 @@ static void manager_bind(struct wl_client *client, void *data,
 	wl_resource_set_implementation(resource, &manager_impl, manager, NULL);
 }
 
+static void linux_drm_syncobj_manager_v1_destroy(struct wlr_linux_drm_syncobj_manager_v1 *manager,
+		bool destroy_global_safe) {
+	wl_list_remove(&manager->display_destroy.link);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
+	close(manager->drm_fd);
+	free(manager);
+}
+
+void wlr_linux_drm_syncobj_manager_v1_destroy(struct wlr_linux_drm_syncobj_manager_v1 *manager) {
+	linux_drm_syncobj_manager_v1_destroy(manager, true);
+}
+
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_linux_drm_syncobj_manager_v1 *manager =
 		wl_container_of(listener, manager, display_destroy);
-	wl_list_remove(&manager->display_destroy.link);
-	wl_global_destroy(manager->global);
-	close(manager->drm_fd);
-	free(manager);
+	linux_drm_syncobj_manager_v1_destroy(manager, false);
 }
 
 static bool check_syncobj_eventfd(int drm_fd) {

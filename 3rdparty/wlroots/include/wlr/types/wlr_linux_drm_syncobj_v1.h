@@ -47,6 +47,15 @@ struct wlr_linux_drm_syncobj_manager_v1 {
 struct wlr_linux_drm_syncobj_manager_v1 *wlr_linux_drm_syncobj_manager_v1_create(
 	struct wl_display *display, uint32_t version, int drm_fd);
 
+/**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_linux_drm_syncobj_manager_v1_destroy(struct wlr_linux_drm_syncobj_manager_v1 *manager);
+
 struct wlr_linux_drm_syncobj_surface_v1_state *wlr_linux_drm_syncobj_v1_get_surface_state(
 	struct wlr_surface *surface);
 
