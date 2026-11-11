@@ -371,6 +371,14 @@ QKeyCombination ShortcutController::normalizeKeyCombination(QKeyCombination comb
         case Qt::Key_Super_R:
             mods |= Qt::MetaModifier;
             break;
+        case Qt::Key_Backtab:
+            // Shift+Tab's keysym is ISO_Left_Tab; Qt's QXkbCommon::keysymToQtKey()
+            // (waylib only forwards the event) turns it into Key_Backtab, while
+            // bindings spell the combination "Shift+Tab". Fold both to one
+            // identity so such shortcuts can match.
+            mods |= Qt::ShiftModifier;
+            nornalizedKey = Qt::Key_Tab;
+            break;
         default:
             nornalizedKey = key;
             break;
