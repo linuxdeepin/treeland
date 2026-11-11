@@ -372,7 +372,7 @@ void SurfaceWrapper::setup()
         QObject::connect(m_shellSurface, &WToplevelSurface::requestResize,
                                     this,
                                     [this](WSeat *, Qt::Edges edge, quint32) {
-                                        Q_EMIT resizeRequested(edge);
+                                        Q_EMIT resizeRequested(edge, /*overrideCursor=*/false);
                                     });
         QObject::connect(m_shellSurface, &WToplevelSurface::requestFullscreen,
                                     this,
