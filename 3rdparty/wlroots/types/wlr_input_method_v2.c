@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,6 +11,7 @@
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #include "input-method-unstable-v2-protocol.h"
+#include "util/global.h"
 
 // Note: zwp_input_popup_surface_v2 and zwp_input_method_keyboard_grab_v2 objects
 // become inert when the corresponding zwp_input_method_v2 is destroyed
@@ -602,17 +604,30 @@ static void input_method_manager_bind(struct wl_client *wl_client, void *data,
 		im_manager, NULL);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_input_method_manager_v2 *manager =
-		wl_container_of(listener, manager, display_destroy);
+static void input_method_manager_v2_destroy(struct wlr_input_method_manager_v2 *manager,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&manager->events.destroy, NULL);
 
 	assert(wl_list_empty(&manager->events.new_input_method.listener_list));
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
 
 	wl_list_remove(&manager->display_destroy.link);
-	wl_global_destroy(manager->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
 	free(manager);
+}
+
+void wlr_input_method_manager_v2_destroy(struct wlr_input_method_manager_v2 *manager) {
+	input_method_manager_v2_destroy(manager, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_input_method_manager_v2 *manager =
+		wl_container_of(listener, manager, display_destroy);
+	input_method_manager_v2_destroy(manager, false);
 }
 
 struct wlr_input_method_manager_v2 *wlr_input_method_manager_v2_create(
