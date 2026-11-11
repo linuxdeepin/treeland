@@ -18,6 +18,8 @@ public:
 
     QString name() const { return m_name; }
     bool isValid() const { return m_valid; }
+    bool isPending() const { return m_pending; }
+    void setPending(bool pending) { m_pending = pending; }
 
     void requestSource(const QString &uuid);
     void requestAddMirror(const QString &uuid);
@@ -43,4 +45,6 @@ protected:
 private:
     QString m_name;
     bool m_valid = true;
+    bool m_pending = false;
+    bool m_dissolved = false;
 };

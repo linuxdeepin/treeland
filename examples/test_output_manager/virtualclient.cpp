@@ -484,13 +484,85 @@ void VirtualClient::attachGroup(const QString &name)
     group->setParent(this);
     m_groups.insert(name, group);
     connect(group, &OutputGroup::stateChanged, this,
-            [this, name](const QString &source, const QStringList &mirrors) {
-                onGroupState(name, source, mirrors);
-            });
-    connect(group, &OutputGroup::removed, this, [this, name]() { m_groups.remove(name); });
-    connect(group, &OutputGroup::operationFailed, this, [](uint32_t code, const QString &uuid) {
+            &VirtualClient::onGroupStateChanged);
+    connect(group, &OutputGroup::removed, this, &VirtualClient::onGroupObjectRemoved);
+    connect(group, &OutputGroup::operationFailed, this,
+            &VirtualClient::onGroupOperationFailed);
+}
+
+void VirtualClient::onGroupNameAssigned(const QString &name)
+{
+    auto *group = qobject_cast<OutputGroup *>(sender());
+    if (!group)
+        return;
+    m_groupNames << name;
+    m_groups.insert(name, group);
+}
+
+void VirtualClient::onGroupStateChanged(const QString &sourceUuid,
+                                        const QStringList &mirrorUuids)
+{
+    auto *group = qobject_cast<OutputGroup *>(sender());
+    if (!group)
+        return;
+    onGroupState(group->name(), sourceUuid, mirrorUuids);
+}
+
+void VirtualClient::onGroupOperationFailed(uint32_t code, const QString &uuid)
+{
+    auto *group = qobject_cast<OutputGroup *>(sender());
+    if (!group) {
         qWarning() << "  Output group operation failed:" << code << uuid;
-    });
+        return;
+    }
+
+    const QString name = group->name();
+    qWarning() << "  Output group operation failed (code" << code << ", uuid" << uuid
+               << ") on group" << name;
+
+    // A failed request on a group we just created (the create itself, or the
+    // queued add_output right after it) must not leave a ghost group in the
+    // UI: the compositor rejected the mirror, so continuing to operate on the
+    // half-created object would show a mirror that does not exist. An
+    // established group merely reports the failure and keeps its state.
+    if (!group->isPending())
+        return;
+
+    // Undo the optimistic local maps, including the mirror combo which still
+    // shows the rejected mirror: without resetting it the user cannot retry
+    // the same item because currentIndexChanged would not fire again.
+    group->setPending(false);
+    m_groupNames.removeAll(name);
+    if (!name.isEmpty()) {
+        m_groups.remove(name);
+        m_mirrorGroups.remove(name);
+    }
+    m_pendingMirrorScreen.clear();
+    updateScreenToGroup();
+    refreshScreenInfo();
+    if (m_mirrorCombo) {
+        m_mirrorCombo->blockSignals(true);
+        m_mirrorCombo->setCurrentIndex(0); // "None (no mirror)"
+        m_mirrorCombo->blockSignals(false);
+    }
+
+    // The server may still hold the group (only the add_output was rejected
+    // after a successful create). Dissolve it so other clients stop seeing the
+    // group we abandon; dissolve() is idempotent, so the removed event that
+    // may already be queued cannot trigger a second one.
+    group->dissolve();
+}
+
+void VirtualClient::onGroupObjectRemoved()
+{
+    auto *group = qobject_cast<OutputGroup *>(sender());
+    if (!group)
+        return;
+    group->setPending(false);
+    const QString name = group->name();
+    if (!name.isEmpty())
+        m_groups.remove(name);
+    group->deleteLater();
 }
 
 void VirtualClient::onGroupsDone()
@@ -923,17 +995,17 @@ void VirtualClient::updateMirrorGroup()
         return;
 
     // Leaving a group is explicit: dissolve the group the screen belongs to.
+    // The server-side removed event (onGroupObjectRemoved) then destroys the
+    // proxy and cleans up; dissolve() is idempotent so a late operation_failed
+    // cannot trigger a second dissolve request.
     if (m_screenToGroup.contains(screen)) {
         const QString oldGroup = m_screenToGroup[screen];
-        if (auto *group = m_groups.take(oldGroup)) {
+        if (auto *group = m_groups.take(oldGroup))
             group->dissolve();
-            group->deleteLater();
-        }
         m_groupNames.removeAll(oldGroup);
         m_mirrorGroups.remove(oldGroup);
         updateScreenToGroup();
     }
-
     if (!mirror.isEmpty()) {
         const QString sourceUuid = uuidForScreen(screen);
         const QString mirrorUuid = uuidForScreen(mirror);
@@ -948,23 +1020,20 @@ void VirtualClient::updateMirrorGroup()
 
         // The compositor assigns the group name; the state of the group is
         // reported as soon as it exists, so the mirror is queued right away.
+        // The group stays pending until the server reports a state with both a
+        // source and a mirror; a create/add request the server rejects must
+        // roll the optimistic local maps back instead of leaving a ghost group.
         auto *group = new OutputGroup(m_groupManager->createGroup(sourceUuid));
         group->setParent(this);
-        connect(group, &OutputGroup::nameAssigned, this, [this, group](const QString &name) {
-            m_groupNames << name;
-            m_groups.insert(name, group);
-        });
+        group->setPending(true);
+        connect(group, &OutputGroup::nameAssigned, this,
+                &VirtualClient::onGroupNameAssigned);
         connect(group, &OutputGroup::stateChanged, this,
-                [this, group](const QString &source, const QStringList &mirrors) {
-                    onGroupState(group->name(), source, mirrors);
-                });
-        connect(group, &OutputGroup::removed, this, [this, group]() {
-            if (!group->name().isEmpty())
-                m_groups.remove(group->name());
-        });
-        connect(group, &OutputGroup::operationFailed, this, [](uint32_t code, const QString &uuid) {
-            qWarning() << "  Output group operation failed:" << code << uuid;
-        });
+                &VirtualClient::onGroupStateChanged);
+        connect(group, &OutputGroup::removed, this,
+                &VirtualClient::onGroupObjectRemoved);
+        connect(group, &OutputGroup::operationFailed, this,
+                &VirtualClient::onGroupOperationFailed);
         group->requestAddMirror(mirrorUuid);
         group->commit();
     }

@@ -90,6 +90,10 @@ private:
     void onGroupAdded(const QString &name);
     void onGroupsDone();
     void onGroupRemoved(const QString &name);
+    void onGroupNameAssigned(const QString &name);
+    void onGroupStateChanged(const QString &sourceUuid, const QStringList &mirrorUuids);
+    void onGroupOperationFailed(uint32_t code, const QString &uuid);
+    void onGroupObjectRemoved();
     void onGroupState(const QString &groupName,
                       const QString &sourceUuid,
                       const QStringList &mirrorUuids);
