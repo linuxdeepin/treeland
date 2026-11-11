@@ -32,7 +32,6 @@ IMCandidatePanelManager::IMCandidatePanelManager(
     QObject *parent)
     : QObject(parent)
     , m_shellHandler(shellHandler)
-    , m_inputMethodHelper(inputMethodHelper)
 {
     connect(m_shellHandler,
             &ShellHandler::surfaceWrapperAboutToRemove,
@@ -40,6 +39,7 @@ IMCandidatePanelManager::IMCandidatePanelManager(
             [this](SurfaceWrapper *wrapper) {
                 m_imCandidatePanels.removeAll(wrapper);
             });
+    setInputMethodHelper(inputMethodHelper);
 }
 
 #ifndef DISABLE_XWAYLAND
@@ -162,7 +162,26 @@ void IMCandidatePanelManager::applyIMCandidatePanel(SurfaceWrapper *wrapper)
 
 void IMCandidatePanelManager::setInputMethodHelper(WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *helper)
 {
+    if (m_inputMethodHelper == helper)
+        return;
+    if (m_inputMethodFocusConnection)
+        disconnect(m_inputMethodFocusConnection);
     m_inputMethodHelper = helper;
+    if (helper) {
+        m_inputMethodFocusConnection = connect(
+            helper,
+            &WAYLIB_SERVER_NAMESPACE::WInputMethodHelper::textInputFocusSurfaceChanged,
+            this,
+            &IMCandidatePanelManager::onTextInputFocusSurfaceChanged);
+    }
+}
+
+void IMCandidatePanelManager::onTextInputFocusSurfaceChanged()
+{
+    // The panel is a normal client window, not a zwp_input_popup_surface_v2.
+    // Its position still has to follow the text-input anchor when one
+    // application moves focus between its own windows.
+    applyInitialPositionAtCursor();
 }
 
 void IMCandidatePanelManager::applyInitialPositionAtCursor()
