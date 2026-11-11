@@ -56,4 +56,13 @@ struct wlr_drm_buffer *wlr_drm_buffer_try_from_resource(
 struct wlr_drm *wlr_drm_create(struct wl_display *display,
 	struct wlr_renderer *renderer);
 
+/**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_drm_destroy(struct wlr_drm *drm);
+
 #endif
