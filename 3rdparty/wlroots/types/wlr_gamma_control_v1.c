@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -9,6 +10,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
 #include "wlr-gamma-control-unstable-v1-protocol.h"
+#include "util/global.h"
 
 #define GAMMA_CONTROL_MANAGER_V1_VERSION 1
 
@@ -215,17 +217,30 @@ static void gamma_control_manager_bind(struct wl_client *client, void *data,
 		manager, NULL);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_gamma_control_manager_v1 *manager =
-		wl_container_of(listener, manager, display_destroy);
+static void gamma_control_manager_v1_destroy(struct wlr_gamma_control_manager_v1 *manager,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&manager->events.destroy, manager);
 
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
 	assert(wl_list_empty(&manager->events.set_gamma.listener_list));
 
 	wl_list_remove(&manager->display_destroy.link);
-	wl_global_destroy(manager->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
 	free(manager);
+}
+
+void wlr_gamma_control_manager_v1_destroy(struct wlr_gamma_control_manager_v1 *manager) {
+	gamma_control_manager_v1_destroy(manager, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_gamma_control_manager_v1 *manager =
+		wl_container_of(listener, manager, display_destroy);
+	gamma_control_manager_v1_destroy(manager, false);
 }
 
 struct wlr_gamma_control_manager_v1 *wlr_gamma_control_manager_v1_create(
