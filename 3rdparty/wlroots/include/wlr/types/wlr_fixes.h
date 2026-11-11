@@ -25,4 +25,13 @@ struct wlr_fixes {
 
 struct wlr_fixes *wlr_fixes_create(struct wl_display *display, uint32_t version);
 
+/**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_fixes_destroy(struct wlr_fixes *fixes);
+
 #endif

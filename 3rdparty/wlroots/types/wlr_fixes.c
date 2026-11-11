@@ -1,8 +1,10 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <wayland-server-protocol.h>
 #include <stdlib.h>
 
 #include <wlr/types/wlr_fixes.h>
+#include "util/global.h"
 
 #define FIXES_VERSION 1
 
@@ -31,15 +33,28 @@ static void fixes_bind(struct wl_client *wl_client, void *data, uint32_t version
 	wl_resource_set_implementation(resource, &fixes_impl, fixes, NULL);
 }
 
-static void fixes_handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_fixes *fixes = wl_container_of(listener, fixes, display_destroy);
+static void fixes_destroy_internal(struct wlr_fixes *fixes,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&fixes->events.destroy, NULL);
 
 	assert(wl_list_empty(&fixes->events.destroy.listener_list));
 
 	wl_list_remove(&fixes->display_destroy.link);
-	wl_global_destroy(fixes->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(fixes->global);
+	} else {
+		wl_global_destroy(fixes->global);
+	}
 	free(fixes);
+}
+
+void wlr_fixes_destroy(struct wlr_fixes *fixes) {
+	fixes_destroy_internal(fixes, true);
+}
+
+static void fixes_handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_fixes *fixes = wl_container_of(listener, fixes, display_destroy);
+	fixes_destroy_internal(fixes, false);
 }
 
 struct wlr_fixes *wlr_fixes_create(struct wl_display *display, uint32_t version) {
