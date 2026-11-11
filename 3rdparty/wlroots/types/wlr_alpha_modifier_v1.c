@@ -1,9 +1,11 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/types/wlr_alpha_modifier_v1.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/util/addon.h>
 #include "alpha-modifier-v1-protocol.h"
+#include "util/global.h"
 
 #define ALPHA_MODIFIER_VERSION 1
 
@@ -152,11 +154,24 @@ static void manager_bind(struct wl_client *client, void *data,
 	wl_resource_set_implementation(resource, &manager_impl, NULL, NULL);
 }
 
+static void alpha_modifier_v1_destroy(struct wlr_alpha_modifier_v1 *manager,
+		bool destroy_global_safe) {
+	wl_list_remove(&manager->display_destroy.link);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
+	free(manager);
+}
+
+void wlr_alpha_modifier_v1_destroy(struct wlr_alpha_modifier_v1 *manager) {
+	alpha_modifier_v1_destroy(manager, true);
+}
+
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_alpha_modifier_v1 *manager = wl_container_of(listener, manager, display_destroy);
-	wl_list_remove(&manager->display_destroy.link);
-	wl_global_destroy(manager->global);
-	free(manager);
+	alpha_modifier_v1_destroy(manager, false);
 }
 
 struct wlr_alpha_modifier_v1 *wlr_alpha_modifier_v1_create(struct wl_display *display) {
