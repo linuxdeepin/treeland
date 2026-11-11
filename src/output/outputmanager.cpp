@@ -1506,18 +1506,11 @@ void OutputManager::testOrApplyConfiguration(WOutputManagerV1 *protocol,
     m_pendingOutputConfig.pendingCommits = 0;
     m_pendingOutputConfig.allSuccess = true;
 
-    // render(viewport, true) below commits the scheduled job right away, so
-    // onOutputCommitFinished() can already have answered the client and
-    // destroyed `config` while this function is still running. Answer at most
-    // once, and only clear the pending state while it is still ours.
-    const auto answerOnce = [this, config, protocol](bool ok) {
-        if (m_pendingOutputConfig.config != config) {
-            qCDebug(lcTlCore) << "Not answering a configuration that is no longer pending" << config;
-            return;
-        }
-        protocol->sendResult(config, ok);
-        m_pendingOutputConfig = {};
-    };
+    // render(viewport, true) commits the scheduled job right away, so all jobs
+    // are registered first (see the render pass at the end of this function):
+    // a synchronous finish of the first output would otherwise answer the
+    // client while later heads still have no job, swallowing their failures.
+    QList<WOutputViewport *> viewportsToRender;
 
     if (m_initialOutputScanFinished && !m_config->singleOutputId().isEmpty()) {
         const QString singleOutputId = m_config->singleOutputId();
@@ -1560,14 +1553,14 @@ void OutputManager::testOrApplyConfiguration(WOutputManagerV1 *protocol,
 
         WOutputViewport *viewport = ownOutputViewport(state.output);
         if (!viewport) {
-            answerOnce(false);
+            answerPendingConfiguration(false);
             return;
         }
 
         WOutputRenderWindow *renderWindow = viewport->outputRenderWindow();
         if (!renderWindow) {
             qCWarning(lcTlCore) << "No renderWindow for output" << state.output->name();
-            answerOnce(false);
+            answerPendingConfiguration(false);
             return;
         }
 
@@ -1577,7 +1570,7 @@ void OutputManager::testOrApplyConfiguration(WOutputManagerV1 *protocol,
                 qCWarning(lcTlCore)
                     << "Cannot apply enabled output configuration; output is not in root container"
                     << state.output->name();
-                answerOnce(false);
+                answerPendingConfiguration(false);
                 return;
             }
             if (layout->outputs().contains(state.output)) {
@@ -1588,7 +1581,7 @@ void OutputManager::testOrApplyConfiguration(WOutputManagerV1 *protocol,
         auto outputHelper = renderWindow->getOutputHelper(viewport);
         if (!outputHelper) {
             qCWarning(lcTlCore) << "No output helper for viewport" << viewport;
-            answerOnce(false);
+            answerPendingConfiguration(false);
             return;
         }
 
@@ -1622,7 +1615,7 @@ void OutputManager::testOrApplyConfiguration(WOutputManagerV1 *protocol,
         if (!outputHelper->setExtraState(extraState)) {
             qCWarning(lcTlCore) << "Failed to set extra state for output"
                                 << state.output->name();
-            answerOnce(false);
+            answerPendingConfiguration(false);
             return;
         }
 
@@ -1698,6 +1691,12 @@ void OutputManager::testOrApplyConfiguration(WOutputManagerV1 *protocol,
         renderWindow->update(viewport);
 
         if (state.enabled && !state.output->isEnabled()) {
+            viewportsToRender.append(viewport);
+        }
+    }
+
+    for (auto *viewport : std::as_const(viewportsToRender)) {
+        if (auto *renderWindow = viewport->outputRenderWindow()) {
             renderWindow->render(viewport, true);
         }
     }
@@ -1705,9 +1704,7 @@ void OutputManager::testOrApplyConfiguration(WOutputManagerV1 *protocol,
     if (m_pendingOutputConfig.config == config && m_pendingOutputConfig.pendingCommits == 0) {
         // Nothing was scheduled (empty configuration or no matching output), so
         // no commit callback will ever finish this apply.
-        answerOnce(true);
-        Q_EMIT configurationChanged();
-        notifyOutputGroupsChanged();
+        answerPendingConfiguration(true);
     }
 }
 
@@ -1727,7 +1724,15 @@ void OutputManager::onOutputCommitFinished(wlr_output_configuration_v1 *config,
         return;
     }
 
-    const bool ok = m_pendingOutputConfig.allSuccess;
+    answerPendingConfiguration(m_pendingOutputConfig.allSuccess);
+}
+
+void OutputManager::answerPendingConfiguration(bool ok)
+{
+    if (!m_pendingOutputConfig.config) {
+        return;
+    }
+
     if (ok) {
         storeSingleOutputConfig();
 
@@ -1767,7 +1772,9 @@ void OutputManager::onOutputCommitFinished(wlr_output_configuration_v1 *config,
     }
 
     if (m_pendingOutputConfig.protocol)
-        m_pendingOutputConfig.protocol->sendResult(config, ok, m_pendingOutputConfig.states);
+        m_pendingOutputConfig.protocol->sendResult(m_pendingOutputConfig.config,
+                                                   ok,
+                                                   m_pendingOutputConfig.states);
     m_pendingOutputConfig = {};
     Q_EMIT configurationChanged();
 
