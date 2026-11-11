@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <wayland-server-core.h>
 #include <wayland-util.h>
@@ -8,6 +9,7 @@
 
 #include "cursor-shape-v1-protocol.h"
 #include "types/wlr_tablet_v2.h"
+#include "util/global.h"
 
 #define CURSOR_SHAPE_MANAGER_V1_VERSION 2
 
@@ -185,18 +187,30 @@ static void manager_bind(struct wl_client *client, void *data,
 	wl_resource_set_implementation(resource, &manager_impl, manager, NULL);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_cursor_shape_manager_v1 *manager =
-		wl_container_of(listener, manager, display_destroy);
-
+static void cursor_shape_manager_v1_destroy(struct wlr_cursor_shape_manager_v1 *manager,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&manager->events.destroy, NULL);
 
 	assert(wl_list_empty(&manager->events.request_set_shape.listener_list));
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
 
-	wl_global_destroy(manager->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
 	wl_list_remove(&manager->display_destroy.link);
 	free(manager);
+}
+
+void wlr_cursor_shape_manager_v1_destroy(struct wlr_cursor_shape_manager_v1 *manager) {
+	cursor_shape_manager_v1_destroy(manager, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_cursor_shape_manager_v1 *manager =
+		wl_container_of(listener, manager, display_destroy);
+	cursor_shape_manager_v1_destroy(manager, false);
 }
 
 struct wlr_cursor_shape_manager_v1 *wlr_cursor_shape_manager_v1_create(
