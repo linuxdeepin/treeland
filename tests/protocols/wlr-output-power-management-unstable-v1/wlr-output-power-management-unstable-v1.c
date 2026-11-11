@@ -3,13 +3,16 @@
 
 #include "client-connection.h"
 #include "server-bridge-api.h"
+#include "treeland-wine-window-management-unstable-v1-client-protocol.h"
 #include "wlr-output-power-management-unstable-v1-client-protocol.h"
 #include "wlr-output-power-management-unstable-v1.h"
+#include "xdg-toplevel-client.h"
 
 #include <string.h>
 #include <stdio.h>
 
 extern void output_power_read_server_state(void *data);
+extern void output_power_read_window_state(void *data);
 
 struct power_events {
     int mode_count;
@@ -40,6 +43,12 @@ static int read_server_state(struct output_power_server_state *state)
 {
     memset(state, 0, sizeof(*state));
     return invoke_on_server_thread(output_power_read_server_state, state);
+}
+
+static int read_window_state(struct output_power_window_state *state)
+{
+    memset(state, 0, sizeof(*state));
+    return invoke_on_server_thread(output_power_read_window_state, state);
 }
 
 static int invalid_mode_disconnects(const char *socket_name)
@@ -84,6 +93,10 @@ int protocol_test_run(const char *socket_name)
     struct power_events events = { 0 };
     struct power_events second_events = { 0 };
     struct output_power_server_state state;
+    struct output_power_window_state window;
+    struct xdg_toplevel_client toplevel = { 0 };
+    struct treeland_wine_window_manager_v1 *wine_manager = NULL;
+    struct treeland_wine_window_control_v1 *control = NULL;
     int result = 1;
     int stage = 0;
 
@@ -116,22 +129,63 @@ int protocol_test_run(const char *socket_name)
     zwlr_output_power_v1_destroy(second_power);
     second_power = NULL;
 
+    // A window whose position the client asked for (the X11/wine path) is the one
+    // that can be left without any output: RootSurfaceContainer::updateSurfaceOutputs()
+    // drops disabled outputs and the ownsOutput fallback only covers automatic
+    // placement. set_position is that request in production form.
+    if (!xdg_toplevel_client_create_with_solid_buffer(&connection, &toplevel, 500, 200,
+                                                      0xff202020u))
+        goto done;
+    stage = 3;
+    wine_manager = client_bind(&connection, "treeland_wine_window_manager_v1",
+                               &treeland_wine_window_manager_v1_interface, 1);
+    if (!wine_manager)
+        goto done;
+    control = treeland_wine_window_manager_v1_get_window_control(wine_manager,
+                                                                 toplevel.toplevel);
+    if (!control)
+        goto done;
+    treeland_wine_window_control_v1_set_position(control, 100, 100, 1);
+    if (wl_display_roundtrip(connection.display) < 0 || !read_window_state(&window)
+        || window.window_count != 1 || window.outputs != 1 || window.enabled_outputs != 1)
+        goto done;
+
     zwlr_output_power_manager_v1_destroy(manager);
     manager = NULL;
     zwlr_output_power_v1_set_mode(power, ZWLR_OUTPUT_POWER_V1_MODE_OFF);
-    stage = 3;
+    stage = 4;
     if (wl_display_roundtrip(connection.display) < 0 || events.mode_count != 2
         || events.last_mode != ZWLR_OUTPUT_POWER_V1_MODE_OFF || events.failed_count
         || !read_server_state(&state) || state.output_count != 1 || state.enabled)
         goto done;
 
+    // Turning the screen off alone recomputes nothing, so the window keeps its
+    // (now disabled) output. The recompute while it is off is what empties the list,
+    // and that empty list used to survive the screen being turned back on: the
+    // window then kept its last committed frame forever.
+    if (!read_window_state(&window) || window.outputs != 1 || window.enabled_outputs != 0)
+        goto done;
+    treeland_wine_window_control_v1_set_position(control, 200, 150, 2);
+    stage = 5;
+    if (wl_display_roundtrip(connection.display) < 0 || !read_window_state(&window)
+        || window.window_count != 1 || window.outputs != 0)
+        goto done;
+
     zwlr_output_power_v1_set_mode(power, ZWLR_OUTPUT_POWER_V1_MODE_ON);
-    stage = 4;
+    stage = 6;
     if (wl_display_roundtrip(connection.display) < 0 || events.mode_count != 3
         || events.last_mode != ZWLR_OUTPUT_POWER_V1_MODE_ON || events.failed_count
         || !read_server_state(&state) || state.output_count != 1 || !state.enabled)
         goto done;
+    if (!read_window_state(&window) || window.window_count != 1 || window.outputs != 1
+        || window.enabled_outputs != 1)
+        goto done;
 
+    treeland_wine_window_control_v1_destroy(control);
+    control = NULL;
+    treeland_wine_window_manager_v1_destroy(wine_manager);
+    wine_manager = NULL;
+    xdg_toplevel_client_destroy(&toplevel);
     zwlr_output_power_v1_destroy(power);
     power = NULL;
     wl_output_destroy(output);
@@ -142,12 +196,19 @@ int protocol_test_run(const char *socket_name)
 done:
     if (result) {
         read_server_state(&state);
+        read_window_state(&window);
         fprintf(stderr,
-                "wlr-output-power failure at stage %d: events=(mode=%d last=%u failed=%d second-mode=%d second-failed=%d) server=(outputs=%d enabled=%d)\n",
+                "wlr-output-power failure at stage %d: events=(mode=%d last=%u failed=%d second-mode=%d second-failed=%d) server=(outputs=%d enabled=%d) window=(count=%d outputs=%d enabled=%d)\n",
                 stage, events.mode_count, events.last_mode, events.failed_count,
                 second_events.mode_count, second_events.failed_count,
-                state.output_count, state.enabled);
+                state.output_count, state.enabled,
+                window.window_count, window.outputs, window.enabled_outputs);
     }
+    if (control)
+        treeland_wine_window_control_v1_destroy(control);
+    if (wine_manager)
+        treeland_wine_window_manager_v1_destroy(wine_manager);
+    xdg_toplevel_client_destroy(&toplevel);
     if (second_power)
         zwlr_output_power_v1_destroy(second_power);
     if (power)

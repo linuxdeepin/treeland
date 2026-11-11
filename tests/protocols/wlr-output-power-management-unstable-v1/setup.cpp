@@ -4,6 +4,7 @@
 #include "core/rootsurfacecontainer.h"
 #include "output/output.h"
 #include "core/waylandserver.h"
+#include "surface/surfacewrapper.h"
 #include "wlr-output-power-management-unstable-v1.h"
 
 #include <woutput.h>
@@ -20,4 +21,22 @@ extern "C" void output_power_read_server_state(void *data)
     if (!outputs.isEmpty())
         state.enabled = outputs.constFirst()->output()->isEnabled();
     *static_cast<output_power_server_state *>(data) = state;
+}
+
+extern "C" void output_power_read_window_state(void *data)
+{
+    output_power_window_state state {};
+    const auto surfaces = WaylandServer::instance()->rootSurfaceContainer()->surfaces();
+    for (auto *surface : surfaces) {
+        if (surface->type() != SurfaceWrapper::Type::XdgToplevel)
+            continue;
+
+        ++state.window_count;
+        state.outputs = surface->outputs().size();
+        for (auto *output : surface->outputs()) {
+            if (output->isEnabled())
+                ++state.enabled_outputs;
+        }
+    }
+    *static_cast<output_power_window_state *>(data) = state;
 }

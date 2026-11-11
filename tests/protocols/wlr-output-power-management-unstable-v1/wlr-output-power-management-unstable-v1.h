@@ -7,3 +7,9 @@ struct output_power_server_state {
     int output_count;
     int enabled;
 };
+
+struct output_power_window_state {
+    int window_count;
+    int outputs;
+    int enabled_outputs;
+};

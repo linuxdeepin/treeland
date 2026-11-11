@@ -17,7 +17,10 @@
 | 每 output 排他 control | 在第一个 control 有效时再次 `get_output_power` | 第二对象只收到一次 `failed`，没有 `mode` | P |
 | manager/child 生命周期分离 | destroy manager 后继续使用第一个 power object | 子对象仍有效；不产生 protocol error | P |
 | 关闭 output 的业务结果 | 第一个 object 在 manager destroy 后 `set_mode(off)` | 收到 `mode(off)`；fixture 从真实 production `WOutput` 读取 `enabled=false` | E |
+| 关屏期间窗口不重算 | `set_mode(off)` 后读取真实窗口状态 | 窗口仍保有该（已禁用）output：`outputs=1`、`enabled_outputs=0` | E |
+| 熄屏期间窗口几何变化 | 经 `treeland_wine_window_management_v1::set_position` 再次定位窗口 | 窗口 `outputs=0`，即原冻屏的前置态（outputs 被清空且无人重算） | E |
 | 恢复 output 的业务结果 | 对同一 object 调用 `set_mode(on)` | 收到 `mode(on)`；同一 production `WOutput` 读取 `enabled=true` | E |
+| 重新点亮后窗口自愈 | 对同一 object 调用 `set_mode(on)` | 窗口恢复 `outputs=1`、`enabled_outputs=1`，不依赖移动/缩放 | E |
 | power object 生命周期 | destroy power object 与 `wl_output` | 正常释放，无 use-after-free 或 protocol error | P |
 | 非法 mode | 独立连接中发送 `set_mode(2)` | display 因 `zwlr_output_power_v1.error.invalid_mode` 断开 | P |
 
@@ -42,7 +45,11 @@ wlroots 在 output enabled commit 后向 control 发送 `mode`；fixture 再从�
 4. client 同时断言 `mode(off)`，fixture 读取 production `WOutput::isEnabled()==false`；
 5. 同一 control 发送 `set_mode(on)`，以 `mode(on)` 和 `WOutput::isEnabled()==true` 验证恢复。
 
-步骤 4、5 的状态由 production output 提供，不调用 fixture setter，因此为 E 级。当前实现待首次 CI
+步骤 4、5 的状态由 production output 提供，不调用 fixture setter，因此为 E 级。
+
+冻屏回归用例在同一条流程里追加窗口侧断言：通过 `EXTRA_XMLS` 借用
+`treeland-wine-window-management-unstable-v1.xml` 的 `set_position`，把窗口变成生产里会中招的「显式定位」
+窗口，再断言熄屏期间几何变化清空 `SurfaceWrapper::outputs()`、重新点亮后由 production 逻辑恢复。当前实现待首次 CI
 执行记录结果，不把未运行结果写成已通过。
 
 ## 已知边界 / 下一项结果

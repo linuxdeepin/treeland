@@ -5,4 +5,6 @@ treeland_add_protocol_test(
     XML "${PROJECT_SOURCE_DIR}/3rdparty/wlroots/protocol/wlr-output-power-management-unstable-v1.xml"
     SETUP "${CMAKE_CURRENT_SOURCE_DIR}/setup.cpp"
     CLIENT "${CMAKE_CURRENT_SOURCE_DIR}/wlr-output-power-management-unstable-v1.c"
+    EXTRA_XMLS
+        "${TREELAND_PROTOCOLS_DATA_DIR}/treeland-wine-window-management-unstable-v1.xml"
 )
