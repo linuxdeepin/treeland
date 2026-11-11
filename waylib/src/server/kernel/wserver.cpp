@@ -448,15 +448,9 @@ bool WServer::detach(WServerInterface *interface)
 {
     W_D(WServer);
     Q_ASSERT(interface != d->pendingInterface);
-    if (!d->interfaceList.contains(interface))
+    bool ok = d->interfaceList.removeOne(interface);
+    if (!ok)
         return false;
-    // Some native managers live until wl_display teardown. Withdraw their
-    // globals before removing the scope lookup, so logout cannot expose them.
-    if (isRunning() && interface->ownsSocket()) {
-        if (auto *global = interface->global())
-            wl_global_remove(global);
-    }
-    d->interfaceList.removeOne(interface);
 
     Q_ASSERT(interface->m_server == this);
     interface->m_server = nullptr;
