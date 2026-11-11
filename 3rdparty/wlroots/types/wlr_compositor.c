@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <wayland-server-core.h>
@@ -15,6 +16,7 @@
 #include "types/wlr_subcompositor.h"
 #include "util/array.h"
 #include "util/time.h"
+#include "util/global.h"
 
 #define COMPOSITOR_VERSION 6
 #define CALLBACK_VERSION 1
@@ -1343,10 +1345,8 @@ static void compositor_bind(struct wl_client *wl_client, void *data,
 	wl_resource_set_implementation(resource, &compositor_impl, compositor, NULL);
 }
 
-static void compositor_handle_display_destroy(
-		struct wl_listener *listener, void *data) {
-	struct wlr_compositor *compositor =
-		wl_container_of(listener, compositor, display_destroy);
+static void compositor_destroy(struct wlr_compositor *compositor,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&compositor->events.destroy, NULL);
 
 	assert(wl_list_empty(&compositor->events.new_surface.listener_list));
@@ -1354,8 +1354,23 @@ static void compositor_handle_display_destroy(
 
 	wl_list_remove(&compositor->display_destroy.link);
 	wl_list_remove(&compositor->renderer_destroy.link);
-	wl_global_destroy(compositor->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(compositor->global);
+	} else {
+		wl_global_destroy(compositor->global);
+	}
 	free(compositor);
+}
+
+void wlr_compositor_destroy(struct wlr_compositor *compositor) {
+	compositor_destroy(compositor, true);
+}
+
+static void compositor_handle_display_destroy(
+		struct wl_listener *listener, void *data) {
+	struct wlr_compositor *compositor =
+		wl_container_of(listener, compositor, display_destroy);
+	compositor_destroy(compositor, false);
 }
 
 static void compositor_handle_renderer_destroy(
