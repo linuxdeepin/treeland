@@ -92,6 +92,15 @@ struct wlr_pointer_constraints_v1 {
 struct wlr_pointer_constraints_v1 *wlr_pointer_constraints_v1_create(
 	struct wl_display *display);
 
+/**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_pointer_constraints_v1_destroy(struct wlr_pointer_constraints_v1 *pointer_constraints);
+
 struct wlr_pointer_constraint_v1 *
 	wlr_pointer_constraints_v1_constraint_for_surface(
 	struct wlr_pointer_constraints_v1 *pointer_constraints,

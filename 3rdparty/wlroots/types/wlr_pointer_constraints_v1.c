@@ -10,6 +10,7 @@
 #include <wlr/util/log.h>
 
 #include "pointer-constraints-unstable-v1-protocol.h"
+#include "util/global.h"
 
 static const struct zwp_locked_pointer_v1_interface locked_pointer_impl;
 static const struct zwp_confined_pointer_v1_interface confined_pointer_impl;
@@ -330,17 +331,30 @@ static void pointer_constraints_bind(struct wl_client *client, void *data,
 		pointer_constraints, NULL);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_pointer_constraints_v1 *pointer_constraints =
-		wl_container_of(listener, pointer_constraints, display_destroy);
+static void pointer_constraints_v1_destroy(struct wlr_pointer_constraints_v1 *pointer_constraints,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&pointer_constraints->events.destroy, NULL);
 
 	assert(wl_list_empty(&pointer_constraints->events.destroy.listener_list));
 	assert(wl_list_empty(&pointer_constraints->events.new_constraint.listener_list));
 
 	wl_list_remove(&pointer_constraints->display_destroy.link);
-	wl_global_destroy(pointer_constraints->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(pointer_constraints->global);
+	} else {
+		wl_global_destroy(pointer_constraints->global);
+	}
 	free(pointer_constraints);
+}
+
+void wlr_pointer_constraints_v1_destroy(struct wlr_pointer_constraints_v1 *pointer_constraints) {
+	pointer_constraints_v1_destroy(pointer_constraints, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_pointer_constraints_v1 *pointer_constraints =
+		wl_container_of(listener, pointer_constraints, display_destroy);
+	pointer_constraints_v1_destroy(pointer_constraints, false);
 }
 
 struct wlr_pointer_constraints_v1 *wlr_pointer_constraints_v1_create(
