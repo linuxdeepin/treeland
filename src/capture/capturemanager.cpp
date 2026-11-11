@@ -10,6 +10,7 @@
 #include "common/treelandlogging.h"
 
 #include <wserver.h>
+#include <wsocket.h>
 #include <wsurfaceitem.h>
 #include <woutputrenderwindow.h>
 #include <wextforeigntoplevellistv1.h>
@@ -17,9 +18,38 @@
 
 #include <wlr_all.h>
 
+#include <type_traits>
+#include <utility>
+
 #define EXT_IMAGE_COPY_CAPTURE_MANAGER_V1_VERSION 1
 #define EXT_OUTPUT_IMAGE_CAPTURE_SOURCE_MANAGER_V1_VERSION 1
 #define EXT_FOREIGN_TOPLEVEL_IMAGE_CAPTURE_SOURCE_MANAGER_V1_VERSION 1
+
+// wlr_ext_image_copy_capture_session_v1_set_paused() is a treeland wlroots
+// extension. Builds against an external Waylib may use a wlroots without it,
+// in which case capture sessions simply keep running unpaused.
+namespace {
+
+template<typename T, typename = void>
+struct CaptureSessionPauseSupported : std::false_type {};
+
+template<typename T>
+struct CaptureSessionPauseSupported<
+    T,
+    decltype(wlr_ext_image_copy_capture_session_v1_set_paused(std::declval<T *>(), true),
+             void())> : std::true_type {};
+
+constexpr bool hasCaptureSessionPause =
+    CaptureSessionPauseSupported<wlr_ext_image_copy_capture_session_v1>::value;
+
+// Only instantiated when the API exists, so the call can't break older wlroots.
+template<typename T = wlr_ext_image_copy_capture_session_v1>
+void setCaptureSessionPaused(T *session, bool paused)
+{
+    wlr_ext_image_copy_capture_session_v1_set_paused(session, paused);
+}
+
+}
 
 CaptureManager::CaptureManager(RootSurfaceContainer *root, QObject *parent)
     : QObject(parent)
@@ -28,6 +58,8 @@ CaptureManager::CaptureManager(RootSurfaceContainer *root, QObject *parent)
 
 CaptureManager::~CaptureManager()
 {
+    qDeleteAll(m_captureSessions);
+    m_captureSessions.clear();
     teardown();
 }
 
@@ -48,9 +80,19 @@ void CaptureManager::installImageCapture(WServer *server, WExtForeignToplevelLis
         qCCritical(lcTlCore) << "Failed to create screencopy manager";
     }
 
-    if (!wlr_ext_image_copy_capture_manager_v1_create(server->handle(),
-                                                   EXT_IMAGE_COPY_CAPTURE_MANAGER_V1_VERSION)) {
+    m_imageCopyCaptureManager = wlr_ext_image_copy_capture_manager_v1_create(
+        server->handle(), EXT_IMAGE_COPY_CAPTURE_MANAGER_V1_VERSION);
+    if (!m_imageCopyCaptureManager) {
         qCCritical(lcTlCore) << "Failed to create image copy capture manager";
+    }
+
+    if constexpr (hasCaptureSessionPause) {
+        listeners()->add(&m_imageCopyCaptureManager->events.new_session,
+                         this, &CaptureManager::handleNewImageCopyCaptureSession);
+    } else {
+        qCWarning(lcTlCapture) << "This wlroots lacks"
+                               << "wlr_ext_image_copy_capture_session_v1_set_paused();"
+                               << "capture sessions won't pause for inactive user sessions";
     }
 
     if (!wlr_ext_output_image_capture_source_manager_v1_create(
@@ -76,6 +118,70 @@ void CaptureManager::onSelectionChanged()
     } else if (m_captureSelector) {
         m_captureSelector->deleteLater();
     }
+}
+
+// Returns the listening socket the capture client is connected to, or nullptr
+// for compositor-internal and test clients. Sandboxed clients connect through
+// a child socket, so walk up to the socket session switching toggles.
+[[maybe_unused]] static WSocket *captureSessionSocket(
+    wlr_ext_image_copy_capture_session_v1 *session)
+{
+    if (!session->resource)
+        return nullptr;
+
+    WClient *client = WClient::get(wl_resource_get_client(session->resource));
+    if (!client || !client->socket())
+        return nullptr;
+
+    return client->socket()->rootSocket();
+}
+
+void CaptureManager::handleNewImageCopyCaptureSession(
+    wlr_ext_image_copy_capture_session_v1 *session)
+{
+    if (!session)
+        return;
+
+    auto *entry = new CaptureSessionEntry;
+    entry->session = session;
+    entry->destroyListener.init(&session->events.destroy, [this, entry](void *) {
+        m_captureSessions.removeOne(entry);
+        delete entry;
+    });
+    m_captureSessions.append(entry);
+
+    // waylib freezes the clients of a disabled socket; capture sessions follow
+    // that same predicate so their frames freeze with their user.
+    if (auto *socket = captureSessionSocket(session)) {
+        connect(socket,
+                &WSocket::enabledChanged,
+                this,
+                &CaptureManager::updatePausedCaptureSessions,
+                Qt::UniqueConnection);
+    }
+
+    updatePausedCaptureSession(session);
+}
+
+void CaptureManager::updatePausedCaptureSession(
+    wlr_ext_image_copy_capture_session_v1 *session)
+{
+    if constexpr (hasCaptureSessionPause) {
+        WSocket *socket = captureSessionSocket(session);
+
+        // Sessions without a known socket have no user session to freeze for:
+        // keep them capturing instead of pausing them forever.
+        setCaptureSessionPaused<>(session, socket && !socket->isEnabled());
+    } else {
+        Q_UNUSED(session)
+    }
+}
+
+void CaptureManager::updatePausedCaptureSessions()
+{
+    const auto sessions = m_captureSessions;
+    for (auto *entry : sessions)
+        updatePausedCaptureSession(entry->session);
 }
 
 bool CaptureManager::isSelecting() const

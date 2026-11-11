@@ -9,6 +9,8 @@
 #include <QPointer>
 
 struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request;
+struct wlr_ext_image_copy_capture_manager_v1;
+struct wlr_ext_image_copy_capture_session_v1;
 class RootSurfaceContainer;
 class QmlEngine;
 class CaptureSourceSelector;
@@ -38,6 +40,15 @@ private:
     void onSelectionChanged();
     void handleNewForeignToplevelCaptureRequest(
         wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request);
+    void handleNewImageCopyCaptureSession(wlr_ext_image_copy_capture_session_v1 *session);
+    void updatePausedCaptureSessions();
+    void updatePausedCaptureSession(wlr_ext_image_copy_capture_session_v1 *session);
+
+    struct CaptureSessionEntry
+    {
+        wlr_ext_image_copy_capture_session_v1 *session = nullptr;
+        WScopedListener destroyListener;
+    };
 
 private:
     RootSurfaceContainer *m_rootSurfaceContainer;
@@ -45,4 +56,6 @@ private:
     CaptureManagerV1 *m_captureManagerV1 = nullptr;
     WExtForeignToplevelListV1 *m_extForeignToplevelListV1 = nullptr;
     QPointer<CaptureSourceSelector> m_captureSelector;
+    wlr_ext_image_copy_capture_manager_v1 *m_imageCopyCaptureManager = nullptr;
+    QList<CaptureSessionEntry *> m_captureSessions;
 };

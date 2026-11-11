@@ -83,7 +83,7 @@ xdg-shell 由共享 xdg-toplevel 夹具覆盖（多个 toplevel 测试复用）�
 | [wayland-ext-data-control-v1](wayland-ext-data-control-v1/README.md) | E | 创建 offer 并 `set_selection` 后回读真实 `wlr_seat::selection_source` 非空 |
 | [wayland-ext-foreign-toplevel-list-v1](wayland-ext-foreign-toplevel-list-v1/README.md) | E | 映射 toplevel 后回读真实 `wlr_ext_foreign_toplevel_list_v1::toplevels` 列表非空 |
 | [wayland-ext-idle-notify-v1](wayland-ext-idle-notify-v1/README.md) | E | 跨协议验证：创建 idle inhibitor 后 `idled` 不触发，销毁 inhibitor 后 `idled` 触发，证明生产 `wlr_idle_notifier_v1` inhibited 状态被修改 |
-| [wayland-ext-image-copy-capture-v1](wayland-ext-image-copy-capture-v1/README.md) | P | 绑定两个 manager，并从真实 headless `wl_output` 创建、销毁非空 capture source |
+| [wayland-ext-image-copy-capture-v1](wayland-ext-image-copy-capture-v1/README.md) | P | 绑定两个 manager，并从真实 headless `wl_output` 创建、销毁非空 capture source；暂停/恢复语义（按客户端 socket enable 状态冻结帧）仅有手动验证步骤（session 级自动化受 #1407 阻塞） |
 | [wayland-ext-session-lock-v1](wayland-ext-session-lock-v1/README.md) | E | `lock`→`locked` 后回读真实 `WSessionLock::isLocked()` 为 true；提交 lock surface buffer 后回读生产 wrapper，断言其尺寸 == `Output::geometry()`（全屏，而非去掉 exclusive zone 的工作区）、位置 == 输出原点 |
 | [wayland-fractional-scale-v1](wayland-fractional-scale-v1/README.md) | E | 回读真实 `WOutput::scale()`，断言 `preferred_scale` == round(scale×120) |
 | [wayland-idle-inhibit-unstable-v1](wayland-idle-inhibit-unstable-v1/README.md) | E | 回读真实 `wlr_idle_inhibitor_v1` 已关联 mapped `WSurface`，销毁后确认 resource 已移除 |
@@ -168,7 +168,8 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 以下 25 个标准 wayland-protocols（wayland-protocols 1.49.0-1）测试中，23 个已升至 **E 级**，
 1 个为 **I / P 级**，仅 1 个仍为 **P 级**：keyboard-shortcuts-inhibit 验证生产 seat
 focus 到 `active` event 的链路；`ext-image-copy-capture-v1` 已验证 output-to-source，
-但 headless 下创建捕获会话可能死锁（issue #1407）。
+但 headless 下创建捕获会话可能死锁（issue #1407）；其暂停/恢复语义（按客户端 socket
+enable 状态冻结帧）目前只有 README 中的手动验证步骤。
 
 **E 级测试（23 个）**——验证真实生产对象状态：
 
