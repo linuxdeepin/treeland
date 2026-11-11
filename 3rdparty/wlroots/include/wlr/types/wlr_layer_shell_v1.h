@@ -125,6 +125,15 @@ struct wlr_layer_shell_v1 *wlr_layer_shell_v1_create(struct wl_display *display,
 	uint32_t version);
 
 /**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_layer_shell_v1_destroy(struct wlr_layer_shell_v1 *layer_shell);
+
+/**
  * Notifies the layer surface to configure itself with this width/height. The
  * layer_surface will signal its map event when the surface is ready to assume
  * this size. Returns the associated configure serial.
