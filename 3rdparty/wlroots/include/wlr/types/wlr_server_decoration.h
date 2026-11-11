@@ -82,6 +82,15 @@ struct wlr_server_decoration {
 
 struct wlr_server_decoration_manager *wlr_server_decoration_manager_create(
 	struct wl_display *display);
+
+/**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_server_decoration_manager_destroy(struct wlr_server_decoration_manager *manager);
 void wlr_server_decoration_manager_set_default_mode(
 	struct wlr_server_decoration_manager *manager, uint32_t default_mode);
 
