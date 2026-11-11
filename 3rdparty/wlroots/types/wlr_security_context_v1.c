@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -8,6 +9,7 @@
 #include <wlr/util/log.h>
 #include "security-context-v1-protocol.h"
 #include "util/fd.h"
+#include "util/global.h"
 
 #define SECURITY_CONTEXT_MANAGER_V1_VERSION 1
 
@@ -392,9 +394,8 @@ static void manager_bind(struct wl_client *client, void *data,
 	wl_resource_set_implementation(resource, &manager_impl, manager, NULL);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_security_context_manager_v1 *manager =
-		wl_container_of(listener, manager, display_destroy);
+static void security_context_manager_v1_destroy(struct wlr_security_context_manager_v1 *manager,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&manager->events.destroy, manager);
 
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
@@ -405,9 +406,23 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 		security_context_destroy(security_context);
 	}
 
-	wl_global_destroy(manager->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
 	wl_list_remove(&manager->display_destroy.link);
 	free(manager);
+}
+
+void wlr_security_context_manager_v1_destroy(struct wlr_security_context_manager_v1 *manager) {
+	security_context_manager_v1_destroy(manager, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_security_context_manager_v1 *manager =
+		wl_container_of(listener, manager, display_destroy);
+	security_context_manager_v1_destroy(manager, false);
 }
 
 struct wlr_security_context_manager_v1 *wlr_security_context_manager_v1_create(
