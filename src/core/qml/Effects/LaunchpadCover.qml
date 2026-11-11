@@ -8,6 +8,7 @@ import Waylib.Server
 
 Item {
     id: root
+    readonly property bool enableAnimation: WaylandServer.animationConfig.launchpadCover
     clip: true
 
     required property SurfaceWrapper wrapper
@@ -54,6 +55,7 @@ Item {
             Transition {
                 from: "*"
                 to: "Normal"
+                enabled: root.enableAnimation
                 PropertyAnimation {
                     property: "scale"
                     duration: 1000
@@ -63,6 +65,7 @@ Item {
             Transition {
                 from: "*"
                 to: "Scale"
+                enabled: root.enableAnimation
                 PropertyAnimation {
                     property: "scale"
                     duration: 1000
@@ -86,6 +89,7 @@ Item {
 
     opacity: root.mapped ? 1 : 0
     Behavior on opacity {
+        enabled: root.enableAnimation
         PropertyAnimation {
             duration: 400
             easing.type: Easing.OutExpo

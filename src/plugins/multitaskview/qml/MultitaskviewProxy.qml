@@ -23,9 +23,15 @@ Multitaskview {
     property real taskviewVal: 0
     property bool inProgress: false
 
+    readonly property bool enableAnimation: WaylandServer.animationConfig.multitaskview
+
     onActionFinished: {
         if (root.status === Multitaskview.Exited) {
             exited = true
+            if (!root.enableAnimation) {
+                taskviewVal = 0
+                root.visible = false
+            }
         } else {
             exited = false
         }
@@ -73,6 +79,7 @@ Multitaskview {
     transitions: [
         Transition {
             to: "initial"
+            enabled: root.enableAnimation
             SequentialAnimation {
                 NumberAnimation {
                     duration: WaylandServer.config.multitaskviewAnimationDuration
@@ -86,6 +93,7 @@ Multitaskview {
         },
         Transition {
             to: "taskview"
+            enabled: root.enableAnimation
             SequentialAnimation {
                 NumberAnimation {
                     duration: WaylandServer.config.multitaskviewAnimationDuration

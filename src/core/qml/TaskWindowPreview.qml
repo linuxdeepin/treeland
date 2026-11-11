@@ -9,6 +9,7 @@ import org.deepin.dtk.style 1.0 as DS
 
 Loader {
     id: root
+    readonly property bool enableAnimation: WaylandServer.animationConfig.taskSwitcher
 
     signal clicked()
     property int loaderStatus: 0
@@ -48,6 +49,7 @@ Loader {
         Transition {
             from: "none"
             to: "loaded"
+            enabled: root.enableAnimation
 
             ParallelAnimation {
                 id: enterAnimation
@@ -71,6 +73,7 @@ Loader {
         Transition {
             from: "loaded"
             to: "none"
+            enabled: root.enableAnimation
 
             ParallelAnimation {
                 id: exitAnimation

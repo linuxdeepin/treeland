@@ -10,6 +10,7 @@
 #include "wallpapermanager.h"
 #include "workspace.h"
 #include "shellhandler.h"
+#include "animationconfig.hpp"
 
 #include <woutput.h>
 
@@ -186,43 +187,63 @@ void WallpaperSwitcherItem::switchToNewSlot()
 
     Q_EMIT sourceChanged();
 
-    auto *fadeOut = new QPropertyAnimation(m_oldSlot, "opacity");
-    fadeOut->setDuration(m_opacityDuration);
-    fadeOut->setStartValue(1.0);
-    fadeOut->setEndValue(0.0);
-    fadeOut->setEasingCurve(QEasingCurve::InOutQuad);
-    connect(fadeOut, &QPropertyAnimation::finished, this, &WallpaperSwitcherItem::onAnimationFinished);
-    fadeOut->start(QAbstractAnimation::DeleteWhenStopped);
+    auto *config = WaylandServer::instance()->animationConfig();
+    const bool animated = !config || config->wallpaperCrossFade();
+    const QPointer<WallpaperSlot> oldSlot = m_oldSlot;
+    if (animated) {
+        startFadeOut(oldSlot);
+    } else if (oldSlot) {
+        // A superseded request may never become ready. Keep its old slot tied
+        // to its lifetime so abandoning it cannot leave a wallpaper behind.
+        connect(newSlot, &QObject::destroyed, oldSlot, &QObject::deleteLater);
+    }
 
     auto *interface = TreelandWallpaperSurfaceInterfaceV1::get(newSlot->source());
     if (interface && interface->wallpaperReady()) {
-        startFadeIn(newSlot);
+        startFadeIn(newSlot, oldSlot, animated);
     } else if (interface) {
+        // Waiting for the content to load is not an animation: keep it even when
+        // the cross fade is disabled.
         connect(interface,
                 &TreelandWallpaperSurfaceInterfaceV1::ready,
                 this,
-                [this, newSlot]() {
-                    if (m_currentSlot == newSlot)
-                        startFadeIn(newSlot);
+                [this, newSlot = QPointer<WallpaperSlot>(newSlot), oldSlot, animated]() {
+                    if (newSlot && m_currentSlot == newSlot)
+                        startFadeIn(newSlot, oldSlot, animated);
                 },
                 Qt::SingleShotConnection);
     }
 }
 
-void WallpaperSwitcherItem::startFadeIn(WallpaperSlot *slot)
+void WallpaperSwitcherItem::startFadeOut(WallpaperSlot *slot)
 {
+    if (!slot)
+        return;
+
+    auto *fadeOut = new QPropertyAnimation(slot, "opacity");
+    fadeOut->setDuration(m_opacityDuration);
+    fadeOut->setStartValue(1.0);
+    fadeOut->setEndValue(0.0);
+    fadeOut->setEasingCurve(QEasingCurve::InOutQuad);
+    connect(fadeOut, &QPropertyAnimation::finished, slot, &QObject::deleteLater);
+    fadeOut->start(QAbstractAnimation::DeleteWhenStopped);
+}
+
+void WallpaperSwitcherItem::startFadeIn(WallpaperSlot *slot, WallpaperSlot *oldSlot, bool animated)
+{
+    if (!animated) {
+        // The new content is ready: show it and release the previous wallpaper in
+        // one step instead of fading.
+        slot->setOpacity(1.0);
+        if (oldSlot)
+            oldSlot->deleteLater();
+        return;
+    }
+
     auto *anim = new QPropertyAnimation(slot, "opacity");
     anim->setDuration(m_opacityDuration);
     anim->setStartValue(0.0);
     anim->setEndValue(1.0);
     anim->setEasingCurve(QEasingCurve::InOutQuad);
     anim->start(QAbstractAnimation::DeleteWhenStopped);
-}
-
-void WallpaperSwitcherItem::onAnimationFinished()
-{
-    if (m_oldSlot) {
-        m_oldSlot->deleteLater();
-        m_oldSlot = nullptr;
-    }
 }
