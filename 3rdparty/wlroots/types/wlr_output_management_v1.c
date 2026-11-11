@@ -1,10 +1,12 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <wlr/backend.h>
 #include <wlr/types/wlr_output_management_v1.h>
 #include <wlr/util/log.h>
 #include "wlr-output-management-unstable-v1-protocol.h"
+#include "util/global.h"
 
 #define OUTPUT_MANAGER_VERSION 4
 
@@ -631,6 +633,11 @@ static void manager_bind(struct wl_client *client, void *data, uint32_t version,
 	}
 	wl_resource_set_implementation(resource, &manager_impl, manager,
 		manager_handle_resource_destroy);
+	wl_list_init(wl_resource_get_link(resource));
+	if (manager == NULL) {
+		return;
+	}
+
 
 	wl_list_insert(&manager->resources, wl_resource_get_link(resource));
 
@@ -642,10 +649,8 @@ static void manager_bind(struct wl_client *client, void *data, uint32_t version,
 	zwlr_output_manager_v1_send_done(resource, manager->serial);
 }
 
-static void manager_handle_display_destroy(struct wl_listener *listener,
-		void *data) {
-	struct wlr_output_manager_v1 *manager =
-		wl_container_of(listener, manager, display_destroy);
+static void output_manager_v1_destroy(struct wlr_output_manager_v1 *manager,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&manager->events.destroy, manager);
 
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
@@ -657,8 +662,23 @@ static void manager_handle_display_destroy(struct wl_listener *listener,
 	wl_list_for_each_safe(head, tmp, &manager->heads, link) {
 		head_destroy(head);
 	}
-	wl_global_destroy(manager->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
 	free(manager);
+}
+
+void wlr_output_manager_v1_destroy(struct wlr_output_manager_v1 *manager) {
+	output_manager_v1_destroy(manager, true);
+}
+
+static void manager_handle_display_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_output_manager_v1 *manager =
+		wl_container_of(listener, manager, display_destroy);
+	output_manager_v1_destroy(manager, false);
 }
 
 struct wlr_output_manager_v1 *wlr_output_manager_v1_create(
