@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wlr/backend.h>
@@ -6,6 +7,7 @@
 #include <wlr/types/wlr_presentation_time.h>
 #include <wlr/util/addon.h>
 #include "presentation-time-protocol.h"
+#include "util/global.h"
 
 #define PRESENTATION_VERSION 2
 
@@ -162,16 +164,29 @@ static void presentation_bind(struct wl_client *client, void *data,
 	wp_presentation_send_clock_id(resource, CLOCK_MONOTONIC);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_presentation *presentation =
-		wl_container_of(listener, presentation, display_destroy);
+static void presentation_destroy(struct wlr_presentation *presentation,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&presentation->events.destroy, presentation);
 
 	assert(wl_list_empty(&presentation->events.destroy.listener_list));
 
 	wl_list_remove(&presentation->display_destroy.link);
-	wl_global_destroy(presentation->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(presentation->global);
+	} else {
+		wl_global_destroy(presentation->global);
+	}
 	free(presentation);
+}
+
+void wlr_presentation_destroy(struct wlr_presentation *presentation) {
+	presentation_destroy(presentation, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_presentation *presentation =
+		wl_container_of(listener, presentation, display_destroy);
+	presentation_destroy(presentation, false);
 }
 
 struct wlr_presentation *wlr_presentation_create(struct wl_display *display,
