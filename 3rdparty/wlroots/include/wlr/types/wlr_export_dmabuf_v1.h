@@ -44,4 +44,13 @@ struct wlr_export_dmabuf_frame_v1 {
 struct wlr_export_dmabuf_manager_v1 *wlr_export_dmabuf_manager_v1_create(
 	struct wl_display *display);
 
+/**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_export_dmabuf_manager_v1_destroy(struct wlr_export_dmabuf_manager_v1 *manager);
+
 #endif
