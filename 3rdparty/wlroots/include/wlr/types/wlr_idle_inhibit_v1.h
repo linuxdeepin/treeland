@@ -58,4 +58,13 @@ struct wlr_idle_inhibitor_v1 {
 
 struct wlr_idle_inhibit_manager_v1 *wlr_idle_inhibit_v1_create(struct wl_display *display);
 
+/**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_idle_inhibit_v1_destroy(struct wlr_idle_inhibit_manager_v1 *manager);
+
 #endif
