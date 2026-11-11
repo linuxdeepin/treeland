@@ -7,6 +7,7 @@
 #include <cmath>
 #include "core/waylandserver.h"
 #include "treelanduserconfig.hpp"
+#include "animationconfig.hpp"
 
 WorkspaceAnimationController::WorkspaceAnimationController(QObject *parent)
     : QObject{ parent }
@@ -47,6 +48,20 @@ void WorkspaceAnimationController::setConfig(TreelandUserConfig *config)
     m_posAnimation->setDuration(config->multitaskviewAnimationDuration());
     m_bounceInAnimation->setDuration(config->multitaskviewAnimationDuration() / 2);
     m_bounceOutAnimation->setDuration(config->multitaskviewAnimationDuration() / 2);
+}
+
+bool WorkspaceAnimationController::slideEnabled() const
+{
+    auto *server = WaylandServer::instance();
+    auto *config = server ? server->animationConfig() : nullptr;
+    return !config || config->workspaceSwitch();
+}
+
+bool WorkspaceAnimationController::bounceEnabled() const
+{
+    auto *server = WaylandServer::instance();
+    auto *config = server ? server->animationConfig() : nullptr;
+    return !config || config->workspaceBounce();
 }
 
 qreal WorkspaceAnimationController::refWidth() const
@@ -190,6 +205,14 @@ void WorkspaceAnimationController::startGestureSlide(qreal cb, bool bounce)
 
 void WorkspaceAnimationController::startSlideAnimation()
 {
+    if (!slideEnabled()) {
+        // Apply the destination immediately and finish without playing the slide.
+        m_slideAnimation->stop();
+        setViewportPos(m_animationDestination);
+        finishAnimation();
+        return;
+    }
+
     m_posAnimation->setStartValue(m_animationInitial);
     m_posAnimation->setEndValue(m_animationDestination);
     m_slideAnimation->start();
@@ -198,6 +221,13 @@ void WorkspaceAnimationController::startSlideAnimation()
 
 void WorkspaceAnimationController::startBounceAnimation()
 {
+    if (!bounceEnabled()) {
+        m_bounceAnimation->stop();
+        setViewportPos(m_animationDestination);
+        finishAnimation();
+        return;
+    }
+
     auto bounceDestination =
         m_animationDestination + (m_currentDirection == Right ? refBounce() : -refBounce());
     m_bounceInAnimation->setStartValue(m_animationDestination);

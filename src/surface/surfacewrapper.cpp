@@ -13,6 +13,7 @@
 #include "core/waylandserver.h"
 #include "surface/surfacewindowtransition.h"
 #include "treelanduserconfig.hpp"
+#include "animationconfig.hpp"
 #include "workspace/workspace.h"
 #include "wtoplevelsurface.h"
 #include "wxdgtoplevelsurface.h"
@@ -211,6 +212,54 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     setNoDecoration(false);
     updateHasActiveCapability(ActiveControlState::HasActivateCapability, true);
     updateHasActiveCapability(ActiveControlState::MappedOrSplash, true); // Splash is true
+}
+
+bool SurfaceWrapper::windowAnimationEnabled(uint direction) const
+{
+    auto *server = WaylandServer::instance();
+    auto *config = server ? server->animationConfig() : nullptr;
+    if (!config)
+        return true;
+
+    const bool open = direction == OPEN_ANIMATION;
+    switch (m_type) {
+    case Type::SplashScreen:
+    case Type::XdgToplevel:
+    case Type::XWayland:
+        return open ? config->windowOpen() : config->windowClose();
+    case Type::Layer: {
+        auto *layerSurface = qobject_cast<WLayerSurface *>(m_shellSurface.data());
+        if (!layerSurface)
+            return true;
+        if (isLaunchpad())
+            return open ? config->launchpadOpenFullscreen() : config->launchpadCloseFullscreen();
+        if (layerSurface->getExclusiveZoneEdge() != WLayerSurface::AnchorType::None)
+            return open ? config->layerShellOpen() : config->layerShellClose();
+        return true;
+    }
+    default:
+        return true;
+    }
+}
+
+bool SurfaceWrapper::geometryAnimationEnabled(State state) const
+{
+    auto *server = WaylandServer::instance();
+    auto *config = server ? server->animationConfig() : nullptr;
+    if (!config)
+        return true;
+
+    switch (state) {
+    case State::Maximized:
+        return config->maximize();
+    case State::Fullscreen:
+        return config->fullscreen();
+    case State::Normal:
+    case State::Tiling:
+        return config->restoreWindow();
+    default:
+        return true;
+    }
 }
 
 void SurfaceWrapper::invalidate()
@@ -799,6 +848,7 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
                     - QPointF(targetImplicitSize.width() / 2.0, targetImplicitSize.height() / 2.0);
             toGeometry = QRectF(toTopLeft, targetImplicitSize);
         }
+
         m_geometryAnimation =
             m_engine->createGeometryAnimation(this, fromGeometry, toGeometry, container());
 
@@ -1263,7 +1313,8 @@ void SurfaceWrapper::setSurfaceState(State newSurfaceState)
     setSurfaceStateValue(newSurfaceState);
 
     const QRectF targetGeometry = targetGeometryForState(newSurfaceState);
-    if (targetGeometry.isValid() && isVisible())
+    if (targetGeometry.isValid() && isVisible()
+        && geometryAnimationEnabled(newSurfaceState))
         startStateChangeAnimation(targetGeometry);
     else
         applySurfaceState();
@@ -1831,7 +1882,8 @@ void SurfaceWrapper::finishWindowTransitionOpen()
 
     m_windowAnimation->setProperty("toGeometry", toGeometry);
 
-    if (WaylandServer::instance()->noAnimation()) {
+    if (WaylandServer::instance()->noAnimation()
+        || !windowAnimationEnabled(OPEN_ANIMATION)) {
         onShowAnimationFinished();
         return;
     }
@@ -1860,7 +1912,8 @@ void SurfaceWrapper::startWindowCloseTransition()
 
     restackWindowAnimationAbove();
 
-    if (WaylandServer::instance()->noAnimation()) {
+    if (WaylandServer::instance()->noAnimation()
+        || !windowAnimationEnabled(CLOSE_ANIMATION)) {
         onHideAnimationFinished();
         return;
     }
@@ -1945,7 +1998,10 @@ void SurfaceWrapper::createNewOrClose(uint direction)
 
     if (m_windowAnimation) {
         restackWindowAnimationAbove();
-        if (WaylandServer::instance()->noAnimation()) {
+        // The animation object is created above, so the existing direct-completion
+        // path (also used by noAnimation) can finish the business safely.
+        if (WaylandServer::instance()->noAnimation()
+            || !windowAnimationEnabled(direction)) {
             if (direction == OPEN_ANIMATION) {
                 onShowAnimationFinished();
             } else {
@@ -2196,6 +2252,19 @@ void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint dir
 {
     if (!m_renderingEnabled)
         return;
+
+    // The minimize/restore state and visibility are already committed by the
+    // caller; disabling the animation only skips the shrink/expand transition.
+    auto *config = WaylandServer::instance()->animationConfig();
+    if (config && !(direction == OPEN_ANIMATION ? config->restoreMinimized() : config->minimize())) {
+        // A transition started by the opposite request would keep its snapshot
+        // over the real window (hideSource) until it ends; release it so the
+        // committed state shows right away.
+        if (m_minimizeAnimation)
+            onMinimizeAnimationFinished();
+        return;
+    }
+
     if (m_minimizeAnimation) {
         m_minimizeAnimation->setProperty("direction", direction);
         m_minimizeAnimation->setProperty("position", QVariant::fromValue(iconGeometry));
@@ -2260,6 +2329,15 @@ void SurfaceWrapper::startShowDesktopAnimation(bool show)
     }
 
     setHideByShowDesk(show);
+
+    // The final visibility is driven by m_hideByshowDesk, so the disabled path
+    // finishes exactly like the animation's finished handler.
+    auto *config = WaylandServer::instance()->animationConfig();
+    if (config && !(show ? config->restoreShowDesktop() : config->showDesktop())) {
+        updateVisible();
+        return;
+    }
+
     m_showDesktopAnimation = m_engine->createShowDesktopAnimation(this, container(), show);
     bool ok = connect(m_showDesktopAnimation,
                       SIGNAL(finished()),

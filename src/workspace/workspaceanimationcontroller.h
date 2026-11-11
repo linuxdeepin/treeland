@@ -38,6 +38,11 @@ public:
     void setViewportPos(qreal newViewportPos);
     uint pendingWorkspaceIndex() const;
 
+    // Whether the corresponding automatic transition may play; the caller can
+    // skip creating the visual switcher layer entirely when it cannot.
+    bool slideEnabled() const;
+    bool bounceEnabled() const;
+
     enum Direction
     {
         Left,

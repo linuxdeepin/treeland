@@ -335,7 +335,10 @@ void WaylandServer::setWorkspaceVisible(bool visible)
         }
     }
 
-    if (m_noAnimation) {
+    const bool animationDisabled = m_animationConfig && !m_animationConfig->workspaceVisibility();
+    if (m_noAnimation || animationDisabled) {
+        m_workspaceScaleAnimation->stop();
+        m_workspaceOpacityAnimation->stop();
         m_shellHandler->workspace()->setOpacity(visible ? 1.0 : 0.0);
         m_shellHandler->workspace()->setScale(visible ? 1.0 : 1.4);
         return;
