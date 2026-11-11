@@ -41,8 +41,10 @@ void OutputGroup::commit()
 
 void OutputGroup::dissolve()
 {
-    if (isInitialized())
-        QtWayland::treeland_output_group_v1::dissolve();
+    if (m_dissolved || !isInitialized())
+        return;
+    m_dissolved = true;
+    QtWayland::treeland_output_group_v1::dissolve();
 }
 
 void OutputGroup::treeland_output_group_v1_name(const QString &name)
@@ -68,11 +70,19 @@ void OutputGroup::treeland_output_group_v1_state(const QString &source,
             cursor += length;
         }
     }
+    // The server sends an initial (empty) state even when the create request
+    // is rejected, and a create that succeeds but whose add_output is later
+    // rejected reports a source but no mirror. A group we just created counts
+    // as established only once the state carries both a source and a mirror.
+    if (m_pending && !source.isEmpty() && !mirrors.isEmpty()) {
+        m_pending = false;
+    }
     Q_EMIT stateChanged(source, mirrors);
 }
 
 void OutputGroup::treeland_output_group_v1_removed()
 {
+    m_dissolved = true;
     Q_EMIT removed();
 }
 
