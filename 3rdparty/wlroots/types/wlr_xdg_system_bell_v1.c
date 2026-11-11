@@ -1,8 +1,10 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_xdg_system_bell_v1.h>
 #include "xdg-system-bell-v1-protocol.h"
+#include "util/global.h"
 
 #define XDG_SYSTEM_BELL_V1_VERSION 1
 
@@ -51,16 +53,29 @@ static void bell_bind(struct wl_client *client, void *data,
 	wl_resource_set_implementation(resource, &bell_impl, bell, NULL);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_xdg_system_bell_v1 *bell = wl_container_of(listener, bell, display_destroy);
+static void xdg_system_bell_v1_destroy(struct wlr_xdg_system_bell_v1 *bell,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&bell->events.destroy, NULL);
 
 	assert(wl_list_empty(&bell->events.destroy.listener_list));
 	assert(wl_list_empty(&bell->events.ring.listener_list));
 
 	wl_list_remove(&bell->display_destroy.link);
-	wl_global_destroy(bell->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(bell->global);
+	} else {
+		wl_global_destroy(bell->global);
+	}
 	free(bell);
+}
+
+void wlr_xdg_system_bell_v1_destroy(struct wlr_xdg_system_bell_v1 *bell) {
+	xdg_system_bell_v1_destroy(bell, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_xdg_system_bell_v1 *bell = wl_container_of(listener, bell, display_destroy);
+	xdg_system_bell_v1_destroy(bell, false);
 }
 
 struct wlr_xdg_system_bell_v1 *wlr_xdg_system_bell_v1_create(struct wl_display *display,
