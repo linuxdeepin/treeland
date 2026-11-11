@@ -47,18 +47,22 @@ void wlr_xdg_foreign_exported_finish(struct wlr_xdg_foreign_exported *surface) {
 	wl_list_init(&surface->link);
 }
 
-static void foreign_registry_handle_display_destroy(struct wl_listener *listener,
-		void *data) {
-	struct wlr_xdg_foreign_registry *registry =
-		wl_container_of(listener, registry, display_destroy);
-
+void wlr_xdg_foreign_registry_destroy(struct wlr_xdg_foreign_registry *registry) {
 	wl_signal_emit_mutable(&registry->events.destroy, NULL);
 
 	assert(wl_list_empty(&registry->events.destroy.listener_list));
 
 	// Implementations are supposed to remove all surfaces
 	assert(wl_list_empty(&registry->exported_surfaces));
+	wl_list_remove(&registry->display_destroy.link);
 	free(registry);
+}
+
+static void foreign_registry_handle_display_destroy(struct wl_listener *listener,
+		void *data) {
+	struct wlr_xdg_foreign_registry *registry =
+		wl_container_of(listener, registry, display_destroy);
+	wlr_xdg_foreign_registry_destroy(registry);
 }
 
 

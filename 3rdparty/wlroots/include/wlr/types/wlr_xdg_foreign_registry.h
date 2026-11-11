@@ -54,6 +54,15 @@ struct wlr_xdg_foreign_registry *wlr_xdg_foreign_registry_create(
 	struct wl_display *display);
 
 /**
+ * Destroy the foreign surface registry.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_xdg_foreign_registry_destroy(struct wlr_xdg_foreign_registry *registry);
+
+/**
  * Add the given exported surface to the registry and assign it a unique handle.
  * The caller is responsible for removing the exported surface from the repository
  * if it is destroyed.
