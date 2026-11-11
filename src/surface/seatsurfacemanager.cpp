@@ -182,7 +182,32 @@ void SeatSurfaceManager::restoreShowDesktopFocus()
     setKeyboardFocusSurface(m_activatedSurface, Qt::OtherFocusReason);
 }
 
-void SeatSurfaceManager::beginMoveResize(SurfaceWrapper *surface, Qt::Edges edges)
+WGlobal::CursorShape SeatSurfaceManager::resizeCursorShape(Qt::Edges edges)
+{
+    using Shape = WGlobal::CursorShape;
+    switch (edges) {
+    case Qt::TopEdge:
+        return Shape::TopSide;
+    case Qt::RightEdge:
+        return Shape::RightSide;
+    case Qt::BottomEdge:
+        return Shape::BottomSide;
+    case Qt::LeftEdge:
+        return Shape::LeftSide;
+    case Qt::TopEdge | Qt::LeftEdge:
+        return Shape::TopLeftCorner;
+    case Qt::TopEdge | Qt::RightEdge:
+        return Shape::TopRightCorner;
+    case Qt::BottomEdge | Qt::LeftEdge:
+        return Shape::BottomLeftCorner;
+    case Qt::BottomEdge | Qt::RightEdge:
+        return Shape::BottomRightCorner;
+    default:
+        return Shape::Invalid;
+    }
+}
+
+void SeatSurfaceManager::beginMoveResize(SurfaceWrapper *surface, Qt::Edges edges, bool overrideCursor)
 {
     if (!surface)
         return;
@@ -212,6 +237,12 @@ void SeatSurfaceManager::beginMoveResize(SurfaceWrapper *surface, Qt::Edges edge
 
     surface->setXwaylandPositionFromSurface(false);
     surface->setPositionAutomatic(false);
+
+    if (overrideCursor && edges && m_seat) {
+        m_resizeCursor = m_seat->cursor();
+        if (m_resizeCursor)
+            m_resizeCursor->setOverrideCursor(WCursor::toQCursor(resizeCursorShape(edges)));
+    }
 }
 
 void SeatSurfaceManager::doMoveResize(const QPointF &delta)
@@ -268,6 +299,12 @@ void SeatSurfaceManager::endMoveResize(bool alignLayerPosition)
     m_moveResizeState.edgeTilePreviewActive = false;
     m_moveResizeState.edgeTileInnerBorder = false;
     m_moveResizeState.detectedTileOutput = nullptr;
+
+    if (m_resizeCursor) {
+        const auto cursor = m_resizeCursor;
+        m_resizeCursor.clear();
+        cursor->setOverrideCursor(WCursor::toQCursor(WGlobal::CursorShape::Invalid));
+    }
 
     // Snap after clearing the resize state so the fixed-edge adjustment cannot undo it.
     if (alignPosition)

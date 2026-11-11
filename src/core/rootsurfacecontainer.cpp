@@ -242,7 +242,7 @@ void RootSurfaceContainer::removeOutput(Output *output)
 void RootSurfaceContainer::beginMoveResize(SurfaceWrapper *surface, Qt::Edges edges)
 {
     // Delegate to default seat (seats.first())
-    beginMoveResizeForSeat(nullptr, surface, edges);
+    beginMoveResizeForSeat(nullptr, surface, edges, /*overrideCursor=*/true);
 }
 
 void RootSurfaceContainer::doMoveResize(const QPointF &incrementPos)
@@ -279,7 +279,7 @@ bool RootSurfaceContainer::isInMoveResize() const
 
 void RootSurfaceContainer::startMove(SurfaceWrapper *surface)
 {
-    if (beginMoveResizeForSeat(nullptr, surface, Qt::Edges{}))
+    if (beginMoveResizeForSeat(nullptr, surface, Qt::Edges{}, /*overrideCursor=*/false))
         WaylandServer::instance()->activateSurface(surface);
 }
 
@@ -289,7 +289,7 @@ void RootSurfaceContainer::startResize(SurfaceWrapper *surface, Qt::Edges edges)
     if (!surface || !surface->isResizable())
         return;
 
-    if (!beginMoveResizeForSeat(nullptr, surface, edges))
+    if (!beginMoveResizeForSeat(nullptr, surface, edges, /*overrideCursor=*/true))
         return;
 
     surface->shellSurface()->setResizeing(true);
@@ -730,7 +730,7 @@ void RootSurfaceContainer::setupSurfaceRequestHandlers(SurfaceWrapper *surface)
                 return;
             }
 
-            if (!beginMoveResizeForSeat(requestingSeat, surface, Qt::Edges{}))
+            if (!beginMoveResizeForSeat(requestingSeat, surface, Qt::Edges{}, /*overrideCursor=*/false))
                 return;
             auto *server = WaylandServer::instance();
             if (server) {
@@ -743,14 +743,14 @@ void RootSurfaceContainer::setupSurfaceRequestHandlers(SurfaceWrapper *surface)
         surface,
         &SurfaceWrapper::resizeRequested,
         this,
-        [this, surface](Qt::Edges edges) {
+        [this, surface](Qt::Edges edges, bool overrideCursor) {
             WSeat *requestingSeat = determineSeatForRequest(surface);
             if (!requestingSeat) {
                 qCWarning(lcTlCore) << "No seat available for resize request";
                 return;
             }
 
-            if (!beginMoveResizeForSeat(requestingSeat, surface, edges))
+            if (!beginMoveResizeForSeat(requestingSeat, surface, edges, overrideCursor))
                 return;
             if (auto *sh = surface->shellSurface()) {
                 sh->setResizeing(true);
@@ -890,7 +890,8 @@ void RootSurfaceContainer::givePopupFocus(SurfaceWrapper *popupWrapper)
     }
 }
 
-bool RootSurfaceContainer::beginMoveResizeForSeat(WSeat *seat, SurfaceWrapper *surface, Qt::Edges edges)
+bool RootSurfaceContainer::beginMoveResizeForSeat(WSeat *seat, SurfaceWrapper *surface, Qt::Edges edges,
+                                                bool overrideCursor)
 {
     if (!surface)
         return false;
@@ -915,7 +916,7 @@ bool RootSurfaceContainer::beginMoveResizeForSeat(WSeat *seat, SurfaceWrapper *s
         && (state == SurfaceWrapper::State::Tiling || state == SurfaceWrapper::State::Maximized);
     const QRectF tiledGeo = wasTiled ? surface->geometry() : QRectF();
 
-    container->beginMoveResize(surface, edges);
+    container->beginMoveResize(surface, edges, overrideCursor);
     if (container->moveResizeSurface() != surface)
         return false;
 

@@ -85,7 +85,7 @@ Item {
             // Maybe missing onPositionChanged when use touchscreen
             edges = WaylibHelper.getEdges(Qt.rect(0, 0, width, height), Qt.point(event.x, event.y), root.edgeSize)
             if (edges)
-                surface.resizeRequested(edges)
+                surface.resizeRequested(edges, /*overrideCursor=*/true)
         }
     }
 

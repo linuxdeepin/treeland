@@ -48,7 +48,7 @@ public:
 
     MoveResizeState &moveResizeState() { return m_moveResizeState; }
     const MoveResizeState &moveResizeState() const { return m_moveResizeState; }
-    void beginMoveResize(SurfaceWrapper *surface, Qt::Edges edges);
+    void beginMoveResize(SurfaceWrapper *surface, Qt::Edges edges, bool overrideCursor);
     void doMoveResize(const QPointF &delta);
     void endMoveResize(bool alignLayerPosition = false);
     SurfaceWrapper *moveResizeSurface() const;
@@ -73,6 +73,7 @@ Q_SIGNALS:
     void moveResizeChanged(SurfaceWrapper *surface);
 
 private:
+    static WAYLIB_SERVER_NAMESPACE::WGlobal::CursorShape resizeCursorShape(Qt::Edges edges);
     void onActivatedSurfaceFocusCapabilityChanged();
     void onKeyboardGrabBegin();
     void onKeyboardGrabEnd();
@@ -84,6 +85,7 @@ private:
     SurfaceWrapper *m_activatedSurface = nullptr;
     SurfaceWrapper *m_keyboardFocusSurface = nullptr;
     MoveResizeState m_moveResizeState;
+    QPointer<WAYLIB_SERVER_NAMESPACE::WCursor> m_resizeCursor;
     bool m_metaKeyPressed = false;
 
     // Popup grab state
