@@ -6,11 +6,14 @@
  * ext-background-effect-v1 protocol. Licensing is recorded in REUSE.toml.
  */
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include "wlr_ext_background_effect_v1.h"
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/util/addon.h>
 #include "ext-background-effect-v1-protocol.h"
+// Exported by waylib-wlroots; the corresponding util header is private.
+void wlr_global_destroy_safe(struct wl_global *global);
 
 #define BACKGROUND_EFFECT_VERSION 1
 
@@ -194,22 +197,41 @@ static void manager_bind(struct wl_client *wl_client, void *data, uint32_t versi
 	}
 	wl_resource_set_implementation(resource, &manager_impl, manager,
 		manager_handle_resource_destroy);
+	wl_list_init(wl_resource_get_link(resource));
+	if (manager == NULL) {
+		return;
+	}
+
 	wl_list_insert(&manager->resources, wl_resource_get_link(resource));
 
 	ext_background_effect_manager_v1_send_capabilities(resource, manager->capabilities);
+}
+
+static void ext_background_effect_manager_v1_destroy(
+		struct wlr_ext_background_effect_manager_v1 *manager,
+		bool destroy_global_safe) {
+	wl_signal_emit_mutable(&manager->events.destroy, NULL);
+	assert(wl_list_empty(&manager->events.destroy.listener_list));
+
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
+	wl_list_remove(&manager->display_destroy.link);
+	free(manager);
+}
+
+void wlr_ext_background_effect_manager_v1_destroy(
+		struct wlr_ext_background_effect_manager_v1 *manager) {
+	ext_background_effect_manager_v1_destroy(manager, true);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	(void)data;
 	struct wlr_ext_background_effect_manager_v1 *manager =
 		wl_container_of(listener, manager, display_destroy);
-
-	wl_signal_emit_mutable(&manager->events.destroy, NULL);
-	assert(wl_list_empty(&manager->events.destroy.listener_list));
-
-	wl_global_destroy(manager->global);
-	wl_list_remove(&manager->display_destroy.link);
-	free(manager);
+	ext_background_effect_manager_v1_destroy(manager, false);
 }
 
 struct wlr_ext_background_effect_manager_v1 *wlr_ext_background_effect_manager_v1_create(
