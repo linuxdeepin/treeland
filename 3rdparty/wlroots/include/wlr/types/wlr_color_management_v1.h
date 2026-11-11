@@ -87,6 +87,15 @@ struct wlr_color_manager_v1 {
 struct wlr_color_manager_v1 *wlr_color_manager_v1_create(struct wl_display *display,
 	uint32_t version, const struct wlr_color_manager_v1_options *options);
 
+/**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_color_manager_v1_destroy(struct wlr_color_manager_v1 *manager);
+
 const struct wlr_image_description_v1_data *
 wlr_surface_get_image_description_v1_data(struct wlr_surface *surface);
 
