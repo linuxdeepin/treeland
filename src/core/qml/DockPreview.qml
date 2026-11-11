@@ -394,7 +394,8 @@ Item {
         previewView.sync();
     }
 
-    function show(surfaces, target, pos, direction) {
+    // TODO: implement the list presentation.
+    function show(surfaces, target, pos, direction, isList) {
         console.info(qLcDockPreview, "start show windows: ", surfaces)
         const wasVisible = root.visible;
         const wasOpen = root.isShowing;

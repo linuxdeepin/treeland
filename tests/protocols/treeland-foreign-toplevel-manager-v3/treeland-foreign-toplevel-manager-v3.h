@@ -51,6 +51,7 @@ struct ftm_server_state {
     int      preview_x;
     int      preview_y;
     uint32_t preview_direction;
+    uint32_t preview_layout;
     int      preview_surface_count;
     int      tooltip_fired;
     int      tooltip_count;
