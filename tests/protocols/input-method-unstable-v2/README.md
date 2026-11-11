@@ -23,6 +23,7 @@
 | 丢焦点时清 preedit | fake IM 被销毁，focused text-input 因此收到 `leave`（与切窗口时走同一条 `sendLeave()` 路径） | fake app 在 `leave` 前再收到一次空的 `preedit_string`（断言同时校验事件先后顺序），组合文本被清除而不是留给客户端自行处理 | E |
 | active popup 定位 | fake IM 为 roleless surface 创建 popup | 收到生产 helper 按 text-input cursor rectangle 发出的 `text_input_rectangle(11,12,13,14)` | E |
 | keyboard grab 资源 | `grab_keyboard` 后 roundtrip，再 `release` | 子资源可创建并按 release 生命周期销毁 | P |
+| popup grab 抢占键盘 | 同 client 在 focused text-input 上弹出带 `xdg_popup.grab` 的 popup，再注入物理键，随后销毁 popup 再注入 | popup grab 生效期间 fake IM 收不到 `key` 且不会被 `deactivate`；popup 销毁后同一次注入重新送达 fake IM | E |
 | 每 seat 唯一 input method | 同一 `wl_seat` 再次 `get_input_method` | 第二对象只收到一次 `unavailable`，没有其他 event | P |
 | manager 与子对象生命周期分离 | `zwp_input_method_manager_v2.destroy` 后继续向第一个 IM 提交并 roundtrip | 已创建的 IM 未被 manager destroy 连带销毁，也没有协议错误 | P |
 
