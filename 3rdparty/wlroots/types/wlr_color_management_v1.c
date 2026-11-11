@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -11,6 +12,7 @@
 #include "color-management-v1-protocol.h"
 #include "render/color.h"
 #include "util/mem.h"
+#include "util/global.h"
 
 #define COLOR_MANAGEMENT_V1_VERSION 2
 
@@ -904,6 +906,11 @@ static void manager_bind(struct wl_client *client, void *data,
 		return;
 	}
 	wl_resource_set_implementation(resource, &manager_impl, manager, NULL);
+	wl_list_init(wl_resource_get_link(resource));
+	if (manager == NULL) {
+		return;
+	}
+
 
 	const bool features[] = {
 		[WP_COLOR_MANAGER_V1_FEATURE_ICC_V2_V4] = manager->features.icc_v2_v4,
@@ -940,16 +947,29 @@ static void manager_bind(struct wl_client *client, void *data,
 	wp_color_manager_v1_send_done(resource);
 }
 
-static void manager_handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_color_manager_v1 *manager = wl_container_of(listener, manager, display_destroy);
+static void color_manager_v1_destroy(struct wlr_color_manager_v1 *manager,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&manager->events.destroy, NULL);
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
 	wl_list_remove(&manager->display_destroy.link);
-	wl_global_destroy(manager->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
 	free(manager->render_intents);
 	free(manager->transfer_functions);
 	free(manager->primaries);
 	free(manager);
+}
+
+void wlr_color_manager_v1_destroy(struct wlr_color_manager_v1 *manager) {
+	color_manager_v1_destroy(manager, true);
+}
+
+static void manager_handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_color_manager_v1 *manager = wl_container_of(listener, manager, display_destroy);
+	color_manager_v1_destroy(manager, false);
 }
 
 struct wlr_color_manager_v1 *wlr_color_manager_v1_create(struct wl_display *display,
