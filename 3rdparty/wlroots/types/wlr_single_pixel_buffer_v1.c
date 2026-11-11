@@ -1,10 +1,12 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <drm_fourcc.h>
 #include <stdlib.h>
 #include <wlr/interfaces/wlr_buffer.h>
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/types/wlr_single_pixel_buffer_v1.h>
 #include "single-pixel-buffer-v1-protocol.h"
+#include "util/global.h"
 
 #define SINGLE_PIXEL_MANAGER_VERSION 1
 
@@ -141,11 +143,27 @@ static void manager_bind(struct wl_client *client, void *data,
 	wl_resource_set_implementation(resource, &manager_impl, NULL, NULL);
 }
 
+static void single_pixel_buffer_manager_v1_destroy(
+		struct wlr_single_pixel_buffer_manager_v1 *manager,
+		bool destroy_global_safe) {
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
+	wl_list_remove(&manager->display_destroy.link);
+	free(manager);
+}
+
+void wlr_single_pixel_buffer_manager_v1_destroy(
+		struct wlr_single_pixel_buffer_manager_v1 *manager) {
+	single_pixel_buffer_manager_v1_destroy(manager, true);
+}
+
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_single_pixel_buffer_manager_v1 *manager =
 		wl_container_of(listener, manager, display_destroy);
-	wl_global_destroy(manager->global);
-	free(manager);
+	single_pixel_buffer_manager_v1_destroy(manager, false);
 }
 
 struct wlr_single_pixel_buffer_manager_v1 *wlr_single_pixel_buffer_manager_v1_create(
