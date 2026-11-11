@@ -110,6 +110,15 @@ struct wlr_drm_lease_v1_manager *wlr_drm_lease_v1_manager_create(
 	struct wl_display *display, struct wlr_backend *backend);
 
 /**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_drm_lease_v1_manager_destroy(struct wlr_drm_lease_v1_manager *manager);
+
+/**
  * Offers a wlr_output for lease.
  *
  * Returns false if the output can't be offered to lease.

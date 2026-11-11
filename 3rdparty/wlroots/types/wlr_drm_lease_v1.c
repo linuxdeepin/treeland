@@ -88,7 +88,7 @@ static void drm_lease_connector_v1_destroy(
 }
 
 static void drm_lease_device_v1_destroy(
-		struct wlr_drm_lease_device_v1 *device) {
+		struct wlr_drm_lease_device_v1 *device, bool destroy_global_safe) {
 	if (!device) {
 		return;
 	}
@@ -122,7 +122,11 @@ static void drm_lease_device_v1_destroy(
 
 	wl_list_remove(&device->link);
 	wl_list_remove(&device->backend_destroy.link);
-	wlr_global_destroy_safe(device->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(device->global);
+	} else {
+		wl_global_destroy(device->global);
+	}
 
 	free(device);
 }
@@ -579,7 +583,7 @@ void wlr_drm_lease_v1_manager_withdraw_output(
 static void handle_backend_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_drm_lease_device_v1 *device =
 		wl_container_of(listener, device, backend_destroy);
-	drm_lease_device_v1_destroy(device);
+	drm_lease_device_v1_destroy(device, true);
 }
 
 static void drm_lease_device_v1_create(struct wlr_drm_lease_v1_manager *manager,
@@ -639,9 +643,8 @@ static void multi_backend_cb(struct wlr_backend *backend, void *data) {
 	drm_lease_device_v1_create(manager, backend);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_drm_lease_v1_manager *manager = wl_container_of(listener, manager,
-			display_destroy);
+static void drm_lease_v1_manager_destroy(struct wlr_drm_lease_v1_manager *manager,
+		bool destroy_global_safe) {
 	wlr_log(WLR_DEBUG, "Destroying wlr_drm_lease_v1_manager");
 
 	wl_signal_emit_mutable(&manager->events.destroy, NULL);
@@ -651,10 +654,21 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 
 	struct wlr_drm_lease_device_v1 *device, *tmp;
 	wl_list_for_each_safe(device, tmp, &manager->devices, link) {
-		drm_lease_device_v1_destroy(device);
+		drm_lease_device_v1_destroy(device, destroy_global_safe);
 	}
 
+	wl_list_remove(&manager->display_destroy.link);
 	free(manager);
+}
+
+void wlr_drm_lease_v1_manager_destroy(struct wlr_drm_lease_v1_manager *manager) {
+	drm_lease_v1_manager_destroy(manager, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_drm_lease_v1_manager *manager = wl_container_of(listener, manager,
+			display_destroy);
+	drm_lease_v1_manager_destroy(manager, false);
 }
 
 struct wlr_drm_lease_v1_manager *wlr_drm_lease_v1_manager_create(
