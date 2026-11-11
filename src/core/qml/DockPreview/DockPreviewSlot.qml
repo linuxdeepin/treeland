@@ -418,6 +418,7 @@ Item {
     }
 
     Behavior on borderOpacity {
+        enabled: preview.enableAnimation
         NumberAnimation {
             duration: preview.aniDuration
             easing.type: Easing.OutExpo
