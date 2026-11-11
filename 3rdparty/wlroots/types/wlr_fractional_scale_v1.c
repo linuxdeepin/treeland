@@ -1,10 +1,12 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_fractional_scale_v1.h>
 #include <wlr/util/log.h>
 
 #include "fractional-scale-v1-protocol.h"
+#include "util/global.h"
 
 #define FRACTIONAL_SCALE_VERSION 1
 
@@ -169,13 +171,27 @@ static void fractional_scale_manager_bind(struct wl_client *client, void *data,
 	wl_resource_set_implementation(resource, &scale_manager_interface, mgr, NULL);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_fractional_scale_manager_v1 *mgr =
-		wl_container_of(listener, mgr, display_destroy);
+static void fractional_scale_manager_v1_destroy(struct wlr_fractional_scale_manager_v1 *mgr,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&mgr->events.destroy, NULL);
 	assert(wl_list_empty(&mgr->events.destroy.listener_list));
 	wl_list_remove(&mgr->display_destroy.link);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(mgr->global);
+	} else {
+		wl_global_destroy(mgr->global);
+	}
 	free(mgr);
+}
+
+void wlr_fractional_scale_manager_v1_destroy(struct wlr_fractional_scale_manager_v1 *mgr) {
+	fractional_scale_manager_v1_destroy(mgr, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_fractional_scale_manager_v1 *mgr =
+		wl_container_of(listener, mgr, display_destroy);
+	fractional_scale_manager_v1_destroy(mgr, false);
 }
 
 struct wlr_fractional_scale_manager_v1 *wlr_fractional_scale_manager_v1_create(
