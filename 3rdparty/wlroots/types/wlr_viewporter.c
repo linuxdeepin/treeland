@@ -1,10 +1,12 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_viewporter.h>
 #include <wlr/util/log.h>
 #include <wlr/util/transform.h>
 #include "viewporter-protocol.h"
+#include "util/global.h"
 
 #define VIEWPORTER_VERSION 1
 
@@ -226,15 +228,29 @@ static void viewporter_bind(struct wl_client *client, void *data,
 	wl_resource_set_implementation(resource, &viewporter_impl, viewporter, NULL);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_viewporter *viewporter =
-		wl_container_of(listener, viewporter, display_destroy);
+static void viewporter_destroy(struct wlr_viewporter *viewporter,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&viewporter->events.destroy, NULL);
 
 	assert(wl_list_empty(&viewporter->events.destroy.listener_list));
 
-	wl_global_destroy(viewporter->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(viewporter->global);
+	} else {
+		wl_global_destroy(viewporter->global);
+	}
+	wl_list_remove(&viewporter->display_destroy.link);
 	free(viewporter);
+}
+
+void wlr_viewporter_destroy(struct wlr_viewporter *viewporter) {
+	viewporter_destroy(viewporter, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_viewporter *viewporter =
+		wl_container_of(listener, viewporter, display_destroy);
+	viewporter_destroy(viewporter, false);
 }
 
 struct wlr_viewporter *wlr_viewporter_create(struct wl_display *display) {
