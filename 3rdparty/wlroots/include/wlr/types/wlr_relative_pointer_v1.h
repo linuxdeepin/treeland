@@ -65,6 +65,15 @@ struct wlr_relative_pointer_manager_v1 *wlr_relative_pointer_manager_v1_create(
 	struct wl_display *display);
 
 /**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_relative_pointer_manager_v1_destroy(struct wlr_relative_pointer_manager_v1 *manager);
+
+/**
  * Send a relative motion event to the seat. Time is given in microseconds
  * (unlike wl_pointer which uses milliseconds).
  */
