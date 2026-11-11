@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
 #include <wlr/types/wlr_compositor.h>
@@ -6,6 +7,7 @@
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
 #include "wlr-foreign-toplevel-management-unstable-v1-protocol.h"
+#include "util/global.h"
 
 #define FOREIGN_TOPLEVEL_MANAGEMENT_V1_VERSION 3
 
@@ -612,6 +614,11 @@ static void foreign_toplevel_manager_bind(struct wl_client *client, void *data,
 	}
 	wl_resource_set_implementation(resource, &foreign_toplevel_manager_impl,
 			manager, foreign_toplevel_manager_resource_destroy);
+	wl_list_init(wl_resource_get_link(resource));
+	if (manager == NULL) {
+		return;
+	}
+
 
 	wl_list_insert(&manager->resources, wl_resource_get_link(resource));
 
@@ -635,16 +642,29 @@ static void foreign_toplevel_manager_bind(struct wl_client *client, void *data,
 	}
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_foreign_toplevel_manager_v1 *manager =
-		wl_container_of(listener, manager, display_destroy);
+static void foreign_toplevel_manager_v1_destroy(struct wlr_foreign_toplevel_manager_v1 *manager,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&manager->events.destroy, manager);
 
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
 
 	wl_list_remove(&manager->display_destroy.link);
-	wl_global_destroy(manager->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
 	free(manager);
+}
+
+void wlr_foreign_toplevel_manager_v1_destroy(struct wlr_foreign_toplevel_manager_v1 *manager) {
+	foreign_toplevel_manager_v1_destroy(manager, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_foreign_toplevel_manager_v1 *manager =
+		wl_container_of(listener, manager, display_destroy);
+	foreign_toplevel_manager_v1_destroy(manager, false);
 }
 
 struct wlr_foreign_toplevel_manager_v1 *wlr_foreign_toplevel_manager_v1_create(
