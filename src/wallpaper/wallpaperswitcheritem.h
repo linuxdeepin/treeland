@@ -60,6 +60,7 @@ Q_SIGNALS:
 
 private:
     void handleWallpaperUpdate();
+    void handleWallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfaceV1 *interface);
     void handleWorkspaceAdded();
     void switchToNewSlot();
     void startFadeIn(WallpaperSlot *slot, WallpaperSlot *oldSlot, bool animated);

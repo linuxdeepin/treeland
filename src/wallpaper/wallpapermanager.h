@@ -12,6 +12,7 @@
 
 class TreelandWallpaperSurfaceInterfaceV1;
 class Workspace;
+class WorkspaceModel;
 class TreelandWallpaperNotifierInterfaceV1;
 class TreelandWallpaperShellInterfaceV1;
 class TreelandUserConfig;
@@ -53,6 +54,7 @@ public:
     QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> globalValidWallpaper(wlr_output *excludedOutput = nullptr);
     void syncAddWorkspace();
     void removeOutputWallpaper(wlr_output *output);
+    QString desktopWallpaper(WOutput *output, WorkspaceModel *workspace);
     QString currentWorkspaceWallpaper(WOutput *output);
     QString currentLockScreenWallpaper(WOutput *output);
     TreelandWallpaperInterfaceV1::WallpaperType getWallpaperType(const QString &wallpaper);

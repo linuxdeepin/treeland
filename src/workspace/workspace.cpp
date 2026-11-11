@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "workspace.h"
+#include "wallpaper/wallpapermanager.h"
 #include "desktop/desktopenvironment.h"
 
 #include "common/treelandlogging.h"
@@ -571,4 +572,14 @@ bool WorkspaceListModel::moveRows(const QModelIndex &sourceParent,
     m_objects.move(sourceRow, destinationChild);
     endMoveRows();
     return true;
+}
+
+WallpaperManager *Workspace::wallpaperManager() const
+{
+    return m_wallpaperManager;
+}
+
+void Workspace::setWallpaperManager(WallpaperManager *manager)
+{
+    m_wallpaperManager = manager;
 }

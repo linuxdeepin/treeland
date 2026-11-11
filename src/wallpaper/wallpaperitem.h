@@ -86,6 +86,7 @@ protected:
     WallpaperItem(QQuickItem *parent, bool autoUpdate);
 
 private:
+    const bool m_autoUpdate;
     int m_userId = -1;
     QPointer<WorkspaceModel> m_workspace = nullptr;
     QPointer<WOutput> m_output = nullptr;
