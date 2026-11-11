@@ -43,6 +43,15 @@ struct wlr_shm *wlr_shm_create(struct wl_display *display, uint32_t version,
 	const uint32_t *formats, size_t formats_len);
 
 /**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_shm_destroy(struct wlr_shm *shm);
+
+/**
  * Create the wl_shm global.
  *
  * The pixel formats advertised to clients are taken from the struct wlr_renderer.

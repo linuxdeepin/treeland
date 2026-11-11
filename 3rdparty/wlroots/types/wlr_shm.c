@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #undef _POSIX_C_SOURCE
 #define _DEFAULT_SOURCE // for MAP_ANONYMOUS
 #include <assert.h>
@@ -14,6 +15,7 @@
 #include <wlr/types/wlr_shm.h>
 #include <wlr/util/log.h>
 #include "render/pixel_format.h"
+#include "util/global.h"
 
 #ifdef __STDC_NO_ATOMICS__
 #error "C11 atomics are required"
@@ -484,18 +486,36 @@ static void shm_bind(struct wl_client *client, void *data, uint32_t version,
 		return;
 	}
 	wl_resource_set_implementation(resource, &shm_impl, shm, NULL);
+	wl_list_init(wl_resource_get_link(resource));
+	if (shm == NULL) {
+		return;
+	}
+
 
 	for (size_t i = 0; i < shm->formats_len; i++) {
 		wl_shm_send_format(resource, shm->formats[i]);
 	}
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_shm *shm = wl_container_of(listener, shm, display_destroy);
+static void shm_destroy(struct wlr_shm *shm,
+		bool destroy_global_safe) {
 	wl_list_remove(&shm->display_destroy.link);
-	wl_global_destroy(shm->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(shm->global);
+	} else {
+		wl_global_destroy(shm->global);
+	}
 	free(shm->formats);
 	free(shm);
+}
+
+void wlr_shm_destroy(struct wlr_shm *shm) {
+	shm_destroy(shm, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_shm *shm = wl_container_of(listener, shm, display_destroy);
+	shm_destroy(shm, false);
 }
 
 struct wlr_shm *wlr_shm_create(struct wl_display *display, uint32_t version,
