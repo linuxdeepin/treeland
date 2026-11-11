@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,6 +9,7 @@
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
 #include "primary-selection-unstable-v1-protocol.h"
+#include "util/global.h"
 
 #define DEVICE_MANAGER_VERSION 1
 
@@ -452,10 +454,9 @@ static void primary_selection_device_manager_bind(struct wl_client *client,
 		NULL);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_primary_selection_v1_device_manager *manager =
-		wl_container_of(listener, manager, display_destroy);
-
+static void primary_selection_v1_device_manager_destroy(
+		struct wlr_primary_selection_v1_device_manager *manager,
+		bool destroy_global_safe) {
 	struct wlr_primary_selection_v1_device *device, *tmp;
 	wl_list_for_each_safe(device, tmp, &manager->devices, link) {
 		device_destroy(device);
@@ -466,8 +467,23 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
 
 	wl_list_remove(&manager->display_destroy.link);
-	wl_global_destroy(manager->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
 	free(manager);
+}
+
+void wlr_primary_selection_v1_device_manager_destroy(
+		struct wlr_primary_selection_v1_device_manager *manager) {
+	primary_selection_v1_device_manager_destroy(manager, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_primary_selection_v1_device_manager *manager =
+		wl_container_of(listener, manager, display_destroy);
+	primary_selection_v1_device_manager_destroy(manager, false);
 }
 
 struct wlr_primary_selection_v1_device_manager *
