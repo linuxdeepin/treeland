@@ -80,6 +80,16 @@ struct wlr_keyboard_shortcuts_inhibitor_v1 {
 struct wlr_keyboard_shortcuts_inhibit_manager_v1 *
 wlr_keyboard_shortcuts_inhibit_v1_create(struct wl_display *display);
 
+/**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_keyboard_shortcuts_inhibit_v1_destroy(
+	struct wlr_keyboard_shortcuts_inhibit_manager_v1 *manager);
+
 void wlr_keyboard_shortcuts_inhibitor_v1_activate(
 	struct wlr_keyboard_shortcuts_inhibitor_v1 *inhibitor);
 
