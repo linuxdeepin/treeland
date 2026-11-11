@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
 #include <wlr/types/wlr_compositor.h>
@@ -8,6 +9,7 @@
 #include "ext-foreign-toplevel-list-v1-protocol.h"
 
 #include "util/token.h"
+#include "util/global.h"
 
 #define FOREIGN_TOPLEVEL_LIST_V1_VERSION 1
 
@@ -238,6 +240,11 @@ static void foreign_toplevel_list_bind(struct wl_client *client, void *data,
 	}
 	wl_resource_set_implementation(resource, &foreign_toplevel_list_impl,
 			list, foreign_toplevel_list_resource_destroy);
+	wl_list_init(wl_resource_get_link(resource));
+	if (list == NULL) {
+		return;
+	}
+
 
 	wl_list_insert(&list->resources, wl_resource_get_link(resource));
 
@@ -250,16 +257,29 @@ static void foreign_toplevel_list_bind(struct wl_client *client, void *data,
 	}
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_ext_foreign_toplevel_list_v1 *list =
-		wl_container_of(listener, list, display_destroy);
+static void ext_foreign_toplevel_list_v1_destroy(struct wlr_ext_foreign_toplevel_list_v1 *list,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&list->events.destroy, NULL);
 
 	assert(wl_list_empty(&list->events.destroy.listener_list));
 
 	wl_list_remove(&list->display_destroy.link);
-	wl_global_destroy(list->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(list->global);
+	} else {
+		wl_global_destroy(list->global);
+	}
 	free(list);
+}
+
+void wlr_ext_foreign_toplevel_list_v1_destroy(struct wlr_ext_foreign_toplevel_list_v1 *list) {
+	ext_foreign_toplevel_list_v1_destroy(list, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_ext_foreign_toplevel_list_v1 *list =
+		wl_container_of(listener, list, display_destroy);
+	ext_foreign_toplevel_list_v1_destroy(list, false);
 }
 
 struct wlr_ext_foreign_toplevel_list_v1 *wlr_ext_foreign_toplevel_list_v1_create(
