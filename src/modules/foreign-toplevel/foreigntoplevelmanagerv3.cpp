@@ -191,6 +191,7 @@ void ForeignToplevelManagerInterfaceV3Private::get_dock_preview_context(Resource
                      q,
                      [this, context](const QPoint &pos,
                                      ForeignToplevelManagerInterfaceV3::PreviewDirection direction,
+                                     ForeignToplevelManagerInterfaceV3::PreviewLayout layout,
                                      const QList<ForeignToplevelHandleV3 *> &toplevels) {
                          std::vector<SurfaceWrapper *> surfaces;
                          surfaces.reserve(toplevels.size());
@@ -200,7 +201,7 @@ void ForeignToplevelManagerInterfaceV3Private::get_dock_preview_context(Resource
                              }
                          }
                          Q_EMIT q->requestDockPreview(
-                             surfaces, context->relativeSurface(), pos, direction);
+                             surfaces, context->relativeSurface(), pos, direction, layout);
                      });
     QObject::connect(context,
                      &DockPreviewContextV3::requestShowTooltip,
@@ -243,7 +244,7 @@ ForeignToplevelManagerInterfaceV3Private::createHandle(Resource *managerResource
     struct wl_client *client = wl_resource_get_client(managerResource->handle);
     struct wl_resource *resource = wl_resource_create(client,
                                                       &treeland_foreign_toplevel_handle_v3_interface,
-                                                      wl_resource_get_version(managerResource->handle),
+                                                      treeland_foreign_toplevel_handle_v3_interface.version,
                                                       0);
     if (!resource) {
         qCCritical(lcTlProtocol) << "wl_resource_create failed!";
@@ -676,10 +677,17 @@ protected:
     void destroy_resource(Resource *resource) override;
     void destroy(Resource *resource) override;
     void show(Resource *resource, wl_array *identifiers, int32_t x, int32_t y, uint32_t direction) override;
+    void show_list(Resource *resource, wl_array *identifiers, int32_t x, int32_t y, uint32_t direction) override;
     void show_tooltip_surface(Resource *resource, struct ::wl_resource *surface, int32_t x, int32_t y, uint32_t direction) override;
     void close(Resource *resource) override;
 
 private:
+    void showPreview(Resource *resource,
+                     wl_array *identifiers,
+                     int32_t x,
+                     int32_t y,
+                     uint32_t direction,
+                     ForeignToplevelManagerInterfaceV3::PreviewLayout layout);
     void tooltipSurfaceDestroyed();
 
     bool m_ownsTooltipWrapper = false;
@@ -800,6 +808,31 @@ void DockPreviewContextV3Private::destroy(Resource *resource)
 
 void DockPreviewContextV3Private::show([[maybe_unused]] Resource *resource, wl_array *identifiers, int32_t x, int32_t y, uint32_t direction)
 {
+    showPreview(resource,
+                identifiers,
+                x,
+                y,
+                direction,
+                ForeignToplevelManagerInterfaceV3::PreviewLayout::thumbnail);
+}
+
+void DockPreviewContextV3Private::show_list([[maybe_unused]] Resource *resource, wl_array *identifiers, int32_t x, int32_t y, uint32_t direction)
+{
+    showPreview(resource,
+                identifiers,
+                x,
+                y,
+                direction,
+                ForeignToplevelManagerInterfaceV3::PreviewLayout::list);
+}
+
+void DockPreviewContextV3Private::showPreview([[maybe_unused]] Resource *resource,
+                                              wl_array *identifiers,
+                                              int32_t x,
+                                              int32_t y,
+                                              uint32_t direction,
+                                              ForeignToplevelManagerInterfaceV3::PreviewLayout layout)
+{
     if (!relativeSurface)
         return;
 
@@ -820,6 +853,7 @@ void DockPreviewContextV3Private::show([[maybe_unused]] Resource *resource, wl_a
 
     Q_EMIT q->requestShow(QPoint(x, y),
                           static_cast<ForeignToplevelManagerInterfaceV3::PreviewDirection>(direction),
+                          layout,
                           toplevels);
 }
 

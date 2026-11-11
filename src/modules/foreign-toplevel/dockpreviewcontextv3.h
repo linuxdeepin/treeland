@@ -33,6 +33,7 @@ public:
 Q_SIGNALS:
     void requestShow(const QPoint &pos,
                      ForeignToplevelManagerInterfaceV3::PreviewDirection direction,
+                     ForeignToplevelManagerInterfaceV3::PreviewLayout layout,
                      const QList<ForeignToplevelHandleV3 *> &toplevels);
     void requestShowTooltip(WSurface *surface,
                             const QPoint &pos,

@@ -11,7 +11,7 @@
 | 场景 | 客户端动作 | 必须观察到的结果 |
 | --- | --- | --- |
 | toplevel 发现 | map xdg-toplevel | `ShellHandler` 创建 workspace `SurfaceWrapper`，manager 恰好发送一个带 identifier 的 foreign handle |
-| Dock preview | 对该 identifier 发 `show(10,20,BOTTOM)`、未知 identifier、`show_tooltip_surface`（无内容、换 surface、同 surface 换位置）、context close | 生产 preview/tooltip/close 回调收到预期参数；未知 identifier 产生空 surface 列表而非协议错误；tooltip 回调收到客户端 surface 及其已提交的尺寸；无内容的 show 不产生回调 |
+| Dock preview | 对该 identifier 发 `show(10,20,BOTTOM)`、`show_list(30,40,LEFT)`、未知 identifier、`show_tooltip_surface`（无内容、换 surface、同 surface 换位置）、context close | 生产 preview/tooltip/close 回调收到预期参数；`show` 报 thumbnail 布局、`show_list` 报 list 布局；未知 identifier 产生空 surface 列表而非协议错误；tooltip 回调收到客户端 surface 及其已提交的尺寸；无内容的 show 不产生回调 |
 | 最小化与关闭 | 对 handle 发 `set_minimized`、`unset_minimized`、`close` | 真实 wrapper 的 minimized 状态变化；xdg client 收到 close |
 | 最大化 | 对 handle 发 `set_maximized`、`unset_maximized` | 同一真实 `SurfaceWrapper` 进入、退出 `Maximized` 状态 |
 | 全屏 | 对 handle 发 `set_fullscreen(NULL)`、`unset_fullscreen` | 同一真实 `SurfaceWrapper` 进入、退出 `Fullscreen` 状态 |

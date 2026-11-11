@@ -126,13 +126,15 @@ void DesktopEnvironment::closeDockPreview()
 }
 
 void DesktopEnvironment::showDockPreview(std::vector<SurfaceWrapper *> surfaces, WSurface *target,
-                                        QPoint position, ForeignToplevelManagerInterfaceV3::PreviewDirection direction)
+                                        QPoint position, ForeignToplevelManagerInterfaceV3::PreviewDirection direction,
+                                        ForeignToplevelManagerInterfaceV3::PreviewLayout layout)
 {
     auto *window = m_runtime->rootContainer()->getSurface(target);
     if (!m_surfaces->hasObject(window))
         return;
     QMetaObject::invokeMethod(m_dockPreview, "show", QVariant::fromValue(surfaces),
-        QVariant::fromValue(window), QVariant::fromValue(position), QVariant::fromValue(direction));
+        QVariant::fromValue(window), QVariant::fromValue(position), QVariant::fromValue(direction),
+        QVariant::fromValue(layout == ForeignToplevelManagerInterfaceV3::PreviewLayout::list));
 }
 
 void DesktopEnvironment::showDockTooltip(WSurface *surface, WSurface *target, QPoint position,

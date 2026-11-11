@@ -34,11 +34,12 @@ void protocol_test_setup(WaylandServer *server)
     QObject::connect(g_manager,
                      &ForeignToplevelManagerInterfaceV3::requestDockPreview,
                      server,
-                     [](auto surfaces, WSurface *, QPoint abs, auto direction) {
+                     [](auto surfaces, WSurface *, QPoint abs, auto direction, auto layout) {
                          g_state.preview_fired = 1;
                          g_state.preview_x = abs.x();
                          g_state.preview_y = abs.y();
                          g_state.preview_direction = static_cast<uint32_t>(direction);
+                         g_state.preview_layout = static_cast<uint32_t>(layout);
                          g_state.preview_surface_count = static_cast<int>(surfaces.size());
                      });
     QObject::connect(g_manager,
