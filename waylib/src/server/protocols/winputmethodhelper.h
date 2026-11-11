@@ -44,17 +44,29 @@ public:
 
     WSurface *textInputFocusSurface() const;
     QRect textInputCursorRect() const;
+    bool inputMethodConnected() const;
 
-    // Returns true when the seat's current keyboard grab is the one installed by this helper.
-    bool isActiveKeyboardGrabOwner() const;
+public Q_SLOTS:
+    // End the active input-method session without destroying the helper.
+    // Session switching calls this before the old user session's seat is
+    // detached, so a held composition cannot survive into another user's
+    // desktop.
+    void deactivate();
 
 Q_SIGNALS:
     void inputPopupSurfaceV2Added(WInputPopupSurface *popupSurface);
     void inputPopupSurfaceV2Removed(WInputPopupSurface *popupSurface);
     void textInputCursorRectChanged(QRect cursorRect);
+    // Emitted after the text-input focus settled when the surface returned by
+    // textInputFocusSurface() changed (window switch, new anchor, commit routed
+    // elsewhere). Consumers may re-anchor input popup surfaces on it.
+    void textInputFocusSurfaceChanged(WSurface *surface);
+    // Emitted when the seat's input method is accepted (true) or destroyed
+    // (false). The session daemon uses the false edge to hand a fresh Wayland
+    // socket to a surviving input-method process after a replacement race.
+    void inputMethodChanged(bool connected);
 
 private:
-    const QList<WInputDevice *> &virtualKeyboards() const;
     void handleNewTI(WTextInput *ti);
     void handleNewIMV2(wlr_input_method_v2 *imv2);
     void handleNewKGV2(wlr_input_method_keyboard_grab_v2 *kgv2);
@@ -64,7 +76,7 @@ private:
     void updatePopupSurface(WInputPopupSurface *popup, QRect cursorRect);
     void notifyLeave();
     void resendKeyboardFocus();
-    void handleKeyboardGrabBegin();
+    void reconcileTextInput(const char *reason);
     void connectToTI(WTextInput *ti);
     void disableTI(WTextInput *ti);
     void handleTIEnabled();
@@ -72,14 +84,10 @@ private:
     void handleFocusedTICommitted();
     void handleIMCommitted();
     void handleActiveIMDestroyed();
-    WTextInput *focusedTextInput() const;
     WTextInput *enabledTextInput() const;
     void setEnabledTextInput(WTextInput *ti);
     WInputMethodV2 *inputMethod() const;
     void setInputMethod(WInputMethodV2 *im);
-    wlr_input_method_keyboard_grab_v2 *activeKeyboardGrab() const;
-    friend void handleKey(struct wlr_seat_keyboard_grab *grab, uint32_t time_msec, uint32_t key, uint32_t state);
-    friend void handleModifiers(struct wlr_seat_keyboard_grab *grab, const struct wlr_keyboard_modifiers *modifiers);
 };
 
 WAYLIB_SERVER_END_NAMESPACE

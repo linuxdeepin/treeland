@@ -7,10 +7,12 @@
 #include "wsurface.h"
 #include "wsocket.h"
 #include "private/wglobal_p.h"
+#include "wayliblogging.h"
 
 #include <wlr_all.h>
 #include <wayland-server-core.h>
 
+#include <QPointer>
 #include <QRect>
 
 extern "C" {
@@ -33,7 +35,13 @@ public:
 
     wl_resource *resource {nullptr};
     WSeat *seat {nullptr};
-    WSurface *focusedSurface {nullptr};
+    // Client-owned activation record: set by the activate request and only
+    // cleared by a client deactivation or the surface's destruction.  A
+    // compositor-driven leave is only a notification and must not erase it, so
+    // keyboard focus returning to the activated surface re-arms the text input.
+    QPointer<WSurface> focusedSurface;
+    // True after enter was sent and before the matching leave.
+    bool entered {false};
     uint32_t currentSerial {0};
     bool active {false};
     QString surroundingText {};
@@ -139,20 +147,31 @@ IME::Features WTextInputV1::features() const
 
 void WTextInputV1::sendEnter(WSurface *surface)
 {
+    W_D(WTextInputV1);
+    if (!surface)
+        return;
+
     // Note: For text input v1, activation and surface focus is managed by client.
     // Do not send focus to text input unless it's activated.
-    if (d_func()->active)
-        zwp_text_input_v1_send_enter(d_func()->resource, surface->handle()->resource);
+    if (d->active && !d->entered) {
+        zwp_text_input_v1_send_enter(d->resource, surface->handle()->resource);
+        d->entered = true;
+    }
     Q_EMIT this->enabled();
 }
 
 void WTextInputV1::sendLeave()
 {
-    if (focusedSurface()) {
-        W_D(WTextInputV1);
-        d->focusedSurface = nullptr;
-        zwp_text_input_v1_send_leave(d_func()->resource);
-        Q_EMIT disabled();
+    W_D(WTextInputV1);
+    if (!d->focusedSurface)
+        return;
+
+    // A server-side leave is only a notification: it neither clears the
+    // client-owned activation record nor revokes the enablement.  Only a
+    // client-side deactivate or destruction of the activated surface does.
+    if (d->entered) {
+        zwp_text_input_v1_send_leave(d->resource);
+        d->entered = false;
     }
 }
 
@@ -230,26 +249,61 @@ void text_input_handle_activate([[maybe_unused]] wl_client *client,
                                 wl_resource *seat,
                                 wl_resource *surface)
 {
-    wlr_seat_client *seat_client =  wlr_seat_client_from_resource(seat);
+    wlr_seat_client *seat_client = wlr_seat_client_from_resource(seat);
+    if (!seat_client) {
+        qCWarning(lcWlTextInput) << "text-input-v1 activate with an invalid seat resource";
+        return;
+    }
+
     WSeat *wSeat = WSeat::fromHandle(seat_client->seat);
-    Q_ASSERT(wSeat);
+    if (!wSeat) {
+        qCWarning(lcWlTextInput) << "text-input-v1 activate with an unknown seat";
+        return;
+    }
+
     WTextInputV1 *text_input = text_input_from_resource(resource);
     auto d = text_input->d_func();
-    bool seat_changed = (text_input->seat() != wSeat);
+    const bool seat_changed = (text_input->seat() != wSeat);
     wlr_surface *focused_surface = wlr_surface_from_resource(surface);
-    WSurface *wSurface = WSurface::fromHandle(focused_surface);
-    Q_ASSERT(wSurface);
-    bool focus_changed = (text_input->focusedSurface() != wSurface);
+    WSurface *wSurface = focused_surface ? WSurface::fromHandle(focused_surface) : nullptr;
+    if (!wSurface) {
+        qCWarning(lcWlTextInput) << "text-input-v1 activate with an invalid surface resource";
+        return;
+    }
+
+    const bool focus_changed = (text_input->focusedSurface() != wSurface);
     if (seat_changed) {
         d->seat = wSeat;
+        // The new seat has not received an enter for this activation record.
+        d->entered = false;
     }
+
     if (focus_changed) {
+        // Pair the old enter before switching the activation record.  The
+        // client itself switched activation, so a leave notification is the
+        // only missing half of the enter/leave pair.
+        if (text_input->focusedSurface())
+            text_input->sendLeave();
         if (text_input->focusedSurface())
             text_input->focusedSurface()->disconnect(text_input);
+
         d->focusedSurface = wSurface;
-        QObject::connect(wSurface, &WSurface::beforeDestroy,
-                         text_input, &WTextInputV1::sendLeave);
+        d->entered = false;
+        // Destroying the activated surface ends the activation for real.
+        QObject::connect(wSurface, &WSurface::beforeDestroy, text_input, [text_input] {
+            auto *dd = text_input->d_func();
+            if (!dd->focusedSurface)
+                return;
+            dd->focusedSurface = nullptr;
+            dd->entered = false;
+            // The activated surface is gone; the client cannot keep using that
+            // activation record.
+            dd->active = false;
+            dd->seat = nullptr;
+            Q_EMIT text_input->disabled();
+        });
     }
+
     d->active = true;
     Q_EMIT text_input->activate();
 }
@@ -261,13 +315,24 @@ void text_input_handle_deactivate([[maybe_unused]] wl_client *client,
     WTextInputV1 *text_input = text_input_from_resource(resource);
     auto d = text_input->d_func();
     wlr_seat_client *seat_client = wlr_seat_client_from_resource(seat);
+    if (!seat_client) {
+        qCWarning(lcWlTextInput) << "text-input-v1 deactivate with an invalid seat resource";
+        return;
+    }
+
     WSeat *wSeat = WSeat::fromHandle(seat_client->seat);
     if (!wSeat || wSeat != text_input->seat())
         return;
 
     d->seat = nullptr;
     d->active = false;
+    // The client revokes its own activation: this is an authoritative
+    // disablement.  Emit while the record still exists so the chained
+    // requestLeave/sendLeave below can pair the native leave event.
+    Q_EMIT text_input->disabled();
     Q_EMIT text_input->deactivate();
+    d->focusedSurface = nullptr;
+    d->entered = false;
 }
 
 void text_input_handle_show_input_panel([[maybe_unused]] wl_client *client,
