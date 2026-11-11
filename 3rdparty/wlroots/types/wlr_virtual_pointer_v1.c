@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/types/wlr_seat.h>
@@ -6,6 +7,7 @@
 #include <wlr/types/wlr_pointer.h>
 #include <wlr/util/log.h>
 #include "wlr-virtual-pointer-unstable-v1-protocol.h"
+#include "util/global.h"
 
 static const struct wlr_pointer_impl pointer_impl = {
 	.name = "virtual-pointer",
@@ -307,22 +309,35 @@ static void virtual_pointer_manager_bind(struct wl_client *client, void *data,
 	wl_resource_set_implementation(resource, &manager_impl, manager, NULL);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_virtual_pointer_manager_v1 *manager =
-		wl_container_of(listener, manager, display_destroy);
+static void virtual_pointer_manager_v1_destroy(struct wlr_virtual_pointer_manager_v1 *manager,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&manager->events.destroy, manager);
 
 	assert(wl_list_empty(&manager->events.new_virtual_pointer.listener_list));
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
 
 	wl_list_remove(&manager->display_destroy.link);
-	wl_global_destroy(manager->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
 	struct wlr_virtual_pointer_v1 *pointer, *pointer_tmp;
 	wl_list_for_each_safe(pointer, pointer_tmp,
 			&manager->virtual_pointers, link) {
 		wl_resource_destroy(pointer->resource);
 	}
 	free(manager);
+}
+
+void wlr_virtual_pointer_manager_v1_destroy(struct wlr_virtual_pointer_manager_v1 *manager) {
+	virtual_pointer_manager_v1_destroy(manager, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_virtual_pointer_manager_v1 *manager =
+		wl_container_of(listener, manager, display_destroy);
+	virtual_pointer_manager_v1_destroy(manager, false);
 }
 
 struct wlr_virtual_pointer_manager_v1* wlr_virtual_pointer_manager_v1_create(
