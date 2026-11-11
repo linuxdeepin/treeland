@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <wlr/types/wlr_output_layout.h>
@@ -6,6 +7,7 @@
 #include <wlr/types/wlr_xdg_output_v1.h>
 #include <wlr/util/log.h>
 #include "xdg-output-unstable-v1-protocol.h"
+#include "util/global.h"
 
 #define OUTPUT_MANAGER_VERSION 3
 #define OUTPUT_DONE_DEPRECATED_SINCE_VERSION 3
@@ -229,7 +231,8 @@ static void handle_layout_change(struct wl_listener *listener, void *data) {
 	output_manager_send_details(manager);
 }
 
-static void manager_destroy(struct wlr_xdg_output_manager_v1 *manager) {
+static void xdg_output_manager_v1_destroy(struct wlr_xdg_output_manager_v1 *manager,
+		bool destroy_global_safe) {
 	struct wlr_xdg_output_v1 *output, *tmp;
 	wl_list_for_each_safe(output, tmp, &manager->outputs, link) {
 		output_destroy(output);
@@ -243,19 +246,28 @@ static void manager_destroy(struct wlr_xdg_output_manager_v1 *manager) {
 	wl_list_remove(&manager->layout_add.link);
 	wl_list_remove(&manager->layout_change.link);
 	wl_list_remove(&manager->layout_destroy.link);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
 	free(manager);
+}
+
+void wlr_xdg_output_manager_v1_destroy(struct wlr_xdg_output_manager_v1 *manager) {
+	xdg_output_manager_v1_destroy(manager, true);
 }
 
 static void handle_layout_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_xdg_output_manager_v1 *manager =
 		wl_container_of(listener, manager, layout_destroy);
-	manager_destroy(manager);
+	wlr_xdg_output_manager_v1_destroy(manager);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_xdg_output_manager_v1 *manager =
 		wl_container_of(listener, manager, display_destroy);
-	manager_destroy(manager);
+	xdg_output_manager_v1_destroy(manager, false);
 }
 
 struct wlr_xdg_output_manager_v1 *wlr_xdg_output_manager_v1_create(
