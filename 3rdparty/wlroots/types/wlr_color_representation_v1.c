@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <drm_fourcc.h>
 #include <stdlib.h>
 
@@ -13,6 +14,7 @@
 #include "render/pixel_format.h"
 #include "types/wlr_buffer.h"
 #include "util/mem.h"
+#include "util/global.h"
 
 #define WP_COLOR_REPRESENTATION_VERSION 1
 
@@ -377,23 +379,42 @@ static void manager_bind(struct wl_client *client, void *data,
 		return;
 	}
 	wl_resource_set_implementation(resource, &color_repr_manager_impl, manager, NULL);
+	wl_list_init(wl_resource_get_link(resource));
+	if (manager == NULL) {
+		return;
+	}
+
 
 	send_supported(manager, resource);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_color_representation_manager_v1 *manager =
-		wl_container_of(listener, manager, display_destroy);
-
+static void color_representation_manager_v1_destroy(
+		struct wlr_color_representation_manager_v1 *manager,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&manager->events.destroy, NULL);
 
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
 
 	wl_list_remove(&manager->display_destroy.link);
-	wl_global_destroy(manager->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
 	free(manager->supported_alpha_modes);
 	free(manager->supported_coeffs_and_ranges);
 	free(manager);
+}
+
+void wlr_color_representation_manager_v1_destroy(
+		struct wlr_color_representation_manager_v1 *manager) {
+	color_representation_manager_v1_destroy(manager, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_color_representation_manager_v1 *manager =
+		wl_container_of(listener, manager, display_destroy);
+	color_representation_manager_v1_destroy(manager, false);
 }
 
 struct wlr_color_representation_manager_v1 *wlr_color_representation_manager_v1_create(
