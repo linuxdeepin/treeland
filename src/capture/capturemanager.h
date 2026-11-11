@@ -9,10 +9,13 @@
 #include <QPointer>
 
 struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request;
+struct wlr_screencopy_manager_v1;
+struct wlr_screencopy_frame_v1;
 class RootSurfaceContainer;
 class QmlEngine;
 class CaptureSourceSelector;
 class CaptureManagerV1;
+class SessionManager;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
@@ -30,12 +33,15 @@ public:
     ~CaptureManager() override;
 
     void installProtocol(WServer *server, QmlEngine *engine, WOutputRenderWindow *window);
-    void installImageCapture(WServer *server, WExtForeignToplevelListV1 *toplevelList);
+    void installImageCapture(WServer *server, WExtForeignToplevelListV1 *toplevelList,
+                             SessionManager *sessionManager);
     bool isSelecting() const;
     void cancelSelection();
 
 private:
+    static bool canCaptureFrame(wlr_screencopy_frame_v1 *frame, void *data);
     void onSelectionChanged();
+    void updateScreencopyPause();
     void handleNewForeignToplevelCaptureRequest(
         wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request);
 
@@ -44,5 +50,7 @@ private:
     QmlEngine *m_engine = nullptr;
     CaptureManagerV1 *m_captureManagerV1 = nullptr;
     WExtForeignToplevelListV1 *m_extForeignToplevelListV1 = nullptr;
+    wlr_screencopy_manager_v1 *m_screencopyManager = nullptr;
+    SessionManager *m_sessionManager = nullptr;
     QPointer<CaptureSourceSelector> m_captureSelector;
 };

@@ -133,15 +133,27 @@ static struct wlr_screencopy_frame_v1 *frame_from_resource(
 	return wl_resource_get_user_data(resource);
 }
 
+static void frame_set_render_locks(struct wlr_screencopy_frame_v1 *frame,
+		bool lock) {
+	if (lock == frame->render_locked) {
+		return;
+	}
+
+	wlr_output_lock_attach_render(frame->output, lock);
+	frame->render_locked = lock;
+
+	if (frame->overlay_cursor) {
+		wlr_output_lock_software_cursors(frame->output, lock);
+		frame->cursor_locked = lock;
+	}
+}
+
 static void frame_destroy(struct wlr_screencopy_frame_v1 *frame) {
 	if (frame == NULL) {
 		return;
 	}
-	if (frame->output != NULL && frame->buffer != NULL) {
-		wlr_output_lock_attach_render(frame->output, false);
-		if (frame->cursor_locked) {
-			wlr_output_lock_software_cursors(frame->output, false);
-		}
+	if (frame->output != NULL) {
+		frame_set_render_locks(frame, false);
 	}
 	wl_list_remove(&frame->link);
 	wl_list_remove(&frame->output_commit.link);
@@ -280,6 +292,45 @@ out:
 	return ok;
 }
 
+void wlr_screencopy_frame_v1_set_paused(struct wlr_screencopy_frame_v1 *frame,
+		bool paused) {
+	const bool resumed = frame->paused && !paused;
+	frame->paused = paused;
+
+	if (frame->buffer == NULL) {
+		return;
+	}
+
+	// A paused frame renders no image, so release the locks and let the output
+	// use direct scanout again. A frame can be refused before the client hands
+	// in its buffer and still lock the output in frame_handle_copy(), so this is
+	// reconciled on every call rather than only on the transition.
+	frame_set_render_locks(frame, !paused);
+
+	if (resumed) {
+		// Commits were dropped while paused, so the frame would only be
+		// completed on the next unrelated screen update. The locks are back in
+		// place, so ask for one now.
+		wlr_output_update_needs_frame(frame->output);
+	}
+}
+
+static bool frame_can_capture(struct wlr_screencopy_frame_v1 *frame) {
+	struct wlr_screencopy_manager_v1 *manager = frame->client->manager;
+	if (manager->can_capture == NULL) {
+		return true;
+	}
+	return manager->can_capture(frame, manager->capture_data);
+}
+
+void wlr_screencopy_manager_v1_set_capture_filter(
+		struct wlr_screencopy_manager_v1 *manager,
+		bool (*can_capture)(struct wlr_screencopy_frame_v1 *frame, void *data),
+		void *data) {
+	manager->can_capture = can_capture;
+	manager->capture_data = data;
+}
+
 static void frame_handle_output_commit(struct wl_listener *listener,
 		void *data) {
 	struct wlr_screencopy_frame_v1 *frame =
@@ -296,6 +347,12 @@ static void frame_handle_output_commit(struct wl_listener *listener,
 	}
 
 	if (!frame->buffer) {
+		return;
+	}
+
+	if (frame->paused) {
+		// Keep the last image for the client: the commit listener stays armed
+		// and the frame is completed once it is resumed.
 		return;
 	}
 
@@ -439,11 +496,11 @@ static void frame_handle_copy(struct wl_client *wl_client,
 	// into the least damaged buffer.
 	wlr_output_update_needs_frame(output);
 
-	wlr_output_lock_attach_render(output, true);
-	if (frame->overlay_cursor) {
-		wlr_output_lock_software_cursors(output, true);
-		frame->cursor_locked = true;
-	}
+	frame_set_render_locks(frame, true);
+
+	// The policy may have changed between the capture request and the buffer:
+	// only let the frame see the screen when the filter still agrees.
+	wlr_screencopy_frame_v1_set_paused(frame, !frame_can_capture(frame));
 }
 
 static void frame_handle_copy_with_damage(struct wl_client *wl_client,
@@ -518,6 +575,8 @@ static void capture_output(struct wl_client *wl_client,
 	wl_list_insert(&client->manager->frames, &frame->link);
 
 	wl_list_init(&frame->output_commit.link);
+
+	wlr_screencopy_frame_v1_set_paused(frame, !frame_can_capture(frame));
 
 	wl_signal_add(&output->events.destroy, &frame->output_destroy);
 	frame->output_destroy.notify = frame_handle_output_destroy;

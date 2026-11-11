@@ -5,11 +5,13 @@
 #include "core/qmlengine.h"
 #include "core/rootsurfacecontainer.h"
 #include "modules/capture/capture.h"
+#include "session/session.h"
 #include "surface/surfacewrapper.h"
 #include "output/output.h"
 #include "common/treelandlogging.h"
 
 #include <wserver.h>
+#include <wsocket.h>
 #include <wsurfaceitem.h>
 #include <woutputrenderwindow.h>
 #include <wextforeigntoplevellistv1.h>
@@ -28,6 +30,9 @@ CaptureManager::CaptureManager(RootSurfaceContainer *root, QObject *parent)
 
 CaptureManager::~CaptureManager()
 {
+    // The filter would otherwise keep pointing at this object after it is gone.
+    if (m_screencopyManager)
+        wlr_screencopy_manager_v1_set_capture_filter(m_screencopyManager, nullptr, nullptr);
     teardown();
 }
 
@@ -41,11 +46,24 @@ void CaptureManager::installProtocol(WServer *server, QmlEngine *engine,
             this, &CaptureManager::onSelectionChanged);
 }
 
-void CaptureManager::installImageCapture(WServer *server, WExtForeignToplevelListV1 *toplevelList)
+void CaptureManager::installImageCapture(WServer *server, WExtForeignToplevelListV1 *toplevelList,
+                                         SessionManager *sessionManager)
 {
     m_extForeignToplevelListV1 = toplevelList;
-    if (!wlr_screencopy_manager_v1_create(server->handle())) {
+    m_sessionManager = sessionManager;
+    m_screencopyManager = wlr_screencopy_manager_v1_create(server->handle());
+    if (!m_screencopyManager) {
         qCCritical(lcTlCore) << "Failed to create screencopy manager";
+    } else if (m_sessionManager) {
+        // Only the active session may see the screen: the filter keeps frames
+        // of inactive sessions frozen until they are activated again.
+        wlr_screencopy_manager_v1_set_capture_filter(m_screencopyManager,
+                                                     &CaptureManager::canCaptureFrame,
+                                                     this);
+        connect(m_sessionManager, &SessionManager::sessionChanged,
+                this, &CaptureManager::updateScreencopyPause);
+        connect(m_sessionManager, &SessionManager::activeSessionRemoved,
+                this, &CaptureManager::updateScreencopyPause);
     }
 
     if (!wlr_ext_image_copy_capture_manager_v1_create(server->handle(),
@@ -75,6 +93,30 @@ void CaptureManager::onSelectionChanged()
             m_engine->createCaptureSelector(m_rootSurfaceContainer, m_captureManagerV1));
     } else if (m_captureSelector) {
         m_captureSelector->deleteLater();
+    }
+}
+
+bool CaptureManager::canCaptureFrame(wlr_screencopy_frame_v1 *frame, void *data)
+{
+    auto *self = static_cast<CaptureManager *>(data);
+    wl_client *client = frame && frame->resource ? wl_resource_get_client(frame->resource)
+                                                 : nullptr;
+    return self->m_sessionManager
+        && self->m_sessionManager->isActiveSessionClient(WClient::get(client));
+}
+
+void CaptureManager::updateScreencopyPause()
+{
+    if (!m_screencopyManager || !m_sessionManager)
+        return;
+
+    // The filter only decides about frames created from now on: pending frames
+    // are still waiting for a commit, so they are frozen or resumed here.
+    wlr_screencopy_frame_v1 *frame = nullptr;
+    wl_list_for_each(frame, &m_screencopyManager->frames, link) {
+        wl_client *client = wl_resource_get_client(frame->resource);
+        const bool active = m_sessionManager->isActiveSessionClient(WClient::get(client));
+        wlr_screencopy_frame_v1_set_paused(frame, !active);
     }
 }
 
