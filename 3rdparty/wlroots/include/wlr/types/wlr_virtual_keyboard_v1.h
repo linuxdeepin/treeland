@@ -43,6 +43,15 @@ struct wlr_virtual_keyboard_manager_v1* wlr_virtual_keyboard_manager_v1_create(
 	struct wl_display *display);
 
 /**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_virtual_keyboard_manager_v1_destroy(struct wlr_virtual_keyboard_manager_v1 *manager);
+
+/**
  * Get the struct wlr_virtual_keyboard_v1 corresponding to a zwp_virtual_keyboard_v1 resource.
  *
  * Asserts that the resource is a valid zwp_virtual_keyboard_v1 resource created by wlroots.
