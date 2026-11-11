@@ -51,6 +51,15 @@ struct wlr_ext_foreign_toplevel_handle_v1_state {
 struct wlr_ext_foreign_toplevel_list_v1 *wlr_ext_foreign_toplevel_list_v1_create(
 	struct wl_display *display, uint32_t version);
 
+/**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_ext_foreign_toplevel_list_v1_destroy(struct wlr_ext_foreign_toplevel_list_v1 *list);
+
 struct wlr_ext_foreign_toplevel_handle_v1 *wlr_ext_foreign_toplevel_handle_v1_create(
 	struct wlr_ext_foreign_toplevel_list_v1 *list,
 	const struct wlr_ext_foreign_toplevel_handle_v1_state *state);
