@@ -1,10 +1,12 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
 #include <wlr/types/wlr_xdg_foreign_v2.h>
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/util/log.h>
 #include "xdg-foreign-unstable-v2-protocol.h"
+#include "util/global.h"
 
 #define FOREIGN_V2_VERSION 1
 
@@ -341,7 +343,8 @@ static void xdg_importer_bind(struct wl_client *wl_client, void *data,
 			foreign, NULL);
 }
 
-static void xdg_foreign_destroy(struct wlr_xdg_foreign_v2 *foreign) {
+static void xdg_foreign_v2_destroy(struct wlr_xdg_foreign_v2 *foreign,
+		bool destroy_global_safe) {
 	if (!foreign) {
 		return;
 	}
@@ -353,22 +356,34 @@ static void xdg_foreign_destroy(struct wlr_xdg_foreign_v2 *foreign) {
 	wl_list_remove(&foreign->foreign_registry_destroy.link);
 	wl_list_remove(&foreign->display_destroy.link);
 
-	wl_global_destroy(foreign->exporter.global);
-	wl_global_destroy(foreign->importer.global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(foreign->exporter.global);
+	} else {
+		wl_global_destroy(foreign->exporter.global);
+	}
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(foreign->importer.global);
+	} else {
+		wl_global_destroy(foreign->importer.global);
+	}
 	free(foreign);
+}
+
+void wlr_xdg_foreign_v2_destroy(struct wlr_xdg_foreign_v2 *foreign) {
+	xdg_foreign_v2_destroy(foreign, true);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_xdg_foreign_v2 *foreign =
 		wl_container_of(listener, foreign, display_destroy);
-	xdg_foreign_destroy(foreign);
+	xdg_foreign_v2_destroy(foreign, false);
 }
 
 static void handle_foreign_registry_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_xdg_foreign_v2 *foreign =
 		wl_container_of(listener, foreign, foreign_registry_destroy);
-	xdg_foreign_destroy(foreign);
+	wlr_xdg_foreign_v2_destroy(foreign);
 }
 
 struct wlr_xdg_foreign_v2 *wlr_xdg_foreign_v2_create(
