@@ -49,6 +49,15 @@ struct wlr_security_context_v1_commit_event {
 
 struct wlr_security_context_manager_v1 *wlr_security_context_manager_v1_create(
 	struct wl_display *display);
+
+/**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_security_context_manager_v1_destroy(struct wlr_security_context_manager_v1 *manager);
 const struct wlr_security_context_v1_state *wlr_security_context_manager_v1_lookup_client(
 	struct wlr_security_context_manager_v1 *manager, const struct wl_client *client);
 
