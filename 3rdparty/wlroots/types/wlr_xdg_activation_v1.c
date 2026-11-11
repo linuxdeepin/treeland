@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wlr/types/wlr_compositor.h>
@@ -7,6 +8,7 @@
 #include <wlr/util/log.h>
 #include "util/token.h"
 #include "xdg-activation-v1-protocol.h"
+#include "util/global.h"
 
 #define XDG_ACTIVATION_V1_VERSION 1
 
@@ -338,9 +340,8 @@ static void activation_bind(struct wl_client *client, void *data,
 	wl_resource_set_implementation(resource, &activation_impl, activation, NULL);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_xdg_activation_v1 *activation =
-		wl_container_of(listener, activation, display_destroy);
+static void xdg_activation_v1_destroy(struct wlr_xdg_activation_v1 *activation,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&activation->events.destroy, NULL);
 
 	assert(wl_list_empty(&activation->events.destroy.listener_list));
@@ -353,8 +354,22 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	}
 
 	wl_list_remove(&activation->display_destroy.link);
-	wl_global_destroy(activation->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(activation->global);
+	} else {
+		wl_global_destroy(activation->global);
+	}
 	free(activation);
+}
+
+void wlr_xdg_activation_v1_destroy(struct wlr_xdg_activation_v1 *activation) {
+	xdg_activation_v1_destroy(activation, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_xdg_activation_v1 *activation =
+		wl_container_of(listener, activation, display_destroy);
+	xdg_activation_v1_destroy(activation, false);
 }
 
 struct wlr_xdg_activation_v1 *wlr_xdg_activation_v1_create(
