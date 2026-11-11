@@ -30,6 +30,15 @@ struct wlr_content_type_manager_v1 {
 
 struct wlr_content_type_manager_v1 *wlr_content_type_manager_v1_create(
 	struct wl_display *display, uint32_t version);
+
+/**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_content_type_manager_v1_destroy(struct wlr_content_type_manager_v1 *manager);
 enum wp_content_type_v1_type wlr_surface_get_content_type_v1(
 	struct wlr_content_type_manager_v1 *manager, struct wlr_surface *surface);
 
