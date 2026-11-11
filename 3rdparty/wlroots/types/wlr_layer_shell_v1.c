@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-server-core.h>
@@ -8,6 +9,7 @@
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/util/log.h>
 #include "wlr-layer-shell-unstable-v1-protocol.h"
+#include "util/global.h"
 
 // Note: zwlr_layer_surface_v1 becomes inert on wlr_layer_surface_v1_destroy()
 
@@ -538,17 +540,30 @@ static void layer_shell_bind(struct wl_client *wl_client, void *data,
 			&layer_shell_implementation, layer_shell, NULL);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_layer_shell_v1 *layer_shell =
-		wl_container_of(listener, layer_shell, display_destroy);
+static void layer_shell_v1_destroy(struct wlr_layer_shell_v1 *layer_shell,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&layer_shell->events.destroy, layer_shell);
 
 	assert(wl_list_empty(&layer_shell->events.new_surface.listener_list));
 	assert(wl_list_empty(&layer_shell->events.destroy.listener_list));
 
 	wl_list_remove(&layer_shell->display_destroy.link);
-	wl_global_destroy(layer_shell->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(layer_shell->global);
+	} else {
+		wl_global_destroy(layer_shell->global);
+	}
 	free(layer_shell);
+}
+
+void wlr_layer_shell_v1_destroy(struct wlr_layer_shell_v1 *layer_shell) {
+	layer_shell_v1_destroy(layer_shell, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_layer_shell_v1 *layer_shell =
+		wl_container_of(listener, layer_shell, display_destroy);
+	layer_shell_v1_destroy(layer_shell, false);
 }
 
 struct wlr_layer_shell_v1 *wlr_layer_shell_v1_create(struct wl_display *display,
