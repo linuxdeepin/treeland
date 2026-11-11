@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_compositor.h>
@@ -6,6 +7,7 @@
 #include <wlr/types/wlr_pointer_gestures_v1.h>
 #include <wlr/util/log.h>
 #include "pointer-gestures-unstable-v1-protocol.h"
+#include "util/global.h"
 
 #define POINTER_GESTURES_VERSION 3
 
@@ -393,16 +395,29 @@ static void pointer_gestures_v1_bind(struct wl_client *wl_client, void *data,
 			&gestures_impl, gestures, NULL);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_pointer_gestures_v1 *gestures =
-		wl_container_of(listener, gestures, display_destroy);
+static void pointer_gestures_v1_destroy(struct wlr_pointer_gestures_v1 *gestures,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&gestures->events.destroy, NULL);
 
 	assert(wl_list_empty(&gestures->events.destroy.listener_list));
 
 	wl_list_remove(&gestures->display_destroy.link);
-	wl_global_destroy(gestures->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(gestures->global);
+	} else {
+		wl_global_destroy(gestures->global);
+	}
 	free(gestures);
+}
+
+void wlr_pointer_gestures_v1_destroy(struct wlr_pointer_gestures_v1 *gestures) {
+	pointer_gestures_v1_destroy(gestures, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_pointer_gestures_v1 *gestures =
+		wl_container_of(listener, gestures, display_destroy);
+	pointer_gestures_v1_destroy(gestures, false);
 }
 
 struct wlr_pointer_gestures_v1 *wlr_pointer_gestures_v1_create(

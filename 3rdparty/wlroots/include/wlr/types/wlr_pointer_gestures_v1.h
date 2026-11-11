@@ -34,6 +34,15 @@ struct wlr_pointer_gestures_v1 {
 struct wlr_pointer_gestures_v1 *wlr_pointer_gestures_v1_create(
 	struct wl_display *display);
 
+/**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_pointer_gestures_v1_destroy(struct wlr_pointer_gestures_v1 *gestures);
+
 void wlr_pointer_gestures_v1_send_swipe_begin(
 	struct wlr_pointer_gestures_v1 *gestures,
 	struct wlr_seat *seat,
