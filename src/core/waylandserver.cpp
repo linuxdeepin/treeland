@@ -716,7 +716,7 @@ void WaylandServer::fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface)
     auto position = surface->geometry().bottomRight();
     m_fakelastPressedPosition = position;
     seat()->setCursorPosition(position);
-    Q_EMIT surface->resizeRequested(Qt::BottomEdge | Qt::RightEdge);
+    Q_EMIT surface->resizeRequested(Qt::BottomEdge | Qt::RightEdge, /*overrideCursor=*/true);
 }
 
 void WaylandServer::setCursorPosition(const QPointF &position)

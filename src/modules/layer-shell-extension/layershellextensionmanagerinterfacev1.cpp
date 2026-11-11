@@ -359,7 +359,7 @@ void LayerShellExtensionObjectV1Private::begin_resize(Resource *resource,
         if (edges & entry.protocolBit)
             qtEdges |= entry.qtEdge;
     }
-    container->beginMoveResizeForSeat(seat, wrapper, qtEdges);
+    container->beginMoveResizeForSeat(seat, wrapper, qtEdges, /*overrideCursor=*/false);
 
     auto *seatContainer = container->getSeatContainerOrDefault(seat);
     if (!seatContainer || seatContainer->moveResizeState().surface != wrapper) {
