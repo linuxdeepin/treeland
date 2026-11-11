@@ -26,7 +26,7 @@ Item {
     property bool enableShadows: GraphicsInfo.api !== GraphicsInfo.Software
     property bool enableRadius: true
     property bool enableAnimation: GraphicsInfo.api !== GraphicsInfo.Software
-
+                                   && WaylandServer.animationConfig.taskSwitcher
     readonly property int leftpreferredMargin: 20
     readonly property int rightpreferredMargin: 20
     readonly property int mouseExitInterval: 400
@@ -45,9 +45,14 @@ Item {
             mask.opacity = 0.5
             currentContext.loaderStatus = 0
 
-            switchItemAnimation.stop()
-            switchItemAnimation.isInAni = true
-            switchItemAnimation.start()
+            if (root.enableAnimation) {
+                switchItemAnimation.stop()
+                switchItemAnimation.isInAni = true
+                switchItemAnimation.start()
+            } else {
+                switchItemAnimation.stop()
+                switchItem.opacity = 1
+            }
         }
     }
 
@@ -285,6 +290,9 @@ Item {
                 switchItemAnimation.stop()
                 switchItemAnimation.isInAni = true
                 switchItemAnimation.start()
+            } else {
+                switchItemAnimation.fromeY = switchItem.y
+                switchItem.opacity = 1
             }
         }
     }
@@ -654,6 +662,10 @@ Item {
             previewWindows.reverse = false
             previewWindows.finishedAnimations = 0
             previewWindows.model = []
+            // Skipping the animation must not skip the selection: beginAnimation()
+            // activates the chosen window, so the direct path does the same.
+            if (activationSurface)
+                WaylandServer.forceActivateSurface(activationSurface, focusReason)
             showTask(false)
             root.switchOn = false
         }

@@ -117,25 +117,34 @@ OutputItem {
             interval: rotationAnimator.duration / 2
         }
 
-        function rotationOutput(orientation) {
-            transformTimer.scheduleTransform = orientation
-            transformTimer.start()
-
+        function rotationAngle(orientation) {
             switch(orientation) {
             case WaylandOutput.R90:
-                rotationAnimator.to = 90
-                break
+                return 90
             case WaylandOutput.R180:
-                rotationAnimator.to = 180
-                break
+                return 180
             case WaylandOutput.R270:
-                rotationAnimator.to = -90
-                break
+                return -90
             default:
-                rotationAnimator.to = 0
-                break
+                return 0
+            }
+        }
+
+        function rotationOutput(orientation) {
+            transformTimer.scheduleTransform = orientation
+
+            if (!WaylandServer.animationConfig.mirrorOutputRotation) {
+                // Apply the visual value and the real transform together instead
+                // of waiting for the half-way timer.
+                transformTimer.stop()
+                rotationAnimator.complete()
+                rotation = rotationAngle(orientation)
+                viewport.rotateOutput(orientation)
+                return
             }
 
+            transformTimer.start()
+            rotationAnimator.to = rotationAngle(orientation)
             rotationAnimator.from = rotation
             rotationAnimator.start()
         }

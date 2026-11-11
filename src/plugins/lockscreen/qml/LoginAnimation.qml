@@ -20,8 +20,10 @@ Item {
     property int state: LoginAnimation.Show
     required property var target
 
+    readonly property bool animationEnabled: WaylandServer.animationConfig.lockscreen
+
     function start(pos, to) {
-        if (GreeterProxy.showAnimation) {
+        if (GreeterProxy.showAnimation && animationEnabled) {
             xAni.from = pos.x
             xAni.to = to.x
 
