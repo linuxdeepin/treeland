@@ -116,12 +116,6 @@ Session::~Session()
     if (WaylandServer::instance())
         setActive(false);
     Q_EMIT aboutToBeDestroyed();
-    if (WaylandServer::instance()) {
-        if (m_foreignToplevel && m_foreignToplevel->handle())
-            wl_global_remove(m_foreignToplevel->handle()->global);
-        if (m_toplevelList && m_toplevelList->handle())
-            wl_global_remove(m_toplevelList->handle()->global);
-    }
 
 #ifndef DISABLE_XWAYLAND
     if (m_settingManagerThread) {
@@ -147,8 +141,6 @@ Session::~Session()
     m_seatManager = nullptr;
     if (auto *server = WaylandServer::instance()) {
         for (auto *interface : std::as_const(m_interfaces)) {
-            if (auto *outputProtocol = dynamic_cast<WOutputManagerV1 *>(interface); outputProtocol && outputProtocol->handle())
-                wl_global_remove(outputProtocol->handle()->global);
             server->server()->detach(interface);
             delete interface;
         }
