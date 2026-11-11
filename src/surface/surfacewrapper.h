@@ -469,7 +469,7 @@ Q_SIGNALS:
     void shadowChanged();
     void borderChanged();
     void moveRequested();
-    void resizeRequested(Qt::Edges edges);
+    void resizeRequested(Qt::Edges edges, bool overrideCursor);
     void windowMenuRequested(QPointF pos);
     void geometryChanged();
     void containerChanged();
