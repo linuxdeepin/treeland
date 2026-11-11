@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_session_lock_v1.h>
@@ -6,6 +7,7 @@
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/util/log.h>
 #include "ext-session-lock-v1-protocol.h"
+#include "util/global.h"
 
 // Note: ext_session_lock_surface_v1 objects become inert
 // when the corresponding ext_session_lock_v1 is destroyed
@@ -439,18 +441,31 @@ static void lock_manager_bind(struct wl_client *client, void *data,
 		lock_manager, NULL);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_session_lock_manager_v1 *lock_manager =
-		wl_container_of(listener, lock_manager, display_destroy);
+static void session_lock_manager_v1_destroy(struct wlr_session_lock_manager_v1 *lock_manager,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&lock_manager->events.destroy, NULL);
 	wl_list_remove(&lock_manager->display_destroy.link);
 
-	wl_global_destroy(lock_manager->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(lock_manager->global);
+	} else {
+		wl_global_destroy(lock_manager->global);
+	}
 
 	assert(wl_list_empty(&lock_manager->events.new_lock.listener_list));
 	assert(wl_list_empty(&lock_manager->events.destroy.listener_list));
 
 	free(lock_manager);
+}
+
+void wlr_session_lock_manager_v1_destroy(struct wlr_session_lock_manager_v1 *lock_manager) {
+	session_lock_manager_v1_destroy(lock_manager, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_session_lock_manager_v1 *lock_manager =
+		wl_container_of(listener, lock_manager, display_destroy);
+	session_lock_manager_v1_destroy(lock_manager, false);
 }
 
 struct wlr_session_lock_manager_v1 *wlr_session_lock_manager_v1_create(struct wl_display *display) {
