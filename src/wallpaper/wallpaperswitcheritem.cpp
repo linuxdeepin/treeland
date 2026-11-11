@@ -44,7 +44,7 @@ WallpaperSwitcherItem::WallpaperSwitcherItem(QQuickItem *parent)
     connect(WaylandServer::instance()->shellHandler()->wallpaperShell(),
             &TreelandWallpaperShellInterfaceV1::wallpaperSurfaceAdded,
             this,
-            &WallpaperSwitcherItem::handleWallpaperUpdate);
+            &WallpaperSwitcherItem::handleWallpaperSurfaceAdded);
     connect(WaylandServer::instance(),
             &WaylandServer::workspaceAdded,
             this,
@@ -86,7 +86,13 @@ void WallpaperSwitcherItem::setWorkspace(WorkspaceModel *workspace)
     if (m_workspace == workspace)
         return;
 
+    if (m_workspace && m_workspace->workspaceManager()->wallpaperManager())
+        disconnect(m_workspace->workspaceManager()->wallpaperManager(),
+                   &WallpaperManager::updateWallpaper, this, &WallpaperSwitcherItem::handleWallpaperUpdate);
     m_workspace = workspace;
+    if (m_workspace && m_workspace->workspaceManager()->wallpaperManager())
+        connect(m_workspace->workspaceManager()->wallpaperManager(),
+                &WallpaperManager::updateWallpaper, this, &WallpaperSwitcherItem::handleWallpaperUpdate);
     Q_EMIT workspaceChanged();
 
     if (m_currentSlot)
@@ -144,17 +150,12 @@ void WallpaperSwitcherItem::handleWallpaperUpdate()
     if (!m_output || !m_currentSlot)
         return;
 
-    auto config = WaylandServer::instance()->wallpaperManager()->getOutputConfig(m_output->handle());
-    QString newSource;
-
-    if (m_workspace) {
-        for (const auto &wsConfig : std::as_const(config.workspaces)) {
-            if (wsConfig.workspaceId == m_workspace->id()) {
-                newSource = wsConfig.desktopWallpaper;
-                break;
-            }
-        }
-    }
+    if (!m_workspace)
+        return;
+    auto *manager = m_workspace->workspaceManager()->wallpaperManager();
+    if (!manager)
+        return;
+    const QString newSource = manager->desktopWallpaper(m_output, m_workspace);
 
     if (newSource == m_currentSlot->source())
         return;
@@ -164,9 +165,18 @@ void WallpaperSwitcherItem::handleWallpaperUpdate()
 
 void WallpaperSwitcherItem::handleWorkspaceAdded()
 {
-    WaylandServer::instance()->wallpaperManager()->syncAddWorkspace();
     if (m_currentSlot)
         m_currentSlot->updateSurface();
+}
+
+void WallpaperSwitcherItem::handleWallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfaceV1 *interface)
+{
+    if (interface->wallpaperReady()) {
+        handleWallpaperUpdate();
+    } else {
+        connect(interface, &TreelandWallpaperSurfaceInterfaceV1::ready,
+                this, &WallpaperSwitcherItem::handleWallpaperUpdate, Qt::SingleShotConnection);
+    }
 }
 
 void WallpaperSwitcherItem::switchToNewSlot()

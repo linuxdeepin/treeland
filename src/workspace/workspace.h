@@ -9,6 +9,7 @@
 #include <QPointer>
 
 class TreelandUserConfig;
+class WallpaperManager;
 class SurfaceWrapper;
 class Workspace;
 class WorkspaceAnimationController;
@@ -43,6 +44,8 @@ class Workspace : public SurfaceContainer
 public:
     explicit Workspace(SurfaceContainer *parent, TreelandUserConfig *config = nullptr);
     void deactivate();
+    WallpaperManager *wallpaperManager() const;
+    void setWallpaperManager(WallpaperManager *manager);
 
     // When workspaceId is -1 will move to current workspace
     Q_INVOKABLE void moveSurfaceTo(SurfaceWrapper *surface, int workspaceId = -1);
@@ -107,6 +110,7 @@ private:
 
     TreelandUserConfig *m_config = nullptr;
     uint m_currentIndex;
+    QPointer<WallpaperManager> m_wallpaperManager;
     WorkspaceListModel *m_models;
     WorkspaceModel *m_showOnAllWorkspaceModel;
     QPointer<QQuickItem> m_switcher;

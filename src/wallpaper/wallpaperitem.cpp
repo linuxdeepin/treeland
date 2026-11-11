@@ -27,6 +27,7 @@ WallpaperItem::WallpaperItem(QQuickItem *parent)
 
 WallpaperItem::WallpaperItem(QQuickItem *parent, bool autoUpdate)
     : WSurfaceItemContent(parent)
+    , m_autoUpdate(autoUpdate)
 {
     if (autoUpdate) {
         connect(WaylandServer::instance(),
@@ -61,7 +62,13 @@ void WallpaperItem::setWorkspace(WorkspaceModel *workspace)
         return;
     }
 
+    if (m_workspace && m_workspace->workspaceManager()->wallpaperManager())
+        disconnect(m_workspace->workspaceManager()->wallpaperManager(),
+                   &WallpaperManager::updateWallpaper, this, &WallpaperItem::updateSurface);
     m_workspace = workspace;
+    if (m_autoUpdate && m_workspace && m_workspace->workspaceManager()->wallpaperManager())
+        connect(m_workspace->workspaceManager()->wallpaperManager(),
+                &WallpaperManager::updateWallpaper, this, &WallpaperItem::updateSurface);
     Q_EMIT workspaceChanged();
     if (wallpaperRole() == Lockscreen)
         return;
@@ -164,8 +171,12 @@ void WallpaperItem::updateSurface()
         return;
     }
 
-    WallpaperOutputConfig config =
-        WaylandServer::instance()->wallpaperManager()->getOutputConfig(output()->handle());
+    auto *manager = workspace() && wallpaperRole() == Desktop
+        ? workspace()->workspaceManager()->wallpaperManager()
+        : WaylandServer::instance()->wallpaperManager();
+    if (!manager)
+        return;
+    const auto config = manager->getOutputConfig(output()->handle());
     if (wallpaperRole() == Lockscreen) {
         if (config.lockscreenWallpaper != m_source) {
                 TreelandWallpaperSurfaceInterfaceV1 *interface =
@@ -182,28 +193,20 @@ void WallpaperItem::updateSurface()
     }
 
     if (wallpaperRole() == Desktop) {
-        if (!workspace()) {
+        const QString source = manager->desktopWallpaper(output(), workspace());
+        if (source.isEmpty())
             return;
-        }
-        for (WallpaperWorkspaceConfig workspaceConfig : std::as_const(config.workspaces)) {
-            if (workspaceConfig.workspaceId == workspace()->id() &&
-                (workspaceConfig.desktopWallpaper != m_source)) {
-                TreelandWallpaperSurfaceInterfaceV1 *interface =
-                    TreelandWallpaperSurfaceInterfaceV1::get(workspaceConfig.desktopWallpaper);
-                if (!interface) {
-                    return;
-                }
-                m_source = workspaceConfig.desktopWallpaper;
-                setSurface(interface->wSurface());
-                interface->wSurface()->enterOutput(output());
-                update();
-                if (!WaylandServer::instance()->m_greeterProxy->isLocked())
-                    setPlay(false);
-
-                break;
-            }
-        }
-        return;
+        auto *interface = TreelandWallpaperSurfaceInterfaceV1::get(source);
+        if (!interface || !interface->wallpaperReady())
+            return;
+        if (source == m_source && surface() == interface->wSurface())
+            return;
+        m_source = source;
+        setSurface(interface->wSurface());
+        interface->wSurface()->enterOutput(output());
+        update();
+        if (!WaylandServer::instance()->m_greeterProxy->isLocked())
+            setPlay(false);
     }
 }
 
@@ -217,7 +220,6 @@ void WallpaperItem::handleWorkspaceAdded()
         return;
     }
 
-    WaylandServer::instance()->wallpaperManager()->syncAddWorkspace();
     updateSurface();
 }
 
