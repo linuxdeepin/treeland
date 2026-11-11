@@ -1,9 +1,11 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/util/log.h>
 #include "server-decoration-protocol.h"
+#include "util/global.h"
 
 static const struct org_kde_kwin_server_decoration_interface
 	server_decoration_impl;
@@ -157,6 +159,11 @@ static void server_decoration_manager_bind(struct wl_client *client, void *data,
 	}
 	wl_resource_set_implementation(resource, &server_decoration_manager_impl,
 		manager, server_decoration_manager_destroy_resource);
+	wl_list_init(wl_resource_get_link(resource));
+	if (manager == NULL) {
+		return;
+	}
+
 
 	wl_list_insert(&manager->resources, wl_resource_get_link(resource));
 
@@ -164,17 +171,30 @@ static void server_decoration_manager_bind(struct wl_client *client, void *data,
 		manager->default_mode);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_server_decoration_manager *manager =
-		wl_container_of(listener, manager, display_destroy);
+static void server_decoration_manager_destroy(struct wlr_server_decoration_manager *manager,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&manager->events.destroy, manager);
 
 	assert(wl_list_empty(&manager->events.new_decoration.listener_list));
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
 
 	wl_list_remove(&manager->display_destroy.link);
-	wl_global_destroy(manager->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
 	free(manager);
+}
+
+void wlr_server_decoration_manager_destroy(struct wlr_server_decoration_manager *manager) {
+	server_decoration_manager_destroy(manager, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_server_decoration_manager *manager =
+		wl_container_of(listener, manager, display_destroy);
+	server_decoration_manager_destroy(manager, false);
 }
 
 struct wlr_server_decoration_manager *wlr_server_decoration_manager_create(
