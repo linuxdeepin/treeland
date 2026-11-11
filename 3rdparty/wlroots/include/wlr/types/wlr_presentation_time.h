@@ -60,6 +60,15 @@ struct wlr_backend;
 
 struct wlr_presentation *wlr_presentation_create(struct wl_display *display,
 	struct wlr_backend *backend, uint32_t version);
+
+/**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_presentation_destroy(struct wlr_presentation *presentation);
 /**
  * Mark the current surface's buffer as sampled.
  *
