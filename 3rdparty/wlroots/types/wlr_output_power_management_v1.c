@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -8,6 +9,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/log.h>
 #include "wlr-output-power-management-unstable-v1-protocol.h"
+#include "util/global.h"
 
 #define OUTPUT_POWER_MANAGER_V1_VERSION 1
 
@@ -189,16 +191,30 @@ static void output_power_manager_bind(struct wl_client *client, void *data,
 		manager, NULL);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_output_power_manager_v1 *manager =
-		wl_container_of(listener, manager, display_destroy);
+static void output_power_manager_v1_destroy(struct wlr_output_power_manager_v1 *manager,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&manager->events.destroy, manager);
 
 	assert(wl_list_empty(&manager->events.set_mode.listener_list));
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
 
-	wl_global_destroy(manager->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
+	wl_list_remove(&manager->display_destroy.link);
 	free(manager);
+}
+
+void wlr_output_power_manager_v1_destroy(struct wlr_output_power_manager_v1 *manager) {
+	output_power_manager_v1_destroy(manager, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_output_power_manager_v1 *manager =
+		wl_container_of(listener, manager, display_destroy);
+	output_power_manager_v1_destroy(manager, false);
 }
 
 struct wlr_output_power_manager_v1 *wlr_output_power_manager_v1_create(
