@@ -344,11 +344,14 @@ qt_add_qml_module(libtreeland
         core/qml/PopoverStyle.qml
         core/qml/DockPreview.qml
         core/qml/DockPreview/DockPreviewCloseButton.qml
+        core/qml/DockPreview/DockPreviewListLayer.qml
+        core/qml/DockPreview/DockPreviewListPresent.qml
+        core/qml/DockPreview/DockPreviewListRow.qml
         core/qml/DockPreview/DockPreviewSlot.qml
         core/qml/DockPreview/DockPreviewSurface.qml
-        core/qml/DockPreview/DockPreviewTooltip.qml
+        core/qml/DockPreview/DockPreviewThumbnailPresent.qml
         core/qml/DockPreview/DockPreviewTooltipLayer.qml
-        core/qml/DockPreview/DockPreviewView.qml
+        core/qml/DockPreview/DockPreviewTooltipPresent.qml
         core/qml/FadeBehavior.qml
         core/qml/CaptureSelectorLayer.qml
         core/qml/EdgeTilePreview.qml

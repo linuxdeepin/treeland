@@ -3,10 +3,10 @@
 
 import QtQuick
 
-// The tooltip content of the popover: the surface on screen and the layers it
-// left behind.
+// The tooltip presentation of the popover: the surface on screen and the layers
+// it left behind.
 QtObject {
-    id: tooltip
+    id: root
 
     // The DockPreview controller: logging category.
     required property QtObject preview
