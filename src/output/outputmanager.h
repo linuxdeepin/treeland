@@ -189,4 +189,7 @@ private:
     PendingOutputConfig m_pendingOutputConfig;
 
     void onOutputCommitFinished(wlr_output_configuration_v1 *config, bool success);
+    // The single exit of an apply: answers the client and stores the applied
+    // state. Every path that ends a pending configuration goes through here.
+    void answerPendingConfiguration(bool ok);
 };
