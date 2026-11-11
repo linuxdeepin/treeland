@@ -59,6 +59,15 @@ struct wlr_xdg_toplevel_icon_manager_v1 *wlr_xdg_toplevel_icon_manager_v1_create
 		struct wl_display *display, uint32_t version);
 
 /**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_xdg_toplevel_icon_manager_v1_destroy(struct wlr_xdg_toplevel_icon_manager_v1 *manager);
+
+/**
  * Set icon size preferences.
  *
  * The list may be empty.

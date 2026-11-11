@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -10,6 +11,7 @@
 #include <wlr/util/log.h>
 
 #include "xdg-toplevel-icon-v1-protocol.h"
+#include "util/global.h"
 
 #define MANAGER_VERSION 1
 
@@ -217,28 +219,45 @@ static void manager_bind(struct wl_client *client, void *data, uint32_t version,
 		return;
 	}
 	wl_resource_set_implementation(resource, &manager_impl, manager, manager_handle_resource_destroy);
+	wl_list_init(wl_resource_get_link(resource));
+	if (manager == NULL) {
+		return;
+	}
+
 
 	wl_list_insert(&manager->resources, wl_resource_get_link(resource));
 
 	manager_send_sizes(manager, resource);
 }
 
-static void manager_handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_xdg_toplevel_icon_manager_v1 *manager =
-		wl_container_of(listener, manager, display_destroy);
-
+static void xdg_toplevel_icon_manager_v1_destroy(struct wlr_xdg_toplevel_icon_manager_v1 *manager,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&manager->events.destroy, NULL);
 
 	assert(wl_list_empty(&manager->events.set_icon.listener_list));
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
 
 	wl_list_remove(&manager->display_destroy.link);
-	wl_global_destroy(manager->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
 
 	wl_list_remove(&manager->resources);
 
 	free(manager->sizes);
 	free(manager);
+}
+
+void wlr_xdg_toplevel_icon_manager_v1_destroy(struct wlr_xdg_toplevel_icon_manager_v1 *manager) {
+	xdg_toplevel_icon_manager_v1_destroy(manager, true);
+}
+
+static void manager_handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_xdg_toplevel_icon_manager_v1 *manager =
+		wl_container_of(listener, manager, display_destroy);
+	xdg_toplevel_icon_manager_v1_destroy(manager, false);
 }
 
 void wlr_xdg_toplevel_icon_manager_v1_set_sizes(struct wlr_xdg_toplevel_icon_manager_v1 *manager,
