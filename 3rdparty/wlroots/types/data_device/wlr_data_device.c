@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -9,6 +10,7 @@
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
 #include "types/wlr_data_device.h"
+#include "util/global.h"
 
 #define DATA_DEVICE_MANAGER_VERSION 3
 
@@ -288,16 +290,29 @@ static void data_device_manager_bind(struct wl_client *client,
 		manager, NULL);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_data_device_manager *manager =
-		wl_container_of(listener, manager, display_destroy);
+static void data_device_manager_destroy(struct wlr_data_device_manager *manager,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&manager->events.destroy, manager);
 
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
 
 	wl_list_remove(&manager->display_destroy.link);
-	wl_global_destroy(manager->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
 	free(manager);
+}
+
+void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager) {
+	data_device_manager_destroy(manager, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_data_device_manager *manager =
+		wl_container_of(listener, manager, display_destroy);
+	data_device_manager_destroy(manager, false);
 }
 
 struct wlr_data_device_manager *wlr_data_device_manager_create(
