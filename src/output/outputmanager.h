@@ -136,6 +136,10 @@ private:
     void removeFromRootContainer(WAYLIB_SERVER_NAMESPACE::WOutput *output);
     WAYLIB_SERVER_NAMESPACE::WOutputViewport *ownOutputViewport(
         WAYLIB_SERVER_NAMESPACE::WOutput *output) const;
+    // Builds and tests the wlr_output_state for one pending output state without
+    // applying anything. Returns false when the state cannot be built or the
+    // backend rejects it.
+    bool testOutputState(const WAYLIB_SERVER_NAMESPACE::WOutputState &state) const;
     void moveSurfaces(const QList<SurfaceWrapper *> &surfaces,
                       Output *targetOutput,
                       Output *sourceOutput);

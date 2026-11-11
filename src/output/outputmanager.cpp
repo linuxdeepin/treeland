@@ -579,6 +579,38 @@ WAYLIB_SERVER_NAMESPACE::WOutputViewport *OutputManager::ownOutputViewport(
     return viewport;
 }
 
+bool OutputManager::testOutputState(const WAYLIB_SERVER_NAMESPACE::WOutputState &state) const
+{
+    WOutputViewport *viewport = ownOutputViewport(state.output);
+    if (!viewport) {
+        return false;
+    }
+
+    WOutputRenderWindow *renderWindow = viewport->outputRenderWindow();
+    if (!renderWindow) {
+        return false;
+    }
+    WOutputStateGuard newState;
+    wlr_output_state_set_enabled(newState.get(), state.enabled);
+    if (state.enabled) {
+        if (state.mode) {
+            wlr_output_state_set_mode(newState.get(), state.mode);
+        } else {
+            wlr_output_state_set_custom_mode(
+                newState.get(),
+                state.customModeSize.width(),
+                state.customModeSize.height(),
+                state.customModeRefresh);
+        }
+        wlr_output_state_set_adaptive_sync_enabled(
+            newState.get(), state.adaptiveSyncEnabled);
+        wlr_output_state_set_transform(
+            newState.get(), static_cast<wl_output_transform>(state.transform));
+        wlr_output_state_set_scale(newState.get(), state.scale);
+    }
+    return wlr_output_test_state(state.output->handle(), newState.get());
+}
+
 QList<SurfaceWrapper *> OutputManager::workspaceSurfaces(Output *filterOutput) const
 {
     QList<SurfaceWrapper *> surfaces;
@@ -1462,47 +1494,37 @@ void OutputManager::testOrApplyConfiguration(WOutputManagerV1 *protocol,
     }
 
     if (onlyTest) {
-        bool ok = true;
         for (const auto &state : std::as_const(states)) {
-            WOutputViewport *viewport = ownOutputViewport(state.output);
-            if (!viewport) {
-                ok = false;
-                continue;
+            if (!testOutputState(state)) {
+                protocol->sendTestResult(config, false);
+                return;
             }
-
-            WOutputRenderWindow *renderWindow = viewport->outputRenderWindow();
-            if (!renderWindow) {
-                ok = false;
-                continue;
-            }
-            WOutputStateGuard newState;
-            wlr_output_state_set_enabled(newState.get(), state.enabled);
-            if (state.enabled) {
-                if (state.mode) {
-                    wlr_output_state_set_mode(newState.get(), state.mode);
-                } else {
-                    wlr_output_state_set_custom_mode(
-                        newState.get(),
-                        state.customModeSize.width(),
-                        state.customModeSize.height(),
-                        state.customModeRefresh);
-                }
-                wlr_output_state_set_adaptive_sync_enabled(
-                    newState.get(), state.adaptiveSyncEnabled);
-                wlr_output_state_set_transform(
-                    newState.get(), static_cast<wl_output_transform>(state.transform));
-                wlr_output_state_set_scale(newState.get(), state.scale);
-            }
-            ok &= wlr_output_test_state(state.output->handle(), newState.get());
         }
-
-        protocol->sendTestResult(config, ok);
+        protocol->sendTestResult(config, true);
         return;
     }
 
     if (m_pendingOutputConfig.config) {
         if (m_pendingOutputConfig.protocol)
             m_pendingOutputConfig.protocol->sendResult(m_pendingOutputConfig.config, false);
+    }
+
+    // Pre-check the whole configuration before mutating any output, so a single
+    // failure rejects the entire configuration instead of leaving outputs
+    // half-applied.
+    // TODO: wlr_output_test_state() is a per-head probe and cannot catch
+    // cross-head constraints (CRTC/bandwidth). Move to a backend-level atomic
+    // multi-head test+commit once waylib exposes an equivalent of
+    // wlr_output_swapchain_manager_prepare()/wlr_backend_commit(), mirroring
+    // sway's apply_resolved_output_configs().
+    for (const auto &state : std::as_const(states)) {
+        if (!testOutputState(state)) {
+            qCWarning(lcTlOutput)
+                << "Rejecting output configuration; pre-apply test failed for output"
+                << state.output->name();
+            protocol->sendResult(config, false);
+            return;
+        }
     }
 
     m_pendingOutputConfig.config = config;
@@ -1551,7 +1573,13 @@ void OutputManager::testOrApplyConfiguration(WOutputManagerV1 *protocol,
         }
     }
 
-    for (const auto &state : std::as_const(states)) {
+    // Commit in two phases: enable first, then disable, so the layout never
+    // passes through a state where no output is enabled mid-transition.
+    QList<WOutputState> orderedStates = states;
+    std::stable_partition(orderedStates.begin(), orderedStates.end(),
+                          [](const WOutputState &state) { return state.enabled; });
+
+    for (const auto &state : std::as_const(orderedStates)) {
         Output *output = outputFor(state.output);
         if (!output) {
             continue;
@@ -1578,9 +1606,6 @@ void OutputManager::testOrApplyConfiguration(WOutputManagerV1 *protocol,
                     << state.output->name();
                 answerPendingConfiguration(false);
                 return;
-            }
-            if (layout->outputs().contains(state.output)) {
-                layout->move(state.output, QPoint(state.x, state.y));
             }
         }
 
@@ -1717,6 +1742,9 @@ void OutputManager::handleOutputCommit(
             auto *layout = m_rootContainer->outputLayout();
             if (layout && enabled && !layout->outputs().contains(output)) {
                 layout->add(output, outputPosition);
+            } else if (layout && enabled
+                       && layout->outputs().contains(output)) {
+                layout->move(output, outputPosition);
             } else if (layout && !enabled
                        && layout->outputs().contains(output)) {
                 layout->remove(output);
