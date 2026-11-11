@@ -10,7 +10,7 @@ Item {
     id: root
     required property DesktopEnvironment desktop
     property int aniDuration: 350
-    property bool enableAnimation: aniDuration > 0
+    property bool enableAnimation: aniDuration > 0 && WaylandServer.animationConfig.dockPreview
     // How long the closing window's picture takes to disappear. Every slot and
     // layer around it keeps using aniDuration; only the picture goes early.
     property int closeContentDuration: 100
@@ -215,6 +215,7 @@ Item {
     property real shellFade: 0
 
     function setShowing(showing) {
+        root.isShowing = showing;
         const entersFromNothing = showing && !root.visible;
         if (showing)
             root.visible = true;
@@ -228,12 +229,25 @@ Item {
         // assignment, so entry and exit read the same here as everywhere else.
         root.shellFade = showing ? 1 : 0;
         surface.shellScale = showing ? 1 : 0.5;
-        root.isShowing = showing;
+        // Without the fade, nothing would run the completion below.
+        if (!showing && !root.enableAnimation)
+            root.finishHide();
+    }
+
+    function finishHide() {
+        if (root.isShowing)
+            return;
+        root.visible = false;
+        root.setPreviewReveal(0, false);
+        root.tooltipSurface = null;
+        root.mode = DockPreview.Mode.Tooltip;
+        root.desiredSurfaces = [ ];
     }
 
     // The shell fade also owns the popover's lifetime: it hides the item (and
     // drops the state it kept alive) once the fade out is over.
     Behavior on shellFade {
+        enabled: root.enableAnimation
         SequentialAnimation {
             NumberAnimation {
                 id: shellFadeAnimation
@@ -241,15 +255,7 @@ Item {
                 easing.type: Easing.OutExpo
             }
             ScriptAction {
-                script: {
-                    if (!root.isShowing) {
-                        root.visible = false;
-                        root.setPreviewReveal(0, false);
-                        root.tooltipSurface = null;
-                        root.mode = DockPreview.Mode.Tooltip;
-                        root.desiredSurfaces = [ ];
-                    }
-                }
+                script: root.finishHide()
             }
         }
     }

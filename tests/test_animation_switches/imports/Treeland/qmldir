@@ -1,0 +1,3 @@
+module Treeland
+singleton WaylandServer 1.0 WaylandServer.qml
+EdgeTilePreview 1.0 EdgeTilePreview.qml
