@@ -42,6 +42,23 @@ QtObject {
     // is shown in. DTK's own floating button is this size.
     readonly property int closeButtonMaxSize: DS.Style.floatingButton.size
 
+    /* --- the preview list --- */
+    // Width of the list content; the frame adds the panel padding around it.
+    readonly property int listContentWidth: 200
+    // One row of the list.
+    readonly property int listRowHeight: 26
+    readonly property int listRowSpacing: 0
+    // Left and right padding of a row.
+    readonly property int listRowPadding: tooltipHorizontalPadding
+    // Gap between two things inside a row (icon and title, title and button)
+    readonly property int listInnerSpacing: DS.Style.control.spacing
+    // App icon of a row.
+    readonly property int listIconSize: 16
+    readonly property int listRowButtonSize: 20
+    // Where a list stops growing and starts scrolling. It caps the frame, not
+    // the rows, so the panel padding still sits outside the cap.
+    readonly property int listMaxFrameHeight: 400
+
     // Placeholder behind a preview thumbnail. This is DPalette::ItemBackground,
     // which DTK does not export to QML in this version, so the two palette
     // values are kept here instead of being inlined in DockPreview.qml.

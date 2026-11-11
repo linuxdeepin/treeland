@@ -374,7 +374,8 @@ Item {
 
     HoverHandler {
         id: slotHover
-        enabled: !slot.collapsing && !preview.tooltipLayout
+        enabled: !slot.collapsing
+                 && preview.requestedPresentation === DockPreview.Presentation.Thumbnail
         cursorShape: Qt.ArrowCursor
         onHoveredChanged: {
             if (!hovered)

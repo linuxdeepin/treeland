@@ -7,11 +7,9 @@ import QtQuick.Layouts
 import Waylib.Server
 import Treeland
 
-// The preview mode's view: the title row above the row of window slots.
 Item {
     id: root
 
-    // The DockPreview controller: the window list, mode and frame geometry.
     required property QtObject preview
     // The pointer is over the popover, so the title row shows its close-all
     // button.
@@ -21,6 +19,10 @@ Item {
     property int radius: 5
     // Topmost z of the preview slots.
     readonly property int slotZBase: 10000
+    // Top of the content the title row takes for itself, in step with its own
+    // fade. The shared content rect never moves for it.
+    readonly property real titleSpace:
+        preview.thumbnailReveal * preview.titleRowChrome
     // Slots in view order: live ones first, then the collapsing ones.
     property var slots: []
     // List row the title follows.
@@ -38,16 +40,18 @@ Item {
     }
 
     // A signal instead of a close() call: whether an empty list closes the
-    // popover or only clears the view is the controller's decision.
+    // popover or only clears the thumbnails is the controller's decision.
     signal emptied()
 
     anchors.fill: parent
-    // The shell fade covers enter and leave; the slots add the mode reveal.
+    visible: preview.thumbnailReveal > 0
+    // The shell fade covers enter and leave; the slots add the presentation
+    // reveal.
     opacity: preview.shellFade
 
     // Keep the last picture of every slot, for a close that fades out with
     // nothing taking the windows over. The windows must still be alive.
-    function freezePictures() {
+    function freezeForClose() {
         const slots = root.slots;
         for (let i = 0; i < slots.length; ++i)
             slots[i].freezePicture();
@@ -99,18 +103,6 @@ Item {
             slots[i].destroy();
     }
 
-    // Start a fresh preview from its first slot.
-    function reset() {
-        root.currentSlot = 0;
-        root.hoveredSlot = null;
-    }
-
-    // A new preview starts at the dock-facing end.
-    function resetScroll() {
-        slotView.contentX = 0;
-        slotView.contentY = 0;
-    }
-
     function createSlot() {
         return slotComponent.createObject(slotLayer);
     }
@@ -128,6 +120,15 @@ Item {
             root.currentSlot = 0;
             root.emptied();
             return;
+        }
+
+        // A strip that keeps none of its slots is a new strip: it starts at the
+        // dock-facing end, whatever asked for it.
+        const fresh = !root.slots.some(slot => wrappers.includes(slot.wrapper));
+        if (fresh) {
+            root.currentSlot = 0;
+            slotView.contentX = 0;
+            slotView.contentY = 0;
         }
 
         // Target rects: where every window should sit in the view.
@@ -231,7 +232,7 @@ Item {
                 nextRetiring.push(slot);
         }
 
-        // Bookkeeping: view order, z, current slot, hover.
+        // Bookkeeping: slot order, z, current slot, hover.
         root.slots = live.concat(nextRetiring);
 
         for (let i = 0; i < live.length; ++i) {
@@ -242,7 +243,7 @@ Item {
         for (let i = 0; i < nextRetiring.length; ++i)
             nextRetiring[i].z = 0;
 
-        // The title row follows its slot when the view renumbers.
+        // The title row follows its slot when the slots renumber.
         if (root.hoveredSlot && live.indexOf(root.hoveredSlot) >= 0)
             root.currentSlot = root.hoveredSlot.slotIndex;
 
@@ -262,56 +263,49 @@ Item {
         id: slotClip
 
         x: preview.contentLeft
-        y: preview.contentTop
+        y: preview.contentTop + root.titleSpace
         width: preview.contentWidth
-        height: preview.contentHeight
+        height: Math.max(0, preview.contentHeight - root.titleSpace)
         clip: true
 
         // One slot instance per shown window.
         Flickable {
             id: slotView
 
-            // The slots fill the frame's content rect once the preview has
-            // settled; only a mode switch fits them into the frame while it
-            // unfolds.
-            readonly property bool lockScale: !preview.tooltipLayout
-                                              && preview.previewReveal === 1
+            readonly property bool drawsAtOwnSize: preview.thumbnailReveal === 1
 
-            enabled: !preview.tooltipLayout
-            interactive: !preview.tooltipLayout
+            enabled: preview.requestedPresentation === DockPreview.Presentation.Thumbnail
+            interactive: preview.requestedPresentation === DockPreview.Presentation.Thumbnail
             width: preview.previewViewport.width
             height: preview.previewViewport.height
-            contentWidth: preview.frameContentSize.width
-            contentHeight: preview.frameContentSize.height
+            contentWidth: preview.thumbnailContentSize.width
+            contentHeight: preview.thumbnailContentSize.height
             // Only the frame clips, so a slot still moving out is not cut.
             clip: false
             boundsBehavior: Flickable.StopAtBounds
-            // A settled preview sits in the frame's content rect; while a mode
-            // switch unfolds it, the slots keep their dock-facing edge.
-            x: (preview.contentPinToLeft || slotView.lockScale) ? 0 : slotClip.width - width
-            y: slotView.lockScale ? 0 : slotClip.height - height
+            // A settled preview sits in the frame's content rect; while it
+            // unfolds, the slots keep their dock-facing edge.
+            x: (preview.contentPinToLeft || slotView.drawsAtOwnSize) ? 0 : slotClip.width - width
+            y: slotView.drawsAtOwnSize ? 0 : slotClip.height - height
             transformOrigin: preview.contentPinToLeft ? Item.BottomLeft : Item.BottomRight
             scale: {
-                if (slotView.lockScale)
+                if (slotView.drawsAtOwnSize)
                     return 1;
                 if (!(width > 0) || !(height > 0))
                     return 0;
-                return Math.max(0, Math.min(1, preview.contentWidth / width,
-                                             preview.contentHeight / height));
+                return Math.max(0, Math.min(1, slotClip.width / width,
+                                             slotClip.height / height));
             }
-            // The view root already carries the shell fade; this is the mode
-            // reveal.
-            opacity: preview.previewReveal
+            opacity: preview.thumbnailReveal
 
-            // Coordinate space of the layout: slots are created into it.
             Item {
                 id: slotLayer
-                width: preview.frameContentSize.width
-                height: preview.frameContentSize.height
+                width: preview.thumbnailContentSize.width
+                height: preview.thumbnailContentSize.height
             }
 
             HoverHandler {
-                enabled: !preview.tooltipLayout
+                enabled: preview.requestedPresentation === DockPreview.Presentation.Thumbnail
                 cursorShape: Qt.ArrowCursor
                 onHoveredChanged: {
                     if (hovered)
@@ -353,7 +347,7 @@ Item {
             active: !!iconBuffer
             visible: active
             Layout.alignment: Qt.AlignVCenter
-            opacity: preview.previewReveal
+            opacity: preview.thumbnailReveal
             sourceComponent: Component {
                 BufferItem {
                     id: appIconItem
@@ -393,16 +387,17 @@ Item {
                 color: PopoverStyle.titleColor
                 horizontalAlignment: Text.AlignLeft
                 elide: Text.ElideRight
-                opacity: preview.previewReveal
+                opacity: preview.thumbnailReveal
             }
         }
 
         DockPreviewCloseButton {
             // Never taller than the title row it appears in.
             maximumSize: Math.min(PopoverStyle.closeButtonMaxSize, preview.titleRowHeight)
-            // Only the preview state has a close-all action: in the tooltip
-            // state the button would take width from the text.
-            visible: !preview.tooltipLayout && root.hovered
+            // Only the thumbnail presentation has a close-all action; the
+            // list has one per row and the tooltip has none.
+            visible: preview.requestedPresentation === DockPreview.Presentation.Thumbnail
+                     && root.hovered
             Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
             onClicked: {
                 preview.closeAllWindow();

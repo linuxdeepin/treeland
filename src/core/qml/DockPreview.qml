@@ -45,26 +45,28 @@ Item {
     }
     // set by showTooltip(): the client-drawn tooltip surface
     property var tooltipSurface: null
-    onTooltipSurfaceChanged: tooltip.applySurface(root.tooltipSurface)
+    onTooltipSurfaceChanged: tooltipPresent.applySurface(root.tooltipSurface)
 
     property bool isShowing: false
 
-    // Content layout the popover shows. It is a mode, not liveness
-    enum Mode { Tooltip, Preview }
-    property int mode: DockPreview.Mode.Tooltip
-    readonly property bool tooltipLayout: root.mode === DockPreview.Mode.Tooltip
+    // The three are peers: the frame holds whichever one was asked for, and a
+    // switch between any two is a hand-over, not a mode change.
+    enum Presentation { Tooltip, Thumbnail, List }
+    property int requestedPresentation: DockPreview.Presentation.Tooltip
+    // How far each presentation is into the frame. The tooltip has no reveal.
+    property real thumbnailReveal: 0
+    property real listReveal: 0
     // Which side of the frame the preview content stays glued to.
     property bool contentPinToLeft: true
-    // The authoritative list of windows the preview shows.
+    // A bottom dock keeps the list growing out of the dock edge.
+    readonly property bool listPinnedToBottom:
+        root.direction === ForeignToplevelManagerInterfaceV3.PreviewDirection.bottom
     property var desiredSurfaces: []
     onDesiredSurfacesChanged: root.syncSurfaces()
-    // Visibility of the preview content, 0..1. It is the preview's own progress:
-    // 1 while the preview is on screen, 0 while the tooltip replaces it.
-    property real previewReveal: 0
 
-    // Height of the title row. It is the space the preview layer has to leave
-    // free at the top of the frame.
     readonly property real titleRowHeight: titleFontMetrics.height
+    // Chrome the thumbnail adds above its content; only it carries a header.
+    readonly property real titleRowChrome: root.titleRowHeight + root.spacing
 
     // Natural size of one preview slot: the short side is fixed (120 tall on a
     // horizontal dock, 240 wide on a vertical one), the other side follows the
@@ -151,59 +153,103 @@ Item {
                 : Qt.size(cross, last.y + last.height);
     }
 
-    readonly property size contentSize: root.contentSizeFor(root.desiredSurfaces)
+    readonly property int listContentWidth: PopoverStyle.listContentWidth
+    readonly property int listRowHeight: PopoverStyle.listRowHeight
+    readonly property int listRowSpacing: PopoverStyle.listRowSpacing
+    readonly property int listMaxFrameHeight: PopoverStyle.listMaxFrameHeight
+    readonly property int listMaxContentHeight:
+        Math.max(0, root.listMaxFrameHeight - 2 * root.panelVerticalPadding)
+    // What the list can actually show: the frame cap and the output both bound
+    // it, so a short output never hides rows the scroller cannot reach.
+    readonly property real listMaxViewportHeight: Math.max(0,
+        Math.min(root.listMaxContentHeight,
+                 root.outPutSize.height - 2 * root.screenEdgeMargin
+                     - 2 * root.panelVerticalPadding))
 
-    // Last content size that had something to measure. While the shell closes
-    // with no windows left the frame keeps this size instead of collapsing
-    // around the view: the whole shell scales away, nothing gets clipped.
-    property size lastContentSize: Qt.size(0, 0)
-    onContentSizeChanged: {
-        if (contentSize.width > 0 && contentSize.height > 0)
-            lastContentSize = contentSize;
+    function listRowRects(wrappers) {
+        const rects = [ ];
+        let offset = 0;
+        for (let i = 0; i < wrappers.length; ++i) {
+            const wrapper = wrappers[i];
+            if (!wrapper)
+                continue;
+
+            if (rects.length > 0)
+                offset += root.listRowSpacing;
+            rects.push(Qt.rect(0, offset, root.listContentWidth, root.listRowHeight));
+            offset += root.listRowHeight;
+        }
+        return rects;
+    }
+
+    function listRowsHeight(wrappers) {
+        const rects = root.listRowRects(wrappers);
+        if (rects.length === 0)
+            return 0;
+        const last = rects[rects.length - 1];
+        return last.y + last.height;
+    }
+
+    function listContentSizeFor(wrappers) {
+        return Qt.size(root.listContentWidth,
+                       Math.min(root.listMaxContentHeight,
+                                root.listRowsHeight(wrappers)));
+    }
+
+    // What each presentation measures itself from.
+    readonly property size thumbnailContentSize: {
+        const content = root.contentSizeFor(root.desiredSurfaces);
+        return content.width > 0 && content.height > 0
+                ? content : root.lastThumbnailContentSize;
+    }
+    property size lastThumbnailContentSize: Qt.size(0, 0)
+    onThumbnailContentSizeChanged: {
+        if (root.thumbnailContentSize.width > 0)
+            root.lastThumbnailContentSize = root.thumbnailContentSize;
+    }
+
+    readonly property size listContentSize: {
+        const size = root.listContentSizeFor(root.desiredSurfaces);
+        return size.height > 0 ? size : root.lastListContentSize;
+    }
+    property size lastListContentSize: Qt.size(0, 0)
+    onListContentSizeChanged: {
+        if (root.listContentSize.height > 0)
+            root.lastListContentSize = root.listContentSize;
     }
 
     // Natural size of the tooltip the frame is measured from: the one on
     // screen, or the one that just left.
-    readonly property size tooltipSize: tooltip.naturalSize
+    readonly property size tooltipSize: tooltipPresent.naturalSize
 
-    // Frame size for a preview layout on this output. A view longer than the
-    // output is not squeezed.
-    function previewFrameSizeFor(contentSize) {
-        const titleSpace = root.titleRowHeight + root.spacing;
+    function previewFrameSizeFor(contentSize, titleChrome) {
         const maxContentWidth = Math.max(0, root.outPutSize.width
                                             - 2 * root.screenEdgeMargin
                                             - 2 * root.panelHorizontalPadding);
         const maxContentHeight = Math.max(0, root.outPutSize.height
                                              - 2 * root.screenEdgeMargin
                                              - 2 * root.panelVerticalPadding
-                                             - titleSpace);
+                                             - titleChrome);
         return Qt.size(Math.min(contentSize.width, maxContentWidth)
                            + 2 * root.panelHorizontalPadding,
                        Math.min(contentSize.height, maxContentHeight)
-                           + titleSpace + 2 * root.panelVerticalPadding);
+                           + titleChrome + 2 * root.panelVerticalPadding);
     }
 
-    // Content size the frame is measured from. A closing shell has no windows
-    // to measure any more, so it holds the last size it had.
-    readonly property size frameContentSize:
-        (!root.isShowing && root.visible && root.lastContentSize.width > 0)
-            ? root.lastContentSize
-            : root.contentSize
+    readonly property size targetFrameSize:
+        root.requestedPresentation === DockPreview.Presentation.Tooltip
+            ? root.tooltipSize
+      : root.requestedPresentation === DockPreview.Presentation.List
+            ? root.previewFrameSizeFor(root.listContentSize, 0)
+            : root.previewFrameSizeFor(root.thumbnailContentSize,
+                                       root.titleRowChrome)
 
-    function frameSizeFor(kind) {
-        return kind === DockPreview.Mode.Tooltip
-                   ? root.tooltipSize
-                   : root.previewFrameSizeFor(root.frameContentSize);
-    }
-
-    readonly property size targetFrameSize: root.frameSizeFor(root.mode)
-
-    // Content area the preview settles at, from the content alone.
     readonly property size previewViewport: {
-        const frame = root.previewFrameSizeFor(root.frameContentSize);
+        const frame = root.previewFrameSizeFor(root.thumbnailContentSize,
+                                               root.titleRowChrome);
         return Qt.size(Math.max(0, frame.width - 2 * root.panelHorizontalPadding),
                        Math.max(0, frame.height - 2 * root.panelVerticalPadding
-                                        - root.titleRowHeight - root.spacing));
+                                        - root.titleRowChrome));
     }
 
     // The frame is the only animated geometry.
@@ -219,7 +265,8 @@ Item {
         const entersFromNothing = showing && !root.visible;
         if (showing)
             root.visible = true;
-        if (entersFromNothing && !root.tooltipLayout) {
+        if (entersFromNothing
+                && root.requestedPresentation !== DockPreview.Presentation.Tooltip) {
             // Snap to the start value, then let the assignment below animate.
             surface.shellScaleAnimated = false;
             surface.shellScale = 0.1;
@@ -238,10 +285,9 @@ Item {
         if (root.isShowing)
             return;
         root.visible = false;
-        root.setPreviewReveal(0, false);
-        root.tooltipSurface = null;
-        root.mode = DockPreview.Mode.Tooltip;
         root.desiredSurfaces = [ ];
+        root.resetPresentations();
+        root.tooltipSurface = null;
     }
 
     // The shell fade also owns the popover's lifetime: it hides the item (and
@@ -260,39 +306,84 @@ Item {
         }
     }
 
-    // Progress of the preview layout, 1 whenever the preview is the current mode,
-    // only animates during a tooltip <-> preview switch.
     NumberAnimation {
-        id: previewRevealAnimation
+        id: thumbnailRevealAnimation
         target: root
-        property: "previewReveal"
+        property: "thumbnailReveal"
         duration: root.aniDuration
         easing.type: Easing.OutExpo
-        onFinished: {
-            if (root.tooltipLayout)
-                root.desiredSurfaces = [ ];
-        }
+        onFinished: root.settlePresentations()
     }
 
-    function setPreviewReveal(value, animate) {
-        if (!animate || !root.enableAnimation) {
-            previewRevealAnimation.stop();
-            root.previewReveal = value;
+    NumberAnimation {
+        id: listRevealAnimation
+        target: root
+        property: "listReveal"
+        duration: root.aniDuration
+        easing.type: Easing.OutExpo
+        onFinished: root.settlePresentations()
+    }
+
+    // Drive both presentations towards the one that was asked for. One that is
+    // asked for again while it is still leaving picks up from where it is
+    // instead of jumping back to where it started.
+    function updateReveals() {
+        const animate = root.visible && root.enableAnimation;
+        root.setReveal(thumbnailRevealAnimation, "thumbnailReveal",
+                       root.requestedPresentation === DockPreview.Presentation.Thumbnail ? 1 : 0,
+                       animate);
+        root.setReveal(listRevealAnimation, "listReveal",
+                       root.requestedPresentation === DockPreview.Presentation.List ? 1 : 0,
+                       animate);
+        // A reveal that snapped has no animation to report its end.
+        if (!animate)
+            root.settlePresentations();
+    }
+
+    function setReveal(animation, propertyName, value, animate) {
+        if (!animate) {
+            animation.stop();
+            root[propertyName] = value;
             return;
         }
-        if (previewRevealAnimation.running) {
+        if (animation.running) {
             // The same target is already animating: leave it alone.
-            if (previewRevealAnimation.to === value)
+            if (animation.to === value)
                 return;
-        } else if (root.previewReveal === value) {
+        } else if (root[propertyName] === value) {
             return;
         }
-        // Restart from the current value, so a switch that reverses midway does
-        // not jump back to where it started.
-        previewRevealAnimation.stop();
-        previewRevealAnimation.from = root.previewReveal;
-        previewRevealAnimation.to = value;
-        previewRevealAnimation.start();
+        animation.stop();
+        animation.from = root[propertyName];
+        animation.to = value;
+        animation.start();
+    }
+
+    // A presentation that finished leaving is dropped; once every preview one
+    // has left, the windows are no longer needed either.
+    function settlePresentations() {
+        if (!thumbnailPresent || !listPresent)
+            return;
+        if (root.thumbnailReveal === 0
+                && root.requestedPresentation !== DockPreview.Presentation.Thumbnail)
+            thumbnailPresent.clear();
+        if (root.listReveal === 0
+                && root.requestedPresentation !== DockPreview.Presentation.List)
+            listPresent.clear();
+        if (root.requestedPresentation === DockPreview.Presentation.Tooltip
+                && root.thumbnailReveal === 0 && root.listReveal === 0
+                && root.desiredSurfaces.length > 0)
+            root.desiredSurfaces = [ ];
+    }
+
+    function resetPresentations() {
+        thumbnailRevealAnimation.stop();
+        listRevealAnimation.stop();
+        root.thumbnailReveal = 0;
+        root.listReveal = 0;
+        root.requestedPresentation = DockPreview.Presentation.Tooltip;
+        thumbnailPresent.clear();
+        listPresent.clear();
     }
 
     Behavior on frameWidth {
@@ -311,17 +402,15 @@ Item {
         }
     }
 
-    // Space the preview view reserves for the title, growing from zero.
-    readonly property real reservedTitleSpace:
-        root.previewReveal * (root.titleRowHeight + root.spacing)
-    // Vertical rhythm of the frame, top to bottom:
-    //   panel padding | title row | spacing | preview content | panel padding
+    // The content rect every presentation fills: the frame minus its panel
+    // padding. A presentation that carries a title row insets itself by it, so
+    // no other presentation's geometry depends on that row.
     readonly property real contentLeft: root.panelHorizontalPadding
-    readonly property real contentTop: root.panelVerticalPadding + root.reservedTitleSpace
+    readonly property real contentTop: root.panelVerticalPadding
     readonly property real contentWidth:
         Math.max(0, root.frameWidth - 2 * root.panelHorizontalPadding)
     readonly property real contentHeight:
-        Math.max(0, root.frameHeight - 2 * root.panelVerticalPadding - root.reservedTitleSpace)
+        Math.max(0, root.frameHeight - 2 * root.panelVerticalPadding)
 
     visible: false
 
@@ -392,20 +481,53 @@ Item {
             surfaceWrapper.shellSurface.close()
     }
 
-    // The view owns the slots; it tells us when the list ran empty so the
-    // popover can close itself instead of leaving an empty frame.
+    // The requested presentation owns the instances; it tells us when the
+    // window list ran empty so the popover can close instead of showing an
+    // empty frame.
     function syncSurfaces() {
-        if (!previewView)
+        if (!thumbnailPresent || !listPresent)
             return;
-        previewView.sync();
+
+        switch (root.requestedPresentation) {
+        case DockPreview.Presentation.Thumbnail:
+            thumbnailPresent.sync();
+            break;
+        case DockPreview.Presentation.List:
+            listPresent.sync();
+            break;
+        default:
+            break;
+        }
     }
 
-    // TODO: implement the list presentation.
+    function handleEmptied(present) {
+        // Closing keeps the presentation until the shell has faded out; running
+        // out of windows while hidden just drops it.
+        if (root.isShowing && root.requestedPresentation !== DockPreview.Presentation.Tooltip) {
+            present.freezeForClose();
+            root.close();
+            return;
+        }
+        present.clear();
+    }
+
     function show(surfaces, target, pos, direction, isList) {
         console.info(qLcDockPreview, "start show windows: ", surfaces)
-        const wasVisible = root.visible;
-        const wasOpen = root.isShowing;
-        const wasTooltip = root.tooltipLayout;
+        // Drop empty entries once, at the only entry that takes an external list.
+        const windows = [];
+        for (let i = 0; i < surfaces.length; ++i) {
+            if (surfaces[i])
+                windows.push(surfaces[i]);
+        }
+        // A request that resolves to no window has nothing to switch to, so it
+        // takes the popover down whatever presentation is on screen.
+        if (windows.length === 0) {
+            if (root.isShowing)
+                root.close();
+            return;
+        }
+
+        const wasTooltip = root.requestedPresentation === DockPreview.Presentation.Tooltip;
         root.parent = target.parent;
 
         // Keep the slots anchored to the left as much as possible, many
@@ -419,32 +541,22 @@ Item {
         root.pos = pos;
         root.direction = direction;
         root.target = target;
-        root.mode = DockPreview.Mode.Preview;
-        if (!wasOpen || wasTooltip)
-            previewView.reset();
-        // Drop empty entries once, at the only entry that takes an external list.
-        const windows = [];
-        for (let i = 0; i < surfaces.length; ++i) {
-            if (surfaces[i])
-                windows.push(surfaces[i]);
-        }
+        root.requestedPresentation = isList
+                ? DockPreview.Presentation.List
+                : DockPreview.Presentation.Thumbnail;
         root.desiredSurfaces = windows;
-        // An empty list has nothing to reveal; the view already closed it.
-        if (windows.length === 0)
-            return;
-        previewView.resetScroll();
         // A popover that is already on screen switches with a curve; one that is
         // entering from nothing lands on the final layout right away.
-        root.setPreviewReveal(1, wasVisible);
+        root.updateReveals();
         root.setShowing(true);
         root.tooltipSurface = null;
     }
 
     function showTooltip(surfaceWrapper, target, pos, direction) {
         console.info(qLcDockPreview, "start show tooltip: ", surfaceWrapper, target, pos, direction)
-        const wasVisible = root.visible;
         root.parent = target.parent;
-        if (root.isShowing && !root.tooltipLayout)
+        if (root.isShowing
+                && root.requestedPresentation !== DockPreview.Presentation.Tooltip)
             root.contentPinToLeft = root.pos?.x - pos?.x >= 0;
         else
             root.contentPinToLeft = true
@@ -452,17 +564,15 @@ Item {
         root.pos = pos;
         root.direction = direction;
         root.target = target;
-        // Publish the surface before the mode: tooltipSize reads the live layer,
-        // and switching mode first would let the frame target fall back to the
-        // previous tooltip for a moment.
+        // Publish the surface before the presentation: tooltipSize reads the
+        // live layer, and switching presentation first would let the frame
+        // target fall back to the previous tooltip for a moment.
         root.tooltipSurface = surfaceWrapper;
-        root.mode = DockPreview.Mode.Tooltip;
-        // Same as show(): a switch animates the preview away, an entry from
-        // nothing starts with the preview already collapsed.
-        root.setPreviewReveal(0, wasVisible);
+        root.requestedPresentation = DockPreview.Presentation.Tooltip;
+        // Same as show(): a switch animates the presentation away, an entry
+        // from nothing starts with it already collapsed.
+        root.updateReveals();
         root.setShowing(true);
-        if (!root.enableAnimation)
-            root.desiredSurfaces = [ ];
     }
 
     function close() {
@@ -651,28 +761,26 @@ Item {
         preview: root
     }
 
-    // The preview view: the title row and the slots, inside the surface's
-    // content host.
-    DockPreviewView {
-        id: previewView
+    // The thumbnail presentation: the title row and the slots, inside the
+    // surface's content host.
+    DockPreviewThumbnailPresent {
+        id: thumbnailPresent
         parent: surface.contentHost
         preview: root
         hovered: surface.titleHovered
-        onEmptied: {
-            // Closing keeps the slots until the shell has faded out; running
-            // out of windows while hidden just drops them.
-            if (root.isShowing && !root.tooltipLayout) {
-                previewView.freezePictures();
-                root.close();
-                return;
-            }
-            previewView.clear();
-        }
+        onEmptied: root.handleEmptied(thumbnailPresent)
     }
 
-    // The tooltip content: the surface on screen and the layers it left.
-    DockPreviewTooltip {
-        id: tooltip
+    DockPreviewListPresent {
+        id: listPresent
+        parent: surface.contentHost
+        preview: root
+        onEmptied: root.handleEmptied(listPresent)
+    }
+
+    // The tooltip presentation: the surface on screen and the layers it left.
+    DockPreviewTooltipPresent {
+        id: tooltipPresent
         preview: root
         host: surface.contentHost
         layerComponent: Component {
