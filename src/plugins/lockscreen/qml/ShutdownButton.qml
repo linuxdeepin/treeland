@@ -13,6 +13,18 @@ Button {
     focusPolicy: Qt.TabFocus
     D.ColorSelector.inactived: false
 
+    // A Qt Quick Button only activates on Space; the power menu is also driven
+    // with the Enter key. Auto-repeat is ignored, otherwise holding the key
+    // would run the action several times.
+    Keys.onReturnPressed: function(event) {
+        if (!event.isAutoRepeat)
+            root.click()
+    }
+    Keys.onEnterPressed: function(event) {
+        if (!event.isAutoRepeat)
+            root.click()
+    }
+
     property D.Palette backgroundColor: D.Palette {
         normal: Qt.rgba(1.0, 1.0, 1.0, 0.3)
         hovered: Qt.rgba(1.0, 1.0, 1.0, 0.3)
