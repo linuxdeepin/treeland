@@ -106,6 +106,15 @@ struct wlr_input_method_manager_v2 {
 struct wlr_input_method_manager_v2 *wlr_input_method_manager_v2_create(
 	struct wl_display *display);
 
+/**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_input_method_manager_v2_destroy(struct wlr_input_method_manager_v2 *manager);
+
 void wlr_input_method_v2_send_activate(
 	struct wlr_input_method_v2 *input_method);
 void wlr_input_method_v2_send_deactivate(
