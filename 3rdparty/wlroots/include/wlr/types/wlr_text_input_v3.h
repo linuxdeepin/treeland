@@ -86,6 +86,15 @@ struct wlr_text_input_manager_v3 {
 struct wlr_text_input_manager_v3 *wlr_text_input_manager_v3_create(
 	struct wl_display *wl_display);
 
+/**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_text_input_manager_v3_destroy(struct wlr_text_input_manager_v3 *manager);
+
 // Sends enter to the surface and saves it
 void wlr_text_input_v3_send_enter(struct wlr_text_input_v3 *text_input,
 	struct wlr_surface *wlr_surface);

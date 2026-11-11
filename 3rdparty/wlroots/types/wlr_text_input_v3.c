@@ -1,10 +1,12 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_text_input_v3.h>
 #include <wlr/util/log.h>
 #include "text-input-unstable-v3-protocol.h"
+#include "util/global.h"
 
 static void text_input_clear_focused_surface(struct wlr_text_input_v3 *text_input) {
 	wl_list_remove(&text_input->surface_destroy.link);
@@ -310,17 +312,30 @@ static void text_input_manager_bind(struct wl_client *wl_client, void *data,
 		manager, NULL);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_text_input_manager_v3 *manager =
-		wl_container_of(listener, manager, display_destroy);
+static void text_input_manager_v3_destroy(struct wlr_text_input_manager_v3 *manager,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&manager->events.destroy, NULL);
 
 	assert(wl_list_empty(&manager->events.new_text_input.listener_list));
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
 
 	wl_list_remove(&manager->display_destroy.link);
-	wl_global_destroy(manager->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
 	free(manager);
+}
+
+void wlr_text_input_manager_v3_destroy(struct wlr_text_input_manager_v3 *manager) {
+	text_input_manager_v3_destroy(manager, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_text_input_manager_v3 *manager =
+		wl_container_of(listener, manager, display_destroy);
+	text_input_manager_v3_destroy(manager, false);
 }
 
 struct wlr_text_input_manager_v3 *wlr_text_input_manager_v3_create(
