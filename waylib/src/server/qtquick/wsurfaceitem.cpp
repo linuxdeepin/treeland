@@ -87,6 +87,8 @@ public:
         setAcceptHoverEvents(true);
         setAcceptTouchEvents(true);
         setAcceptedMouseButtons(Qt::AllButtons);
+        setKeepMouseGrab(true);
+        setKeepTouchGrab(true);
         setFlag(QQuickItem::ItemClipsChildrenToShape, true);
         setCursor(WCursor::toQCursor(WGlobal::CursorShape::ClientResource));
     }
