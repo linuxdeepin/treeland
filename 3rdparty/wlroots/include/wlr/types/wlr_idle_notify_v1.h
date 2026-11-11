@@ -34,6 +34,15 @@ struct wlr_idle_notifier_v1 {
 struct wlr_idle_notifier_v1 *wlr_idle_notifier_v1_create(struct wl_display *display);
 
 /**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_idle_notifier_v1_destroy(struct wlr_idle_notifier_v1 *notifier);
+
+/**
  * Inhibit idle.
  *
  * Compositors should call this function when the idle state is disabled, e.g.
