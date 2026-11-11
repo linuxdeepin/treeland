@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_compositor.h>
@@ -6,6 +7,7 @@
 #include <wlr/util/log.h>
 
 #include "tearing-control-v1-protocol.h"
+#include "util/global.h"
 
 #define TEARING_CONTROL_MANAGER_VERSION 1
 
@@ -166,10 +168,8 @@ static void tearing_bind(struct wl_client *wl_client, void *data,
 	wl_resource_set_implementation(wl_resource, &tearing_impl, manager, NULL);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_tearing_control_manager_v1 *manager =
-		wl_container_of(listener, manager, display_destroy);
-
+static void tearing_control_manager_v1_destroy(struct wlr_tearing_control_manager_v1 *manager,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&manager->events.destroy, NULL);
 
 	assert(wl_list_empty(&manager->events.new_object.listener_list));
@@ -181,8 +181,22 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	}
 
 	wl_list_remove(&manager->display_destroy.link);
-	wl_global_destroy(manager->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
 	free(manager);
+}
+
+void wlr_tearing_control_manager_v1_destroy(struct wlr_tearing_control_manager_v1 *manager) {
+	tearing_control_manager_v1_destroy(manager, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_tearing_control_manager_v1 *manager =
+		wl_container_of(listener, manager, display_destroy);
+	tearing_control_manager_v1_destroy(manager, false);
 }
 
 struct wlr_tearing_control_manager_v1 *wlr_tearing_control_manager_v1_create(
