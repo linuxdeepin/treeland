@@ -9,9 +9,17 @@
       <arg type="s" direction="out" name="result"/>
       <arg type="ay" direction="out" name="auth"/>
     </method>
+    <method name="InputMethodState">
+      <arg type="u" direction="in" name="uid"/>
+      <arg type="b" direction="out" name="connected"/>
+    </method>
     <signal name="SessionChanged">
     </signal>
     <signal name="XWaylandAuthChanged">
+    </signal>
+    <signal name="InputMethodChanged">
+      <arg type="u" name="uid"/>
+      <arg type="b" name="connected"/>
     </signal>
   </interface>
 </node>

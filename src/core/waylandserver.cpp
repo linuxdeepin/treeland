@@ -54,6 +54,7 @@
 #include "output/outputmanager.h"
 #include "seatuserconfig.hpp"
 #include "session/session.h"
+#include "session/sessionseatmanager.h"
 #include "session/sessionoutputmanager.h"
 #include "session/sessionswitcher.h"
 #include "surface/surfacecontainer.h"
@@ -392,6 +393,21 @@ ShellHandler *WaylandServer::shellHandler() const
     return m_shellHandler;
 }
 
+bool WaylandServer::inputMethodStateForUid(uint uid) const
+{
+    if (!m_sessionManager)
+        return false;
+
+    // Prefer the active session: the daemon asking for a UID is the one
+    // serving that user's current logind session.  A second background
+    // session for the same UID is not the one whose socket is published.
+    if (auto *active = activeSession(); active && active->uid() == uid)
+        return active->seatManager() && active->seatManager()->hasInputMethod();
+
+    auto session = m_sessionManager->sessionForUid(uid);
+    return session && session->seatManager() && session->seatManager()->hasInputMethod();
+}
+
 void WaylandServer::initializeSessionProtocols(Session *session)
 {
     m_surfaceProtocols->initializeSession(session);
@@ -404,7 +420,21 @@ void WaylandServer::initializeSessionProtocols(Session *session)
             connect(session->wallpaperManager(), &WallpaperManager::updateWallpaper,
                     this, &WaylandServer::wallpaperChanged);
             Q_EMIT wallpaperChanged();
+            // The session daemon may have queried before the switch; publish
+            // the newly active session's input-method state as well.
+            Q_EMIT inputMethodChanged(session->uid(),
+                                      session->seatManager()->hasInputMethod());
         }
+    });
+    // Every session has its own daemon.  Tag the transition with the owner UID
+    // and only publish the active session: a background session for the same
+    // UID must not steer the socket currently handed to the foreground
+    // desktop.
+    connect(session, &Session::inputMethodChanged, this, [this, session](bool) {
+        if (session != activeSession())
+            return;
+        Q_EMIT inputMethodChanged(session->uid(),
+                                  session->seatManager()->hasInputMethod());
     });
 }
 

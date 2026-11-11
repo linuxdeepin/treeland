@@ -93,6 +93,7 @@ public:
 
 Q_SIGNALS:
     void activeChanged(bool active);
+    void inputMethodChanged(bool connected);
     void aboutToBeDestroyed();
 
 private:
