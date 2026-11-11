@@ -78,4 +78,13 @@ struct wlr_subsurface *wlr_subsurface_try_from_wlr_surface(
 
 struct wlr_subcompositor *wlr_subcompositor_create(struct wl_display *display);
 
+/**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_subcompositor_destroy(struct wlr_subcompositor *subcompositor);
+
 #endif

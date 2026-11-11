@@ -1,10 +1,12 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_subcompositor.h>
 #include "types/wlr_region.h"
 #include "types/wlr_subcompositor.h"
+#include "util/global.h"
 
 // Note: wl_subsurface becomes inert on parent surface destroy
 
@@ -403,17 +405,30 @@ static void subcompositor_bind(struct wl_client *client, void *data,
 		subcompositor, NULL);
 }
 
-static void subcompositor_handle_display_destroy(
-		struct wl_listener *listener, void *data) {
-	struct wlr_subcompositor *subcompositor =
-		wl_container_of(listener, subcompositor, display_destroy);
+static void subcompositor_destroy(struct wlr_subcompositor *subcompositor,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&subcompositor->events.destroy, NULL);
 
 	assert(wl_list_empty(&subcompositor->events.destroy.listener_list));
 
 	wl_list_remove(&subcompositor->display_destroy.link);
-	wl_global_destroy(subcompositor->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(subcompositor->global);
+	} else {
+		wl_global_destroy(subcompositor->global);
+	}
 	free(subcompositor);
+}
+
+void wlr_subcompositor_destroy(struct wlr_subcompositor *subcompositor) {
+	subcompositor_destroy(subcompositor, true);
+}
+
+static void subcompositor_handle_display_destroy(
+		struct wl_listener *listener, void *data) {
+	struct wlr_subcompositor *subcompositor =
+		wl_container_of(listener, subcompositor, display_destroy);
+	subcompositor_destroy(subcompositor, false);
 }
 
 struct wlr_subcompositor *wlr_subcompositor_create(struct wl_display *display) {
