@@ -1,8 +1,10 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/types/wlr_idle_notify_v1.h>
 #include <wlr/types/wlr_seat.h>
 #include "ext-idle-notify-v1-protocol.h"
+#include "util/global.h"
 
 #define IDLE_NOTIFIER_VERSION 2
 
@@ -207,11 +209,25 @@ static void notifier_bind(struct wl_client *client, void *data,
 	wl_resource_set_implementation(resource, &notifier_impl, notifier, NULL);
 }
 
+static void idle_notifier_v1_destroy(struct wlr_idle_notifier_v1 *notifier,
+		bool destroy_global_safe) {
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(notifier->global);
+	} else {
+		wl_global_destroy(notifier->global);
+	}
+	wl_list_remove(&notifier->display_destroy.link);
+	free(notifier);
+}
+
+void wlr_idle_notifier_v1_destroy(struct wlr_idle_notifier_v1 *notifier) {
+	idle_notifier_v1_destroy(notifier, true);
+}
+
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_idle_notifier_v1 *notifier =
 		wl_container_of(listener, notifier, display_destroy);
-	wl_global_destroy(notifier->global);
-	free(notifier);
+	idle_notifier_v1_destroy(notifier, false);
 }
 
 struct wlr_idle_notifier_v1 *wlr_idle_notifier_v1_create(struct wl_display *display) {
