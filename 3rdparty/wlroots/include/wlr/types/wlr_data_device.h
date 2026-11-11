@@ -159,6 +159,15 @@ struct wlr_data_device_manager *wlr_data_device_manager_create(
 	struct wl_display *display);
 
 /**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager);
+
+/**
  * Requests a selection to be set for the seat. If the request comes from
  * a client, then set `client` to be the matching seat client so that this
  * function can verify that the serial provided was once sent to the client
