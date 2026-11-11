@@ -61,6 +61,8 @@ WallpaperManager::WallpaperManager(TreelandUserConfig *config, Workspace *worksp
     , m_services(std::move(services))
 {
     connect(m_workspace, &Workspace::workspaceAdded, this, &WallpaperManager::syncAddWorkspace);
+    connect(m_config, &TreelandUserConfig::wallpaperConfigChanged,
+            this, &WallpaperManager::loadWallpaperConfig);
     connect(m_config, &TreelandUserConfig::configInitializeSucceed,
             this, &WallpaperManager::loadWallpaperConfig);
     connect(m_config, &TreelandUserConfig::configInitializeFailed,
@@ -380,16 +382,27 @@ void WallpaperManager::removeOutputWallpaper(wlr_output *output)
     }
 }
 
+QString WallpaperManager::desktopWallpaper(WOutput *output, WorkspaceModel *workspace)
+{
+    if (!output || !workspace || workspace->workspaceManager() != m_workspace)
+        return {};
+
+    for (int index = 0; index < m_workspace->count(); ++index) {
+        if (m_workspace->modelAt(index) != workspace)
+            continue;
+        const auto config = getOutputConfig(output->handle());
+        for (const auto &entry : config.workspaces) {
+            if (entry.workspaceId == index)
+                return entry.desktopWallpaper;
+        }
+        break;
+    }
+    return {};
+}
+
 QString WallpaperManager::currentWorkspaceWallpaper(WOutput *output)
 {
-    Q_ASSERT(m_workspace);
-    for (int i = 0; i < m_wallpaperConfig.size(); ++i) {
-        if (m_wallpaperConfig[i].outputName == Output::getOutputId(output->handle())) {
-            return m_wallpaperConfig[i].workspaces[m_workspace->currentIndex()].desktopWallpaper;
-        }
-    }
-
-    return QStringLiteral("");
+    return desktopWallpaper(output, m_workspace->current());
 }
 
 QString WallpaperManager::currentLockScreenWallpaper(WOutput *output)

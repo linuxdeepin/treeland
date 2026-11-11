@@ -36,6 +36,7 @@ DesktopEnvironment::DesktopEnvironment(TreelandUserConfig *config, Workspace *wo
     , m_switcher(new SessionSwitcher(workspace, runtime->qmlEngine(), runtime, this))
     , m_viewRoot(new QQuickItem(runtime->rootSurfaceContainer()))
 {
+    m_workspace->setWallpaperManager(m_wallpaper);
     m_viewRoot->setParent(this);
     auto *engine = runtime->qmlEngine();
     // C++ visual parents have no QML creation context unless explicitly set.
