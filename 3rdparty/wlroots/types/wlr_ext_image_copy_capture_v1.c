@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <pixman.h>
 #include <stdlib.h>
 #include <wlr/interfaces/wlr_ext_image_capture_source_v1.h>
@@ -8,6 +9,7 @@
 #include <wlr/render/wlr_renderer.h>
 #include "ext-image-copy-capture-v1-protocol.h"
 #include "render/pixel_format.h"
+#include "util/global.h"
 
 #define IMAGE_COPY_CAPTURE_MANAGER_V1_VERSION 1
 
@@ -667,13 +669,28 @@ static void manager_bind(struct wl_client *client, void *data,
 	wl_resource_set_implementation(resource, &manager_impl, manager, NULL);
 }
 
+static void ext_image_copy_capture_manager_v1_destroy(
+		struct wlr_ext_image_copy_capture_manager_v1 *manager,
+		bool destroy_global_safe) {
+	assert(wl_list_empty(&manager->events.new_session.listener_list));
+	wl_list_remove(&manager->display_destroy.link);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
+	free(manager);
+}
+
+void wlr_ext_image_copy_capture_manager_v1_destroy(
+		struct wlr_ext_image_copy_capture_manager_v1 *manager) {
+	ext_image_copy_capture_manager_v1_destroy(manager, true);
+}
+
 static void manager_handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_ext_image_copy_capture_manager_v1 *manager =
 		wl_container_of(listener, manager, display_destroy);
-	assert(wl_list_empty(&manager->events.new_session.listener_list));
-	wl_list_remove(&manager->display_destroy.link);
-	wl_global_destroy(manager->global);
-	free(manager);
+	ext_image_copy_capture_manager_v1_destroy(manager, false);
 }
 
 struct wlr_ext_image_copy_capture_manager_v1 *wlr_ext_image_copy_capture_manager_v1_create(
