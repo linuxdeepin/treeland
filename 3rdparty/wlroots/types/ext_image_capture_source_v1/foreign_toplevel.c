@@ -1,8 +1,10 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/interfaces/wlr_ext_image_capture_source_v1.h>
 #include <wlr/types/wlr_ext_foreign_toplevel_list_v1.h>
 #include "ext-image-capture-source-v1-protocol.h"
+#include "util/global.h"
 
 #define FOREIGN_TOPLEVEL_IMAGE_SOURCE_MANAGER_V1_VERSION 1
 
@@ -66,15 +68,30 @@ static void foreign_toplevel_manager_bind(struct wl_client *client, void *data,
 	wl_resource_set_implementation(resource, &foreign_toplevel_manager_impl, manager, NULL);
 }
 
-static void foreign_toplevel_manager_handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *manager =
-		wl_container_of(listener, manager, display_destroy);
+static void ext_foreign_toplevel_image_capture_source_manager_v1_destroy(
+		struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *manager,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&manager->events.destroy, NULL);
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
 	assert(wl_list_empty(&manager->events.new_request.listener_list));
 	wl_list_remove(&manager->display_destroy.link);
-	wl_global_destroy(manager->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
 	free(manager);
+}
+
+void wlr_ext_foreign_toplevel_image_capture_source_manager_v1_destroy(
+		struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *manager) {
+	ext_foreign_toplevel_image_capture_source_manager_v1_destroy(manager, true);
+}
+
+static void foreign_toplevel_manager_handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *manager =
+		wl_container_of(listener, manager, display_destroy);
+	ext_foreign_toplevel_image_capture_source_manager_v1_destroy(manager, false);
 }
 
 struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *

@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <wlr/interfaces/wlr_ext_image_capture_source_v1.h>
 #include <wlr/interfaces/wlr_output.h>
@@ -8,6 +9,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/addon.h>
 #include "ext-image-capture-source-v1-protocol.h"
+#include "util/global.h"
 
 #define OUTPUT_IMAGE_SOURCE_MANAGER_V1_VERSION 1
 
@@ -236,12 +238,27 @@ static void output_manager_bind(struct wl_client *client, void *data,
 	wl_resource_set_implementation(resource, &output_manager_impl, manager, NULL);
 }
 
+static void ext_output_image_capture_source_manager_v1_destroy(
+		struct wlr_ext_output_image_capture_source_manager_v1 *manager,
+		bool destroy_global_safe) {
+	wl_list_remove(&manager->display_destroy.link);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
+	free(manager);
+}
+
+void wlr_ext_output_image_capture_source_manager_v1_destroy(
+		struct wlr_ext_output_image_capture_source_manager_v1 *manager) {
+	ext_output_image_capture_source_manager_v1_destroy(manager, true);
+}
+
 static void output_manager_handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_ext_output_image_capture_source_manager_v1 *manager =
 		wl_container_of(listener, manager, display_destroy);
-	wl_list_remove(&manager->display_destroy.link);
-	wl_global_destroy(manager->global);
-	free(manager);
+	ext_output_image_capture_source_manager_v1_destroy(manager, false);
 }
 
 struct wlr_ext_output_image_capture_source_manager_v1 *wlr_ext_output_image_capture_source_manager_v1_create(
