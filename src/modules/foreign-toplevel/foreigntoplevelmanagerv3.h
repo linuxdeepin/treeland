@@ -37,6 +37,13 @@ public:
     };
     Q_ENUM(PreviewDirection)
 
+    enum class PreviewLayout
+    {
+        thumbnail = 0,
+        list,
+    };
+    Q_ENUM(PreviewLayout)
+
     explicit ForeignToplevelManagerInterfaceV3(Session *session);
     ~ForeignToplevelManagerInterfaceV3() override;
 
@@ -48,13 +55,14 @@ public:
 
     QByteArrayView interfaceName() const override;
 
-    static constexpr int InterfaceVersion = 1;
+    static constexpr int InterfaceVersion = 2;
 
 Q_SIGNALS:
     void requestDockPreview(std::vector<SurfaceWrapper *> surfaces,
                             WSurface *target,
                             QPoint abs,
-                            PreviewDirection direction);
+                            PreviewDirection direction,
+                            PreviewLayout layout);
     void requestDockPreviewTooltip(WSurface *surface,
                                    WSurface *target,
                                    QPoint abs,

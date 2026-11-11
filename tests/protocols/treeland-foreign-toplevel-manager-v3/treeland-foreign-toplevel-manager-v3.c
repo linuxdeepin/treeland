@@ -21,6 +21,13 @@ struct test_case {
     int (*run)(struct test_ctx *ctx);
 };
 
+// Layouts the compositor reports for a preview request: show always asks for
+// the thumbnail layout, show_list for the list.
+enum preview_layout_value {
+    PREVIEW_LAYOUT_THUMBNAIL = 0,
+    PREVIEW_LAYOUT_LIST = 1,
+};
+
 typedef void (*ftm_layout_request_fn)(struct treeland_foreign_toplevel_handle_v3 *handle);
 
 void test_init(struct test_ctx *ctx)
@@ -215,8 +222,10 @@ static int connect_client(struct test_ctx *ctx, const char *socket_name)
     ctx->compositor = client_bind(&ctx->connection, "wl_compositor",
                                   &wl_compositor_interface, 1);
     ctx->shm = client_bind(&ctx->connection, "wl_shm", &wl_shm_interface, 1);
+    // Version 2 is what carries show_list; the handle interface stays at
+    // version 1 and the compositor must clamp it.
     ctx->manager = client_bind(&ctx->connection, "treeland_foreign_toplevel_manager_v3",
-                                      &treeland_foreign_toplevel_manager_v3_interface, 1);
+                                      &treeland_foreign_toplevel_manager_v3_interface, 2);
     if (ctx->manager)
         treeland_foreign_toplevel_manager_v3_add_listener(ctx->manager, &manager_listener, ctx);
     return ctx->seat != NULL && ctx->compositor != NULL && ctx->shm != NULL
@@ -287,6 +296,36 @@ static int show_preview(struct test_ctx *ctx)
            && state.preview_x == 10
            && state.preview_y == 20
            && state.preview_direction == TREELAND_DOCK_PREVIEW_CONTEXT_V3_DIRECTION_BOTTOM
+           && state.preview_layout == PREVIEW_LAYOUT_THUMBNAIL
+           && state.preview_surface_count == 1;
+}
+
+static int show_list_preview(struct test_ctx *ctx)
+{
+    if (!ctx->context || !ctx->handle_identifier)
+        return 0;
+    struct wl_array surfaces;
+    wl_array_init(&surfaces);
+    uint32_t *slot = wl_array_add(&surfaces, sizeof(uint32_t));
+    if (!slot) {
+        wl_array_release(&surfaces);
+        return 0;
+    }
+    *slot = ctx->handle_identifier;
+    treeland_dock_preview_context_v3_show_list(
+        ctx->context, &surfaces, 30, 40,
+        TREELAND_DOCK_PREVIEW_CONTEXT_V3_DIRECTION_LEFT);
+    wl_array_release(&surfaces);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    struct ftm_server_state state;
+    if (!read_server_state(ctx, &state))
+        return 0;
+    return state.preview_fired
+           && state.preview_x == 30
+           && state.preview_y == 40
+           && state.preview_direction == TREELAND_DOCK_PREVIEW_CONTEXT_V3_DIRECTION_LEFT
+           && state.preview_layout == PREVIEW_LAYOUT_LIST
            && state.preview_surface_count == 1;
 }
 
@@ -744,6 +783,7 @@ static const struct test_case cases[] = {
     { "client.create_xdg_toplevel", create_xdg_toplevel },
     { "manager.get_dock_preview_context", create_context },
     { "context.show", show_preview },
+    { "context.show_list", show_list_preview },
     { "context.show_unknown_identifier", show_unknown_identifier },
     { "context.show_tooltip_surface", show_tooltip_surface },
     { "context.show_tooltip_surface_replace", replace_tooltip_surface },

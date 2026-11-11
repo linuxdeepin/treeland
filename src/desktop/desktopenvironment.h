@@ -83,7 +83,8 @@ private:
     void closeDockPreview();
     void showDockPreview(std::vector<SurfaceWrapper *> surfaces,
                          WAYLIB_SERVER_NAMESPACE::WSurface *target, QPoint position,
-                         ForeignToplevelManagerInterfaceV3::PreviewDirection direction);
+                         ForeignToplevelManagerInterfaceV3::PreviewDirection direction,
+                         ForeignToplevelManagerInterfaceV3::PreviewLayout layout);
     void showDockTooltip(WAYLIB_SERVER_NAMESPACE::WSurface *surface, WAYLIB_SERVER_NAMESPACE::WSurface *target, QPoint position,
                          ForeignToplevelManagerInterfaceV3::PreviewDirection direction);
     TreelandUserConfig *const m_config;
