@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-server-core.h>
@@ -9,6 +10,7 @@
 #include <wlr/types/wlr_tablet_v2.h>
 #include <wlr/util/log.h>
 #include "tablet-v2-protocol.h"
+#include "util/global.h"
 
 #define TABLET_MANAGER_VERSION 1
 
@@ -263,12 +265,16 @@ static void tablet_v2_bind(struct wl_client *wl_client, void *data,
 
 	wl_resource_set_implementation(client->resource, &manager_impl, client,
 		wlr_tablet_manager_v2_destroy);
+	wl_list_init(&client->link);
+	if (manager == NULL) {
+		return;
+	}
+
 	wl_list_insert(&manager->clients, &client->link);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_tablet_manager_v2 *manager =
-		wl_container_of(listener, manager, display_destroy);
+static void tablet_manager_v2_destroy(struct wlr_tablet_manager_v2 *manager,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&manager->events.destroy, manager);
 
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
@@ -280,8 +286,22 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 		tablet_seat_destroy(seat);
 	}
 
-	wl_global_destroy(manager->wl_global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->wl_global);
+	} else {
+		wl_global_destroy(manager->wl_global);
+	}
 	free(manager);
+}
+
+void wlr_tablet_v2_destroy(struct wlr_tablet_manager_v2 *manager) {
+	tablet_manager_v2_destroy(manager, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_tablet_manager_v2 *manager =
+		wl_container_of(listener, manager, display_destroy);
+	tablet_manager_v2_destroy(manager, false);
 }
 
 struct wlr_tablet_manager_v2 *wlr_tablet_v2_create(struct wl_display *display) {

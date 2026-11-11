@@ -150,6 +150,15 @@ struct wlr_tablet_v2_tablet_tool *wlr_tablet_tool_create(
 
 struct wlr_tablet_manager_v2 *wlr_tablet_v2_create(struct wl_display *display);
 
+/**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_tablet_v2_destroy(struct wlr_tablet_manager_v2 *manager);
+
 void wlr_send_tablet_v2_tablet_tool_proximity_in(
 	struct wlr_tablet_v2_tablet_tool *tool,
 	struct wlr_tablet_v2_tablet *tablet,
