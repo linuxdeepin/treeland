@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <drm_fourcc.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -11,6 +12,7 @@
 #include <wlr/util/log.h>
 #include "drm-protocol.h"
 #include "render/drm_format_set.h"
+#include "util/global.h"
 
 #define WLR_DRM_VERSION 2
 
@@ -162,6 +164,11 @@ static void drm_bind(struct wl_client *client, void *data,
 		return;
 	}
 	wl_resource_set_implementation(resource, &drm_impl, drm, NULL);
+	wl_list_init(wl_resource_get_link(resource));
+	if (drm == NULL) {
+		return;
+	}
+
 
 	wl_drm_send_device(resource, drm->node_name);
 	wl_drm_send_capabilities(resource, WL_DRM_CAPABILITY_PRIME);
@@ -186,7 +193,8 @@ static const struct wlr_buffer_resource_interface buffer_resource_interface = {
 	.from_resource = buffer_from_resource,
 };
 
-static void drm_destroy(struct wlr_drm *drm) {
+static void drm_destroy(struct wlr_drm *drm,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&drm->events.destroy, NULL);
 
 	assert(wl_list_empty(&drm->events.destroy.listener_list));
@@ -195,13 +203,21 @@ static void drm_destroy(struct wlr_drm *drm) {
 
 	wlr_drm_format_set_finish(&drm->formats);
 	free(drm->node_name);
-	wl_global_destroy(drm->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(drm->global);
+	} else {
+		wl_global_destroy(drm->global);
+	}
 	free(drm);
+}
+
+void wlr_drm_destroy(struct wlr_drm *drm) {
+	drm_destroy(drm, true);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_drm *drm = wl_container_of(listener, drm, display_destroy);
-	drm_destroy(drm);
+	drm_destroy(drm, false);
 }
 
 struct wlr_drm *wlr_drm_create(struct wl_display *display,
