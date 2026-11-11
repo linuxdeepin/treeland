@@ -13,6 +13,11 @@
 | 创建 splash | 用空 icon 和真实 `wl_shm` icon buffer 创建 | 生产 handler 每次均发出请求，并保留 app/instance/icon 信息 |
 | 同 app | 用相同 app-id 再创建 | 请求不会被错误去重 |
 | 关闭 | 销毁 splash 资源 | 生产 close 请求携带对应 app-id 与 instance-id |
+| 重复绑定 | 第二个客户端 bind manager | 收到 `wl_display.error`，错误接口为 manager、错误码为 `binding_rejected`；原客户端绑定与已建 splash 不变 |
+| 拒绝后原客户端可用 | 被拒绝期间原客户端 `create_splash` | 生产 handler 仍收到请求 |
+| 释放后重绑 | 原客户端销毁最后一个 manager 后其他客户端 bind | 绑定成功 |
+| 断开释放 | 持 manager 的客户端断开后其他客户端 bind | 绑定成功 |
+| 会话隔离 | 两个 Session 各自 bind 并创建 splash | 各自成功、互不影响（`session-isolation` target 覆盖） |
 
 ## 已证明的生产链路（E）
 

@@ -72,6 +72,16 @@ public:
         return m_global;
     }
 
+    void initSingletonGlobal(::wl_display *display, int version)
+    {
+        init(display, version);
+        // The generated bind hook runs before bind() registers the resource in
+        // resourceMap(), so posting the rejection there would leave a dangling
+        // entry. Bind through our own global and reject before any Resource exists.
+        wl_global_destroy(m_global);
+        m_global = wl_global_create(display, interface(), version, this, bindSingleton);
+    }
+
 protected:
     void destroy_global() override
     {
@@ -81,6 +91,13 @@ protected:
     void destroy(Resource *resource) override
     {
         wl_resource_destroy(resource->handle);
+    }
+
+    void destroy_resource(Resource *resource) override
+    {
+        // Released by the bound client's last manager object or by its disconnect.
+        if (resource->client() == m_boundClient && !resourceMap().contains(m_boundClient))
+            m_boundClient = nullptr;
     }
 
     void create_splash(Resource *resource,
@@ -110,7 +127,26 @@ protected:
     }
 
 private:
+    // The manager is a per-Session singleton: at most one client may bind it.
+    // A second client is rejected instead of taking over the binding.
+    static void bindSingleton(::wl_client *client, void *data, uint32_t version, uint32_t id)
+    {
+        auto *self = static_cast<PrelaunchSplashPrivate *>(data);
+        if (self->m_boundClient && self->m_boundClient != client) {
+            auto *resource = wl_resource_create(client, interface(), version, id);
+            if (resource) {
+                wl_resource_post_error(resource,
+                                       TREELAND_PRELAUNCH_SPLASH_MANAGER_V2_ERROR_BINDING_REJECTED,
+                                       "treeland_prelaunch_splash_manager_v2 is already bound");
+            }
+            return;
+        }
+        self->m_boundClient = client;
+        self->add(client, id, version);
+    }
+
     PrelaunchSplash *q;
+    struct ::wl_client *m_boundClient = nullptr;
 };
 
 PrelaunchSplash::PrelaunchSplash(QObject *parent)
@@ -123,7 +159,7 @@ PrelaunchSplash::~PrelaunchSplash() = default;
 
 void PrelaunchSplash::create(WAYLIB_SERVER_NAMESPACE::WServer *server)
 {
-    d->init(server->handle(), InterfaceVersion);
+    d->initSingletonGlobal(server->handle(), InterfaceVersion);
     qCDebug(lcTlPrelaunchSplash) << "PrelaunchSplash v2 global created";
 }
 
