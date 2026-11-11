@@ -55,7 +55,8 @@ jobs:
 
       - name: Install DDM dependencies
         run: |
-          # Try to install DDM from available packages
+          # The packaged ddm provides the runtime dependencies, but its headers
+          # lag behind master, so they are replaced below.
           pacman -S --noconfirm --noprogressbar ddm
 
       - name: Install MPV dependencies
@@ -74,6 +75,21 @@ jobs:
           cmake --build build
           cmake --install build
           echo "✅ treeland-protocols built and installed from source"
+
+      - name: Build and Install DDM from source
+        run: |
+          # The greeter uses the messages DDM only has on master
+          # (DaemonMessages::SessionDirs and LastLogin), so build the headers
+          # treeland is compiled against from source instead of the package.
+          pacman -S --noconfirm --noprogressbar extra-cmake-modules pam libxau
+          git clone https://github.com/linuxdeepin/ddm.git --depth 1
+          cd ddm
+          cmake -B build \
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+          cmake --install build
+          echo "✅ ddm built and installed from source"
 
       - uses: actions/checkout@v4
         with:
