@@ -50,6 +50,15 @@ struct wlr_gamma_control_v1 {
 
 struct wlr_gamma_control_manager_v1 *wlr_gamma_control_manager_v1_create(
 	struct wl_display *display);
+
+/**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_gamma_control_manager_v1_destroy(struct wlr_gamma_control_manager_v1 *manager);
 struct wlr_gamma_control_v1 *wlr_gamma_control_manager_v1_get_control(
 	struct wlr_gamma_control_manager_v1 *manager, struct wlr_output *output);
 bool wlr_gamma_control_v1_apply(struct wlr_gamma_control_v1 *gamma_control,
