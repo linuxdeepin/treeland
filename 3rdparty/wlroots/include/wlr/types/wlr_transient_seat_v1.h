@@ -47,6 +47,15 @@ struct wlr_transient_seat_manager_v1 *wlr_transient_seat_manager_v1_create(
 		struct wl_display *display);
 
 /**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_transient_seat_manager_v1_destroy(struct wlr_transient_seat_manager_v1 *manager);
+
+/**
  * To be called when the create_seat event is received.
  *
  * This signals that the seat was successfully added and is ready.

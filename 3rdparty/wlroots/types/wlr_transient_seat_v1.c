@@ -1,9 +1,11 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <wayland-util.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_transient_seat_v1.h>
 #include "ext-transient-seat-v1-protocol.h"
+#include "util/global.h"
 
 static const struct ext_transient_seat_manager_v1_interface manager_impl;
 static const struct ext_transient_seat_v1_interface transient_seat_impl;
@@ -112,17 +114,30 @@ static const struct ext_transient_seat_manager_v1_interface manager_impl = {
 	.destroy = manager_handle_destroy,
 };
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_transient_seat_manager_v1 *manager =
-		wl_container_of(listener, manager, display_destroy);
+static void transient_seat_manager_v1_destroy(struct wlr_transient_seat_manager_v1 *manager,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&manager->events.destroy, NULL);
 
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
 	assert(wl_list_empty(&manager->events.create_seat.listener_list));
 
 	wl_list_remove(&manager->display_destroy.link);
-	wl_global_destroy(manager->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(manager->global);
+	} else {
+		wl_global_destroy(manager->global);
+	}
 	free(manager);
+}
+
+void wlr_transient_seat_manager_v1_destroy(struct wlr_transient_seat_manager_v1 *manager) {
+	transient_seat_manager_v1_destroy(manager, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_transient_seat_manager_v1 *manager =
+		wl_container_of(listener, manager, display_destroy);
+	transient_seat_manager_v1_destroy(manager, false);
 }
 
 static void transient_seat_manager_bind(struct wl_client *client, void *data,
