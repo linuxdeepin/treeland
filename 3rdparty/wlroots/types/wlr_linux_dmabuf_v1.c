@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <drm_fourcc.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -19,6 +20,7 @@
 
 #if WLR_HAS_DRM_BACKEND
 #include <wlr/backend/drm.h>
+#include "util/global.h"
 #endif
 
 #define LINUX_DMABUF_VERSION 5
@@ -837,6 +839,11 @@ static void linux_dmabuf_bind(struct wl_client *client, void *data,
 	}
 	wl_resource_set_implementation(resource, &linux_dmabuf_impl,
 		linux_dmabuf, NULL);
+	wl_list_init(wl_resource_get_link(resource));
+	if (linux_dmabuf == NULL) {
+		return;
+	}
+
 
 	if (version < ZWP_LINUX_DMABUF_V1_GET_DEFAULT_FEEDBACK_SINCE_VERSION) {
 		linux_dmabuf_send_formats(linux_dmabuf, resource);
@@ -856,7 +863,8 @@ static const struct wlr_buffer_resource_interface buffer_resource_interface = {
 	.from_resource = buffer_from_resource,
 };
 
-static void linux_dmabuf_v1_destroy(struct wlr_linux_dmabuf_v1 *linux_dmabuf) {
+static void linux_dmabuf_v1_destroy(struct wlr_linux_dmabuf_v1 *linux_dmabuf,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&linux_dmabuf->events.destroy, linux_dmabuf);
 
 	assert(wl_list_empty(&linux_dmabuf->events.destroy.listener_list));
@@ -874,14 +882,22 @@ static void linux_dmabuf_v1_destroy(struct wlr_linux_dmabuf_v1 *linux_dmabuf) {
 
 	wl_list_remove(&linux_dmabuf->display_destroy.link);
 
-	wl_global_destroy(linux_dmabuf->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(linux_dmabuf->global);
+	} else {
+		wl_global_destroy(linux_dmabuf->global);
+	}
 	free(linux_dmabuf);
+}
+
+void wlr_linux_dmabuf_v1_destroy(struct wlr_linux_dmabuf_v1 *linux_dmabuf) {
+	linux_dmabuf_v1_destroy(linux_dmabuf, true);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_linux_dmabuf_v1 *linux_dmabuf =
 		wl_container_of(listener, linux_dmabuf, display_destroy);
-	linux_dmabuf_v1_destroy(linux_dmabuf);
+	linux_dmabuf_v1_destroy(linux_dmabuf, false);
 }
 
 static bool set_default_feedback(struct wlr_linux_dmabuf_v1 *linux_dmabuf,

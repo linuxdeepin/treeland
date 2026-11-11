@@ -79,6 +79,15 @@ struct wlr_linux_dmabuf_v1 *wlr_linux_dmabuf_v1_create(struct wl_display *displa
 	uint32_t version, const struct wlr_linux_dmabuf_feedback_v1 *default_feedback);
 
 /**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_linux_dmabuf_v1_destroy(struct wlr_linux_dmabuf_v1 *linux_dmabuf);
+
+/**
  * Create the linux-dmabuf-v1 global.
  *
  * The default DMA-BUF feedback is initialized from the struct wlr_renderer.
