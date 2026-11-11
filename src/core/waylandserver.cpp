@@ -60,6 +60,7 @@
 #include "surface/surfacewrapper.h"
 #include "treelandconfig.hpp"
 #include "treelanduserconfig.hpp"
+#include "animationconfig.hpp"
 #include "utils/fpsdisplaymanager.h"
 #include "utils/graphicsplatform.h"
 #include "wallpaper/wallpapermanager.h"
@@ -123,6 +124,7 @@ WaylandServer::WaylandServer(QObject *parent)
 
     if (auto *configManager = DConfigManager::instance()) {
         m_config = configManager->initialUserConfig();
+        setAnimationConfig(configManager->initialAnimationConfig());
         m_globalConfig = configManager->globalConfig();
     }
 
@@ -229,6 +231,28 @@ WaylandServer::~WaylandServer()
 WaylandServer *WaylandServer::instance()
 {
     return m_instance;
+}
+
+AnimationConfig *WaylandServer::animationConfig() const
+{
+    return m_animationConfig;
+}
+
+void WaylandServer::setAnimationConfig(AnimationConfig *config)
+{
+    if (m_animationConfig == config)
+        return;
+
+    if (m_animationConfig)
+        disconnect(m_animationConfig, nullptr, this, nullptr);
+    m_animationConfig = config;
+    if (config) {
+        connect(config, &AnimationConfig::configInitializeSucceed,
+                this, &WaylandServer::animationConfigChanged);
+        connect(config, &AnimationConfig::configInitializeFailed,
+                this, &WaylandServer::animationConfigChanged);
+    }
+    Q_EMIT animationConfigChanged();
 }
 
 TreelandUserConfig *WaylandServer::config()
@@ -513,6 +537,9 @@ void WaylandServer::applyCurrentUserConfig(const QString &userName,
         || session->username() != userName) {
         return;
     }
+
+    if (auto *manager = DConfigManager::instance())
+        setAnimationConfig(manager->animationConfig(userName));
 
     const bool configPointerChanged = config != m_config;
     if (configPointerChanged) {

@@ -5,8 +5,7 @@ description: "触发场景：新增/修改/评审/调试 treeland 的 DConfig �
 
 # Treeland DConfig 配置
 
-> **铁律**：用户业务对象通过构造时注入的固定配置访问设置，不查询 Session 或活动用户。Session/DesktopEnvironment 组装边界负责解析配置与按用户名 subpath 隔离的 provider；仅共享运行时的活动桌面兼容入口使用 `WaylandServer::config()`。不要因为全局模式以 `dde` 运行就把用户偏好写进 `TreelandConfig`。显示模式、主屏、复制/单屏配置为系统级；各 Session 的窗口、协议资源和专属区域仍独立。
-
+> **铁律**：用户业务对象通过构造时注入的固定配置访问设置，不查询 Session 或活动用户。Session/DesktopEnvironment 组装边界负责解析配置与按用户名 subpath 隔离的 provider；仅共享运行时的活动桌面兼容入口使用 `WaylandServer::config()`（动画开关为该入口上的 `WaylandServer::animationConfig()`）。不要因为全局模式以 `dde` 运行就把用户偏好写进 `TreelandConfig`。显示模式、主屏、复制/单屏配置为系统级；各 Session 的窗口、协议资源和专属区域仍独立。
 ## 范围
 本 skill 用于由 Desktop Spec Group 配置元数据描述、并通过 DTK DConfig 生成的 C++ 封装类消费的 treeland 配置。
 
@@ -84,6 +83,7 @@ DConfig 描述文件是 JSON 元数据文件。treeland 中它们位于 `misc/dc
 
 - `org.deepin.dde.treeland.json` → 不随当前用户变化的合成器全局设置；生成 `TreelandConfig` / `treelandconfig.hpp`；通常通过 `WaylandServer::globalConfig()` 访问。
 - `org.deepin.dde.treeland.user.json` → 当前用户会话、个性化、工作区、光标、主题等设置；生成 `TreelandUserConfig` / `treelanduserconfig.hpp`；通过 `WaylandServer::config()` 访问，用户切换时从 DConfigManager 缓存中选取。
+- `org.deepin.dde.treeland.animation.json` → 当前用户的动画开关；生成 `AnimationConfig` / `animationconfig.hpp`；由 `DConfigManager::animationConfig(userName)` 缓存，通过 `WaylandServer::animationConfig()` 访问并监听 `animationConfigChanged()`。键名直接用 `windowOpen`、`workspaceSwitch` 等效果名，不重复 `AnimationEnabled`。初始化完成前使用默认启用状态，初始化完成或用户切换时重新绑定并刷新效果。
 - `org.deepin.dde.treeland.output.json` → 按 output 的设置；生成 `OutputConfig` / `outputconfig.hpp`；当前代码使用 `OutputConfig::createByName(...)` 和 `/<outputName>`，保存系统级物理身份、分辨率、刷新率、缩放、位置、旋转、颜色等参数。所有 Session 注入同一个 output 配置对象，不增加用户名 subpath。
 - `org.deepin.dde.treeland.user.seat.json` → 当前用户的输入/seat 设置；生成 `SeatUserDConfig` / `seatuserconfig.hpp`；每个 Session 持有独立 InputManager，固定读取所属用户名的 seat 配置；活动 manager 才连接硬件应用路径。`keyboardNumLock` 也位于该用户 seat 配置；旧全局键保留兼容，但新输入管理路径不再读写它。
 - `org.deepin.dde.treeland.app.json` → 按应用的设置；生成 `AppConfig` / `appconfig.hpp`；`WindowConfigStore` 使用 subpath `"/" + appId`。

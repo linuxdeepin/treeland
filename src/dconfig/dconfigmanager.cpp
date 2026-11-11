@@ -5,6 +5,7 @@
 #include "core/waylandserver.h"
 #include "greeter/usermodel.h"
 
+#include "animationconfig.hpp"
 #include "appconfig.hpp"
 #include "outputconfig.hpp"
 #include "seatuserconfig.hpp"
@@ -109,6 +110,27 @@ TreelandConfig *DConfigManager::globalConfig() const
     return m_globalConfig;
 }
 
+AnimationConfig *DConfigManager::animationConfig(const QString &userName)
+{
+    if (userName.isEmpty())
+        return nullptr;
+
+    if (auto *config = m_animationConfigs.value(userName))
+        return config;
+
+    auto *config = AnimationConfig::createByName(QStringLiteral("org.deepin.dde.treeland.animation"),
+                                                QStringLiteral("org.deepin.dde.treeland"),
+                                                configSubpath(userName),
+                                                this);
+    m_animationConfigs.insert(userName, config);
+    return config;
+}
+
+AnimationConfig *DConfigManager::initialAnimationConfig() const
+{
+    return m_initialAnimationConfig;
+}
+
 TreelandUserConfig *DConfigManager::userConfig(const QString &userName)
 {
     if (userName.isEmpty()) {
@@ -184,6 +206,7 @@ AppConfig *DConfigManager::appConfig(const QString &appId)
 
 bool DConfigManager::initializeUserConfigs(const QString &userName)
 {
+    m_initialAnimationConfig = animationConfig(userName);
     m_initialUserConfig = userConfig(userName);
     if (!m_initialUserConfig || !m_initialUserConfig->isInitializeSucceeded())
         return false;
