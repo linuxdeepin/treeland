@@ -348,6 +348,15 @@ struct wlr_xdg_toplevel_show_window_menu_event {
 struct wlr_xdg_shell *wlr_xdg_shell_create(struct wl_display *display,
 	uint32_t version);
 
+/**
+ * Destroy the protocol manager and remove its globals.
+ *
+ * All client objects using this manager must be destroyed before calling this
+ * function. The manager is also destroyed automatically when the display is
+ * destroyed.
+ */
+void wlr_xdg_shell_destroy(struct wlr_xdg_shell *xdg_shell);
+
 /** Get the corresponding struct wlr_xdg_surface from a resource.
  *
  * Aborts if the resource doesn't have the correct type. Returns NULL if the

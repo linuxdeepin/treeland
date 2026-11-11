@@ -1,6 +1,8 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include "types/wlr_xdg_shell.h"
+#include "util/global.h"
 
 #define WM_BASE_VERSION 7
 
@@ -114,6 +116,11 @@ static void xdg_shell_bind(struct wl_client *wl_client, void *data,
 
 	wl_resource_set_implementation(client->resource, &xdg_shell_impl, client,
 		xdg_client_handle_resource_destroy);
+	wl_list_init(&client->link);
+	if (xdg_shell == NULL) {
+		return;
+	}
+
 	wl_list_insert(&xdg_shell->clients, &client->link);
 
 	struct wl_display *display = wl_client_get_display(client->client);
@@ -125,9 +132,8 @@ static void xdg_shell_bind(struct wl_client *wl_client, void *data,
 	}
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-	struct wlr_xdg_shell *xdg_shell =
-		wl_container_of(listener, xdg_shell, display_destroy);
+static void xdg_shell_destroy(struct wlr_xdg_shell *xdg_shell,
+		bool destroy_global_safe) {
 	wl_signal_emit_mutable(&xdg_shell->events.destroy, xdg_shell);
 
 	assert(wl_list_empty(&xdg_shell->events.new_surface.listener_list));
@@ -136,8 +142,22 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	assert(wl_list_empty(&xdg_shell->events.destroy.listener_list));
 
 	wl_list_remove(&xdg_shell->display_destroy.link);
-	wl_global_destroy(xdg_shell->global);
+	if (destroy_global_safe) {
+		wlr_global_destroy_safe(xdg_shell->global);
+	} else {
+		wl_global_destroy(xdg_shell->global);
+	}
 	free(xdg_shell);
+}
+
+void wlr_xdg_shell_destroy(struct wlr_xdg_shell *xdg_shell) {
+	xdg_shell_destroy(xdg_shell, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+	struct wlr_xdg_shell *xdg_shell =
+		wl_container_of(listener, xdg_shell, display_destroy);
+	xdg_shell_destroy(xdg_shell, false);
 }
 
 struct wlr_xdg_shell *wlr_xdg_shell_create(struct wl_display *display,
