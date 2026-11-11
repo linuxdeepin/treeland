@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "compositorinputfilter.h"
+#include "inputownerresolver.h"
 #include "core/waylandserver.h"
 #include "core/focuscontroller.h"
 #include "idle/idlemanager.h"
@@ -139,6 +140,18 @@ bool CompositorInputFilter::beforeDisposeEvent(WSeat *seat, QWindow *targetWindo
             }
         }
     }
+
+    // The press owner is decided once, when the gesture begins, so the surface
+    // that receives the press and the surface that gets activated are the same
+    // one. This runs after the popup dismissal above: the press that closes a
+    // popup still belongs to whatever it lands on.
+    // Single-point events only, as before: a touch screen keeps its old path.
+    if (event->isSinglePointEvent()) {
+        auto *pointEvent = static_cast<QSinglePointEvent *>(event);
+        if (pointEvent->isBeginEvent())
+            updatePressOwner(targetSeat, pointEvent, targetWindow);
+    }
+
     if (seat == m_server->seat()) {
         if (event->type() == QEvent::KeyPress) {
             auto kevent = static_cast<QKeyEvent *>(event);
@@ -280,32 +293,38 @@ bool CompositorInputFilter::beforeDisposeEvent(WSeat *seat, QWindow *targetWindo
     return false;
 }
 
-bool CompositorInputFilter::afterHandleEvent([[maybe_unused]] WSeat *seat,
-                              WSurface *watched,
-                              QObject *surfaceItem,
-                              QObject *,
-                              QInputEvent *event)
+void CompositorInputFilter::updatePressOwner(WSeat *seat, QSinglePointEvent *event, QWindow *window)
 {
-    if (!m_server->isAvailable() || !m_server->window() || !m_server->backend())
-        return false;
+    if (!seat || !seat->handle())
+        return;
 
-    if (event->isSinglePointEvent() && static_cast<QSinglePointEvent *>(event)->isBeginEvent()) {
-        // surfaceItem is qml type: XdgSurfaceItem or LayerSurfaceItem
-        auto toplevelSurface = qobject_cast<WSurfaceItem *>(surfaceItem)->shellSurface();
-        if (!toplevelSurface)
-            return false;
-        Q_ASSERT(toplevelSurface->surface() == watched);
-
-        auto surface = m_server->rootContainer()->getSurface(watched);
-        WSeat *eventSeat = m_server->getSeatForEvent(event);
-
-        if (eventSeat && surface) {
-            m_focus->updateSurfaceSeatInteraction(surface, eventSeat);
-            m_focus->activateSurface(surface, Qt::MouseFocusReason, eventSeat, true);
-        }
+    // A grab owns the press: popup menus, drag and drop, move/resize, capture
+    // selection and the lock screen keep deciding for themselves.
+    if (m_server->currentMode() == WaylandServer::CurrentMode::LockScreen
+        || m_captureManager->isSelecting()
+        || wlr_seat_pointer_has_grab(seat->handle())
+        || seat->handle()->drag)
+        return;
+    if (auto *seatContainer = m_server->rootContainer()->getSeatContainer(seat)) {
+        if (seatContainer->hasPopupGrab() || seatContainer->moveResizeState().surface)
+            return;
     }
 
-    return false;
+    // The owner is whatever declares the point, top-down. Nothing falls back to
+    // a window rectangle, so a press through a hole in the window above belongs
+    // to the window below and activates it.
+    //
+    // No declaration is not the same as no receiver: compositor QML layers (task
+    // switcher mask, dock preview) take presses without belonging to any window,
+    // and must not deactivate the active one. Deactivation stays in
+    // unacceptedEvent(), which only runs when nothing received the press.
+    if (auto *owner = InputOwnerResolver::ownerAt(m_server,
+                                                  window,
+                                                  event->scenePosition(),
+                                                  event->buttons())) {
+        m_focus->updateSurfaceSeatInteraction(owner, seat);
+        m_focus->activateSurface(owner, Qt::MouseFocusReason, seat, true);
+    }
 }
 
 bool CompositorInputFilter::unacceptedEvent(WSeat *, QWindow *, QInputEvent *event)

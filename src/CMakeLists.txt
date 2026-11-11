@@ -200,6 +200,8 @@ qt_add_qml_module(libtreeland
         input/togglablegesture.h
         input/compositorinputfilter.cpp
         input/compositorinputfilter.h
+        input/inputownerresolver.cpp
+        input/inputownerresolver.h
         input/inputmanager.cpp
         input/inputmanager.h
         interfaces/baseplugininterface.h
