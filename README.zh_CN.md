@@ -71,12 +71,11 @@ sudo cmake --install build --component treeland-debug
 发布调试 socket，并给连上来的客户端提供窗口树远程数据源——该数据源是个薄 QObject，
 只在每次调用时干活，没有客户端连着时不占资源。把开关关掉就完全禁止调试，socket 也会
 一起消失。Release 构建中 socket 只允许 root 连接（权限 0000）；Debug 构建
-（`CMAKE_BUILD_TYPE=Debug`）忽略这个开关，对整台机器永久放开通道：`-dev` socket 是
-0666，启动时还会把 Treeland 自己的目录开到 0711，所以即使合成器是 deb 安装的全局服务、
-以它自己的用户运行（socket 在 `/run/treeland-debug/...`），`treeland-debug` 也能直接连上、
-不弹 polkit。`-dev` 这个独立名字把它和发行版实例区分开。会话实例的 socket 位于
-`$XDG_RUNTIME_DIR`，那里按 Qt 要求保持 0700，所以只有它自己的用户（和 root）能连 ——
-而那个用户本来就是调试它的人。
+（`CMAKE_BUILD_TYPE=Debug`）忽略这个开关，始终发布 `-dev` socket 到
+`/tmp/treeland-debug-<uid>`（目录 0700，socket 0600），只允许合成器所属 UID 访问。
+以同一 UID 运行 Debug 客户端即可连接，不需要 polkit；Debug 构建即使处于 user mode
+也使用这个 dev 目录。`TREELAND_DEBUG_DIR` 可显式覆盖开发目录。Release 会话实例的
+socket 仍位于 `$XDG_RUNTIME_DIR`，在那里只有所属用户（和 root）能连接。
 
 Release 构建的 root 限制可以通过调试协议本身临时放开：`treeland-debug no-auth`
 （即 `WindowTreeRemote` 的 `requestNoAuth` 方法）请求合成器把它自己的调试目录开到 0711、
@@ -119,16 +118,17 @@ dde-dconfig -u <合成器 uid> set \
 ### socket 命名与连接
 
 Treeland 在本地 socket 上发布调试源，默认名为 `org.deepin.dde.treeland.debug`，绑定在
-合成器自己的目录里的绝对路径上：全局服务为
-`/run/treeland-debug/org.deepin.dde.treeland.debug`（`RuntimeDirectory=treeland-debug`），
-会话模式为 `/run/user/<uid>/org.deepin.dde.treeland.debug`（即 `$XDG_RUNTIME_DIR`）。
-不再放在 `/tmp`：那里任何用户可写，且按 `$TMPDIR` 解析出的路径在 `$TMPDIR` 不同的客户端
-眼里不可见。全局服务的这个目录由 systemd 以 0700 创建，且刻意不是它的
-`$XDG_RUNTIME_DIR`——免鉴权窗口会把它开到 0711，而 Qt 要求 runtime 目录保持 0700；
-开发时可用 `$TREELAND_DEBUG_DIR` 覆盖。socket 只对 root 可达（Debug 构建下还包括
-合成器用户，0666）。`treeland-debug` 客户端按顺序探测自己的 runtime 目录、全局服务的
-`/run/treeland-debug`、`/run/treeland`（专用目录之前的老版本全局服务绑在这里）、
-以及它能列出的每个 `/run/user/<uid>`（仅 root）—— 它无法从自身环境得知合成器的目录。
+合成器自己的目录里的绝对路径上：全局 Release 服务为
+`/run/treeland-debug/org.deepin.dde.treeland.debug`，Release 会话模式为
+`/run/user/<uid>/...`（即 `$XDG_RUNTIME_DIR`）。Debug dev 构建（包括 user mode）默认使用
+`/tmp/treeland-debug-<uid>/...`（目录 0700、socket 0600），普通用户只有所属 UID 可访问；
+root 仍保留特权访问。这样可以避免写入宿主 `/run`；`TREELAND_DEBUG_DIR` 是显式开发/测试
+覆盖项。全局 Release 目录由 systemd 以 0700 创建，且刻意不使用 `$XDG_RUNTIME_DIR`——
+免鉴权窗口会把它开到 0711，而 Qt 要求 runtime 目录保持 0700。
+
+Debug 客户端先探测自己的 dev 目录，再探测共享的 `/run/treeland-debug`、legacy
+`/run/treeland` 和自己的 runtime 目录，不枚举其他 UID 的 runtime socket。Release root
+客户端保留原有探测顺序，并可列出每个 `/run/user/<uid>` 目录。
 当该名称已被另一个正在运行的 treeland（全局服务、会话服务、本地构建）占用时，会自动追加数字
 后缀（`org.deepin.dde.treeland.debug-1`、`-2`…），通过非阻塞 advisory lock 选择
 （与 libwayland 选择 Wayland socket 的方式一致）。崩溃实例残留的 socket 文件会被

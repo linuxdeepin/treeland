@@ -1,5 +1,8 @@
 treeland (0.11.0) unstable; urgency=medium
 
+  * fix(treeland-debug): fall back to the compositor runtime directory when
+    the global debug socket directory is not writable
+  * fix(treeland-debug): put development sockets in per-uid /tmp directories
   * fix(session): store logind session id as string to avoid collision
   * fix(input-method): forward empty preedit to clear composing
   * feat(dde-shell): adapt to dde-shell-unstable-v2 protocol

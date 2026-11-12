@@ -10,6 +10,7 @@
 #include <QLocalSocket>
 #include <QStandardPaths>
 
+#include <cerrno>
 #include <fcntl.h>
 #include <sys/file.h>
 #include <sys/socket.h>
@@ -60,6 +61,39 @@ QString runtimeSocketDir()
         return {};
     return dir;
 }
+#ifdef TREELAND_DEBUG_DEV_BUILD
+// Development builds use a UID-specific directory under /tmp so a nested
+// compositor never publishes its socket in the host's /run namespace. The
+// sticky /tmp parent protects creation; the owned 0700 child is private to the
+// compositor's UID.
+QString developmentSocketDir()
+{
+    const QString override = qEnvironmentVariable("TREELAND_DEBUG_DIR");
+    if (!override.isEmpty())
+        return QDir::cleanPath(override);
+
+    const uid_t uid = ::geteuid();
+    const QString dir = QStringLiteral("/tmp/treeland-debug-%1")
+                            .arg(static_cast<qulonglong>(uid));
+    const QByteArray path = QFile::encodeName(dir);
+    if (::mkdir(path.constData(), 0700) < 0 && errno != EEXIST)
+        return {};
+
+    struct stat st {};
+    if (::lstat(path.constData(), &st) < 0 || !S_ISDIR(st.st_mode) || st.st_uid != uid
+        || (st.st_mode & (S_ISVTX | S_IWOTH))) {
+        return {};
+    }
+    if ((st.st_mode & 0777) != 0700 && ::chmod(path.constData(), 0700) < 0)
+        return {};
+    if (::lstat(path.constData(), &st) < 0 || !S_ISDIR(st.st_mode) || st.st_uid != uid
+        || (st.st_mode & 0777) != 0700) {
+        return {};
+    }
+    return dir;
+}
+#endif
+
 
 // "local:" + absolute socket path, the form both QRemoteObjectHost and a
 // client outside the compositor's runtime directory can resolve.
@@ -82,6 +116,12 @@ QString treelandDebugGlobalSocketDir()
 
 QString treelandDebugSocketDir()
 {
+#ifdef TREELAND_DEBUG_DEV_BUILD
+    // The development instance is deliberately separate from the system-wide
+    // socket directory. Its CLI discovers this same per-user /tmp directory.
+    if (qEnvironmentVariable("TREELAND_DEBUG_DIR").isEmpty())
+        return developmentSocketDir();
+#endif
     // A session instance keeps its socket in its own runtime directory: it must
     // not bind in the global service's directory (not its own, likely absent or
     // not writable), and it never widens anything there anyway.
@@ -89,27 +129,32 @@ QString treelandDebugSocketDir()
         return runtimeSocketDir();
 
     const QString globalDir = globalSocketDir();
-    if (QFileInfo(globalDir).isDir())
-        return globalDir;
-    if (QDir().mkpath(globalDir)) {
-        // mkpath() applies the umask, so the directory would be listable by
-        // everyone; it must start as private as the runtime directory it
-        // replaces.
-        ::chmod(QFile::encodeName(globalDir).constData(), 0700);
-        return globalDir;
+    const QFileInfo globalInfo(globalDir);
+    if (globalInfo.isDir()) {
+        const QFile::Permissions searchBits =
+            QFile::ExeOwner | QFile::ExeGroup | QFile::ExeOther;
+        const bool hasSearchPermission =
+            (globalInfo.permissions() & searchBits) != QFile::Permissions{};
+        if (globalInfo.isWritable() && globalInfo.isExecutable() && hasSearchPermission)
+            return globalDir;
+        return runtimeSocketDir();
     }
-    // A hand-started instance that may not create the directory (anything but
-    // root or dde): fall back to the runtime directory.  The no-auth window
-    // stays unavailable there, because that directory is not Treeland's alone.
+    if (QDir().mkpath(globalDir)) {
+        const QByteArray encodedDir = QFile::encodeName(globalDir);
+        if (::chmod(encodedDir.constData(), 0700) == 0) {
+            const QFileInfo createdInfo(globalDir);
+            if (createdInfo.isWritable() && createdInfo.isExecutable())
+                return globalDir;
+        }
+    }
     return runtimeSocketDir();
 }
 
+// A client probes its own development/runtime directories before the shared
+// global and legacy locations. Debug clients never enumerate another UID's
+// runtime directory; Release root clients retain the existing session scan.
 QStringList treelandDebugSocketDirs()
 {
-    // A client knows only its own runtime directory, so it also probes the
-    // global service's directories and -- when it may read them, which means
-    // root -- every session directory under /run/user.  Entries are directories
-    // that may or may not hold a socket; nothing is created or probed here.
     QStringList dirs;
     const QString own = treelandDebugSocketDir();
     if (!own.isEmpty())
@@ -117,11 +162,14 @@ QStringList treelandDebugSocketDirs()
     const QString globalDir = globalSocketDir();
     if (!dirs.contains(globalDir))
         dirs << globalDir;
-    // Compositors from before the dedicated directory bound in their runtime
-    // directory; keep probing it so a new client still finds one of those.
     const QString legacyGlobalDir = QStringLiteral("/run/treeland");
     if (!dirs.contains(legacyGlobalDir))
         dirs << legacyGlobalDir;
+#ifdef TREELAND_DEBUG_DEV_BUILD
+    const QString runtimeDir = runtimeSocketDir();
+    if (!runtimeDir.isEmpty() && !dirs.contains(runtimeDir))
+        dirs << runtimeDir;
+#else
     const QDir sessions(QStringLiteral("/run/user"));
     const QStringList sessionIds = sessions.entryList(QDir::Dirs | QDir::NoDotAndDotDot,
                                                       QDir::Name);
@@ -130,6 +178,7 @@ QStringList treelandDebugSocketDirs()
         if (!dirs.contains(dir))
             dirs << dir;
     }
+#endif
     return dirs;
 }
 
@@ -138,24 +187,22 @@ QString treelandDebugReleaseSocketName()
     return QStringLiteral(TREELAND_DEBUG_SOCKET_RELEASE);
 }
 
+// A bare name is resolved by Qt against QDir::tempPath(); our own URLs always
+// carry an absolute path, so this only affects hand-written --url values.
 QString treelandDebugSocketPath(const QString &socketName)
 {
-    // A bare name can only come from a hand-written --url: our own URLs always
-    // carry the absolute path.  Qt resolves a bare server name against
-    // QDir::tempPath() (QLocalServerPrivate::fullServerName), so mirror that
-    // instead of inventing a second rule for the diagnostics below.
     if (socketName.startsWith(QLatin1Char('/')))
         return socketName;
     return QDir::cleanPath(QDir::tempPath()) + QLatin1Char('/') + socketName;
 }
 
+// A socket path or bare name becomes a local: URL. Other schemes are explicit
+// remote endpoints and are left untouched.
 QString treelandDebugSocketUrlFromEnv()
 {
     const QString value = qEnvironmentVariable("TREELAND_DEBUG_SOCKET");
     if (value.isEmpty())
         return {};
-    // A socket path or a bare socket name becomes a local: URL; a value that
-    // already carries a scheme is taken as-is, so a remote host works too.
     if (value.contains(QLatin1Char(':')))
         return value;
     return QStringLiteral("local:") + value;
@@ -170,16 +217,14 @@ QStringList treelandDebugCandidateSocketUrls()
     const QStringList names{ treelandDebugDefaultSocketName() };
 #endif
     const QStringList dirs = treelandDebugSocketDirs();
-
     QStringList urls;
-    // Name-major: the debug instance in every directory is preferred over the
-    // release instance, whichever directory each of them ended up using.
     for (const QString &name : names) {
         for (const QString &dir : dirs)
             urls << socketUrl(dir, name);
     }
     return urls;
 }
+
 
 // ── TreelandDebugSocketLock ──────────────────────────────────────────────
 
@@ -454,46 +499,44 @@ bool treelandDebugSetSocketAccess(const QString &socketPath, bool anyUser)
         return false;
 
     const QString dir = QFileInfo(socketPath).absolutePath();
-    // One directory may be opened and no other: the global service's own debug
-    // directory, which holds nothing but this socket and is deliberately not the
-    // process's XDG_RUNTIME_DIR, which Qt requires to stay 0700
-    // (treelandDebugGlobalSocketDir()).  A session instance binds inside
-    // /run/user/<uid> next to the session bus, so the comparison refuses it and
-    // root stays required there; so does any hand-written --url.
+    // The global service may widen only its dedicated directory. The dev
+    // instance owns a UID-specific private /tmp directory; it is never widened
+    // or rewritten here. Session and arbitrary directories stay untouched.
     const QString globalDir = QFileInfo(treelandDebugGlobalSocketDir()).canonicalFilePath();
     const bool ownsDir = !globalDir.isEmpty()
         && QFileInfo(dir).canonicalFilePath() == globalDir;
-    if (anyUser && !ownsDir) {
+#ifdef TREELAND_DEBUG_DEV_BUILD
+    const QString devDir = QFileInfo(developmentSocketDir()).canonicalFilePath();
+    const bool ownsDevDir = !devDir.isEmpty()
+        && QFileInfo(dir).canonicalFilePath() == devDir;
+#else
+    const bool ownsDevDir = false;
+#endif
+    if (anyUser && !ownsDir && !ownsDevDir) {
         errno = EACCES; // callers log qt_error_string() on failure
         return false;
     }
     if (anyUser) {
-        // Widening only ever happens to a directory of ours that nobody else can
-        // write.  The startup call of a debug build makes this automatic, and
-        // $TREELAND_DEBUG_DIR is easy to point at /tmp: chmod there would drop
-        // its sticky bit and silence every program on the machine.  Ownership
-        // rather than an exact 0700, because a peer instance may already have
-        // opened the same directory to 0711.
+        // Only directories owned by this compositor and not sticky or
+        // world-writable are eligible.
         struct stat dirSt {};
-        const bool canWiden = ::stat(QFile::encodeName(dir).constData(), &dirSt) == 0
+        const bool safeOwnerDir = ::stat(QFile::encodeName(dir).constData(), &dirSt) == 0
             && dirSt.st_uid == ::geteuid()
             && !(dirSt.st_mode & (S_ISVTX | S_IWOTH));
-        if (!canWiden) {
+        if (!safeOwnerDir) {
             errno = EACCES;
             return false;
         }
     }
 
-    // Only the socket is toggled on close.  The directory is widened once, when
-    // a window first opens, and stays 0711 (traverse, not list) until the process
-    // exits: the numeric-suffix naming exists because several compositor
-    // instances can share one directory, so restoring 0700 here would cut off a
-    // peer instance whose own window is still open.  Leaving it widened exposes
-    // nothing -- the sockets are the gate, and every one of them is sealed (0000)
-    // unless its own window is open.  systemd recreates the directory as 0700 on
-    // the next start.
-    bool ok = chmodPath(socketPath, anyUser ? 0666 : 0);
-    if (ownsDir && anyUser)
+    // Only the socket is toggled on close. The global directory is widened once,
+    // when a window first opens, and stays 0711 until the process exits: several
+    // compositor instances can share it. The dev directory stays private; its
+    // socket is owner-only, which is sufficient for the same-UID dev client.
+    // systemd recreates the global directory as 0700 on the next start.
+    const mode_t socketMode = anyUser ? (ownsDevDir ? 0600 : 0666) : 0;
+    bool ok = chmodPath(socketPath, socketMode);
+    if (ownsDir && !ownsDevDir && anyUser)
         ok = chmodPath(dir, 0711) && ok;
     return ok;
 }

@@ -213,16 +213,24 @@ int qtKeyToEvdev(int qtKey, wlr_keyboard *keyboard)
 TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
     : WindowTreeRemoteSource(parent)
 {
-    // Pick a conflict-free socket path.  The socket is bound in a directory of
-    // the compositor's own (/run/treeland-debug for the global service,
-    // $XDG_RUNTIME_DIR for a session), so it is never placed in world-writable
-    // /tmp and a client finds it by probing those directories.  A concurrent
-    // instance takes a numeric suffix, selected with a non-blocking advisory
-    // lock.
+    // Pick a conflict-free socket path. Release instances bind in their own
+    // directory; a Debug development instance uses its UID-private /tmp
+    // directory. A concurrent instance takes a numeric suffix, selected with
+    // a non-blocking advisory lock.
     const QString socketDir = treelandDebugSocketDir();
     if (socketDir.isEmpty()) {
+#ifdef TREELAND_DEBUG_DEV_BUILD
+        const QString override = qEnvironmentVariable("TREELAND_DEBUG_DIR");
+        const QString expectedDir = override.isEmpty()
+            ? QStringLiteral("/tmp/treeland-debug-%1")
+                  .arg(static_cast<qulonglong>(::geteuid()))
+            : override;
+        qCWarning(lcTlDebug) << "No usable development debug socket directory"
+                             << expectedDir << "; debug remote source disabled";
+#else
         qCWarning(lcTlDebug) << "No usable debug socket directory;"
                                 "debug remote source disabled";
+#endif
         return;
     }
     const QString socketPath = treelandDebugPickFreeSocketName(
@@ -242,9 +250,9 @@ TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
         return;
     }
 
-    // No-auth mode is a temporary debugging window requested over the debug
-    // protocol itself (WindowTreeRemote::requestNoAuth): the socket opens to
-    // every local user, and a call-free half hour closes it again.
+    // Release no-auth mode is a temporary debugging window requested over the
+    // debug protocol itself (WindowTreeRemote::requestNoAuth): its socket opens
+    // to every local user, and a call-free half hour closes it again.
     m_debugSocketPath = socketPath;
     m_noAuthIdleTimer = new QTimer(this);
     m_noAuthIdleTimer->setSingleShot(true);
@@ -257,21 +265,11 @@ TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
     // record of it, so the state is written, not restored.
     closeNoAuthWindow();
 #ifdef TREELAND_DEBUG_DEV_BUILD
-    // A debug build opens the channel to every local user for good: whoever
-    // debugs must not need a polkit prompt, and the 0666 socket QLocalServer
-    // bound stays unreachable while the containing directory is 0700 -- which is
-    // how systemd creates the global service's /run/treeland-debug.  Only
-    // Treeland's own directory is widened; a session instance's socket sits in
-    // $XDG_RUNTIME_DIR, which Qt requires to stay 0700 and which belongs to the
-    // caller anyway, so that call is a no-op there.
-    // Same judgement as the helper (canonical paths), made before the call so
-    // qt_error_string() still reports chmod's errno instead of a QFileInfo's.
-    const QString globalDir = QFileInfo(treelandDebugGlobalSocketDir()).canonicalFilePath();
-    const bool ownDir = !globalDir.isEmpty()
-        && QFileInfo(QFileInfo(m_debugSocketPath).absolutePath()).canonicalFilePath()
-            == globalDir;
-    if (!treelandDebugSetSocketAccess(m_debugSocketPath, true) && ownDir) {
-        qCWarning(lcTlDebug) << "Cannot open the debug socket to every user:"
+    // Same-UID access is sufficient for local development and needs no polkit.
+    // Keep the dev socket owner-only; the global Release no-auth policy is
+    // separate and remains explicitly requested over the debug protocol.
+    if (!treelandDebugSetSocketAccess(m_debugSocketPath, true)) {
+        qCWarning(lcTlDebug) << "Cannot set owner-only access on the debug socket:"
                              << m_debugSocketPath << ':' << qt_error_string();
     }
 #endif

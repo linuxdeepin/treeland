@@ -72,20 +72,19 @@ sudo cmake --install build --component treeland-debug
 
 The debug Remote Object is off by default: it hands out window contents and
 input injection, which a compositor running inside a user session must not offer
-unasked. `remoteDebug` is Treeland's master switch for it: while the switch is
-on, Treeland publishes its debug socket and
-serves the window tree remote source to whoever connects -- the source is a thin
-QObject that only does work per call, so it costs nothing when no client is
-attached. Turn the switch off to forbid debugging entirely; the socket then
-disappears too. Release builds keep the socket root-only (mode 0000). A debug
-build instead ignores the switch and opens the channel to every local user for
-good: its `-dev` socket is 0666 and the directory Treeland owns is widened to
-0711 at startup, so `treeland-debug` connects without a polkit prompt even when
-the compositor is the deb-installed global service running as its own user
-(`/run/treeland-debug/...`). The separate `-dev` name keeps such an instance
-apart from a release one. A session instance's socket sits in `$XDG_RUNTIME_DIR`,
-which stays 0700 like Qt requires, so there only its own user (and root)
-connects -- that user is the one debugging it anyway.
+unasked. `remoteDebug` is Treeland's master switch for it. While the switch is
+on, Treeland publishes its debug socket and serves the window tree remote source
+to clients that pass the socket's access checks -- the source is a thin QObject
+that only does work per call, so it costs nothing when no client is attached.
+Turn the switch off to forbid debugging entirely; the socket then disappears
+too. Release builds keep the socket root-only (mode 0000). A Debug development
+build instead ignores the switch and publishes its `-dev` socket in
+`/tmp/treeland-debug-<uid>` (directory mode 0700, socket mode 0600). Other
+unprivileged UIDs cannot reach the socket; root retains privileged access.
+Running the Debug client as that same UID needs no polkit prompt. The separate `-dev` name keeps such an instance apart from a
+release one. Release session instances use `$XDG_RUNTIME_DIR`, which stays 0700
+like Qt requires; Debug builds use their UID-specific `/tmp` directory even in
+user mode.
 
 The root restriction of a release build can be lifted for a while over the
 debug protocol itself: `treeland-debug no-auth` (the `requestNoAuth` method of
@@ -144,18 +143,19 @@ All commands below are run as the `dde` user, e.g.
 Treeland publishes the debug source on a local socket whose default name is
 `org.deepin.dde.treeland.debug`, bound at an absolute path in a directory of
 its own: `/run/treeland-debug/org.deepin.dde.treeland.debug` for the global
-service (`RuntimeDirectory=treeland-debug`), `/run/user/<uid>/...` (i.e.
-`$XDG_RUNTIME_DIR`) for a session. Nothing is put in `/tmp`, which is
-world-writable and where a `$TMPDIR`-resolved path is invisible to a client with
-a different `TMPDIR`. The global service's directory is created 0700 by systemd
-and is not its `$XDG_RUNTIME_DIR`, because the no-auth window widens it to 0711
-and Qt requires a runtime directory to stay 0700; `$TREELAND_DEBUG_DIR` overrides
-it for development. The socket is reachable by root, and by the compositor's own
-user in a debug build (0666).
-A `treeland-debug` client probes, in order, its own runtime directory, the
-global service's `/run/treeland-debug`, `/run/treeland` (where compositors from
-before the dedicated directory bound), and every `/run/user/<uid>` it may list
-(root only), because it cannot know the compositor's directory otherwise.
+Release service (`RuntimeDirectory=treeland-debug`) and `/run/user/<uid>/...`
+(i.e. `$XDG_RUNTIME_DIR`) for a Release session. Debug development builds use
+`/tmp/treeland-debug-<uid>/...` by default (directory mode 0700, socket mode
+0600), including in user mode; this avoids writing into the host's `/run`.
+`$TREELAND_DEBUG_DIR` explicitly overrides the development/test directory. The
+global Release directory is created 0700 by systemd and is not its
+`$XDG_RUNTIME_DIR`, because the no-auth window widens it to 0711 and Qt requires
+a runtime directory to stay 0700.
+
+Clients probe the Debug build's own dev directory first, then the shared global
+and legacy locations, then that client's own runtime directory. Debug clients
+do not enumerate other UIDs' runtime directories. Release root clients retain
+the search of every `/run/user/<uid>` directory they can list.
 When the name is already taken
 by another running treeland (global service, session service, local build),
 a numeric suffix is appended (`org.deepin.dde.treeland.debug-1`, `-2`, …),
@@ -166,8 +166,8 @@ and left alone.
 
 Debug builds use a distinct base name (`org.deepin.dde.treeland.debug-dev`)
 so a debug-compiled treeland can run alongside a release one. A debug-built
-treeland-debug client automatically prefers the debug instance and falls back
-to the release instance when the debug one is unreachable; a release-built
+treeland-debug client automatically prefers its own UID's dev instance and
+falls back to shared/release locations when it is unreachable; a release-built
 client uses the release instance. The socket is chosen in this order: `--url`,
 then `$TREELAND_DEBUG_SOCKET` (a socket path or a bare name, treated like
 `local:<value>`; a value with a scheme is used as-is), then the probing above.
