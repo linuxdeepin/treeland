@@ -6,6 +6,7 @@
 #include "core/rootsurfacecontainer.h"
 #include "lockscreen.h"
 #include "greeter/greeterproxy.h"
+#include "session/sessionmanager.h"
 #include "interfaces/lockscreeninterface.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "utils/cmdline.h"
@@ -16,9 +17,8 @@
 #include <wserver.h>
 
 #include <QDBusConnection>
-#include <QDBusObjectPath>
-#include <QDBusInterface>
-#include <QThreadPool>
+#include <QDBusMessage>
+#include <QDBusPendingCall>
 #include <QTimer>
 
 #include <utility>
@@ -32,17 +32,27 @@ LockScreenManager::LockScreenManager(WaylandServer *server)
     m_lockScreenGraceTimer->setInterval(300);
     m_lockScreenGraceTimer->setSingleShot(true);
 #endif
-    QDBusConnection::systemBus().connect(
-        "org.freedesktop.login1", "/org/freedesktop/login1",
-        "org.freedesktop.login1.Manager", "SessionNew",
-        this, SLOT(onSessionNew(QString,QDBusObjectPath)));
+    connect(server->sessionManager(), &SessionManager::sessionLock,
+            this, &LockScreenManager::onSessionLock);
+    connect(server->sessionManager(), &SessionManager::sessionUnlock,
+            this, &LockScreenManager::onSessionUnlock);
 }
 
 LockScreenManager::~LockScreenManager() = default;
 
 void LockScreenManager::setGreeterProxy(GreeterProxy *greeter)
 {
+#ifndef DISABLE_DDM
+    if (m_greeterProxy) {
+        disconnect(this, &LockScreenManager::sessionLockStateRequested, m_greeterProxy, nullptr);
+        disconnect(this, &LockScreenManager::sessionRelockRequested, m_greeterProxy, nullptr);
+    }
+#endif
     m_greeterProxy = greeter;
+#ifndef DISABLE_DDM
+    if (greeter)
+        greeter->bindLockScreenManager(this);
+#endif
 }
 
 void LockScreenManager::installSessionLock(WServer *server)
@@ -68,24 +78,47 @@ void LockScreenManager::handleLockScreen(LockScreenInterface *lockScreen)
     connect(lockScreen, &LockScreenInterface::switchUser, this, &LockScreenManager::showSwitchUser);
 }
 
-void LockScreenManager::onSessionNew(const QString &sessionId, const QDBusObjectPath &sessionPath)
+void LockScreenManager::onSessionLock(Session *session)
 {
-    const auto path = sessionPath.path();
-    qCDebug(lcTlCore) << "Session new, sessionId:" << sessionId << ", sessionPath:" << path;
-    QDBusConnection::systemBus().connect("org.freedesktop.login1", path, "org.freedesktop.login1.Session", "Lock", this, SLOT(onSessionLock()));
-    QDBusConnection::systemBus().connect("org.freedesktop.login1", path, "org.freedesktop.login1.Session", "Unlock", this, SLOT(onSessionUnlock()));
+#ifndef DISABLE_DDM
+    if (!session || !m_greeterProxy || !isLockScreenAvailable()
+        || m_server->sessionManager()->activeSession().lock().get() != session)
+        return;
+
+    const bool wasLocked = m_greeterProxy->isLocked();
+    m_server->prepareLockScreenTransition();
+    Q_EMIT sessionLockStateRequested(true);
+    if (!wasLocked)
+        requestSwitchToGreeter();
+#else
+    Q_UNUSED(session)
+#endif
 }
 
-void LockScreenManager::onSessionLock()
+void LockScreenManager::onSessionUnlock(Session *session)
 {
-    showLockScreen();
-}
+#ifndef DISABLE_DDM
+    if (!session || !m_greeterProxy)
+        return;
 
-void LockScreenManager::onSessionUnlock()
-{
-    if (m_lockScreen) {
-        m_lockScreen->unlock();
+    if (m_server->sessionManager()->activeSession().lock().get() != session) {
+        Q_EMIT sessionRelockRequested(session->id());
+        return;
     }
+
+    Q_EMIT sessionLockStateRequested(false);
+#else
+    Q_UNUSED(session)
+#endif
+}
+
+void LockScreenManager::requestSwitchToGreeter()
+{
+    const auto request = QDBusMessage::createMethodCall("org.freedesktop.DisplayManager",
+                                                       "/org/freedesktop/DisplayManager/Seat0",
+                                                       "org.freedesktop.DisplayManager.Seat",
+                                                       "SwitchToGreeter");
+    QDBusConnection::systemBus().asyncCall(request);
 }
 
 void LockScreenManager::onExtSessionLock(WSessionLock *lock)
@@ -171,15 +204,8 @@ void LockScreenManager::showLockScreen(bool switchToGreeter)
     m_server->prepareLockScreenTransition();
     m_lockScreen->lock();
 
-    if (switchToGreeter) {
-        QThreadPool::globalInstance()->start([]() {
-            QDBusInterface interface("org.freedesktop.DisplayManager",
-                                     "/org/freedesktop/DisplayManager/Seat0",
-                                     "org.freedesktop.DisplayManager.Seat",
-                                     QDBusConnection::systemBus());
-            interface.call("SwitchToGreeter");
-        });
-    }
+    if (switchToGreeter)
+        requestSwitchToGreeter();
 }
 
 bool LockScreenManager::isLockScreenAvailable() const

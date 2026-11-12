@@ -12,10 +12,10 @@
 #include "common/treelandlogging.h"
 #include "utils/cmdline.h"
 #include "lockscreen/lockscreen.h"
+#include "lockscreen/lockscreenmanager.h"
 
 // DDM
 #include <Login1Manager.h>
-#include <Login1Session.h>
 #include <Messages.h>
 #include <SocketWriter.h>
 
@@ -24,6 +24,8 @@
 #include <QCommandLineParser>
 #include <QDBusInterface>
 #include <QDBusPendingCall>
+#include <QDBusPendingCallWatcher>
+#include <QDBusPendingReply>
 #include <QDBusReply>
 #include <QDBusServiceWatcher>
 #include <QGuiApplication>
@@ -40,6 +42,8 @@
 #include <pwd.h>
 
 #include <QTimer>
+
+#include <string_view>
 
 using namespace DDM;
 
@@ -76,6 +80,28 @@ static bool localValidation(const QString &user, const QString &password)
     pam_end(pamh, retval);
 
     return retval == PAM_SUCCESS;
+}
+
+static bool isUserDesktopSession(const QString &id)
+{
+    const auto encodedId = id.toLocal8Bit();
+    const auto *sessionId = encodedId.constData();
+    if (sd_session_is_remote(sessionId) != 0)
+        return false;
+
+    char *type = nullptr;
+    char *sessionClass = nullptr;
+    const auto cleanup = qScopeGuard([&] {
+        free(type);
+        free(sessionClass);
+    });
+    if (sd_session_get_type(sessionId, &type) < 0 || std::string_view(type) != "wayland")
+        return false;
+    if (sd_session_get_class(sessionId, &sessionClass) < 0)
+        return false;
+
+    const std::string_view desktopClass(sessionClass);
+    return desktopClass == "user" || desktopClass == "user-early";
 }
 
 static inline UserModel *userModel()
@@ -189,7 +215,15 @@ void GreeterProxy::setShutdownMenuFocus(WaylandServer::ShutdownMenuFocus focus) 
     }
 }
 
-void GreeterProxy::setLock(bool isLocked)
+void GreeterProxy::bindLockScreenManager(LockScreenManager *manager)
+{
+    connect(manager, &LockScreenManager::sessionLockStateRequested,
+            this, &GreeterProxy::updateLockState, Qt::UniqueConnection);
+    connect(manager, &LockScreenManager::sessionRelockRequested,
+            this, &GreeterProxy::onSessionRelockRequested, Qt::UniqueConnection);
+}
+
+void GreeterProxy::updateLockState(bool isLocked)
 {
     if (isLocked && !m_isLocked) {
         m_isLocked = true;
@@ -265,7 +299,7 @@ void GreeterProxy::login(const QString &user, const QString &password, const int
     if (!m_socket->isValid()) {
         qCDebug(lcTlGreeter) << "Socket is not valid. Local password check.";
         if (localValidation(user, password)) {
-            setLock(false);
+            updateLockState(false);
         } else {
             Q_EMIT failedAttemptsChanged(++m_failedAttempts);
         }
@@ -290,7 +324,7 @@ void GreeterProxy::unlock(const QString &user, const QString &password)
     if (!m_socket->isValid()) {
         qCDebug(lcTlGreeter) << "Socket is not valid. Local password check.";
         if (localValidation(user, password)) {
-            setLock(false);
+            updateLockState(false);
         } else {
             Q_EMIT failedAttemptsChanged(++m_failedAttempts);
         }
@@ -317,18 +351,23 @@ void GreeterProxy::lock()
     auto session = WaylandServer::instance()->sessionManager()->activeSession().lock();
     if (!session || session->username() == "dde") {
         qCInfo(lcTlGreeter) << "Trying to lock when no user session active, show lockscreen directly.";
-        setLock(true);
+        updateLockState(true);
         return;
     }
     qCInfo(lcTlGreeter) << "Locking user" << session->username() << "with session id" << session->id();
     SocketWriter(m_socket) << quint32(GreeterMessages::Lock) << session->id();
 }
 
+void GreeterProxy::onSessionRelockRequested(const QString &id)
+{
+    SocketWriter(m_socket) << quint32(GreeterMessages::Lock) << id;
+}
+
 //////////////////////////////
 // Logind session listeners //
 //////////////////////////////
 
-void GreeterProxy::onSessionNew(const QString &id, [[maybe_unused]] const QDBusObjectPath &path)
+void GreeterProxy::onSessionNew(const QString &id, const QDBusObjectPath &path)
 {
     QByteArray sessionBa = id.toLocal8Bit();
     const char *session = sessionBa.constData();
@@ -349,55 +388,66 @@ void GreeterProxy::onSessionNew(const QString &id, [[maybe_unused]] const QDBusO
         return;
     }
 
-    if (strncmp(service, "ddm", 3) == 0) {
-        QString user = QString::fromLocal8Bit(username);
+    if (strncmp(service, "ddm", 3) == 0 && isUserDesktopSession(id)) {
+        const QString user = QString::fromLocal8Bit(username);
+        auto *sessions = WaylandServer::instance()->sessionManager();
+        const auto desktop = sessions->ensureSession(id, user);
+        if (!desktop || !desktop->subscribeLogind(path.path())) {
+            qCWarning(lcTlGreeter) << "Cannot bind logind path to new desktop:" << id << path.path();
+            return;
+        }
+
         qCInfo(lcTlGreeter) << "New session added: id=" << id << ", user=" << user;
         userModel()->updateUserLoginState(user, true);
 
-        // userLoggedIn signal is connected with WaylandServer::updateActiveUserSession
+        // Activate the desktop after its logind listeners are installed.
         Q_EMIT userModel()->userLoggedIn(user, id);
 
-        // Connect to Lock/Unlock signals
-        auto conn = QDBusConnection::systemBus();
-        conn.connect(Logind::serviceName(),
-                     path.path(),
-                     Logind::sessionIfaceName(),
-                     "Lock",
-                     this,
-                     SLOT(onSessionLock()));
-        conn.connect(Logind::serviceName(),
-                     path.path(),
-                     Logind::sessionIfaceName(),
-                     "Unlock",
-                     this,
-                     SLOT(onSessionUnlock()));
-
         if (userModel()->currentUserName() == user)
-            setLock(false);
+            updateLockState(false);
         syncHasActiveSession();
     }
 }
 
-void GreeterProxy::onSessionRemoved(const QString &id, [[maybe_unused]] const QDBusObjectPath &path)
+void GreeterProxy::restoreLogindPath(const QString &id)
 {
-    // Disconnect from Lock/Unlock signals, if any
-    auto conn = QDBusConnection::systemBus();
-    conn.disconnect(Logind::serviceName(),
-                    path.path(),
-                    Logind::sessionIfaceName(),
-                    "Lock",
-                    this,
-                    SLOT(onSessionLock()));
-    conn.disconnect(Logind::serviceName(),
-                    path.path(),
-                    Logind::sessionIfaceName(),
-                    "Unlock",
-                    this,
-                    SLOT(onSessionUnlock()));
+    const auto session = WaylandServer::instance()->sessionManager()->sessionForId(id);
+    if (!session || !session->logindPath().isEmpty())
+        return;
+    auto request = QDBusMessage::createMethodCall(Logind::serviceName(),
+        Logind::managerPath(), Logind::managerIfaceName(),
+        QStringLiteral("GetSession"));
+    request << id;
+    auto *watcher = new QDBusPendingCallWatcher(QDBusConnection::systemBus().asyncCall(request), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this,
+            [this, expected = std::weak_ptr<Session>(session)](QDBusPendingCallWatcher *reply) {
+                onLogindPathRestored(reply, expected);
+            });
+}
 
+void GreeterProxy::onLogindPathRestored(QDBusPendingCallWatcher *watcher,
+                                       const std::weak_ptr<Session> &expected)
+{
+    const QDBusPendingReply<QDBusObjectPath> reply = *watcher;
+    watcher->deleteLater();
+    const auto session = expected.lock();
+    if (!session || WaylandServer::instance()->sessionManager()->sessionForId(session->id()) != session
+        || !session->logindPath().isEmpty())
+        return;
+    if (reply.isError()) {
+        qCWarning(lcTlGreeter) << "Cannot restore logind path:" << session->id() << reply.error().message();
+        return;
+    }
+    if (isUserDesktopSession(session->id())
+        && !session->subscribeLogind(reply.value().path()))
+        qCWarning(lcTlGreeter) << "Cannot bind restored logind path:" << session->id() << reply.value().path();
+}
+
+void GreeterProxy::onSessionRemoved(const QString &id, const QDBusObjectPath &path)
+{
     auto *sessionManager = WaylandServer::instance()->sessionManager();
     auto session = sessionManager->sessionForId(id);
-    if (session) {
+    if (session && (session->logindPath().isEmpty() || session->logindPath() == path.path())) {
         QString username = session->username();
         qCInfo(lcTlGreeter) << "Session removed: id=" << id << ", user=" << username;
         const bool wasActive = sessionManager->activeSession().lock() == session;
@@ -407,7 +457,7 @@ void GreeterProxy::onSessionRemoved(const QString &id, [[maybe_unused]] const QD
         // as locked for one frame.
         syncHasActiveSession();
         if (wasActive)
-            setLock(true);
+            updateLockState(true);
     }
 }
 
@@ -433,57 +483,6 @@ void GreeterProxy::syncHasActiveSession()
         return;
     m_hasActiveSession = hasActiveSession;
     Q_EMIT hasActiveSessionChanged(hasActiveSession);
-}
-
-void GreeterProxy::onSessionLock()
-{
-    const QString path = message().path();
-    QThreadPool::globalInstance()->start([this, path] {
-        OrgFreedesktopLogin1SessionInterface session("org.freedesktop.login1",
-                                                     path,
-                                                     QDBusConnection::systemBus());
-        QString id = session.id();
-        qCInfo(lcTlGreeter) << "Lock signal received for session id:" << id;
-        auto activeSession = WaylandServer::instance()->sessionManager()->activeSession().lock();
-        if (!activeSession)
-            qCWarning(lcTlGreeter)
-                << "Lock signal received for non-exist session id:" << id << ", ignore.";
-        else if (activeSession->id() != id)
-            qCWarning(lcTlGreeter)
-                << "Lock signal received for non-active session id:" << id << ", ignore.";
-        else
-            QMetaObject::invokeMethod(this, [this] {
-                setLock(true);
-            });
-    });
-}
-
-void GreeterProxy::onSessionUnlock()
-{
-    const QString path = message().path();
-    QThreadPool::globalInstance()->start([this, path] {
-        OrgFreedesktopLogin1SessionInterface session("org.freedesktop.login1",
-                                                     path,
-                                                     QDBusConnection::systemBus());
-        QString id = session.id();
-        const QString username = session.name();
-        qCInfo(lcTlGreeter) << "Unlock signal received for session id:" << id;
-        auto activeSession = WaylandServer::instance()->sessionManager()->activeSession().lock();
-        if (!activeSession) {
-            qCWarning(lcTlGreeter)
-                << "Unlock signal received for non-exist session id:" << id << ", ignore.";
-        } else if (activeSession->id() != id) {
-            qCWarning(lcTlGreeter)
-                << "Unlock signal received for non-active session id:" << id << ", lock it back.";
-            QMetaObject::invokeMethod(this, [this, id] {
-                SocketWriter(m_socket) << quint32(GreeterMessages::Lock) << id;
-            });
-        } else {
-            QMetaObject::invokeMethod(this, [this] {
-                setLock(false);
-            });
-        }
-    });
 }
 
 ///////////////////////
@@ -667,14 +666,17 @@ void GreeterProxy::readyRead()
             if (!WaylandServer::instance()->activateUserSession(user, sessionId))
                 break;
 
+            restoreLogindPath(sessionId);
             qCInfo(lcTlGreeter) << "activate successfully: " << user << ", XDG_SESSION_ID: " << sessionId;
             syncHasActiveSession();
 
+            updateLockState(false);
+
             // DDM drives the direct login (autologin / unlock), so the greeter
-            // must hide unconditionally. onSessionNew's setLock(false) may never
+            // must hide unconditionally. onSessionNew's updateLockState(false) may never
             // fire (currentUserName mismatch / session service not "ddm"). When
             // still in the undecided state, the lock screen surface is visible
-            // (wallpaper) but not locked, so setLock(false) alone would no-op:
+            // (wallpaper) but not locked, so updateLockState(false) alone would no-op:
             // restore the desktop mode and hide the surface explicitly.
             if (m_undecided) {
                 m_undecided = false;
@@ -713,32 +715,7 @@ void GreeterProxy::readyRead()
                 Q_EMIT userModel()->userLoggedIn(user, sessionId);
                 // Logind does not report the session again after a crash recovery.
                 syncHasActiveSession();
-                QThreadPool::globalInstance()->start([this, sessionId] {
-                    // Connect to Lock/Unlock signals
-                    auto conn = QDBusConnection::systemBus();
-                    OrgFreedesktopLogin1ManagerInterface manager("org.freedesktop.login1",
-                                                                 Logind::managerPath(),
-                                                                 conn);
-                    auto reply = manager.GetSession(sessionId);
-                    reply.waitForFinished();
-                    if (!reply.isValid()) {
-                        qCWarning(lcTlGreeter) << "Failed to get session path for session id:" << sessionId << ", error:" << reply.error().message();
-                        return;
-                    }
-                    auto path = reply.value();
-                    conn.connect(Logind::serviceName(),
-                                 path.path(),
-                                 Logind::sessionIfaceName(),
-                                 "Lock",
-                                 this,
-                                 SLOT(onSessionLock()));
-                    conn.connect(Logind::serviceName(),
-                                 path.path(),
-                                 Logind::sessionIfaceName(),
-                                 "Unlock",
-                                 this,
-                                 SLOT(onSessionUnlock()));
-                });
+                restoreLogindPath(sessionId);
             } else {
                 qCWarning(lcTlGreeter) << "User " << user << " logged in but not found";
             }

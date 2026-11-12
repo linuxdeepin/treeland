@@ -65,6 +65,9 @@ public:
 
     DesktopEnvironment *desktop() const { return m_desktop; };
     const QString &id() const { return m_id; };
+    const QString &logindPath() const { return m_logindPath; }
+    bool subscribeLogind(const QString &path);
+    void unsubscribeLogind();
     uid_t uid() const { return m_uid; };
     const QString &username() const { return m_username; };
     WSocket *socket() const { return m_socket; };
@@ -101,6 +104,12 @@ public:
 Q_SIGNALS:
     void activeChanged(bool active);
     void aboutToBeDestroyed();
+    void lock(Session *session);
+    void unlock(Session *session);
+
+private Q_SLOTS:
+    void onLogindLock();
+    void onLogindUnlock();
 
 private:
     void beginShutdown();
@@ -127,6 +136,7 @@ private:
     TreelandUserConfig *m_config = nullptr;
     WSocket *m_socket = nullptr;
     QString m_id;
+    QString m_logindPath;
     uid_t m_uid = 0;
     QString m_username = {};
 #ifndef DISABLE_XWAYLAND
