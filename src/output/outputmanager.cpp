@@ -1538,7 +1538,7 @@ void OutputManager::testOrApplyConfiguration(WOutputManagerV1 *protocol,
     // are registered first (see the render pass at the end of this function):
     // a synchronous finish of the first output would otherwise answer the
     // client while later heads still have no job, swallowing their failures.
-    QList<WOutputViewport *> viewportsToRender;
+    QList<QPointer<WOutputViewport>> viewportsToRender;
 
     if (m_initialOutputScanFinished && !m_config->singleOutputId().isEmpty()) {
         const QString singleOutputId = m_config->singleOutputId();
@@ -1573,6 +1573,15 @@ void OutputManager::testOrApplyConfiguration(WOutputManagerV1 *protocol,
         }
     }
 
+    // The pre-check above rules out a missing viewport or renderWindow, but the
+    // setup failures below can still return while the jobs registered for the
+    // preceding heads are queued in their WOutputHelper. Those jobs stay queued
+    // until the output commits again, so m_inFlightOutputCommits keeps the group
+    // reconcile in applyOutputGroups() deferred until then, and the already
+    // answered heads still reach outputLayout::add() (or outputLayout::remove()
+    // for a head answered with enabled == false) when they do. Dropping the
+    // queued jobs instead needs a WOutputHelper API for it; until waylib grows
+    // one, answer and leave the jobs is the best available shape.
     // Commit in two phases: enable first, then disable, so the layout never
     // passes through a state where no output is enabled mid-transition.
     QList<WOutputState> orderedStates = states;
@@ -1687,10 +1696,21 @@ void OutputManager::testOrApplyConfiguration(WOutputManagerV1 *protocol,
         }
     }
 
-    for (auto *viewport : std::as_const(viewportsToRender)) {
-        if (auto *renderWindow = viewport->outputRenderWindow()) {
+    for (const auto &viewport : std::as_const(viewportsToRender)) {
+        if (!viewport) {
+            // The viewport was destroyed since its job was registered, so that
+            // job can no longer commit.
+        } else if (auto *renderWindow = viewport->outputRenderWindow()) {
             renderWindow->render(viewport, true);
+            continue;
+        } else {
+            qCWarning(lcTlCore) << "No renderWindow while rendering an output commit job"
+                                << viewport;
         }
+        // pendingCommits and m_inFlightOutputCommits both count this head and
+        // only handleOutputCommit() decrements them, so neither can reach 0 and
+        // the client would never get a result: answer here instead.
+        answerPendingConfiguration(false);
     }
 
     if (m_pendingOutputConfig.config == config && m_pendingOutputConfig.pendingCommits == 0) {
