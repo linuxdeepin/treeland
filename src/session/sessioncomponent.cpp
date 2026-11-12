@@ -26,6 +26,7 @@ void SessionComponent::setActive(bool active)
 {
     if (m_active == active)
         return;
+
     m_active = active;
     if (active)
         activate();
@@ -38,5 +39,8 @@ void SessionComponent::initializeActiveState()
     setActive(m_session->isActive());
 }
 
-void SessionComponent::activate() {}
-void SessionComponent::deactivate() {}
+void SessionComponent::activate()
+{}
+
+void SessionComponent::deactivate()
+{}

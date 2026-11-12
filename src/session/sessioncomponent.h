@@ -8,9 +8,7 @@
 #include <QtQml/qqmlregistration.h>
 
 class Session;
-Q_MOC_INCLUDE("session/session.h")
 
-// User-owned services receive their identity once, at construction.
 class SessionComponent : public QObject
 {
     Q_OBJECT
@@ -18,18 +16,11 @@ class SessionComponent : public QObject
     Q_PROPERTY(Session *session READ session CONSTANT FINAL)
 public:
     explicit SessionComponent(Session *session);
+
     Session *session() const;
     bool isActive() const;
 
 protected:
-    // A failed backend uses the generated defaults, rather than retaining the
-    // previous user's device state. Pending configs are never applied.
-    template<typename Config>
-    static bool configurationReady(Config *config)
-    {
-        return config->isInitializeSucceeded() || config->isInitializeFailed();
-    }
-
     void initializeActiveState();
     virtual void activate();
     virtual void deactivate();
