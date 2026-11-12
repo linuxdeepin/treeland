@@ -202,6 +202,17 @@ OutputItem {
                     wallpaper.state = showAnimation ? "ScaleTo1.2" : "ScaleWithoutAnimation"
                 }
             }
+
+            Connections {
+                target: WaylandServer.config
+                function onWallpaperPlaybackChanged() {
+                    if (GreeterProxy.isLocked) {
+                        return;
+                    }
+
+                    wallpaper.forcePlay(WaylandServer.config.wallpaperPlayback === "loop")
+                }
+            }
         }
     }
 
