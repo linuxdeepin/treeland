@@ -15,6 +15,7 @@ qt_add_qml_module(multitaskview
         multitaskview.cpp
     QML_FILES
         qml/MultitaskviewProxy.qml
+        qml/WindowHighlight.qml
         qml/WindowSelectionGrid.qml
         qml/WorkspaceSelectionList.qml
     RESOURCE_PREFIX
