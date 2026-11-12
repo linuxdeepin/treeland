@@ -295,6 +295,47 @@ If `file` is omitted a path under `/tmp` is generated.
 treeland-debug screenshot window 93824992268800
 ```
 
+### Damage diagnostics
+
+Damage diagnostics are controlled through `treeland-debug`; no logging
+environment variable is required.
+
+| Command | Description |
+| --- | --- |
+| `damage highlight on\|off` | Toggle the compositor's rendered damage overlay. |
+| `damage record <output> <directory>` | Record every committed frame from one output as PNG, with sidecar JSON containing the frame sequence, timestamp, buffer size, damage regions in buffer-pixel coordinates, and capture error (if any). |
+| `damage stop` | Stop an active recording from another `treeland-debug` process. |
+
+The recorder reads the output buffer synchronously after each committed render
+so that image pixels correspond to the recorded frame rather than a later
+compositor state. This intentionally stalls rendering while recording; use it
+for short diagnostic captures. It records the fully composited output (including
+blur), not each client's source `wl_buffer`. Start with an empty or new
+directory; existing non-empty directories are rejected to prevent overwrites.
+`Ctrl+C` stops the recorder. If its client disconnects or stops sending
+keepalives, the compositor also stops recording within five seconds.
+
+Each `frame-NNNNNNNN.json` sidecar has:
+
+- `flushDamage`: `full` plus the flush damage rectangles mapped to buffer pixels.
+- `renderDamage`: `full` plus the render damage rectangles mapped to buffer pixels.
+- `damageCoordinateSpace`: `bufferPixels`; rectangle coordinates align with the PNG.
+- `bufferSize`, `timestampMs`, `sequence`, `output`, and `captureError`.
+
+The image is named `frame-NNNNNNNN.png`; when readback fails, the sidecar is
+still saved with the error and no PNG. Compare successive PNGs to inspect
+visible output changes, and compare the sidecar regions with the pixels that
+changed. The recorder preserves every committed frame in sequence; the
+synchronous readback is deliberately intrusive and is not a performance
+benchmark.
+
+```bash
+treeland-debug damage highlight on
+treeland-debug damage record DP-1 /tmp/treeland-damage
+# Reproduce the issue, then press Ctrl+C.
+treeland-debug damage highlight off
+```
+
 ### Shortcut monitoring
 
 `events` also carries the shortcut stream, so `treeland-debug events` is the
@@ -337,10 +378,11 @@ line is the *non-shell* mode.
 treeland-debug listen [--port <port>] [--host <addr>]
 ```
 
-Starts an HTTP + WebSocket server (default `0.0.0.0:8080`) that exposes every
-CLI capability over the network — intended as the backend for a browser-based
-graphical debugger. All data is returned through the API: screenshots come back
-as `image/png` response bytes, not files on disk.
+Starts an HTTP + WebSocket server (default `0.0.0.0:8080`) that exposes many
+CLI capabilities over the network — intended as the backend for a browser-based
+graphical debugger. Damage frame recording is CLI-only because it streams
+frames to local files. All screenshot data is returned through the API as
+`image/png` response bytes, not files on disk.
 
 Each HTTP request (and each WebSocket one-shot command) creates its own
 short-lived session that connects to the compositor, performs the operation,

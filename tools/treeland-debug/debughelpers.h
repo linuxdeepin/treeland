@@ -80,6 +80,9 @@ enum class DebugCommand {
     Events,
     Watch,
     Scene,
+    DamageHighlight,
+    DamageRecord,
+    DamageStop,
     NoAuth,
     Listen,
     Unknown,
@@ -118,6 +121,7 @@ struct ParseResult
     // Screenshot: output name and file path.
     QString outputName;
     QString filePath;
+    // Damage tools: record output name, destination directory, or on/off.
 
     // Live commands: polling interval in milliseconds.
     int intervalMs = 0;

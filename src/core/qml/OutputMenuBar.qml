@@ -131,6 +131,24 @@ Item {
             }
 
             ToolButton {
+                text: "Damage"
+                onClicked: damageMenu.popup()
+
+                Menu {
+                    id: damageMenu
+
+                    MenuItem {
+                        text: "Off"
+                        onClicked: WaylandServer.setDamageVisual("off")
+                    }
+                    MenuItem {
+                        text: "Highlight"
+                        onClicked: WaylandServer.setDamageVisual("highlight")
+                    }
+                }
+            }
+
+            ToolButton {
                 text: "Output"
 
                 onClicked: outputMenu.popup()

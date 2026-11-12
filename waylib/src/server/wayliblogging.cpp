@@ -40,6 +40,7 @@ Q_LOGGING_CATEGORY(lcWlRenderer, "waylib.renderer", QtDebugMsg)
 #else
 Q_LOGGING_CATEGORY(lcWlRenderer, "waylib.renderer", QtWarningMsg)
 #endif
+Q_LOGGING_CATEGORY(lcWlDamage, "waylib.renderer.damage", QtWarningMsg) // Scene damage tracker, blitter recopy, flush
 Q_LOGGING_CATEGORY(lcWlBufferItem, "waylib.qtquick.bufferitem", QtInfoMsg) // Buffer item commit and damage
 
 // Utils

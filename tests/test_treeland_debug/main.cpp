@@ -149,6 +149,13 @@ private Q_SLOTS:
     void testParseScreenshotWindowTooFewArgs();
     void testParseScreenshotWindow();
     void testParseScreenshotWindowWithFile();
+    // --- parseCommand: damage diagnostics ---
+    void testParseDamageMissingSubcommand();
+    void testParseDamageHighlight();
+    void testParseDamageHighlightInvalid();
+    void testParseDamageRecord();
+    void testParseDamageRecordRequiresOutputAndDirectory();
+    void testParseDamageStop();
 
     // --- parseCommand: live commands (top/events/watch) ---
     void testParseTopDefault();
@@ -1545,6 +1552,56 @@ void TreelandDebugTest::testParseScreenshotWindowWithFile()
     QCOMPARE(r.command, DebugCommand::ScreenshotWindow);
     QCOMPARE(r.target, QStringLiteral("42"));
     QCOMPARE(r.filePath, QStringLiteral("/tmp/win.png"));
+}
+
+// ---------------------------------------------------------------------------
+// parseCommand: damage diagnostics
+// ---------------------------------------------------------------------------
+
+void TreelandDebugTest::testParseDamageMissingSubcommand()
+{
+    const auto r = parseCommand(QStringLiteral("damage"), {});
+    QVERIFY(!r.ok);
+}
+
+void TreelandDebugTest::testParseDamageHighlight()
+{
+    const auto r = parseCommand(QStringLiteral("damage"),
+                                {QStringLiteral("highlight"), QStringLiteral("on")});
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::DamageHighlight);
+    QCOMPARE(r.action, QStringLiteral("on"));
+}
+
+void TreelandDebugTest::testParseDamageHighlightInvalid()
+{
+    const auto r = parseCommand(QStringLiteral("damage"),
+                                {QStringLiteral("highlight"), QStringLiteral("sometimes")});
+    QVERIFY(!r.ok);
+}
+
+void TreelandDebugTest::testParseDamageRecord()
+{
+    const auto r = parseCommand(QStringLiteral("damage"),
+                                {QStringLiteral("record"), QStringLiteral("DP-1"),
+                                 QStringLiteral("/tmp/damage")});
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::DamageRecord);
+    QCOMPARE(r.outputName, QStringLiteral("DP-1"));
+    QCOMPARE(r.filePath, QStringLiteral("/tmp/damage"));
+}
+
+void TreelandDebugTest::testParseDamageRecordRequiresOutputAndDirectory()
+{
+    QVERIFY(!parseCommand(QStringLiteral("damage"),
+                          {QStringLiteral("record"), QStringLiteral("DP-1")}).ok);
+}
+
+void TreelandDebugTest::testParseDamageStop()
+{
+    const auto r = parseCommand(QStringLiteral("damage"), {QStringLiteral("stop")});
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::DamageStop);
 }
 
 // ---------------------------------------------------------------------------

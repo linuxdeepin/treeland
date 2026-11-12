@@ -19,6 +19,9 @@
 #include <woutput.h>
 #include <wsurface.h>
 #include <wsurfaceitem.h>
+#include <private/wbufferrenderer_p.h>
+#include <private/woutputviewport_p.h>
+#include <wbufferdumper.h>
 #include <woutputrenderwindow.h>
 #include <wseat.h>
 #include <wserver.h>
@@ -50,6 +53,9 @@
 #include <QStringList>
 #include <QTimer>
 #include <QUrl>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 #include "treelanddebugsocket.h"
 #include "common/treelandlogging.h"
@@ -119,6 +125,13 @@ QByteArray encodeImage(const QImage &image)
     if (!image.save(&buffer, "png"))
         return {};
     return bytes;
+}
+QJsonArray regionRects(const QRegion &region)
+{
+    QJsonArray result;
+    for (const QRect &rect : region)
+        result.append(QJsonArray{rect.x(), rect.y(), rect.width(), rect.height()});
+    return result;
 }
 
 // Recursively searches a QQuickItem subtree for the first surface content
@@ -280,6 +293,7 @@ TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
 TreelandRemoteSource::~TreelandRemoteSource()
 {
     stopEventCapture();
+    clearDamageRecording();
     // The window may still be open (remoteDebug turned off, or shutdown): seal it
     // now instead of leaving it to the timer.  No rebinding here -- the host is
     // destroyed below, which drops every peer anyway.
@@ -1120,6 +1134,141 @@ void TreelandRemoteSource::captureOutput(QString outputName)
         Q_EMIT captureResult(bytes);
     });
     watcher->setFuture(capturer->grabToImage());
+}
+bool TreelandRemoteSource::startDamageRecording(QString outputName)
+{
+    noteActivity();
+    auto *root = WaylandServer::instance()->rootSurfaceContainer();
+    if (!root || outputName.isEmpty())
+        return false;
+
+    Output *selected = nullptr;
+    for (auto *output : root->outputs()) {
+        if (output && output->screenViewport()
+            && (output->getOutputId() == outputName
+                || (output->output() && output->output()->name() == outputName))) {
+            selected = output;
+            break;
+        }
+    }
+    if (!selected)
+        return false;
+
+    clearDamageRecording();
+    m_damageRecording = true;
+    m_damageRecordingOutput = selected->output()->name();
+    m_damageRecordingSequence = 0;
+    if (!m_damageRecordingIdleTimer) {
+        m_damageRecordingIdleTimer = new QTimer(this);
+        m_damageRecordingIdleTimer->setSingleShot(true);
+        connect(m_damageRecordingIdleTimer, &QTimer::timeout, this,
+                [this] { clearDamageRecording(); });
+    }
+    m_damageRecordingIdleTimer->start(5000);
+
+    auto *window = WaylandServer::instance()->window();
+    m_damageRenderConnection = connect(
+        window, &WOutputRenderWindow::renderEnd, this,
+        [this, window](const QList<QPointer<WOutput>> &committedOutputs) {
+            if (!m_damageRecording)
+                return;
+            auto *root = WaylandServer::instance()->rootSurfaceContainer();
+            if (!root)
+                return;
+            for (auto *output : root->outputs()) {
+                if (!output || !output->output()
+                    || output->output()->name() != m_damageRecordingOutput)
+                    continue;
+                bool committed = false;
+                for (const auto &candidate : committedOutputs) {
+                    if (candidate == output->output()) {
+                        committed = true;
+                        break;
+                    }
+                }
+                if (!committed)
+                    return;
+
+                auto *viewport = output->screenViewport();
+                auto *bufferRenderer = viewport
+                    ? WOutputViewportPrivate::get(viewport)->bufferRenderer
+                    : nullptr;
+                if (!bufferRenderer)
+                    return;
+
+                const quint64 sequence = ++m_damageRecordingSequence;
+                QImage image;
+                const auto result = WBufferDumper::dumpBufferToImage(
+                    bufferRenderer->lastBuffer(), window->renderer(), image);
+                const QByteArray png = result == WBufferDumper::DumpResult::Success
+                    ? encodeImage(image) : QByteArray();
+                const QSize bufferSize = bufferRenderer->pixelSize();
+                const QRect bufferRect(QPoint(), bufferSize);
+                const auto bufferDamageRects = [bufferRenderer, bufferRect](const WDamageRegion &damage) {
+                    WPixmanRegion bufferDamage = damage.isFull
+                        ? WPixmanRegion(bufferRect)
+                        : damage.region.mappedOuter(bufferRenderer->sceneToBufferTransform());
+                    bufferDamage &= bufferRect;
+                    return regionRects(bufferDamage.toQRegion());
+                };
+                const auto &flush = bufferRenderer->lastFlushRegion();
+                const auto &render = bufferRenderer->lastRenderRegion();
+                const QJsonObject metadata {
+                    {QStringLiteral("output"), m_damageRecordingOutput},
+                    {QStringLiteral("sequence"), static_cast<qint64>(sequence)},
+                    {QStringLiteral("timestampMs"), QDateTime::currentMSecsSinceEpoch()},
+                    {QStringLiteral("bufferSize"), QJsonArray{bufferSize.width(), bufferSize.height()}},
+                    {QStringLiteral("damageCoordinateSpace"), QStringLiteral("bufferPixels")},
+                    {QStringLiteral("captureError"),
+                     result == WBufferDumper::DumpResult::Success
+                         ? QString() : WBufferDumper::dumpResultToString(result)},
+                    {QStringLiteral("flushDamage"),
+                     QJsonObject{{QStringLiteral("full"), flush.isFull},
+                                 {QStringLiteral("rects"), bufferDamageRects(flush)}}},
+                    {QStringLiteral("renderDamage"),
+                     QJsonObject{{QStringLiteral("full"), render.isFull},
+                                 {QStringLiteral("rects"), bufferDamageRects(render)}}}
+                };
+                Q_EMIT damageFrame(m_damageRecordingOutput, sequence, png,
+                                   QJsonDocument(metadata).toJson(QJsonDocument::Compact));
+                return;
+            }
+        });
+    return true;
+}
+
+bool TreelandRemoteSource::stopDamageRecording()
+{
+    noteActivity();
+    clearDamageRecording();
+    return true;
+}
+
+void TreelandRemoteSource::clearDamageRecording()
+{
+    if (m_damageRecordingIdleTimer)
+        m_damageRecordingIdleTimer->stop();
+    disconnect(m_damageRenderConnection);
+    m_damageRecording = false;
+    m_damageRecordingOutput.clear();
+}
+
+void TreelandRemoteSource::keepDamageRecordingAlive()
+{
+    noteActivity();
+    if (m_damageRecording && m_damageRecordingIdleTimer)
+        m_damageRecordingIdleTimer->start(5000);
+}
+
+bool TreelandRemoteSource::setDamageHighlight(bool enabled)
+{
+    noteActivity();
+    auto *window = WaylandServer::instance()->window();
+    if (!window)
+        return false;
+    window->setDamageVisual(enabled ? WOutputRenderWindow::DamageVisual::Highlight
+                                    : WOutputRenderWindow::DamageVisual::Off);
+    return true;
 }
 
 void TreelandRemoteSource::captureWindow(qint64 id)
