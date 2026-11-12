@@ -30,30 +30,30 @@ treeland 既可作为 Release 服务运行，也可作为开发中的构建运�
 - **用户模式**：按用户启动，行为类似普通窗口管理器。
 - **开发（dev）构建、嵌套运行**：正在开发的版本通常**不是**已安装的发行版，而是从工作树构建、作为**当前用户身份**的独立进程，嵌套在已有 Wayland 或 X11 会话里。见下一节。
 
-调试 Remote Object 的本地 socket 权限按构建类型不同：Release 构建是 0000（只有 root 连得上），Debug 构建是 0666，且当它位于 Treeland 自己的全局目录（`/run/treeland-debug`）时，启动会把该目录开到 0711 —— 所以 Debug 构建对本机任何用户开放，**不需要**与合成器同一用户（会话实例的 socket 在 `$XDG_RUNTIME_DIR`，那里不放宽，仍只有该用户 + root）。因此：
+调试 Remote Object 的 socket 权限按构建类型不同：Release 构建默认 0000（只有 root 连得上）；Debug dev socket 默认 0600，仅合成器所属 UID 的普通进程可访问（root 仍保留特权访问）。全局 Release 服务使用 `/run/treeland-debug`，Release 会话模式使用 `$XDG_RUNTIME_DIR`；Debug dev 构建默认使用 `/tmp/treeland-debug-<uid>`（目录 0700，不污染宿主 `/run`）。同 UID 的本地 Debug 客户端无需 polkit。
 
-- 全局服务（以 `dde` 运行、Release 构建）→ 直接运行 `treeland-debug`，它会通过 polkit 自动提权到 root（root 可访问任何用户的 socket，不需要手动加用户前缀）。
-- 嵌套的 dev 实例（以你的身份运行、Debug 构建）→ 在自己会话里以**当前用户**运行，不加前缀；别的本机用户也能直接连。
+- 全局 Release 服务（以 `dde` 运行）→ 直接运行 `treeland-debug`，它会通过 polkit 自动提权到 root。
+- 嵌套 Debug 实例（以你的身份运行）→ 在自己的会话里运行本地 Debug 客户端；其他候选目录与 Release fallback 保持原有顺序。
 
 ### 访问控制
 `treeland-debug` 按构建类型限制使用者：
 
 - **Release 构建** —— 只有 `root` 能运行 `treeland-debug`：客户端先以自身身份连接，连不上才通过 `pkexec`（polkit）重新执行并提示认证。传 `--no-escalate` 可跳过提示、直接失败（脚本或 CI 中常用）。随包安装 polkit 策略以保证开箱即用：源文件 `misc/polkit/org.deepin.dde.treeland-debug.policy.in`，安装为 `org.deepin.dde.treeland-debug.policy`。
-- **Debug 构建**（`TREELAND_DEBUG_DEV_BUILD`）—— 不限制、也不弹认证：`-dev` socket 是 0666，且当它位于 Treeland 自己的目录（`/run/treeland-debug`，systemd 以 0700 创建）时，启动会把该目录开到 0711，所以 deb 安装的 debug 合成器即使以别的用户运行，本机任何用户都能直接连。会话实例的 socket 在 `$XDG_RUNTIME_DIR`，那里不放宽，仍是该用户 + root。
+- **Debug 构建**（`TREELAND_DEBUG_DEV_BUILD`）—— 不弹认证：默认 `-dev` socket 位于 `/tmp/treeland-debug-<uid>`（目录 `0700`，socket `0600`），仅当前 UID 的普通进程可访问（root 除外）；`treeland-debug` 优先探测自己的 dev socket。显式 `TREELAND_DEBUG_DIR` 可覆盖服务端目录。
 
 临时放开 Release 构建的 root 限制用调试协议本身完成：`treeland-debug no-auth`（`WindowTreeRemote` 的 `requestNoAuth` 方法）请求 treeland 把 socket 置为 0666、它自己的调试目录置为 0711（可穿越不可列目录；该目录之后就保持 0711，因为多个实例可能共用它，收窗只把 socket 收回 0000），之后任意本机用户都能直接连上、不弹认证。发请求的必须是已经穿过 0000 socket 的调用者——Release 构建里那只有 root（0000 连合成器用户自己也挡住，只有 `CAP_DAC_OVERRIDE` 能过），这次连接本身就是鉴权。窗口 30 分钟后自动关闭，期间每次远程调用（包括 `cursor` 的属性读取）都会重新推后 30 分钟；关闭时窗口期内建立的连接也被一并断开（重建 host），所以挂着一个客户端并不能把窗口留住。该窗口只对全局服务生效（放宽的是它自己的 `/run/treeland-debug`，不是 `$XDG_RUNTIME_DIR`）；会话模式下 Treeland 位于 `/run/user/<uid>`，那里同时放着会话总线等其它 socket，因此不放宽、`no-auth` 会失败、仍需 root。
 
-因为 root 可访问任何用户的 socket，Release 构建无需 `sudo -u dde` 前缀即可连到全局 `dde` 服务。Debug 构建的全局目录已对本机所有用户开放，同样不需要换用户；会话实例仍只有它自己的用户 + root 能连。
+root 可访问任何用户的 Release socket；Debug dev socket 默认只允许所属 UID 的普通进程访问。Debug 客户端仍可按顺序探测共享的全局/legacy socket 和自己的 runtime socket，不枚举其他 UID 的 runtime 目录。
 
 ### 调试 socket 命名
-调试 Remote Object 把本地 socket 绑定在合成器自己的目录里的绝对路径上 —— 不是 `/tmp`：那里任何用户可写，且按 `$TMPDIR` 解析的路径在 `$TMPDIR` 不同的客户端眼里不可见。全局服务是 `/run/treeland-debug/org.deepin.dde.treeland.debug`（`RuntimeDirectory=treeland-debug`，systemd 以 0700 创建；刻意不用 `$XDG_RUNTIME_DIR`，因为免鉴权窗口会把它开到 0711，而 Qt 要求 runtime 目录保持 0700，否则新会话的 wayland socket 会落到 `$TMPDIR`；开发时可用 `$TREELAND_DEBUG_DIR` 覆盖），会话模式是 `/run/user/<uid>/...`。socket 只对 root 可达；Debug 构建是 0666，且全局服务那个目录会被开到 0711（会话目录不放宽），所以本机任何用户都能直接连。客户端无法从自身环境得知合成器的目录，因此按顺序探测：自己的 runtime 目录 → `/run/treeland-debug` → `/run/treeland`（老版本全局服务）→ 它能列出的每个 `/run/user/<uid>`（仅 root）。基础名按构建类型区分：
+调试 Remote Object 的本地 socket 按构建类型放置：全局 Release 服务使用 `/run/treeland-debug/...`；Release 会话模式使用 `/run/user/<uid>/...`；Debug 构建（包括 user mode）默认使用 `/tmp/treeland-debug-<uid>/...`（目录 `0700`、socket `0600`），避免把本地开发实例写入宿主 `/run`。`TREELAND_DEBUG_DIR` 是显式开发/测试覆盖项。Debug 客户端先探测自己的 dev socket，再探测共享的 global/legacy 位置和自己的 runtime 目录；不会搜索其他 UID 的 runtime 目录，并保留 Release socket 回退。
+
+基础名：
 
 - **Release 构建**：`org.deepin.dde.treeland.debug`
 - **Debug 构建**：`org.deepin.dde.treeland.debug-dev`
 
-名字已被其他实例占用时，会追加数字后缀（`-1`、`-2`，…，最多到 `-99`），通过非阻塞 `flock` 建议锁选取 —— 与 libwayland 处理 Wayland socket 的方式一致（`src/modules/resource/treelanddebugsocket.*`）。这意味着**多个 treeland 实例可以共存**（全局服务 + 会话服务 + 嵌套 dev 构建）而不冲突，不再需要停掉其中一个才能运行另一个。崩溃实例留下的陈旧 socket 文件会被自动回收。
-
-**Debug 构建**的 `treeland-debug` 客户端会自动优先用调试 socket（`…debug-dev`），调试实例不可达时回退到 Release socket（`…debug`）；**Release 构建**的客户端使用 Release socket。显式 `--url` 永远覆盖以上逻辑，不做任何隐式处理。
+名字冲突时追加数字后缀（`-1`…`-99`），通过非阻塞 `flock` 选择，避免覆盖另一个实例的 socket。
 
 ## 调试开发（dev）构建
 当问题出在当前正在开发的版本上，你以当前用户身份把该构建作为独立进程、嵌套在已有 Wayland 或 X11 会话里运行：
@@ -68,7 +68,7 @@ WLR_BACKENDS=x11 ./build/src/treeland.sh
 `treeland.sh` 包装 `treeland`（在 `dri2` 失败时回退到 pixman 软件渲染，与 service 行为一致）。调试该实例时：
 
 - **debug source**：Release 构建默认关闭（会话级运行时不默认暴露窗口内容与输入注入），先 `treeland-debug debug on` 打开；**Debug 构建始终开启、不看开关**，直接跑 `treeland-debug` 即可。
-- **不需要 `sudo -u dde`**：以**当前用户**运行 `treeland-debug`，与实例处于同一会话。Debug 构建的 socket 对本机所有用户开放，默认就连到你自己的实例。
+- **不需要 `sudo -u dde`**：以**当前用户**运行 `treeland-debug`，与实例处于同一会话。Debug dev socket 仅当前 UID 可访问，同 UID 连接无需 polkit。
 - **日志进终端，不进 journalctl**：treeland 的 stdout/stderr（Qt 分类日志）落在你启动它的地方。在该进程环境里设置 `QT_LOGGING_RULES`；Release 构建可传 `--console-log` 强制开启控制台日志（Debug 构建总是输出到控制台）。
 - **与全局服务无 socket 冲突**：Debug 构建使用独立的 `-dev` socket 名，并对并发实例自动加后缀（见上面的 socket 命名），因此嵌套 dev 实例与全局 `treeland.service` 可以共存 —— 不必停掉后者。Debug 构建的 `treeland-debug` 默认优先连你的 dev 实例。
 
@@ -96,9 +96,9 @@ dde-dconfig -u <uid> set -a org.deepin.dde.treeland -r org.deepin.dde.treeland -
 切换 `remoteDebug` **立即生效** —— remote source 会在运行时被创建或销毁，无需重启（合成器运行时监听 `remoteDebugChanged`）。`treeland-debug` 连接的是构建类型对应的调试 socket（见上面的 socket 命名），remote object 名为 `WindowTree`。
 
 ## treeland-debug CLI
-`treeland-debug` 是 adb 风格的检查/控制工具。两种模式：一次性 `treeland-debug <cmd> [args]` 与 REPL `treeland-debug shell`。Release 构建中它会通过 polkit 自动提权到 root；Debug 构建中不限制使用者（`-dev` socket 是 0666、全局目录启动即开到 0711，本机任何用户都可直接连）。`--json` 为 `tree`/`cursor`/`windows`/`clients`/`idle` 提供机器可读输出。
+`treeland-debug` 是 adb 风格的检查/控制工具。Release 构建中它会通过 polkit 自动提权；Debug 构建不改变现有连接候选顺序，只把 `/tmp/treeland-debug-<uid>` 放在优先位置，并保留 Release socket 回退。`--json` 为 `tree`/`cursor`/`windows`/`clients`/`idle` 提供机器可读输出。
 
-全局选项：`--url <url>`（优先级最低的是自动探测：构建类型对应的 socket，Debug 构建优先调试 socket 再回退到 Release socket）、`--name <name>`（默认 `WindowTree`）、`--timeout-ms <n>`（默认 30000）、`--json`、`--preview` / `--no-preview`（终端内联图片预览，默认自动探测）。socket 的选择顺序：`--url` → `$TREELAND_DEBUG_SOCKET` → 自动探测。`TREELAND_DEBUG_SOCKET` 取 socket 路径或裸名（等价 `local:<值>`），带 scheme 的值原样使用；`--url` / 环境变量都是原样使用、不做隐式处理（指定某个实例、或连旧版留在 `/tmp` 的 socket 时用它们）。
+全局选项：`--url <url>`（优先级最低的是自动探测；Debug 构建先探测 `/tmp/treeland-debug-<uid>`，再走原有系统与 runtime 目录及 Release fallback）、`--name <name>`（默认 `WindowTree`）、`--timeout-ms <n>`（默认 30000）、`--json`、`--preview` / `--no-preview`。socket 选择顺序：`--url` → `$TREELAND_DEBUG_SOCKET` → 自动探测。`TREELAND_DEBUG_SOCKET` 取 socket 路径或裸名（等价 `local:<值>`），带 scheme 的值原样使用。
 
 ### 开关
 `treeland-debug debug [on|off|status]` —— 读写 `remoteDebug` 总开关（Release 默认关、Debug 构建忽略它，见上面「启用 debug source」）。它是唯一不需要调试 socket 的命令（socket 本来就是它开出来的），开关按用户存放，所以合成器不是以你的身份运行时它会自己走 `pkexec`；`--no-escalate` 只报告需要提权。REPL 里不能提权，需以一次性命令运行。
@@ -219,7 +219,7 @@ sudo journalctl -u treeland.service -f
 **怀疑客户端问题：** 用 `treeland-debug clients` 查客户端 pid；确认它确实在与合成器通信（`windows` 存在、`frames` 在递增）。冻结的客户端会表现为 `frames` 不再推进。
 
 ## 规则
-- Release 构建中 `treeland-debug` 会通过 polkit 自动提权到 root（root 可访问任何用户的 socket），因此不需要手动加用户前缀。Debug 构建中不限制、也不需要认证：`-dev` socket 是 0666，全局目录启动即开到 0711，本机任何用户都能直接连（会话实例仍只有该用户 + root）。传 `--no-escalate` 可在脚本/CI 中跳过 polkit 提权。
+- Release 构建中 `treeland-debug` 会通过 polkit 自动提权到 root（root 可访问任何用户的 socket）。Debug dev socket 为 `0600`、目录为 `0700`，仅当前 UID 可访问且同 UID 连接无需认证；Debug 客户端只探测自己的 runtime 目录，不枚举其他 UID 的 session socket。传 `--no-escalate` 可在脚本/CI 中跳过 polkit 提权。
 - 需要解析的状态用 `--json`；控制窗口前先用 `windows`/`clients`/`top` 查到稳定的窗口 id。
 - 截图是强证据：布局 `tree` 正确但图像不对，问题在渲染/QtQuick 场景，不在布局。
 - 优先修根因；实时工具用于观察与复现，不能替代阅读拥有该状态的那段代码路径。
