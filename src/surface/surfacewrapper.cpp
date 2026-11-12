@@ -91,6 +91,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
 SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     : QQuickItem(parent)
     , m_engine(original->m_engine)
+    , m_session(original->m_session) // Borrow preferences without registering another window.
     , m_shellSurface(original->m_shellSurface)
     , m_type(original->m_type)
     , m_positionAutomatic(true)
@@ -272,7 +273,7 @@ bool SurfaceWrapper::geometryAnimationEnabled(State state) const
 void SurfaceWrapper::invalidate()
 {
     Q_ASSERT_X(!m_wrapperAboutToRemove, Q_FUNC_INFO, "Can't call `invalidate` twice!");
-    if (m_session)
+    if (m_session && !m_isProxy)
         m_session->unregisterWindow(this);
     m_wrapperAboutToRemove = true;
     Q_EMIT aboutToBeInvalidated();
@@ -2400,8 +2401,10 @@ void SurfaceWrapper::updateFrameGeometry()
             connect(item, &QQuickItem::heightChanged, this, &SurfaceWrapper::updateFrameGeometry);
         }
     }
-    // graphicsApi() reports the RHI API even when the software scene graph is active.
-    const bool rounded = m_decoration && m_visibleDecoration && !m_noCornerRadius
+    // Static QQuickWindow::graphicsApi() can report the RHI API for the software scene graph.
+    // Proxies round on the radius alone: a client-side decorated source has no decoration
+    // item, but its thumbnail still needs a frame to clip the scaled content.
+    const bool rounded = (m_decoration || m_isProxy) && m_visibleDecoration && !m_noCornerRadius
         && QQuickWindow::sceneGraphBackend() != QStringLiteral("software");
     const FrameGeometry geometry(QRectF(QPointF(), item ? item->size() : QSizeF()),
                                  rounded ? radius() : 0);
@@ -2423,7 +2426,8 @@ qreal SurfaceWrapper::radius() const
     qreal radius = m_radius;
     // m_radius > 1 means radius was explicitly set via Personalization protocol;
     // m_radius <= 1 means no per-window override, fall back to DConfig.
-    if (radius < 1 && m_type != Type::Layer) {
+    // Proxies receive an explicit display radius, including zero.
+    if (radius < 1 && m_type != Type::Layer && !m_isProxy) {
         radius = (desktop() ? desktop()->config()->windowRadius() : 0);
     }
 

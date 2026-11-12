@@ -233,14 +233,14 @@ Item {
                         opacity: paddingOpacity
                     }
 
-                    Rectangle {
-                        border.color: "blue"
+                    WindowHighlight {
+                        frameRadius: surfaceProxy.effectiveRadius
+                        padded: surfaceItemDelegate.needPadding
+                        paddingRadius: paddingRect.radius
                         border.width: WaylandServer.config.highlightBorderWidth
                         visible: highlighted
                         anchors.margins: -WaylandServer.config.highlightBorderWidth
                         anchors.fill: parent
-                        color: "transparent"
-                        radius: delegateCornerRadius + WaylandServer.config.highlightBorderWidth
                     }
 
                     function conv(y, item = parent) { // convert to draggedParent's coord
@@ -266,7 +266,6 @@ Item {
                         surface: surfaceItemDelegate.wrapper
                         live: true
                         fullProxy: true
-                        radius: delegateCornerRadius
                         width: parent.width
                         height: width / surfaceItemDelegate.ratio
                         anchors.centerIn: parent
