@@ -241,6 +241,7 @@ qt_add_qml_module(libtreeland
         desktop/desktopenvironment.h
         session/session.cpp
         session/session.h
+        session/sessionmanager.cpp
         session/sessionmanager.h
         session/sessionprotocols.cpp
         session/sessionprelaunch.cpp
