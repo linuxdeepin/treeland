@@ -605,6 +605,7 @@ static int second_add_mirror_verify(struct test_ctx *ctx)
     return ctx->first.state_count == ctx->first.state_count_at
         && p->state_count == p->state_count_at + 1 && p->mirror_count == 1
         && strcmp(p->mirrors[0], ctx->uuid[3]) == 0
+        && firstSource >= 0 && firstMirror >= 0 && secondSource >= 0 && secondMirror >= 0
         && ctx->server.is_copy[firstMirror]
         && ctx->server.proxy_index[firstMirror] == firstSource
         && ctx->server.is_copy[secondMirror]
@@ -631,6 +632,7 @@ static int dissolve_second_verify(struct test_ctx *ctx)
         && strcmp(ctx->removed_name, ctx->second.name) == 0
         && ctx->first.state_count == ctx->first.state_count_at
         && ctx->server.group_count == 1
+        && firstSource >= 0 && firstMirror >= 0 && secondSource >= 0 && secondMirror >= 0
         && ctx->server.is_source[secondSource] && ctx->server.is_source[secondMirror]
         && ctx->server.is_copy[firstMirror]
         && ctx->server.proxy_index[firstMirror] == firstSource;
@@ -809,10 +811,12 @@ static int run_promotion_disable_source(struct test_ctx *ctx)
 static int promotion_disable_source_verify(struct test_ctx *ctx)
 {
     const struct group_proxy *p = &ctx->promotion;
+    if (!read_server_state(ctx))
+        return 0;
+    const int promoted = find_output(&ctx->server, ctx->uuid[3]);
     return p->state_count > p->state_count_at && p->mirror_count == 0
         && strcmp(p->source, ctx->uuid[3]) == 0
-        && read_server_state(ctx)
-        && ctx->server.is_source[find_output(&ctx->server, ctx->uuid[3])];
+        && promoted >= 0 && ctx->server.is_source[promoted];
 }
 
 static int run_promotion_re_enable(struct test_ctx *ctx)
@@ -833,6 +837,7 @@ static int promotion_re_enable_verify(struct test_ctx *ctx)
     return p->state_count > p->state_count_at && p->mirror_count == 1
         && strcmp(p->source, ctx->uuid[2]) == 0
         && strcmp(p->mirrors[0], ctx->uuid[3]) == 0
+        && promoted >= 0 && oldSource >= 0
         && ctx->server.is_copy[promoted]
         && ctx->server.proxy_index[promoted] == oldSource;
 }
@@ -850,6 +855,7 @@ static int promotion_dissolve_verify(struct test_ctx *ctx)
     const int idx2 = find_output(&ctx->server, ctx->uuid[2]);
     const int idx3 = find_output(&ctx->server, ctx->uuid[3]);
     return ctx->promotion.removed_count == 1 && ctx->server.group_count == 0
+        && idx2 >= 0 && idx3 >= 0
         && ctx->server.is_source[idx2] && ctx->server.is_source[idx3];
 }
 
@@ -905,6 +911,7 @@ static int mirror_off_then_on_verify(struct test_ctx *ctx)
     const int mirrorIndex = find_output(&ctx->server, ctx->uuid[1]);
     return p->state_count > p->state_count_at && p->mirror_count == 1
         && strcmp(p->mirrors[0], ctx->uuid[1]) == 0
+        && sourceIndex >= 0 && mirrorIndex >= 0
         && ctx->server.is_enabled[mirrorIndex]
         && ctx->server.is_copy[mirrorIndex]
         && ctx->server.proxy_index[mirrorIndex] == sourceIndex;
@@ -1024,7 +1031,7 @@ static int output_management_apply_verify(struct test_ctx *ctx)
         const int sourceIndex = find_output(&ctx->server, ctx->uuid[0]);
         const int mirrorIndex = find_output(&ctx->server, ctx->uuid[1]);
         if (p->mirror_count == 1 && strcmp(p->mirrors[0], ctx->uuid[1]) == 0
-            && ctx->server.is_copy[mirrorIndex]
+            && sourceIndex >= 0 && mirrorIndex >= 0 && ctx->server.is_copy[mirrorIndex]
             && ctx->server.proxy_index[mirrorIndex] == sourceIndex) {
             return 1;
         }
@@ -1120,6 +1127,7 @@ static int dissolve_first_verify(struct test_ctx *ctx)
     return ctx->first.removed_count == 1 && ctx->group_removed_count == 3
         && strcmp(ctx->removed_name, ctx->first.name) == 0
         && ctx->server.group_count == 0
+        && firstSource >= 0 && firstMirror >= 0
         && ctx->server.is_source[firstSource] && ctx->server.is_source[firstMirror];
 }
 
