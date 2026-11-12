@@ -71,22 +71,22 @@
     <message>
         <location filename="../qml/UserInput.qml" line="154"/>
         <source>Username</source>
-        <translation type="unfinished"/>
+        <translation>Emër përdoruesi</translation>
     </message>
     <message>
         <location filename="../qml/UserInput.qml" line="341"/>
         <source>Enter username</source>
-        <translation type="unfinished"/>
+        <translation>Jepni emër përdoruesi</translation>
     </message>
     <message>
         <location filename="../qml/UserInput.qml" line="354"/>
         <source>User not found.</source>
-        <translation type="unfinished"/>
+        <translation>Përdoruesi s’u gjet.</translation>
     </message>
     <message>
         <location filename="../qml/UserInput.qml" line="376"/>
         <source>Password is incorrect.</source>
-        <translation>Fjalëkalimi është i pasaktë</translation>
+        <translation>Fjalëkalimi është i pasaktë.</translation>
     </message>
 </context>
 <context>
@@ -94,7 +94,7 @@
     <message>
         <location filename="../qml/UserList.qml" line="236"/>
         <source>Other…</source>
-        <translation type="unfinished"/>
+        <translation>Tjetër…</translation>
     </message>
 </context>
 </TS>
