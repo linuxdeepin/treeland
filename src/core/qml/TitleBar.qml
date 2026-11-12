@@ -14,7 +14,16 @@ Control {
     required property SurfaceWrapper surface
     readonly property SurfaceItem surfaceItem: surface.surfaceItem
     readonly property bool canToggleMaximize: surface.surfaceState === SurfaceWrapper.State.Maximized || surface.isMaximizable
-    readonly property bool noRadius: surface.radius === 0 || surface.noCornerRadius || GraphicsInfo.api === GraphicsInfo.Software
+    readonly property bool noRadius: surface.frameGeometry.radius === 0
+    clip: true
+    containmentMask: noRadius ? null : titleMask
+
+    FrameInputMask {
+        id: titleMask
+        geometry: root.surface.frameGeometry
+        frameItem: root.surface.frameItem
+        target: root
+    }
     property D.Palette backgroundColor: D.Palette {
         normal: ("#ffffff")
         normalDark: ("#282828")
@@ -109,6 +118,7 @@ Control {
             anchors {
                 verticalCenter: parent.verticalCenter
                 right: parent.right
+                rightMargin: root.surface.frameGeometry.radius
             }
 
             Loader {
@@ -171,22 +181,11 @@ Control {
     }
 
     Loader {
-        x: titlebar.x
-        y: titlebar.y
+        anchors.fill: parent
         active: !root.noRadius
-        sourceComponent: Shape {
-            anchors.fill: parent
-            preferredRendererType: Shape.CurveRenderer
-            ShapePath {
-                strokeWidth: 0
-                fillItem: titlebar
-                PathRectangle {
-                    width: titlebar.width
-                    height: titlebar.height
-                    topLeftRadius: surface.radius
-                    topRightRadius: surface.radius
-                }
-            }
+        sourceComponent: FrameClip {
+            source: titlebar
+            geometry: root.surface.frameGeometry
         }
     }
 }

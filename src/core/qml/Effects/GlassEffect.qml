@@ -12,6 +12,7 @@ Item {
     // Liquid Glass material controls.
     // Blur and shadow stay delegated to Qt Quick MultiEffect / callers.
     property real radius: 12
+    property rect frameRect: Qt.rect(0, 0, width, height)
     property real thickness: 30
     property real bezelWidth: 30
     property real ior: 1.33
@@ -70,6 +71,9 @@ Item {
         property variant source: effect.multiEffectEnabled ? processedTexture : effect.source
         // Property order MUST match the UBO layout in liquidglass.frag (after qt_Matrix, qt_Opacity)
         readonly property vector2d itemSize: Qt.vector2d(Math.max(width, 1), Math.max(height, 1))
+        readonly property vector4d frameRect: Qt.vector4d(effect.frameRect.x, effect.frameRect.y,
+                                                         Math.max(effect.frameRect.width, 1),
+                                                         Math.max(effect.frameRect.height, 1))
         readonly property vector2d lightDirection: effect.lightDirection
         readonly property real radius: effect.radius
         readonly property real bezelWidth: effect.bezelWidth

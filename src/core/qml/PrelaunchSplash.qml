@@ -4,12 +4,13 @@
 import QtQuick
 import QtQuick.Controls
 import Waylib.Server 1.0
+import Treeland
 
 // Pre-launch splash QML item that can be shown before an application's main window appears.
 Item {
     id: splash
 
-    required property real initialRadius
+    required property SurfaceWrapper surface
     required property var iconBuffer
     required property color backgroundColor
     readonly property bool isLightBackground: backgroundColor.hslLightness >= 0.5
@@ -21,7 +22,7 @@ Item {
         id: background
         color: splash.backgroundColor
         anchors.fill: parent
-        radius: initialRadius
+        radius: splash.surface?.presentationFrameGeometry.radius ?? 0
 
         // Centered logo: prefer provided icon buffer; fallback to image / placeholder
         Column {
