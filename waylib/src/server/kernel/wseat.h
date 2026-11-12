@@ -28,6 +28,7 @@ typedef uint wl_pointer_button_state_t;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSurface;
+class WPointerGesturesV1;
 class WSeat;
 class WAYLIB_SERVER_EXPORT WSeatEventFilter : public QObject
 {
@@ -87,6 +88,7 @@ public:
 
     WSeatEventFilter *eventFilter() const;
     void setEventFilter(WSeatEventFilter *filter);
+    void setPointerGestures(WPointerGesturesV1 *gestures);
 
     WSurface *pointerFocusSurface() const;
 
