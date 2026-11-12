@@ -107,6 +107,7 @@ Item {
             width: loginGroup.width
             height: 30
             anchors.horizontalCenter: parent.horizontalCenter
+            enabled: !GreeterProxy.authPending
 
             TextField {
                 id: passwordField
@@ -271,7 +272,7 @@ Item {
             bottom: userCol.bottom
             leftMargin: 20
         }
-        enabled: passwordField.length != 0
+        enabled: passwordField.length != 0 && !GreeterProxy.authPending
         font: D.DTK.fontManager.t8
         background: RoundBlur {
             anchors.fill: parent
@@ -398,6 +399,9 @@ Item {
     }
 
     function userLogin() {
+        if (!loginGroup.noPasswdLogin && passwordField.length === 0)
+            return
+
         let user = UserModel.get(UserModel.currentUserName)
         let pwd = loginGroup.noPasswdLogin ? "" : passwordField.text
         if (user.loggedIn)

@@ -196,6 +196,21 @@ void GreeterProxy::setLock(bool isLocked)
         setShowShutdownView(false);
 }
 
+void GreeterProxy::beginAuthentication(const QString &user)
+{
+    m_authenticationUser = user;
+    Q_EMIT authPendingChanged();
+}
+
+void GreeterProxy::finishAuthentication()
+{
+    if (!authPending())
+        return;
+
+    m_authenticationUser.clear();
+    Q_EMIT authPendingChanged();
+}
+
 ///////////
 // Slots //
 ///////////
@@ -227,6 +242,9 @@ void GreeterProxy::hybridSleep()
 
 void GreeterProxy::login(const QString &user, const QString &password, const int sessionIndex)
 {
+    if (authPending())
+        return;
+
     if (!m_socket->isValid()) {
         qCDebug(lcTlGreeter) << "Socket is not valid. Local password check.";
         if (localValidation(user, password)) {
@@ -243,11 +261,15 @@ void GreeterProxy::login(const QString &user, const QString &password, const int
     // send command to the daemon
     QString name = sessionModel()->data(index, SessionModel::FileRole).toString();
     qCInfo(lcTlGreeter) << "Logging user" << user << "in with session" << name;
+    beginAuthentication(user);
     SocketWriter(m_socket) << quint32(GreeterMessages::Login) << user << password << name;
 }
 
 void GreeterProxy::unlock(const QString &user, const QString &password)
 {
+    if (authPending())
+        return;
+
     if (!m_socket->isValid()) {
         qCDebug(lcTlGreeter) << "Socket is not valid. Local password check.";
         if (localValidation(user, password)) {
@@ -261,6 +283,7 @@ void GreeterProxy::unlock(const QString &user, const QString &password)
     auto userInfo = userModel()->get(user);
     if (userInfo.isValid()) {
         qCInfo(lcTlGreeter) << "Unlocking user" << user;
+        beginAuthentication(user);
         SocketWriter(m_socket) << quint32(GreeterMessages::Unlock) << user << password;
     }
 }
@@ -469,12 +492,14 @@ void GreeterProxy::disconnected()
 {
     qCWarning(lcTlGreeter) << "Disconnected from the ddm";
 
+    finishAuthentication();
     Q_EMIT socketDisconnected();
 }
 
 void GreeterProxy::error()
 {
     qCCritical(lcTlGreeter) << "Socket error: " << m_socket->errorString();
+    finishAuthentication();
 }
 
 void GreeterProxy::readyRead()
@@ -556,6 +581,7 @@ void GreeterProxy::readyRead()
 
             qCDebug(lcTlGreeter) << "Message received from daemon: LoginFailed" << user;
 
+            finishAuthentication();
             Q_EMIT failedAttemptsChanged(++m_failedAttempts);
         } break;
         case DaemonMessages::InformationMessage: {
@@ -591,6 +617,9 @@ void GreeterProxy::readyRead()
             input >> user >> sessionId;
             if (!input.commitTransaction())
                 return;
+
+            if (user == m_authenticationUser)
+                finishAuthentication();
 
             // NOTE: maybe DDM will active dde user.
             if (!userModel()->getUser(user)) {
