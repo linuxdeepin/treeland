@@ -52,11 +52,33 @@ debian/*.debhelper.log
 obj-*-linux-gnu/
 
 # ai
-.cursor
-.specstory
+.cursor/
+.codex/
+.claude/
+.commandcode/
+.specstory/
+.windsurf/
+.workbuddy/
+.trae/
+.zed/
+.kiro/
+.kilo/
+.kilocode/
+.pi/
+.qwen/
+.gemini/
+.opencode/
+.qoder/
+.dsh/
+CLAUDE.local.md
+
+# local temp & trash
+.tmp/
+.Trash-0/
 
 # git worktrees
 .worktrees/
+.agents/worktrees/
 
 # CTest run state
 Testing/Temporary/
