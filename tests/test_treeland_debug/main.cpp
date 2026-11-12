@@ -64,7 +64,9 @@ private Q_SLOTS:
 
     // --- treeland-debug socket naming / conflict avoidance ---
     void testSocketDefaultPath();
+    void testDevelopmentSocketDirectoryUsesUidTemp();
     void testSocketDirs();
+    void testSocketFallsBackWhenGlobalDirectoryIsNotSearchable();
     void testSocketPickFreeName();
     void testSocketPickFreeNameOccupied();
     void testSocketPickFreeNameSkipsLiveOldInstance();
@@ -416,16 +418,10 @@ void TreelandDebugTest::testFormatRegionOverLimit()
 
 void TreelandDebugTest::initTestCase()
 {
-    // The socket lives in the global service's own directory
-    // (/run/treeland-debug, created by systemd) -- not in $XDG_RUNTIME_DIR, which
-    // Qt requires to stay 0700.  Point the tests at a temporary one so they do
-    // not need root and stay off the machine's real socket.
+    // Keep socket tests off the machine's live debug directories.
     QVERIFY(m_debugDir.isValid());
     QVERIFY(qputenv("TREELAND_DEBUG_DIR", m_debugDir.path().toLocal8Bit()));
 
-    // The session fallback still reads $XDG_RUNTIME_DIR, and QStandardPaths
-    // rejects one that is not a 0700 directory owned by us.  Give the run a
-    // usable one so the tests do not depend on the machine.
     if (treelandDebugSocketDir().isEmpty()) {
         QVERIFY(m_runtimeDir.isValid());
         QVERIFY(qputenv("XDG_RUNTIME_DIR", m_runtimeDir.path().toLocal8Bit()));
@@ -435,10 +431,8 @@ void TreelandDebugTest::initTestCase()
 
 void TreelandDebugTest::testSocketDefaultPath()
 {
-    // The socket must be an absolute path inside the runtime directory, not a
-    // bare name: a bare name is resolved by Qt against the *client's*
-    // QDir::tempPath(), which made the socket unreachable under a different
-    // $TMPDIR and squattable in world-writable /tmp.
+    // The socket is an absolute path in its selected dedicated directory, not a
+    // bare name resolved against the client's potentially different TMPDIR.
     const QString dir = treelandDebugSocketDir();
     const QString name = treelandDebugDefaultSocketName();
     QVERIFY(!name.isEmpty());
@@ -448,10 +442,102 @@ void TreelandDebugTest::testSocketDefaultPath()
     QCOMPARE(treelandDebugSocketPathForUrl(QStringLiteral("local:") + path), path);
 }
 
+void TreelandDebugTest::testDevelopmentSocketDirectoryUsesUidTemp()
+{
+#ifdef TREELAND_DEBUG_DEV_BUILD
+    const QByteArray savedOverride = qgetenv("TREELAND_DEBUG_DIR");
+    qunsetenv("TREELAND_DEBUG_DIR");
+    const QString expected =
+        QStringLiteral("/tmp/treeland-debug-%1").arg(static_cast<qulonglong>(::geteuid()));
+    const QString dir = treelandDebugSocketDir();
+    const QStringList dirs = treelandDebugSocketDirs();
+    const QStringList urls = treelandDebugCandidateSocketUrls();
+    struct stat st {};
+    const bool statOk = ::lstat(QFile::encodeName(expected).constData(), &st) == 0;
+    const QString socketPath =
+        expected + QStringLiteral("/dev-access-test-%1").arg(::getpid());
+    QFile socket(socketPath);
+    const bool fileCreated = socket.open(QIODevice::WriteOnly);
+    if (fileCreated)
+        socket.close();
+    const bool opened = fileCreated && treelandDebugSetSocketAccess(socketPath, true);
+    struct stat socketSt {};
+    const bool socketStatOk = ::stat(QFile::encodeName(socketPath).constData(), &socketSt) == 0;
+    struct stat dirSt {};
+    const bool dirStatOk = ::stat(QFile::encodeName(expected).constData(), &dirSt) == 0;
+    const bool sealed = opened && treelandDebugSetSocketAccess(socketPath, false);
+    QFile::remove(socketPath);
+    if (savedOverride.isEmpty())
+        qunsetenv("TREELAND_DEBUG_DIR");
+    else
+        qputenv("TREELAND_DEBUG_DIR", savedOverride);
+
+    QCOMPARE(dir, expected);
+    QVERIFY(statOk);
+    QVERIFY(S_ISDIR(st.st_mode));
+    QCOMPARE(st.st_uid, ::geteuid());
+    QCOMPARE(st.st_mode & 0777, 0700);
+    QVERIFY(fileCreated);
+    QVERIFY(opened);
+    QVERIFY(socketStatOk);
+    QCOMPARE(socketSt.st_mode & 0777, 0600);
+    QVERIFY(dirStatOk);
+    QCOMPARE(dirSt.st_mode & 0777, 0700);
+    QVERIFY(sealed);
+    QCOMPARE(dirs.first(), expected);
+    QVERIFY(urls.first().startsWith(QStringLiteral("local:") + expected + QLatin1Char('/')));
+    QVERIFY(urls.first().endsWith(treelandDebugDefaultSocketName()));
+    QVERIFY(urls.last().endsWith(treelandDebugReleaseSocketName()));
+#else
+    QSKIP("Development socket path is only used by Debug builds");
+#endif
+}
+
+void TreelandDebugTest::testSocketFallsBackWhenGlobalDirectoryIsNotSearchable()
+{
+    const QByteArray savedMode = qgetenv("TREELAND_RUN_MODE");
+    const QByteArray savedRuntime = qgetenv("XDG_RUNTIME_DIR");
+    const QFile::Permissions originalPermissions = QFileInfo(m_debugDir.path()).permissions();
+    QVERIFY(m_runtimeDir.isValid());
+    QVERIFY(qputenv("XDG_RUNTIME_DIR", m_runtimeDir.path().toLocal8Bit()));
+    QVERIFY(QFile::setPermissions(m_debugDir.path(),
+                                  QFile::ReadOwner | QFile::WriteOwner));
+    qunsetenv("TREELAND_RUN_MODE");
+
+    // The fixture has owner read/write but no execute bits. Check the mode as
+    // well as QFileInfo's effective access result, which differs when run as root.
+    const QString selectedDir = treelandDebugSocketDir();
+
+    QVERIFY(QFile::setPermissions(m_debugDir.path(), originalPermissions));
+    if (savedRuntime.isEmpty())
+        qunsetenv("XDG_RUNTIME_DIR");
+    else
+        qputenv("XDG_RUNTIME_DIR", savedRuntime);
+    if (savedMode.isEmpty())
+        qunsetenv("TREELAND_RUN_MODE");
+    else
+        qputenv("TREELAND_RUN_MODE", savedMode);
+
+    QCOMPARE(selectedDir, m_runtimeDir.path());
+
+    QVERIFY(QFile::setPermissions(m_debugDir.path(), originalPermissions));
+    if (savedRuntime.isEmpty())
+        qunsetenv("XDG_RUNTIME_DIR");
+    else
+        qputenv("XDG_RUNTIME_DIR", savedRuntime);
+    if (savedMode.isEmpty())
+        qunsetenv("TREELAND_RUN_MODE");
+    else
+        qputenv("TREELAND_RUN_MODE", savedMode);
+}
 void TreelandDebugTest::testSocketDirs()
 {
-    // This process' own directory comes first, then the global service's one,
-    // then whatever session directories this process may list.
+    const QByteArray savedRuntime = qgetenv("XDG_RUNTIME_DIR");
+    QVERIFY(m_runtimeDir.isValid());
+    QVERIFY(qputenv("XDG_RUNTIME_DIR", m_runtimeDir.path().toLocal8Bit()));
+
+    // This process' own dev/runtime directories come first, then the shared
+    // global and legacy locations.
     const QStringList dirs = treelandDebugSocketDirs();
     QVERIFY(!dirs.isEmpty());
     QCOMPARE(dirs.first(), treelandDebugSocketDir());
@@ -462,13 +548,22 @@ void TreelandDebugTest::testSocketDirs()
     QCOMPARE(dirs.size(), QSet<QString>(dirs.begin(), dirs.end()).size());
     for (const QString &dir : dirs)
         QVERIFY(dir.startsWith(QLatin1Char('/')));
+#ifdef TREELAND_DEBUG_DEV_BUILD
+    QVERIFY(dirs.contains(m_runtimeDir.path()));
+    for (const QString &dir : dirs) {
+        if (dir.startsWith(QStringLiteral("/run/user/")))
+            QVERIFY(dir == m_runtimeDir.path());
+    }
+#endif
 
-    // A session instance binds in its runtime directory instead, and
-    // QStandardPaths substitutes "$TMPDIR/runtime-<user>" when that variable is
-    // unusable; publishing there would put the socket back in /tmp, so it is
-    // treated as "no runtime directory" rather than used.
+    if (savedRuntime.isEmpty())
+        qunsetenv("XDG_RUNTIME_DIR");
+    else
+        qputenv("XDG_RUNTIME_DIR", savedRuntime);
+
+    // A session instance uses its own runtime directory; Qt's temp fallback is
+    // rejected because publishing there would put the socket back in /tmp.
     const QByteArray savedMode = qgetenv("TREELAND_RUN_MODE");
-    const QByteArray savedRuntime = qgetenv("XDG_RUNTIME_DIR");
     qputenv("TREELAND_RUN_MODE", "user");
     QCOMPARE(treelandDebugSocketDir(), savedRuntime);
     qunsetenv("XDG_RUNTIME_DIR");
@@ -548,10 +643,8 @@ void TreelandDebugTest::testSocketPickFreeNameSkipsLiveOldInstance()
 
 void TreelandDebugTest::testSocketCandidateUrls()
 {
-    // The candidate URL list drives the client's auto-discovery: a debug
-    // build tries the debug socket first and falls back to the release
-    // socket, in every candidate directory; a release build only has the
-    // release socket.
+    // Debug builds probe the dev socket in every directory first, then preserve
+    // the existing release fallback. Release builds only probe release sockets.
     const auto urls = treelandDebugCandidateSocketUrls();
     QVERIFY(!urls.isEmpty());
 
@@ -893,17 +986,17 @@ void TreelandDebugTest::testExistingSocketUrls()
 
 void TreelandDebugTest::testSocketAccessSwitch()
 {
-    // No-auth mode opens the socket of the global service's own directory to
-    // every user and restores 0700 afterwards -- the directory is what lets
-    // another user reach the socket at all, so it is the half that is easy to
-    // forget.
+#ifdef TREELAND_DEBUG_DEV_BUILD
+    // A Debug dev socket is owner-only; same-UID access works without polkit.
+#else
+    // Release no-auth opens only the global service socket and widens its
+    // dedicated directory so other local users can reach it.
+#endif
     const QString path = treelandDebugSocketDir() + QStringLiteral("/debug.socket");
     QFile socket(path);
     QVERIFY(socket.open(QIODevice::WriteOnly));
     socket.close();
     QCOMPARE(::chmod(QFile::encodeName(path).constData(), 0), 0);
-    // Another socket next to ours must keep its own mode: widening the directory
-    // does not touch what is inside it.
     const QString neighbour = treelandDebugSocketDir() + QStringLiteral("/neighbour.socket");
     QFile neighbourSocket(neighbour);
     QVERIFY(neighbourSocket.open(QIODevice::WriteOnly));
@@ -916,25 +1009,32 @@ void TreelandDebugTest::testSocketAccessSwitch()
     };
 
     QVERIFY(treelandDebugSetSocketAccess(path, true));
+#ifdef TREELAND_DEBUG_DEV_BUILD
+    QCOMPARE(modeOf(path), 0600u);
+    QCOMPARE(modeOf(treelandDebugSocketDir()), 0700u);
+#else
     QCOMPARE(modeOf(path), 0666u);
     QCOMPARE(modeOf(treelandDebugSocketDir()), 0711u);
+#endif
 
-    // A second open is idempotent.
     QVERIFY(treelandDebugSetSocketAccess(path, true));
+#ifdef TREELAND_DEBUG_DEV_BUILD
+    QCOMPARE(modeOf(treelandDebugSocketDir()), 0700u);
+#else
     QCOMPARE(modeOf(treelandDebugSocketDir()), 0711u);
+#endif
 
     QVERIFY(treelandDebugSetSocketAccess(path, false));
     QCOMPARE(modeOf(path), 0u);
-    // The directory is not narrowed again: another instance may share it and
-    // still have its own window open.  Only the sockets gate access.
+#ifdef TREELAND_DEBUG_DEV_BUILD
+    QCOMPARE(modeOf(treelandDebugSocketDir()), 0700u);
+#else
     QCOMPARE(modeOf(treelandDebugSocketDir()), 0711u);
+#endif
     QCOMPARE(modeOf(neighbour), 0755u);
     QFile::remove(path);
     QFile::remove(neighbour);
 
-    // Anything but the global service's own directory is refused before it is
-    // touched: a session instance lives in the per-user runtime directory, which
-    // holds sockets it does not own (the session bus among them).
     QVERIFY(!treelandDebugSetSocketAccess(QStringLiteral("/run/user/0/treeland/x.socket"), true));
     QTemporaryDir elsewhere;
     QVERIFY(elsewhere.isValid());
@@ -946,16 +1046,17 @@ void TreelandDebugTest::testSocketAccessSwitch()
     QVERIFY(!treelandDebugSetSocketAccess(foreign, true));
     QCOMPARE(modeOf(foreign), 0u);
     QCOMPARE(modeOf(elsewhere.path()), 0700u);
-    // Sealing is always allowed: that is the direction that only removes access.
     QVERIFY(treelandDebugSetSocketAccess(foreign, false));
 
-    // Nor is a directory of ours that any other user can write: a debug build
-    // widens its directory without anyone asking, and $TREELAND_DEBUG_DIR points
-    // at /tmp often enough -- chmod there would drop its sticky bit.
+    // An unsafe sticky/world-writable directory must not be widened.
     QCOMPARE(::chmod(QFile::encodeName(treelandDebugSocketDir()).constData(), 01777), 0);
     QVERIFY(!treelandDebugSetSocketAccess(path, true));
     QCOMPARE(modeOf(treelandDebugSocketDir()), 01777u);
+#ifdef TREELAND_DEBUG_DEV_BUILD
+    QCOMPARE(::chmod(QFile::encodeName(treelandDebugSocketDir()).constData(), 0700), 0);
+#else
     QCOMPARE(::chmod(QFile::encodeName(treelandDebugSocketDir()).constData(), 0711), 0);
+#endif
 }
 
 // ---------------------------------------------------------------------------

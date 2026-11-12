@@ -33,8 +33,8 @@ public:
     TreelandInfo getTreelandInfo() override;
 
     // ---- access ----
-    // Opens the debug socket to every local user for 30 minutes; every later
-    // remote call pushes the window out again. Only a caller that already
+    // The Release no-auth window opens the debug socket to every local user for
+    // 30 minutes; every later remote call extends it. Only a caller that already
     // passed the sealed socket can ask, and in a release build that is root alone:
     // mode 0000 blocks the compositor's own user too, only CAP_DAC_OVERRIDE passes.
     bool requestNoAuth() override;

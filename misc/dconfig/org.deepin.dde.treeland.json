@@ -52,8 +52,8 @@
             "flags": [],
             "name": "Allow Debugging",
             "name[zh_CN]": "允许调试",
-            "description": "Allow debugging tools to connect. Off by default: debugging hands out window contents and input injection, which a session-level compositor must not offer unasked. While this is on, treeland publishes its debug socket and serves the window tree remote source on demand, collecting everything per call (the only session-scoped resource, input-event capture, is armed only while a client polls for events). Release builds only let root connect. Turn it on with `treeland-debug debug on`. A debug build (CMAKE_BUILD_TYPE=Debug) always publishes its `-dev` socket, ignores this key, and opens the channel to every local user.",
-            "description[zh_CN]": "允许调试工具连接。默认关闭：调试会交出窗口内容与输入注入能力，会话级运行的合成器不应默认提供。开启时 treeland 会发布调试 socket，窗口树远程源按需提供服务、数据在每次调用时现场采集（唯一的会话级资源是输入事件捕获，只在客户端轮询事件时才挂上）；Release 构建仅允许 root 连接。用 `treeland-debug debug on` 打开。Debug 构建（CMAKE_BUILD_TYPE=Debug）始终发布自己的 `-dev` socket、忽略本开关，并把通道对本机所有用户开放。",
+            "description": "Allow debugging tools to connect. Off by default: debugging hands out window contents and input injection, which a session-level compositor must not offer unasked. While this is on, treeland publishes its debug socket and serves the window tree remote source on demand, collecting everything per call (the only session-scoped resource, input-event capture, is armed only while a client polls for events). Release builds only let root connect. Turn it on with `treeland-debug debug on`. A debug build (CMAKE_BUILD_TYPE=Debug) always publishes its `-dev` socket, ignores this key, and allows the compositor's UID to connect without polkit (root retains privileged access).",
+            "description[zh_CN]": "允许调试工具连接。默认关闭：调试会交出窗口内容与输入注入能力，会话级运行的合成器不应默认提供。开启时 treeland 会发布调试 socket，窗口树远程源按需提供服务、数据在每次调用时现场采集（唯一的会话级资源是输入事件捕获，只在客户端轮询事件时才挂上）；Release 构建仅允许 root 连接。用 `treeland-debug debug on` 打开。Debug 构建（CMAKE_BUILD_TYPE=Debug）始终发布自己的 `-dev` socket、忽略本开关，并且允许合成器所属 UID 无需 polkit 连接（root 仍具备特权访问能力）。",
             "permissions": "readwrite",
             "visibility": "private"
         },

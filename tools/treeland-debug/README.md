@@ -32,8 +32,8 @@ Set `CMAKE_INSTALL_PREFIX` during configuration to use another prefix.
 Treeland runs as the `dde` user in global mode. Who may connect to its debug
 socket depends on the build type:
 
-- **Debug builds** — the socket is world-accessible (0666), so run the client as
-  `dde` or as any other user.
+- **Debug builds** — the development socket is owner-only (mode `0600`); run
+  `treeland-debug` as the same UID as the compositor. No polkit prompt is needed.
 - **Release builds** — the socket is `chmod 0000` (the kernel then rejects every
   `connect()` except root's), so the client must run as `root`; a non-root
   caller is escalated through `pkexec` automatically (see
@@ -50,6 +50,18 @@ Release builds only let root connect (mode 0000) -- turn the switch off to forbi
 debugging entirely, and the socket disappears with it. A debug build
 (`CMAKE_BUILD_TYPE=Debug`) is the exception: it ignores the switch and always
 publishes its `-dev` socket, because that instance is the one being developed.
+
+In a Debug build, Treeland always uses the current user's
+`/tmp/treeland-debug-<uid>` directory by default instead of publishing in
+`/run/treeland-debug`. The directory is owned by the current UID and mode
+`0700`, and its socket is mode `0600`, so other unprivileged UIDs cannot reach
+it (root retains privileged access). The Debug CLI checks this directory first,
+then the shared global and legacy locations and the current user's runtime
+directory; it does not enumerate other users' runtime directories. Release-socket fallback is preserved.
+
+For non-Debug compositors launched directly by a non-`dde` user without
+`TREELAND_RUN_MODE=user`, `/run/treeland-debug` is used only when writable;
+otherwise the socket is published in that process's `$XDG_RUNTIME_DIR`.
 
 The remote source is a stateless shell: the window tree, screenshots and scene
 trees are all collected per call. The one session-scoped resource is input-event
@@ -102,14 +114,14 @@ another one off.
   only applies to the global service's own directory (`/run/treeland-debug`, not
   its `$XDG_RUNTIME_DIR`) -- a session instance lives in `/run/user/<uid>`, which
   is never widened, so there root stays required (and `no-auth` fails).
-- **Debug builds** — nothing is restricted and nothing is asked: the `-dev`
-  socket is 0666 and, when it lives in Treeland's own directory
-  (`/run/treeland-debug`, which systemd creates 0700), that directory is widened
-  to 0711 at startup. So a deb-installed debug compositor running as its own user
-  accepts any local `treeland-debug` without a polkit prompt. Its own `-dev` name
-  keeps it apart from a release instance, whose 0000 socket still answers root
-  alone. A session instance's socket sits in `$XDG_RUNTIME_DIR`, which is never
-  widened, so there only that user and `root` connect.
+- **Debug builds** — the `-dev` socket is mode `0600` and normally lives in
+  `/tmp/treeland-debug-<uid>` (mode `0700`), so only the owning UID can reach it
+  and it does not add a socket to the host's `/run` directory. The Debug client
+  checks this directory first, then performs the existing shared-location
+  searches and release fallback. Explicit `TREELAND_DEBUG_DIR` can override the
+  server directory. The socket name keeps it separate from a release instance,
+  whose sealed socket still requires root. Non-Debug session instances use their
+  runtime directory and remain subject to that directory's permissions.
 
 `listen` and `debug` are the exceptions to all of this: `listen` starts the
 HTTP/WebSocket server before any connection exists, and `debug` writes the
@@ -127,9 +139,10 @@ receive an error explaining how to proceed.
 
 ```
 --url <url>          Remote object host URL (default: $TREELAND_DEBUG_SOCKET,
-                     else the socket found by probing the runtime dirs, i.e.
-                     /run/treeland-debug/..., /run/treeland/... or
-                     /run/user/<uid>/...)
+                     else automatic probing; Debug builds check their own
+                     /tmp/treeland-debug-<uid> first, then shared global/legacy
+                     locations and their own runtime directory. They do not
+                     enumerate other UIDs' runtime directories.)
 --name <name>        Remote object name (default: WindowTree)
 --timeout-ms <n>     Request timeout in milliseconds (default: 30000)
 --json               Emit machine-readable JSON for `windows`/`clients`
