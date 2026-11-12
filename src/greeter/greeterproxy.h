@@ -37,6 +37,7 @@ class GreeterProxy
     Q_PROPERTY(bool    isLocked         READ isLocked         NOTIFY lockChanged)
     Q_PROPERTY(bool    undecided        READ undecided        NOTIFY undecidedChanged)
     Q_PROPERTY(int     failedAttempts   READ failedAttempts   NOTIFY failedAttemptsChanged)
+    Q_PROPERTY(bool    authPending      READ authPending      NOTIFY authPendingChanged)
     Q_PROPERTY(bool    showShutdownView READ showShutdownView WRITE  setShowShutdownView NOTIFY showShutdownViewChanged)
     Q_PROPERTY(bool    showAnimation    READ showAnimation    NOTIFY showAnimationChanged)
     Q_PROPERTY(bool    hasActiveSession READ hasActiveSession NOTIFY hasActiveSessionChanged)
@@ -113,6 +114,14 @@ public:
      * @return Number of failed attempts
      */
     inline int  failedAttempts()   const { return m_failedAttempts;   };
+
+    /**
+     * @brief Get whether DDM authentication is pending
+     * QML uses this property to disable the password field and login buttons.
+     *
+     * @return true if a login or unlock request is awaiting a result
+     */
+    inline bool authPending()      const { return !m_authenticationUser.isEmpty(); };
 
     /**
      * @brief Get whether the shutdown view is shown
@@ -302,6 +311,9 @@ Q_SIGNALS:
     /** @brief Emitted when failed attempts changes. See failedAttempts() */
     void failedAttemptsChanged   (int failedAttempts);
 
+    /** @brief Emitted when the authentication pending state changes. See authPending() */
+    void authPendingChanged();
+
     /** @brief Emitted when showShutdownView changes. See showShutdownView() */
     void showShutdownViewChanged (bool showShutdownView);
 
@@ -326,6 +338,16 @@ private:
      * @param isLocked true to set locked, false to set unlocked
      */
     void setLock(bool isLocked);
+
+    /**
+     * @brief Start waiting for the given user's authentication result.
+     *
+     * @param user Username submitted in the login or unlock request
+     */
+    void beginAuthentication(const QString &user);
+
+    /** @brief Clear the pending authentication request, if any. */
+    void finishAuthentication();
 
     /**
      * @brief Update the DDM communication socket
@@ -357,6 +379,7 @@ private:
     bool m_undecided        { true  };
     QTimer *m_undecidedTimer{ nullptr };
     int  m_failedAttempts   { 0     };
+    QString m_authenticationUser;
     bool m_showShutdownView { false };
     bool m_showAnimation    { true  };
     bool m_hasActiveSession { false };
