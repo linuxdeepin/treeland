@@ -23,6 +23,10 @@ public:
     static constexpr int InterfaceVersion = 1;
 
     QByteArrayView interfaceName() const override;
+    // The client holding this session's splash manager, or null. One client per
+    // session is enforced at bind time, so this identifies the application
+    // manager of this session's user.
+    wl_client *boundClient() const;
 Q_SIGNALS:
     void splashRequested(const QString &appId,
                          const QString &instanceId,

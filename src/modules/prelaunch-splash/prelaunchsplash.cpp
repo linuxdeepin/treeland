@@ -69,18 +69,45 @@ public:
 
     wl_global *globalHandle() const
     {
-        return m_global;
+        return m_splashGlobal;
+    }
+
+    wl_client *boundClientHandle() const
+    {
+        return m_boundClient;
+    }
+
+    // The generated bind is private and cannot reject, so the global is created
+    // by hand: this interface is a per-session singleton (protocol requirement).
+    void start(wl_display *display, uint32_t version)
+    {
+        m_splashGlobal = wl_global_create(display, interface(), version, this, bindCallback);
+    }
+
+    void stop()
+    {
+        if (!m_splashGlobal)
+            return;
+        // Immediate destruction is safe here, unlike the base class globalRemove()
+        // which defers for 5 s to dodge the global-removal race (wayland#10):
+        // both paths that reach this destroy the clients first — Session closes
+        // its socket before detaching interfaces, WServer::stop() calls
+        // wl_display_destroy_clients() — so no bind request can be in flight.
+        wl_global_destroy(m_splashGlobal);
+        m_splashGlobal = nullptr;
     }
 
 protected:
-    void destroy_global() override
-    {
-        qCDebug(lcTlPrelaunchSplash) << "PrelaunchSplash v2 global destroyed";
-    }
-
     void destroy(Resource *resource) override
     {
         wl_resource_destroy(resource->handle);
+    }
+
+    void destroy_resource(Resource *resource) override
+    {
+        // Covers both the destroy request and client crash/disconnect.
+        if (resource->client() == m_boundClient)
+            m_boundClient = nullptr;
     }
 
     void create_splash(Resource *resource,
@@ -110,7 +137,40 @@ protected:
     }
 
 private:
+    static void bindCallback(wl_client *client, void *data, uint32_t version, uint32_t id)
+    {
+        static_cast<PrelaunchSplashPrivate *>(data)->bindClient(client, id, version);
+    }
+
+    void bindClient(wl_client *client, uint32_t id, uint32_t version)
+    {
+        if (!m_boundClient) {
+            m_boundClient = client;
+            add(client, id, version);
+            return;
+        }
+
+        qCDebug(lcTlPrelaunchSplash)
+            << "Rejecting prelaunch splash manager bind: already bound by another client";
+        // An error can only travel on a resource, so create the object for it
+        // and destroy it again: a rejected bind leaves no state behind.
+        auto *resource = wl_resource_create(client, interface(), version, id);
+        if (!resource) {
+            wl_client_post_no_memory(client);
+            return;
+        }
+        wl_resource_post_error(resource,
+                               TREELAND_PRELAUNCH_SPLASH_MANAGER_V2_ERROR_BINDING_REJECTED,
+                               "%s",
+                               "the prelaunch splash manager is already bound by another client");
+        wl_resource_destroy(resource);
+    }
+
     PrelaunchSplash *q;
+    // Kept out of the generated base: its destruction path expects the display
+    // listener that only the generated init() installs.
+    wl_global *m_splashGlobal = nullptr;
+    wl_client *m_boundClient = nullptr;
 };
 
 PrelaunchSplash::PrelaunchSplash(QObject *parent)
@@ -123,19 +183,24 @@ PrelaunchSplash::~PrelaunchSplash() = default;
 
 void PrelaunchSplash::create(WAYLIB_SERVER_NAMESPACE::WServer *server)
 {
-    d->init(server->handle(), InterfaceVersion);
+    d->start(server->handle(), InterfaceVersion);
     qCDebug(lcTlPrelaunchSplash) << "PrelaunchSplash v2 global created";
 }
 
 void PrelaunchSplash::destroy([[maybe_unused]] WAYLIB_SERVER_NAMESPACE::WServer *server)
 {
-    d->globalRemove();
-    qCDebug(lcTlPrelaunchSplash) << "PrelaunchSplash v2 global removal scheduled";
+    d->stop();
+    qCDebug(lcTlPrelaunchSplash) << "PrelaunchSplash v2 global destroyed";
 }
 
 wl_global *PrelaunchSplash::global() const
 {
     return d->globalHandle();
+}
+
+wl_client *PrelaunchSplash::boundClient() const
+{
+    return d->boundClientHandle();
 }
 
 QByteArrayView PrelaunchSplash::interfaceName() const
