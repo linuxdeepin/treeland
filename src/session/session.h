@@ -5,19 +5,24 @@
 
 #include "wglobal.h"
 #include "desktop/desktopenvironment.h"
-#include "surface/surfacecontainer.h"
+
+#include <QtQml/qqmlregistration.h>
+#include <QPointer>
 
 #ifndef DISABLE_XWAYLAND
 #include <xcb/xproto.h>
 #endif
-#include <QtQml/qqmlregistration.h>
-#include <QPointer>
+
+Q_MOC_INCLUDE("workspace/workspace.h")
+Q_MOC_INCLUDE("treelanduserconfig.hpp")
+Q_MOC_INCLUDE("session/sessionoutputmanager.h")
+Q_MOC_INCLUDE("session/sessionswitcher.h")
+Q_MOC_INCLUDE("input/inputmanager.h")
+Q_MOC_INCLUDE("wallpaper/wallpapermanager.h")
 
 class Workspace;
 class SurfaceWrapper;
 class TreelandUserConfig;
-Q_MOC_INCLUDE("workspace/workspace.h")
-Q_MOC_INCLUDE("treelanduserconfig.hpp")
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServerInterface;
@@ -37,19 +42,14 @@ class SessionProtocols;
 class SessionPrelaunch;
 class SessionScene;
 class SessionOutputManager;
-Q_MOC_INCLUDE("session/sessionoutputmanager.h")
 class SessionSwitcher;
-Q_MOC_INCLUDE("session/sessionswitcher.h")
 class InputManager;
 class WallpaperManager;
-Q_MOC_INCLUDE("input/inputmanager.h")
-Q_MOC_INCLUDE("wallpaper/wallpapermanager.h")
 #ifndef DISABLE_XWAYLAND
 class SettingManager;
 #endif
 class WallpaperLauncher;
 class ForeignToplevelManagerInterfaceV3;
-Q_MOC_INCLUDE("modules/foreign-toplevel/foreigntoplevelmanagerv3.h")
 
 class Session : public QObject {
     Q_OBJECT
@@ -57,34 +57,36 @@ class Session : public QObject {
     Q_PROPERTY(bool active READ isActive NOTIFY activeChanged FINAL)
 public:
     ~Session();
-    DesktopEnvironment *desktop() const;
 
-    const QString &id() const;
-    uid_t uid() const;
-    const QString &username() const;
-    WSocket *socket() const;
+    DesktopEnvironment *desktop() const { return m_desktop; };
+    const QString &id() const { return m_id; };
+    uid_t uid() const { return m_uid; };
+    const QString &username() const { return m_username; };
+    WSocket *socket() const { return m_socket; };
 #ifndef DISABLE_XWAYLAND
-    WXWayland *xwayland() const;
-    quint32 noTitlebarAtom() const;
+    WXWayland *xwayland() const { return m_xwayland; };
+    quint32 noTitlebarAtom() const { return m_noTitlebarAtom; };
 #endif
-    Workspace *workspace() const;
-    DesktopSurfaceModel *windows() const;
-    TreelandUserConfig *config() const;
-    SessionSeatManager *seatManager() const;
-    SessionProtocols *protocols() const;
-    SessionPrelaunch *prelaunch() const;
-    SessionScene *scene() const;
-    SessionOutputManager *outputManager() const;
-    SessionSwitcher *switcher() const;
-    InputManager *inputManager() const;
-    WallpaperManager *wallpaperManager() const;
-    bool isActive() const;
+    Workspace *workspace() const { return m_desktop->workspace(); };
+    DesktopSurfaceModel *windows() const { return m_desktop->windows(); };
+    TreelandUserConfig *config() const { return m_config; };
+    SessionSeatManager *seatManager() const { return m_seatManager; };
+    SessionProtocols *protocols() const { return m_protocols; };
+    SessionPrelaunch *prelaunch() const { return m_prelaunch; };
+    SessionScene *scene() const { return m_scene; };
+    SessionOutputManager *outputManager() const { return m_outputManager; };
+    SessionSwitcher *switcher() const { return m_desktop->switcher(); };
+    InputManager *inputManager() const { return m_desktop->input(); };
+    WallpaperManager *wallpaperManager() const { return m_desktop->wallpaper(); };
+
+    ForeignToplevelManagerInterfaceV3 *windowManagement() const { return m_windowManagement; };
+    WForeignToplevel *foreignToplevel() const;
+    WExtForeignToplevelListV1 *toplevelList() const;
+
+    bool isActive() const { return m_active; };
     bool ownsClient(WClient *client) const;
     void attachInterface(WServerInterface *interface);
     void detachInterface(WServerInterface *interface);
-    ForeignToplevelManagerInterfaceV3 *windowManagement() const;
-    WForeignToplevel *foreignToplevel() const;
-    WExtForeignToplevelListV1 *toplevelList() const;
 
     void registerWindow(SurfaceWrapper *window);
     void unregisterWindow(SurfaceWrapper *window);
@@ -94,12 +96,13 @@ Q_SIGNALS:
     void aboutToBeDestroyed();
 
 private:
+    void setActive(bool active);
+
+private:
     friend class SessionManager;
     friend class SurfaceProtocolController;
 
-    void setActive(bool active);
     DesktopEnvironment *m_desktop = nullptr;
-    bool m_active = false;
     SessionSeatManager *m_seatManager = nullptr;
     SessionProtocols *m_protocols = nullptr;
     SessionPrelaunch *m_prelaunch = nullptr;
@@ -110,15 +113,15 @@ private:
     QPointer<WForeignToplevel> m_foreignToplevel;
     QPointer<WExtForeignToplevelListV1> m_toplevelList;
     TreelandUserConfig *m_config = nullptr;
-    // Immutable logind identity, also read by session lock/unlock workers.
+    WSocket *m_socket = nullptr;
     QString m_id;
     uid_t m_uid = 0;
     QString m_username = {};
-    WSocket *m_socket = nullptr;
 #ifndef DISABLE_XWAYLAND
     WXWayland *m_xwayland = nullptr;
     quint32 m_noTitlebarAtom = XCB_ATOM_NONE;
     SettingManager *m_settingManager = nullptr;
     QThread *m_settingManagerThread = nullptr;
 #endif
+    bool m_active = false;
 };
