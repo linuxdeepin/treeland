@@ -40,7 +40,7 @@ Item {
         XdgShadow {
             anchors.fill: parent
             visible: root.showShadow
-            cornerRadius: root.target.radius
+            cornerRadius: root.target.presentationFrameGeometry.radius
             shadowBlur: root.target.shadowBlurRadius
             shadowOffsetX: root.target.shadowOffsetX
             shadowOffsetY: root.target.shadowOffsetY

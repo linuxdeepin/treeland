@@ -52,11 +52,18 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
         if (!m_fullProxy) {
             if (!m_shadow)
                 m_shadow = m_sourceSurface->m_engine->createXdgShadow(this);
-            m_shadow->setProperty("cornerRadius", radius());
             m_shadow->stackBefore(m_proxySurface);
             QQuickItemPrivate::get(m_shadow)->culled = true;
         }
 
+        m_sourceConnections << connect(m_proxySurface, &SurfaceWrapper::frameGeometryChanged,
+                                       this, &SurfaceProxy::updateShadowGeometry);
+        m_sourceConnections << connect(m_proxySurface, &QQuickItem::scaleChanged,
+                                       this, &SurfaceProxy::updateShadowGeometry);
+        m_sourceConnections << connect(m_proxySurface, &SurfaceWrapper::presentationFrameGeometryChanged,
+                                       this, &SurfaceProxy::effectiveRadiusChanged);
+        m_sourceConnections << connect(m_proxySurface, &QQuickItem::scaleChanged,
+                                       this, &SurfaceProxy::effectiveRadiusChanged);
         auto updateProxyFlagsAndDelegate = [this]() {
             auto proxyItem = m_proxySurface ? m_proxySurface->surfaceItem() : nullptr;
             auto sourceItem = m_sourceSurface ? m_sourceSurface->surfaceItem() : nullptr;
@@ -134,6 +141,7 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
         updateImplicitSize();
         updateProxySurfaceScale();
         updateShape();
+        updateShadowGeometry();
     } else {
         if (m_shadow) {
             m_shadow->deleteLater();
@@ -142,6 +150,7 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
     }
 
     Q_EMIT surfaceChanged();
+    Q_EMIT effectiveRadiusChanged();
 }
 
 void SurfaceProxy::geometryChange(const QRectF &newGeo, const QRectF &oldGeo)
@@ -150,8 +159,7 @@ void SurfaceProxy::geometryChange(const QRectF &newGeo, const QRectF &oldGeo)
 
     if (m_proxySurface) {
         updateProxySurfaceScale();
-        if (m_shadow)
-            m_shadow->setSize(newGeo.size());
+        updateShadowGeometry();
     }
 }
 
@@ -170,6 +178,15 @@ void SurfaceProxy::updateProxySurfaceScale()
         m_proxySurface->setScale(1.0);
         m_proxySurface->setRadius(radius());
     }
+}
+
+void SurfaceProxy::updateShadowGeometry()
+{
+    if (!m_shadow || !m_proxySurface)
+        return;
+    const auto geometry = m_proxySurface->frameGeometry();
+    m_shadow->setSize(geometry.rect().size() * m_proxySurface->scale());
+    m_shadow->setProperty("cornerRadius", geometry.radius() * m_proxySurface->scale());
 }
 
 void SurfaceProxy::updateShape()
@@ -213,8 +230,6 @@ void SurfaceProxy::updateImplicitSize()
 void SurfaceProxy::onSourceRadiusChanged()
 {
     m_proxySurface->setRadius(radius() / m_proxySurface->scale());
-    if (m_shadow)
-        m_shadow->setProperty("radius", radius());
     if (m_radius < 0)
         Q_EMIT radiusChanged();
 }
@@ -226,16 +241,20 @@ qreal SurfaceProxy::radius() const
     return m_sourceSurface ? m_sourceSurface->radius() : 0;
 }
 
+qreal SurfaceProxy::effectiveRadius() const
+{
+    return m_proxySurface
+        ? m_proxySurface->presentationFrameGeometry().radius() * m_proxySurface->scale()
+        : 0;
+}
+
 void SurfaceProxy::setRadius(qreal newRadius)
 {
     if (qFuzzyCompare(m_radius, newRadius))
         return;
     m_radius = newRadius;
-    if (m_proxySurface) {
+    if (m_proxySurface)
         m_proxySurface->setRadius(radius() / m_proxySurface->scale());
-        if (m_shadow)
-            m_shadow->setProperty("radius", radius());
-    }
 
     Q_EMIT radiusChanged();
 }
@@ -304,11 +323,11 @@ void SurfaceProxy::setFullProxy(bool newFullProxy)
             }
         } else if (!m_shadow) {
             m_shadow = m_sourceSurface->m_engine->createXdgShadow(this);
-            m_shadow->setProperty("cornerRadius", radius());
             m_shadow->stackBefore(m_proxySurface);
             QQuickItemPrivate::get(m_shadow)->culled = true;
         }
         updateShape();
+        updateShadowGeometry();
     }
 
     Q_EMIT fullProxyChanged();

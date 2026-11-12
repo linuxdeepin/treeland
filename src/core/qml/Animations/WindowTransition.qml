@@ -42,7 +42,7 @@ Item {
         anchors.fill: parent
         visible: surface.visibleDecoration && !surface.noDecoration && surface.shadowVisible
         opacity: root.progress
-        cornerRadius: surface.radius
+        cornerRadius: surface.presentationFrameGeometry.radius
         shadowBlur: surface.shadowBlurRadius
         shadowOffsetX: surface.shadowOffsetX
         shadowOffsetY: surface.shadowOffsetY
@@ -54,7 +54,7 @@ Item {
         anchors.fill: parent
         sourceComponent: Blur {
             anchors.fill: parent
-            radius: surface.radius
+            radius: surface.presentationFrameGeometry.radius
         }
     }
 

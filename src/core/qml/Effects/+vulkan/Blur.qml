@@ -10,6 +10,7 @@ Rectangle {
     color: Qt.rgba(0.0, 0.0, 0.0, 0.0)
 
     property bool radiusEnabled: radius > 0
+    property rect frameRect: Qt.rect(0, 0, width, height)
     property int blurMax: WaylandServer.config.blurStrength
     property bool blurEnabled: blurMax > 0 && blurAmount > 0
     property real blurAmount: WaylandServer.config.blurAmount
@@ -32,13 +33,23 @@ Rectangle {
         anchors.fill: parent
     }
 
-    Rectangle {
+    // frameRect can be offset from and larger than this item, so the fill is
+    // clipped to the item instead of covering it unconditionally.
+    Item {
         id: effectContentItem
         anchors.fill: parent
-        radius: root.radius
-        color: Qt.rgba(1.0, 1.0, 1.0, 0.15)
+        clip: true
         visible: root.effectEnabled && !root.contentOffscreen
         z: -1
+
+        Rectangle {
+            x: root.frameRect.x
+            y: root.frameRect.y
+            width: root.frameRect.width
+            height: root.frameRect.height
+            radius: root.radiusEnabled ? root.radius : 0
+            color: Qt.rgba(1.0, 1.0, 1.0, 0.15)
+        }
     }
 
     z: parent.z ? parent.z - 1 : -1

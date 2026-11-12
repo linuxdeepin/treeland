@@ -109,7 +109,8 @@ public:
         if (Q_UNLIKELY(!isValid()))
             return false;
 
-        return d()->surface->inputRegionContains(point);
+        return d()->surface->inputRegionContains(point)
+            && (!containmentMask() || QQuickItem::contains(point));
     }
 
 private:

@@ -261,6 +261,10 @@ qt_add_qml_module(libtreeland
         session/sessionoutputchannel.h
         session/sessionoutputmanager.cpp
         session/sessionoutputmanager.h
+        surface/framegeometry.cpp
+        surface/framegeometry.h
+        surface/frameinputmask.cpp
+        surface/frameinputmask.h
         surface/surfacecontainer.cpp
         surface/surfacecontainer.h
         surface/seatsurfacemanager.cpp
@@ -317,6 +321,7 @@ qt_add_qml_module(libtreeland
         core/qml/MirrorOutput.qml
         core/qml/TitleBar.qml
         core/qml/Decoration.qml
+        core/qml/FrameClip.qml
         core/qml/WindowMenu.qml
         core/qml/TaskBar.qml
         core/qml/SurfaceContent.qml

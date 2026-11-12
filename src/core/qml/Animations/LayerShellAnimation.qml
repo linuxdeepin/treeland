@@ -49,7 +49,7 @@ Item {
         height: root.target.height
         sourceComponent: Blur {
             anchors.fill: parent
-            radius: root.target.radius
+            radius: root.target.presentationFrameGeometry.radius
         }
     }
 

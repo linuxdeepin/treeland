@@ -300,15 +300,14 @@ QQuickItem *QmlEngine::createFpsDisplay(QQuickItem *parent)
     return createComponent(fpsDisplayComponent, parent);
 }
 
-QQuickItem *QmlEngine::createPrelaunchSplash(QQuickItem *parent,
-                                             qreal initialRadius,
+QQuickItem *QmlEngine::createPrelaunchSplash(SurfaceWrapper *parent,
                                              wlr_buffer *iconBuffer,
                                              const QColor &backgroundColor)
 {
     return createComponent(prelaunchSplashComponent,
                            parent,
                            {
-                               { "initialRadius", QVariant::fromValue(initialRadius) },
+                               { "surface", QVariant::fromValue(parent) },
                                { "iconBuffer", QVariant::fromValue(iconBuffer) },
                                { "backgroundColor", QVariant::fromValue(backgroundColor) },
                            });

@@ -12,6 +12,7 @@ class SurfaceProxy : public QQuickItem
     Q_OBJECT
     Q_PROPERTY(SurfaceWrapper* surface READ surface WRITE setSurface NOTIFY surfaceChanged FINAL)
     Q_PROPERTY(qreal radius READ radius WRITE setRadius RESET resetRadius NOTIFY radiusChanged FINAL)
+    Q_PROPERTY(qreal effectiveRadius READ effectiveRadius NOTIFY effectiveRadiusChanged FINAL)
     Q_PROPERTY(bool live READ live WRITE setLive NOTIFY liveChanged FINAL)
     Q_PROPERTY(QSizeF maxSize READ maxSize WRITE setMaxSize NOTIFY maxSizeChanged FINAL)
     Q_PROPERTY(bool fullProxy READ fullProxy WRITE setFullProxy NOTIFY fullProxyChanged FINAL)
@@ -25,6 +26,7 @@ public:
     void setSurface(SurfaceWrapper *newSurface);
 
     qreal radius() const;
+    qreal effectiveRadius() const;
     void setRadius(qreal newRadius);
     void resetRadius();
 
@@ -40,6 +42,7 @@ public:
 Q_SIGNALS:
     void surfaceChanged();
     void radiusChanged();
+    void effectiveRadiusChanged();
     void liveChanged();
     void maxSizeChanged();
     void fullProxyChanged();
@@ -47,6 +50,7 @@ Q_SIGNALS:
 private:
     void geometryChange(const QRectF &newGeo, const QRectF &oldGeo) override;
     void updateProxySurfaceScale();
+    void updateShadowGeometry();
     void updateShape();
     void updateLive();
     void updateNoTitleBar();

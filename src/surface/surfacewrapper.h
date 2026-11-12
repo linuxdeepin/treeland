@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
+#include "framegeometry.h"
+
 #include <wlr_fwd.h>
 #include <wpointer.h>
 #include <wsurfaceitem.h>
@@ -77,6 +79,9 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(State previousSurfaceState READ previousSurfaceState NOTIFY previousSurfaceStateChanged FINAL)
     Q_PROPERTY(State surfaceState READ surfaceState NOTIFY surfaceStateChanged BINDABLE bindableSurfaceState FINAL)
     Q_PROPERTY(qreal radius READ radius NOTIFY radiusChanged FINAL)
+    Q_PROPERTY(FrameGeometry frameGeometry READ frameGeometry NOTIFY frameGeometryChanged FINAL)
+    Q_PROPERTY(FrameGeometry presentationFrameGeometry READ presentationFrameGeometry NOTIFY presentationFrameGeometryChanged FINAL)
+    Q_PROPERTY(QQuickItem* frameItem READ frameItem NOTIFY frameGeometryChanged FINAL)
     Q_PROPERTY(qreal shadowBlurRadius READ shadowBlurRadius NOTIFY shadowChanged FINAL)
     Q_PROPERTY(qreal shadowOffsetX READ shadowOffsetX NOTIFY shadowChanged FINAL)
     Q_PROPERTY(qreal shadowOffsetY READ shadowOffsetY NOTIFY shadowChanged FINAL)
@@ -293,6 +298,12 @@ public:
     void cancelTileMode();
 
     qreal radius() const;
+    FrameGeometry frameGeometry() const { return m_frameGeometry; }
+    FrameGeometry presentationFrameGeometry() const
+    {
+        return m_prelaunchFrameGeometry.value_or(m_frameGeometry);
+    }
+    QQuickItem *frameItem() const { return m_frameItem; }
     void setRadius(qreal newRadius);
 
     // Per-window SSD customization (treeland-decoration-unstable-v1).
@@ -466,6 +477,8 @@ Q_SIGNALS:
     void surfaceStateChanged();
     void minimizedChanged();
     void radiusChanged();
+    void frameGeometryChanged();
+    void presentationFrameGeometryChanged();
     void shadowChanged();
     void borderChanged();
     void moveRequested();
@@ -520,6 +533,9 @@ private:
     void setNormalGeometry(const QRectF &newNormalGeometry);
     void updateTitleBar();
     void updateDecoration();
+    void initializeFrameGeometry();
+    void updateRadiusConfig();
+    void updateFrameGeometry();
     void setBoundedRect(const QRectF &newBoundedRect);
     void setContainer(SurfaceContainer *newContainer);
     void setVisibleDecoration(bool newVisibleDecoration);
@@ -605,6 +621,10 @@ private:
 
     QPointer<WToplevelSurface> m_shellSurface;
     WSurfaceItem *m_surfaceItem = nullptr;
+    QPointer<QQuickItem> m_frameItem;
+    FrameGeometry m_frameGeometry;
+    std::optional<FrameGeometry> m_prelaunchFrameGeometry;
+    QMetaObject::Connection m_radiusConfigConnection;
     QPointer<QQuickItem> m_titleBar;
     QPointer<QQuickItem> m_decoration;
     QPointer<QQuickItem> m_geometryAnimation;
