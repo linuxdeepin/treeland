@@ -280,6 +280,21 @@ void SessionManager::removeSession(std::shared_ptr<Session> session)
  */
 std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QString username)
 {
+    const auto owner = sessionForId(id);
+    if (owner && owner->username() != username) {
+        qCWarning(lcTlGreeter) << "Logind session id already belongs to another desktop:" << id;
+        return nullptr;
+    }
+    const auto previous = sessionForUser(username);
+    if (previous && previous->id() != id) {
+        if (previous->id() == QStringLiteral("0")) {
+            qCWarning(lcTlGreeter) << "Cannot replace the bootstrap desktop:" << username << id;
+            return nullptr;
+        }
+        qCInfo(lcTlGreeter) << "Replacing desktop for a new login:"
+                           << username << previous->id() << id;
+        removeSession(previous);
+    }
     // WaylandServer lambda to create WSocket and WXWayland
     auto createWSocket = [this]() {
         // Create WSocket
@@ -456,6 +471,9 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
 #endif
 
     session->m_socket->setEnabled(false, globalSession() ? globalSession()->socket() : nullptr);
+    // Forward the Session that owns the logind subscription.
+    connect(session.get(), &Session::lock, this, &SessionManager::sessionLock);
+    connect(session.get(), &Session::unlock, this, &SessionManager::sessionUnlock);
     // Add session to list
     m_sessions.append(session);
 
@@ -623,8 +641,6 @@ void SessionManager::updateActiveUserSession(const QString &username, const QStr
 SessionManager::ActiveSessionUpdate SessionManager::prepareActiveUserSession(const QString &username,
                                                                              const QString &id)
 {
-    // Get previous active session
-    auto previous = m_activeSession.lock();
     // Get new session for uid, creating if necessary
     auto session = ensureSession(id, username);
     if (!session) {
@@ -632,6 +648,8 @@ SessionManager::ActiveSessionUpdate SessionManager::prepareActiveUserSession(con
         return {};
     }
 
+    // Replacing the old desktop in ensureSession() may have activated the greeter.
+    const auto previous = m_activeSession.lock();
     const bool activeSessionChanged = previous != session;
     if (activeSessionChanged) {
         auto *server = WaylandServer::instance();

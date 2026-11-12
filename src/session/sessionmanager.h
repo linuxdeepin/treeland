@@ -53,6 +53,8 @@ public:
 Q_SIGNALS:
     void socketFileChanged();
     void sessionChanged();
+    void sessionLock(Session *session);
+    void sessionUnlock(Session *session);
     void xwaylandAuthChanged();
 
 private:
