@@ -767,6 +767,9 @@ int protocol_test_run(const char *socket_name)
     REQUIRE(observe(&a, &a_live) && observe(&b, &b_live), "bind before windows exist");
     REQUIRE(has_own_shell_globals(&a) && has_own_shell_globals(&b),
             "each connection sees only its own shell and personalization globals");
+    REQUIRE(has_one_scoped_global(&a, "zwp_pointer_gestures_v1")
+                && has_one_scoped_global(&b, "zwp_pointer_gestures_v1"),
+            "each Session sees exactly one pointer gestures global");
     REQUIRE(has_independent_capture_globals(&a, &b),
             "each Session sees one distinct global for each upstream capture manager");
     REQUIRE(session_test_appearance_isolation(&a, &b) == 0,

@@ -20,6 +20,8 @@ Fixture 补齐三个 headless 输出，每个 Session 持有独立的 output 协
 
 断言：
 
+- 每个 Session 的真实客户端 registry 仅公告一个 `zwp_pointer_gestures_v1`，防止每个 seat 隐式创建协议导致重复；新增断言尚未执行。
+
 - 在创建窗口前绑定三个 foreign-toplevel 协议，收到且仅收到自己的一个窗口和标题。
 - 在两个窗口存在后重新绑定，初始枚举仍只返回所属 Session 的窗口与标题。
 - Session 的窗口模型分别包含一个窗口，并持有不同的 Workspace、输入、输出、壁纸、切换器和窗口协议对象；设备 manager 的激活状态跟随所属 Session。

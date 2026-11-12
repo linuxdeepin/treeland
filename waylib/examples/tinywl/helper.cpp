@@ -43,6 +43,7 @@
 #include <woutputlayout.h>
 #include <woutputviewport.h>
 #include <wseat.h>
+#include <wpointergesturesv1.h>
 #include <wsocket.h>
 #include <wtoplevelsurface.h>
 #include <wlayersurface.h>
@@ -144,7 +145,9 @@ void Helper::init()
     m_surfaceContainer->setQmlEngine(engine);
 
     m_surfaceContainer->init(m_server);
+    auto *pointerGestures = m_server->attach<WPointerGesturesV1>();
     m_seat = m_server->attach<WSeat>();
+    m_seat->setPointerGestures(pointerGestures);
     m_seat->setEventFilter(this);
     m_seat->setCursor(m_surfaceContainer->cursor());
     m_seat->setKeyboardFocusWindow(m_renderWindow);

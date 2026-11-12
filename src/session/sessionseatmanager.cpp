@@ -11,6 +11,7 @@
 #include "core/imcandidatepanelmanager.h"
 #include "seat/seatmanager.h"
 #include <wseat.h>
+#include <wpointergesturesv1.h>
 #include <winputmethodhelper.h>
 #include <winputmethodv2_p.h>
 #include <wtextinputv1_p.h>
@@ -23,6 +24,8 @@ WAYLIB_SERVER_USE_NAMESPACE
 SessionSeatManager::SessionSeatManager(Session *session)
     : SessionComponent(session)
 {
+    m_pointerGestures = new WPointerGesturesV1;
+    session->attachInterface(m_pointerGestures);
     createInputMethodProtocols();
     auto *hardware = WaylandServer::instance()->seatManager();
     const auto names = hardware->configuredSeatNames();
@@ -64,6 +67,7 @@ void SessionSeatManager::addSeat(WSeat *seat, bool fallback)
 {
     if (m_seats.contains(seat))
         return;
+    seat->setPointerGestures(m_pointerGestures);
     seat->setEventFilter(nullptr);
     seat->setEventFilter(session()->desktop()->inputChannel()->filter());
     session()->attachInterface(seat);

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wseat.h"
+#include "wpointergesturesv1.h"
 #include "wcursor.h"
 #include "winputdevice.h"
 #include "woutput.h"
@@ -397,7 +398,7 @@ public:
 
     QString name;
     WCursor *cursor = nullptr;
-    wlr_pointer_gestures_v1 *gesture = nullptr;
+    QPointer<WPointerGesturesV1> gesture;
     QVector<WInputDevice*> deviceList;
     QVector<WInputDevice*> touchDeviceList;
     QPointer<WSeatEventFilter> eventFilter;
@@ -1098,37 +1099,39 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
         break;
     }
     case QEvent::NativeGesture: {
-        if (!d->gesture)
+        if (!d->gesture || d->gesture->handle())
             break;
+
+        auto *gesture = d->gesture->handle();
         auto e = static_cast<WGestureEvent*>(event);
         switch (e->gestureType()) {
             case Qt::NativeGestureType::BeginNativeGesture:
                 if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture)
-                    wlr_pointer_gestures_v1_send_swipe_begin(d->gesture, d->handle(), e->timestamp(), e->fingerCount());
+                    wlr_pointer_gestures_v1_send_swipe_begin(gesture, d->handle(), e->timestamp(), e->fingerCount());
                 if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::PinchGesture)
-                    wlr_pointer_gestures_v1_send_pinch_begin(d->gesture, d->handle(), e->timestamp(), e->fingerCount());
+                    wlr_pointer_gestures_v1_send_pinch_begin(gesture, d->handle(), e->timestamp(), e->fingerCount());
                 if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::HoldGesture)
-                    wlr_pointer_gestures_v1_send_hold_begin(d->gesture, d->handle(), e->timestamp(), e->fingerCount());
+                    wlr_pointer_gestures_v1_send_hold_begin(gesture, d->handle(), e->timestamp(), e->fingerCount());
                 break;
             case Qt::NativeGestureType::PanNativeGesture:
                 if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture)
-                    wlr_pointer_gestures_v1_send_swipe_update(d->gesture, d->handle(), e->timestamp(), e->delta().x(), e->delta().y());
+                    wlr_pointer_gestures_v1_send_swipe_update(gesture, d->handle(), e->timestamp(), e->delta().x(), e->delta().y());
                 if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::PinchGesture)
-                    wlr_pointer_gestures_v1_send_pinch_update(d->gesture, d->handle(), e->timestamp(), e->delta().x(), e->delta().y(), d->lastScale, 0);
+                    wlr_pointer_gestures_v1_send_pinch_update(gesture, d->handle(), e->timestamp(), e->delta().x(), e->delta().y(), d->lastScale, 0);
                 break;
             case Qt::NativeGestureType::ZoomNativeGesture:
-                wlr_pointer_gestures_v1_send_pinch_update(d->gesture, d->handle(), e->timestamp(), e->delta().x(), e->delta().y(), d->lastScale, 0);
+                wlr_pointer_gestures_v1_send_pinch_update(gesture, d->handle(), e->timestamp(), e->delta().x(), e->delta().y(), d->lastScale, 0);
                 break;
             case Qt::NativeGestureType::RotateNativeGesture:
-                wlr_pointer_gestures_v1_send_pinch_update(d->gesture, d->handle(), e->timestamp(), e->delta().x(), e->delta().y(), d->lastScale, e->value());
+                wlr_pointer_gestures_v1_send_pinch_update(gesture, d->handle(), e->timestamp(), e->delta().x(), e->delta().y(), d->lastScale, e->value());
                 break;
             case Qt::NativeGestureType::EndNativeGesture:
                 if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture)
-                    wlr_pointer_gestures_v1_send_swipe_end(d->gesture, d->handle(), e->timestamp(), e->cancelled());
+                    wlr_pointer_gestures_v1_send_swipe_end(gesture, d->handle(), e->timestamp(), e->cancelled());
                 if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::PinchGesture)
-                    wlr_pointer_gestures_v1_send_pinch_end(d->gesture, d->handle(), e->timestamp(), e->cancelled());
+                    wlr_pointer_gestures_v1_send_pinch_end(gesture, d->handle(), e->timestamp(), e->cancelled());
                 if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::HoldGesture)
-                    wlr_pointer_gestures_v1_send_hold_end(d->gesture, d->handle(), e->timestamp(), e->cancelled());
+                    wlr_pointer_gestures_v1_send_hold_end(gesture, d->handle(), e->timestamp(), e->cancelled());
                 break;
             default:
                 break;
@@ -1707,6 +1710,12 @@ void WSeat::setEventFilter(WSeatEventFilter *filter)
     d->eventFilter = filter;
 }
 
+void WSeat::setPointerGestures(WPointerGesturesV1 *gestures)
+{
+    W_D(WSeat);
+    d->gesture = gestures;
+}
+
 void WSeat::create(WServer *server)
 {
     W_D(WSeat);
@@ -1730,9 +1739,6 @@ void WSeat::create(WServer *server)
         if (d->cursor)
             d->cursor->attachInputDevice(i);
     }
-
-    if (!qEnvironmentVariableIsSet("WAYLIB_DISABLE_GESTURE"))
-        d->gesture = wlr_pointer_gestures_v1_create(server->handle());
 
     d->updateCapabilities();
 
