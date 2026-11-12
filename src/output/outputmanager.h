@@ -5,6 +5,7 @@
 
 #include <QObject>
 #include <QPointer>
+#include <QPoint>
 #include <QList>
 #include <QMap>
 #include <QSet>
@@ -14,6 +15,7 @@
 #include "modules/output-group/outputgroupmanagerinterfacev1.h"
 
 #include <woutputmanagerv1.h>
+#include <woutputhelper.h>
 #include <wglobal.h>
 
 class Output;
@@ -138,6 +140,21 @@ private:
                       Output *targetOutput,
                       Output *sourceOutput);
     void saveCurrentConfig(Output *output);
+    void publishOutput(Output *outputObject);
+    void restoreOutputConfig(WAYLIB_SERVER_NAMESPACE::WOutput *output,
+                             Output *outputObject,
+                             bool isInitialOutput);
+    void restoreExtensionOutput(Output *outputObject);
+    void handleOutputCommit(bool success,
+                            WAYLIB_SERVER_NAMESPACE::WOutputHelper::ExtraState committedState,
+                            wlr_output_configuration_v1 *pendingConfig,
+                            quint64 generation,
+                            WAYLIB_SERVER_NAMESPACE::WOutputHelper::ExtraState extraState,
+                            WAYLIB_SERVER_NAMESPACE::WOutputRenderWindow *renderWindow,
+                            WAYLIB_SERVER_NAMESPACE::WOutputViewport *viewport,
+                            QPointer<WAYLIB_SERVER_NAMESPACE::WOutput> output,
+                            QPoint outputPosition,
+                            bool enabled);
     int indexOf(WAYLIB_SERVER_NAMESPACE::WOutput *output) const;
     Output *findOutputByName(const QString &name) const;
     Output *findOutputById(const QString &id) const;

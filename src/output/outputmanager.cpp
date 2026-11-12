@@ -291,137 +291,10 @@ void OutputManager::processOutputAdded(WOutput *output)
         }
     }
 
-    auto publishOutput = [this, outputObject = QPointer<Output>(o)] {
-        if (!outputObject) {
-            return;
-        }
-
-        if (auto *wallpaper = WaylandServer::instance()->wallpaperManager())
-            wallpaper->ensureWallpaperConfigForOutput(outputObject);
-    };
-    auto restoreOutputConfig = [this,
-                                output,
-                                outputObject = QPointer<Output>(o),
-                                publishOutput,
-                                isInitialOutput] {
-        auto publish = qScopeGuard(publishOutput);
-        if (!outputObject || m_mode == Mode::Copy) {
-            return;
-        }
-
-        // Only the initial backend scan restores saved geometry. A hot-plugged
-        // output keeps outputLayout's auto-added position, while its mode,
-        // transform, scale, brightness, and color temperature are restored.
-        if (!isInitialOutput) {
-            const bool restoreAsExtensionOutput =
-                m_mode == Mode::Extension
-                && m_config->singleOutputId().isEmpty();
-            if (restoreAsExtensionOutput && !output->isEnabled()) {
-                outputObject->enable();
-            }
-        }
-
-        const QString singleOutputId = m_config->singleOutputId();
-        if (!singleOutputId.isEmpty()
-            && outputObject->getOutputId() != singleOutputId) {
-            if (output->isEnabled()) {
-                WOutputStateGuard disabledState;
-                wlr_output_state_set_enabled(disabledState.get(), false);
-                if (!wlr_output_commit_state(output->handle(), disabledState.get())) {
-                    qCCritical(lcTlOutput)
-                        << "Failed to disable non-selected output while restoring single-output display"
-                        << output->name();
-                    return;
-                }
-            }
-            if (auto *layout = m_rootContainer->outputLayout();
-                layout && layout->outputs().contains(output)) {
-                layout->remove(output);
-            }
-            qCInfo(lcTlOutput) << "Disabled non-selected output while restoring single-output display"
-                               << output->name()
-                               << "selected output id:" << singleOutputId;
-            return;
-        }
-
-        auto restoreColorConfig = qScopeGuard([outputObject] {
-            if (outputObject && outputObject->output() && outputObject->output()->isEnabled()) {
-                outputObject->applyOutputColorConfig();
-            }
-        });
-
-        auto *config = outputObject->config();
-        const QString outputId = outputObject->getOutputId();
-        const QString primaryOutputId = m_config->primaryOutputId();
-        if (primaryOutputId == outputId) {
-            m_rootContainer->setPrimaryOutput(outputObject);
-        } else if (m_rootContainer->primaryOutput()
-                   && m_rootContainer->primaryOutput()->output()
-                   && !m_rootContainer->primaryOutput()->output()->isEnabled()
-                   && !currentPrimaryMatchesId(m_rootContainer, primaryOutputId)) {
-            m_rootContainer->setPrimaryOutput(outputObject);
-        }
-
-        if (!hasSavedOutputState(config)) {
-            if (!output->isEnabled()) {
-                outputObject->enable();
-            }
-            return;
-        }
-
-        const int width = static_cast<int>(config->width());
-        const int height = static_cast<int>(config->height());
-        const int refresh = static_cast<int>(config->refresh());
-        const double scale = config->scale();
-        const qlonglong transform = config->transform();
-        if (width <= 0 || height <= 0 || refresh <= 0 || scale <= 0.0) {
-            qCWarning(lcTlCore) << "Ignoring invalid output dconfig for" << output->name()
-                                << "width:" << width
-                                << "height:" << height
-                                << "refresh:" << refresh
-                                << "scale:" << scale;
-            return;
-        }
-        if (transform < WL_OUTPUT_TRANSFORM_NORMAL || transform > WL_OUTPUT_TRANSFORM_FLIPPED_270) {
-            qCWarning(lcTlCore) << "Ignoring invalid output dconfig for" << output->name()
-                                << "transform:" << transform;
-            return;
-        }
-
-        WOutputStateGuard newState;
-        wlr_output_state_set_enabled(newState.get(), true);
-
-        if (auto *layout = m_rootContainer->outputLayout()) {
-            layout->move(output, QPoint(static_cast<int>(config->x()), static_cast<int>(config->y())));
-        }
-
-        if (auto *mode = closestOutputMode(output, width, height, refresh)) {
-            wlr_output_state_set_mode(newState.get(), mode);
-        } else {
-            wlr_output_state_set_custom_mode(newState.get(), width, height, refresh);
-        }
-
-        wlr_output_state_set_adaptive_sync_enabled(newState.get(), config->adaptiveSyncEnabled());
-        wlr_output_state_set_transform(newState.get(), static_cast<wl_output_transform>(transform));
-        wlr_output_state_set_scale(newState.get(), scale);
-        const bool commitOk = wlr_output_commit_state(output->handle(), newState.get());
-        if (!commitOk) {
-            qCCritical(lcTlCore) << "commit failed on output" << output->name();
-            return;
-        }
-
-        if (auto *outputItem = outputObject->outputItem()) {
-            QMetaObject::invokeMethod(outputItem,
-                                      "setTransform",
-                                      Q_ARG(QVariant, QVariant::fromValue(static_cast<WOutput::Transform>(transform))));
-        }
-
-        saveCurrentConfig(outputObject);
-    };
     if (outputConfig->isInitializeSucceeded()) {
-        restoreOutputConfig();
+        restoreOutputConfig(output, o, isInitialOutput);
     } else {
-        publishOutput();
+        publishOutput(o);
     }
     // Publish physical changes through each Session's independent protocol.
     connect(output, &WOutput::modeChanged, this, &OutputManager::configurationChanged);
@@ -762,6 +635,138 @@ void OutputManager::saveCurrentConfig(Output *output)
             outputConfig->setY(layoutOutput->y);
         }
     }
+}
+
+void OutputManager::publishOutput(Output *outputObject)
+{
+    if (!outputObject) {
+        return;
+    }
+
+    if (auto *wallpaper = WaylandServer::instance()->wallpaperManager())
+        wallpaper->ensureWallpaperConfigForOutput(outputObject);
+}
+
+void OutputManager::restoreOutputConfig(WAYLIB_SERVER_NAMESPACE::WOutput *output,
+                                        Output *outputObject,
+                                        bool isInitialOutput)
+{
+    QPointer<Output> guardedOutput(outputObject);
+    auto publish = qScopeGuard([this, guardedOutput] {
+        publishOutput(guardedOutput);
+    });
+    if (!outputObject || m_mode == Mode::Copy) {
+        return;
+    }
+
+    // Only the initial backend scan restores saved geometry. A hot-plugged
+    // output keeps outputLayout's auto-added position, while its mode,
+    // transform, scale, brightness, and color temperature are restored.
+    if (!isInitialOutput) {
+        const bool restoreAsExtensionOutput =
+            m_mode == Mode::Extension
+            && m_config->singleOutputId().isEmpty();
+        if (restoreAsExtensionOutput && !output->isEnabled()) {
+            outputObject->enable();
+        }
+    }
+
+    const QString singleOutputId = m_config->singleOutputId();
+    if (!singleOutputId.isEmpty()
+        && outputObject->getOutputId() != singleOutputId) {
+        if (output->isEnabled()) {
+            WOutputStateGuard disabledState;
+            wlr_output_state_set_enabled(disabledState.get(), false);
+            if (!wlr_output_commit_state(output->handle(), disabledState.get())) {
+                qCCritical(lcTlOutput)
+                    << "Failed to disable non-selected output while restoring single-output display"
+                    << output->name();
+                return;
+            }
+        }
+        if (auto *layout = m_rootContainer->outputLayout();
+            layout && layout->outputs().contains(output)) {
+            layout->remove(output);
+        }
+        qCInfo(lcTlOutput) << "Disabled non-selected output while restoring single-output display"
+                           << output->name()
+                           << "selected output id:" << singleOutputId;
+        return;
+    }
+
+    auto restoreColorConfig = qScopeGuard([guardedOutput] {
+        if (guardedOutput && guardedOutput->output() && guardedOutput->output()->isEnabled()) {
+            guardedOutput->applyOutputColorConfig();
+        }
+    });
+
+    auto *config = outputObject->config();
+    const QString outputId = outputObject->getOutputId();
+    const QString primaryOutputId = m_config->primaryOutputId();
+    if (primaryOutputId == outputId) {
+        m_rootContainer->setPrimaryOutput(outputObject);
+    } else if (m_rootContainer->primaryOutput()
+               && m_rootContainer->primaryOutput()->output()
+               && !m_rootContainer->primaryOutput()->output()->isEnabled()
+               && !currentPrimaryMatchesId(m_rootContainer, primaryOutputId)) {
+        m_rootContainer->setPrimaryOutput(outputObject);
+    }
+
+    if (!hasSavedOutputState(config)) {
+        if (!output->isEnabled()) {
+            outputObject->enable();
+        }
+        return;
+    }
+
+    const int width = static_cast<int>(config->width());
+    const int height = static_cast<int>(config->height());
+    const int refresh = static_cast<int>(config->refresh());
+    const double scale = config->scale();
+    const qlonglong transform = config->transform();
+    if (width <= 0 || height <= 0 || refresh <= 0 || scale <= 0.0) {
+        qCWarning(lcTlCore) << "Ignoring invalid output dconfig for" << output->name()
+                            << "width:" << width
+                            << "height:" << height
+                            << "refresh:" << refresh
+                            << "scale:" << scale;
+        return;
+    }
+    if (transform < WL_OUTPUT_TRANSFORM_NORMAL || transform > WL_OUTPUT_TRANSFORM_FLIPPED_270) {
+        qCWarning(lcTlCore) << "Ignoring invalid output dconfig for" << output->name()
+                            << "transform:" << transform;
+        return;
+    }
+
+    WOutputStateGuard newState;
+    wlr_output_state_set_enabled(newState.get(), true);
+
+    if (auto *layout = m_rootContainer->outputLayout()) {
+        layout->move(output, QPoint(static_cast<int>(config->x()), static_cast<int>(config->y())));
+    }
+
+    if (auto *mode = closestOutputMode(output, width, height, refresh)) {
+        wlr_output_state_set_mode(newState.get(), mode);
+    } else {
+        wlr_output_state_set_custom_mode(newState.get(), width, height, refresh);
+    }
+
+    wlr_output_state_set_adaptive_sync_enabled(newState.get(), config->adaptiveSyncEnabled());
+    wlr_output_state_set_transform(newState.get(), static_cast<wl_output_transform>(transform));
+    wlr_output_state_set_scale(newState.get(), scale);
+    const bool commitOk = wlr_output_commit_state(output->handle(), newState.get());
+    if (!commitOk) {
+        qCCritical(lcTlCore) << "commit failed on output" << output->name();
+        return;
+    }
+
+    if (auto *outputItem = outputObject->outputItem()) {
+        QMetaObject::invokeMethod(outputItem,
+                                  "setTransform",
+                                  Q_ARG(QVariant, QVariant::fromValue(static_cast<WOutput::Transform>(transform))));
+    }
+
+    saveCurrentConfig(outputObject);
 }
 
 int OutputManager::indexOf(WAYLIB_SERVER_NAMESPACE::WOutput *output) const
@@ -1236,64 +1241,8 @@ void OutputManager::restoreExtensionModeFromConfig()
             layout->autoAdd(outputObject->output());
         }
 
-        auto restoreOutput = [this, outputObject = QPointer<Output>(outputObject)] {
-            if (!outputObject || !outputObject->output()
-                || !m_outputs.contains(outputObject)) {
-                return;
-            }
-
-            auto *output = outputObject->output();
-            auto *config = outputObject->config();
-            const bool saved = hasSavedOutputState(config);
-            const auto *preferred = wlr_output_preferred_mode(output->handle());
-            const int width = saved ? static_cast<int>(config->width())
-                                    : (preferred ? preferred->width : output->handle()->width);
-            const int height = saved ? static_cast<int>(config->height())
-                                     : (preferred ? preferred->height : output->handle()->height);
-            const int refresh = saved ? static_cast<int>(config->refresh())
-                                      : (preferred ? preferred->refresh : output->handle()->refresh);
-            const double scale = config->scale();
-            const qlonglong transform = config->transform();
-            if (width <= 0 || height <= 0 || refresh <= 0 || scale <= 0.0
-                || transform < WL_OUTPUT_TRANSFORM_NORMAL
-                || transform > WL_OUTPUT_TRANSFORM_FLIPPED_270) {
-                qCWarning(lcTlOutput) << "Ignoring invalid saved extension state for"
-                                      << output->name();
-                return;
-            }
-
-            if (auto *layout = m_rootContainer->outputLayout()) {
-                const QPoint position = saved
-                    ? QPoint(static_cast<int>(config->x()), static_cast<int>(config->y()))
-                    : (m_session ? m_session->outputManager()->defaultPosition(outputObject).toPoint() : QPoint());
-                layout->move(output, position);
-            }
-
-            WOutputStateGuard state;
-            wlr_output_state_set_enabled(state.get(), true);
-            if (auto *mode = closestOutputMode(output, width, height, refresh)) {
-                wlr_output_state_set_mode(state.get(), mode);
-            } else {
-                wlr_output_state_set_custom_mode(state.get(), width, height, refresh);
-            }
-            wlr_output_state_set_adaptive_sync_enabled(
-                state.get(), config->adaptiveSyncEnabled());
-            wlr_output_state_set_transform(
-                state.get(), static_cast<wl_output_transform>(transform));
-            wlr_output_state_set_scale(state.get(), scale);
-            if (!wlr_output_commit_state(output->handle(), state.get())) {
-                qCCritical(lcTlOutput) << "Failed to restore extension state for"
-                                       << output->name();
-                return;
-            }
-            if (auto *viewport = ownOutputViewport(output)) {
-                viewport->setOutputScale(scale);
-                viewport->rotateOutput(static_cast<WOutput::Transform>(transform));
-            }
-        };
-
         if (configurationReady(outputObject->config())) {
-            restoreOutput();
+            restoreExtensionOutput(outputObject);
         }
     }
 
@@ -1305,6 +1254,63 @@ void OutputManager::restoreExtensionModeFromConfig()
     const auto surfaces = workspaceSurfaces();
     if (!surfaces.isEmpty()) {
         moveSurfaces(surfaces, primaryOutput, nullptr);
+    }
+}
+
+void OutputManager::restoreExtensionOutput(Output *outputObject)
+{
+    if (!outputObject || !outputObject->output()
+        || !m_outputs.contains(outputObject)) {
+        return;
+    }
+
+    auto *output = outputObject->output();
+    auto *config = outputObject->config();
+    const bool saved = hasSavedOutputState(config);
+    const auto *preferred = wlr_output_preferred_mode(output->handle());
+    const int width = saved ? static_cast<int>(config->width())
+                            : (preferred ? preferred->width : output->handle()->width);
+    const int height = saved ? static_cast<int>(config->height())
+                             : (preferred ? preferred->height : output->handle()->height);
+    const int refresh = saved ? static_cast<int>(config->refresh())
+                              : (preferred ? preferred->refresh : output->handle()->refresh);
+    const double scale = config->scale();
+    const qlonglong transform = config->transform();
+    if (width <= 0 || height <= 0 || refresh <= 0 || scale <= 0.0
+        || transform < WL_OUTPUT_TRANSFORM_NORMAL
+        || transform > WL_OUTPUT_TRANSFORM_FLIPPED_270) {
+        qCWarning(lcTlOutput) << "Ignoring invalid saved extension state for"
+                              << output->name();
+        return;
+    }
+
+    if (auto *layout = m_rootContainer->outputLayout()) {
+        const QPoint position = saved
+            ? QPoint(static_cast<int>(config->x()), static_cast<int>(config->y()))
+            : (m_session ? m_session->outputManager()->defaultPosition(outputObject).toPoint() : QPoint());
+        layout->move(output, position);
+    }
+
+    WOutputStateGuard state;
+    wlr_output_state_set_enabled(state.get(), true);
+    if (auto *mode = closestOutputMode(output, width, height, refresh)) {
+        wlr_output_state_set_mode(state.get(), mode);
+    } else {
+        wlr_output_state_set_custom_mode(state.get(), width, height, refresh);
+    }
+    wlr_output_state_set_adaptive_sync_enabled(
+        state.get(), config->adaptiveSyncEnabled());
+    wlr_output_state_set_transform(
+        state.get(), static_cast<wl_output_transform>(transform));
+    wlr_output_state_set_scale(state.get(), scale);
+    if (!wlr_output_commit_state(output->handle(), state.get())) {
+        qCCritical(lcTlOutput) << "Failed to restore extension state for"
+                               << output->name();
+        return;
+    }
+    if (auto *viewport = ownOutputViewport(output)) {
+        viewport->setOutputScale(scale);
+        viewport->rotateOutput(static_cast<WOutput::Transform>(transform));
     }
 }
 
@@ -1623,9 +1629,8 @@ void OutputManager::testOrApplyConfiguration(WOutputManagerV1 *protocol,
         const auto generation = m_sessionGeneration;
         const bool enabled = state.enabled;
         const QPoint outputPosition(state.x, state.y);
-        QPointer<OutputManager> self(this);
         outputHelper->scheduleCommitJob(
-            [self,
+            [self = QPointer<OutputManager>(this),
              pendingConfig,
              generation,
              extraState,
@@ -1634,55 +1639,17 @@ void OutputManager::testOrApplyConfiguration(WOutputManagerV1 *protocol,
              output = QPointer<WOutput>(state.output),
              outputPosition,
              enabled](bool success, WOutputHelper::ExtraState committedState) {
-                if (!self)
-                    return;
-                const bool currentRequest = self->m_sessionGeneration == generation
-                    && self->m_pendingOutputConfig.config == pendingConfig
-                    && self->m_pendingOutputConfig.owner == self->m_session;
-                // Hardware commits still finish when their requesting Session
-                // changes; always retire the shared output-group bookkeeping.
-                const bool lastInFlight = (--self->m_inFlightOutputCommits <= 0);
-                if (committedState == extraState) {
-                    if (success && output) {
-                        auto *layout = self->m_rootContainer->outputLayout();
-                        if (layout && enabled && !layout->outputs().contains(output)) {
-                            layout->add(output, outputPosition);
-                        } else if (layout && !enabled
-                                   && layout->outputs().contains(output)) {
-                            layout->remove(output);
-                        }
-                    }
-                    if (currentRequest)
-                        self->onOutputCommitFinished(pendingConfig, success);
-                    if (success && committedState) {
-                        const bool wasStateOnlyCommit =
-                            (committedState->committed
-                             & (WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_SCALE
-                                | WLR_OUTPUT_STATE_TRANSFORM | WLR_OUTPUT_STATE_ENABLED))
-                            && !(committedState->committed & WLR_OUTPUT_STATE_BUFFER);
-                        const bool isDisable =
-                            (committedState->committed & WLR_OUTPUT_STATE_ENABLED)
-                            && !committedState->enabled;
-                        if (wasStateOnlyCommit && !isDisable) {
-                            renderWindow->update(viewport);
-                        }
-                    }
-                } else {
-                    qCWarning(lcTlCore)
-                        << "Commit callback received unexpected state pointer!"
-                        << "Expected:" << extraState.get()
-                        << "Got:" << committedState.get();
-                    if (currentRequest)
-                        self->onOutputCommitFinished(pendingConfig, false);
-                }
-
-                if (lastInFlight && self->m_groupsDirty) {
-                    // Recompute instead of applying the cached effective state:
-                    // the commit that just finished may have changed whether an
-                    // output is available (e.g. the client disabled a mirror
-                    // through wlr-output-management).
-                    self->m_groupsDirty = false;
-                    self->notifyOutputGroupsChanged();
+                if (self) {
+                    self->handleOutputCommit(success,
+                                             committedState,
+                                             pendingConfig,
+                                             generation,
+                                             extraState,
+                                             renderWindow,
+                                             viewport,
+                                             output,
+                                             outputPosition,
+                                             enabled);
                 }
             },
             WOutputHelper::AfterCommitStage);
@@ -1725,6 +1692,68 @@ void OutputManager::onOutputCommitFinished(wlr_output_configuration_v1 *config,
     }
 
     answerPendingConfiguration(m_pendingOutputConfig.allSuccess);
+}
+
+void OutputManager::handleOutputCommit(
+    bool success,
+    WAYLIB_SERVER_NAMESPACE::WOutputHelper::ExtraState committedState,
+    wlr_output_configuration_v1 *pendingConfig,
+    quint64 generation,
+    WAYLIB_SERVER_NAMESPACE::WOutputHelper::ExtraState extraState,
+    WAYLIB_SERVER_NAMESPACE::WOutputRenderWindow *renderWindow,
+    WAYLIB_SERVER_NAMESPACE::WOutputViewport *viewport,
+    QPointer<WAYLIB_SERVER_NAMESPACE::WOutput> output,
+    QPoint outputPosition,
+    bool enabled)
+{
+    const bool currentRequest = m_sessionGeneration == generation
+        && m_pendingOutputConfig.config == pendingConfig
+        && m_pendingOutputConfig.owner == m_session;
+    // Hardware commits still finish when their requesting Session
+    // changes; always retire the shared output-group bookkeeping.
+    const bool lastInFlight = (--m_inFlightOutputCommits <= 0);
+    if (committedState == extraState) {
+        if (success && output) {
+            auto *layout = m_rootContainer->outputLayout();
+            if (layout && enabled && !layout->outputs().contains(output)) {
+                layout->add(output, outputPosition);
+            } else if (layout && !enabled
+                       && layout->outputs().contains(output)) {
+                layout->remove(output);
+            }
+        }
+        if (currentRequest)
+            onOutputCommitFinished(pendingConfig, success);
+        if (success && committedState) {
+            const bool wasStateOnlyCommit =
+                (committedState->committed
+                 & (WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_SCALE
+                    | WLR_OUTPUT_STATE_TRANSFORM | WLR_OUTPUT_STATE_ENABLED))
+                && !(committedState->committed & WLR_OUTPUT_STATE_BUFFER);
+            const bool isDisable =
+                (committedState->committed & WLR_OUTPUT_STATE_ENABLED)
+                && !committedState->enabled;
+            if (wasStateOnlyCommit && !isDisable) {
+                renderWindow->update(viewport);
+            }
+        }
+    } else {
+        qCWarning(lcTlCore)
+            << "Commit callback received unexpected state pointer!"
+            << "Expected:" << extraState.get()
+            << "Got:" << committedState.get();
+        if (currentRequest)
+            onOutputCommitFinished(pendingConfig, false);
+    }
+
+    if (lastInFlight && m_groupsDirty) {
+        // Recompute instead of applying the cached effective state:
+        // the commit that just finished may have changed whether an
+        // output is available (e.g. the client disabled a mirror
+        // through wlr-output-management).
+        m_groupsDirty = false;
+        notifyOutputGroupsChanged();
+    }
 }
 
 void OutputManager::answerPendingConfiguration(bool ok)
