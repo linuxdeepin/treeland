@@ -59,6 +59,7 @@ public:
 Q_SIGNALS:
     void socketFileChanged();
     void sessionChanged();
+    void logindLockRequested(Session *session, bool locked);
     void xwaylandAuthChanged();
 
 private:

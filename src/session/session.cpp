@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "session.h"
+#include <QDBusConnection>
+#include <utility>
 #include "sessionprelaunch.h"
 #include "sessionscene.h"
 #include "sessionmanager.h"
@@ -112,6 +114,7 @@ void Session::detachInterface(WServerInterface *interface)
 
 Session::~Session()
 {
+    unsubscribeLogind();
     qCDebug(lcTlCore) << "Deleting session for uid:" << m_uid << m_socket;
     if (WaylandServer::instance())
         setActive(false);
@@ -165,6 +168,57 @@ Session::~Session()
 }
 
 DesktopEnvironment *Session::desktop() const { return m_desktop; }
+
+bool Session::subscribeLogind(const QString &path)
+{
+    if (path.isEmpty() || path == QStringLiteral("/"))
+        return false;
+    if (!m_logindPath.isEmpty())
+        return m_logindPath == path;
+    if (!updateLogindSubscription(path, true)) {
+        updateLogindSubscription(path, false);
+        return false;
+    }
+    m_logindPath = path;
+    return true;
+}
+
+void Session::unsubscribeLogind()
+{
+    if (m_logindPath.isEmpty())
+        return;
+    const auto path = std::exchange(m_logindPath, QString());
+    updateLogindSubscription(path, false);
+}
+
+bool Session::updateLogindSubscription(const QString &path, bool subscribe)
+{
+    auto bus = QDBusConnection::systemBus();
+    const std::pair<const char *, const char *> subscriptions[] = {
+        {"Lock", SLOT(onLogindLock())},
+        {"Unlock", SLOT(onLogindUnlock())},
+    };
+    bool success = true;
+    for (const auto &[signal, slot] : subscriptions) {
+        const bool updated = subscribe
+            ? bus.connect("org.freedesktop.login1", path, "org.freedesktop.login1.Session", signal, this, slot)
+            : bus.disconnect("org.freedesktop.login1", path, "org.freedesktop.login1.Session", signal, this, slot);
+        success = updated && success;
+    }
+    return success;
+}
+
+void Session::onLogindLock()
+{
+    if (!m_logindPath.isEmpty())
+        Q_EMIT logindLockRequested(this, true);
+}
+
+void Session::onLogindUnlock()
+{
+    if (!m_logindPath.isEmpty())
+        Q_EMIT logindLockRequested(this, false);
+}
 
 const QString &Session::id() const
 {
@@ -460,6 +514,7 @@ void SessionManager::removeSession(std::shared_ptr<Session> session)
 {
     if (!session)
         return;
+    session->unsubscribeLogind();
 
     if (m_activeSession.lock() == session) {
         const auto fallback = globalSession();
@@ -488,6 +543,11 @@ void SessionManager::removeSession(std::shared_ptr<Session> session)
  */
 std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QString username)
 {
+    const auto owner = sessionForId(id);
+    if (owner && owner->username() != username) {
+        qCWarning(lcTlGreeter) << "Logind session id already belongs to another desktop:" << id;
+        return nullptr;
+    }
     // WaylandServer lambda to create WSocket and WXWayland
     auto createWSocket = [this]() {
         // Create WSocket
@@ -583,6 +643,11 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
 #endif
     // Check if session already exists for user
     if (auto session = sessionForUser(username)) {
+        if (session->id() != id) {
+            qCWarning(lcTlGreeter) << "Refusing to reuse desktop with a different logind id:"
+                                 << username << session->id() << id;
+            return nullptr;
+        }
         // Ensure it has a socket and xwayland
         if (!session->m_socket) {
             auto *socket = createWSocket();
@@ -659,6 +724,8 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
 #endif
 
     session->m_socket->setEnabled(false, globalSession() ? globalSession()->socket() : nullptr);
+    // Forward the source object, rather than recovering identity from a D-Bus path.
+    connect(session.get(), &Session::logindLockRequested, this, &SessionManager::logindLockRequested);
     // Add session to list
     m_sessions.append(session);
     return session;

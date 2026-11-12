@@ -126,6 +126,8 @@ native handle 是存在 `m_handle`（`void*`）里的 wlroots 原始 C 指针。
 
 判断方法：
 
+注意 Session 级接口可在 `wl_display` 仍运行时被 detach。此时仅清空 `m_handle` 会留下 native global；接口从 WServer 列表移除后，该 global 可能失去用户隔离过滤和事件监听。必须单独核对运行时 detach 的 global 撤销路径，不能把仅适用于整个 display 关闭的清理方式直接用于 Session 注销。没有公开 native destroy 函数时，也应查明如何安全撤销 global，以及最终 display 清理是否会重复销毁。
+
 1. 读同目录下邻近的 `W...` 封装
 2. 读 `3rdparty/wlroots/include/wlr` 中对应 `wlr_*` 类型是否提供显式 `destroy()` 之类 API
 3. 确认 `create()` 是否被 `if (!m_handle)` 保护；如果是，`destroy()` 必须清空 `m_handle`，否则重启后无法重新创建 global

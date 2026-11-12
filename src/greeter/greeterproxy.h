@@ -6,12 +6,16 @@
 #include "QDBusContext"
 #include <QDBusObjectPath>
 #include <QObject>
+#include <memory>
 #include <QQmlEngine>
 
+class QDBusPendingCallWatcher;
+class Session;
 class QLocalSocket;
 class QTimer;
 
 class LockScreen;
+class LockScreenManager;
 
 class GreeterProxy
     : public QObject
@@ -168,6 +172,8 @@ public:
      */
     inline void setLockScreen(LockScreen *lockScreen) { m_lockScreen = lockScreen; };
 
+    void bindLockScreenManager(LockScreenManager *manager);
+
 public Q_SLOTS:
 
     /////////////
@@ -251,12 +257,6 @@ private Q_SLOTS:
     /** @brief Listener for org.freederktop.login1.Manager.SessionRemoved */
     void onSessionRemoved(const QString &id, const QDBusObjectPath &session);
 
-    /** @brief Listener for org.freederktop.login1.Session.Lock */
-    void onSessionLock();
-
-    /** @brief Listener for org.freederktop.login1.Session.Unlock */
-    void onSessionUnlock();
-
 Q_SIGNALS:
     void informationMessage(const QString &message);
 
@@ -321,11 +321,16 @@ private:
      */
     void setLock(bool isLocked);
 
+    void onSessionRelockRequested(const QString &id);
+
     /**
      * @brief Update the DDM communication socket
      */
     void updateAuthSocket();
     void sendConnect();
+    void restoreLogindPath(const QString &id);
+    void onLogindPathRestored(QDBusPendingCallWatcher *watcher,
+                              const std::weak_ptr<Session> &expected);
 
     /////////////////////
     // Property values //

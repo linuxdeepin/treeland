@@ -13,8 +13,7 @@ class LockScreenInterface;
 class ILockScreen;
 class GreeterProxy;
 class QTimer;
-class QDBusObjectPath;
-Q_MOC_INCLUDE(<QDBusObjectPath>)
+class Session;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
@@ -39,12 +38,13 @@ public:
     void showShutdownMenu();
     void showSwitchUser();
 
-private Q_SLOTS:
-    void onSessionNew(const QString &sessionId, const QDBusObjectPath &objectPath);
-    void onSessionLock();
-    void onSessionUnlock();
+Q_SIGNALS:
+    void sessionLockStateRequested(bool locked);
+    void sessionRelockRequested(const QString &id);
 
 private:
+    void onSessionLockRequested(Session *session, bool locked);
+    void requestSwitchToGreeter();
     void onExtSessionLock(WSessionLock *lock);
 
 private:

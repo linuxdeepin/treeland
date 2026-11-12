@@ -95,6 +95,8 @@ treeland-debug debug
 dde-dconfig -u <uid> set -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k remoteDebug -v true
 ```
 
+部分发行版的 DConfig 会拒绝 root 通过 `-u` 访问 private 键，报 `No Permission configure item [remoteDebug]`；这不是缺少调试构建。已在 UOS 25 验证可按合成器实际用户执行，并携带应用身份：`sudo -u dde env DSG_APP_ID=org.deepin.dde.treeland dde-dconfig get -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k remoteDebug`。开启和关闭用同样身份执行 `set ... -v true|false`，随后读回确认。临时诊断应设置自动关闭并在结束时主动恢复原值；不要为绕过此权限错误重新编译或重启合成器。
+
 切换 `remoteDebug` **立即生效** —— remote source 会在运行时被创建或销毁，无需重启（合成器运行时监听 `remoteDebugChanged`）。`treeland-debug` 连接的是构建类型对应的调试 socket（见上面的 socket 命名），remote object 名为 `WindowTree`。
 
 ## treeland-debug CLI

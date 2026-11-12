@@ -60,6 +60,9 @@ public:
     DesktopEnvironment *desktop() const;
 
     const QString &id() const;
+    const QString &logindPath() const { return m_logindPath; }
+    bool subscribeLogind(const QString &path);
+    void unsubscribeLogind();
     uid_t uid() const;
     const QString &username() const;
     WSocket *socket() const;
@@ -92,11 +95,17 @@ public:
 Q_SIGNALS:
     void activeChanged(bool active);
     void aboutToBeDestroyed();
+    void logindLockRequested(Session *session, bool locked);
+
+private Q_SLOTS:
+    void onLogindLock();
+    void onLogindUnlock();
 
 private:
     friend class SessionManager;
     friend class SurfaceProtocolController;
 
+    bool updateLogindSubscription(const QString &path, bool subscribe);
     void setActive(bool active);
     DesktopEnvironment *m_desktop = nullptr;
     bool m_active = false;
@@ -110,8 +119,9 @@ private:
     QPointer<WForeignToplevel> m_foreignToplevel;
     QPointer<WExtForeignToplevelListV1> m_toplevelList;
     TreelandUserConfig *m_config = nullptr;
-    // Immutable logind identity, also read by session lock/unlock workers.
+    // Identity of this desktop; cleared with the Session on logout.
     QString m_id;
+    QString m_logindPath;
     uid_t m_uid = 0;
     QString m_username = {};
     WSocket *m_socket = nullptr;
