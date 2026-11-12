@@ -748,7 +748,8 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
 
 void WSeatPrivate::detachInputDevice(WInputDevice *device)
 {
-    if (cursor && device->type() == WInputDevice::Type::Pointer)
+    // detachInputDevice is idempotent, so no type check is needed here.
+    if (cursor)
         cursor->detachInputDevice(device);
 
     if (device->type() == WInputDevice::Type::Touch) {
