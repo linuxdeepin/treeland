@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "session.h"
+#include "utils/loginddbustypes.h"
+
+#include <QDBusConnection>
+#include <utility>
 #include "sessionmanager.h"
 #include "desktop/desktopenvironment.h"
 #include "surface/surfacecontainer.h"
@@ -56,6 +60,7 @@ void Session::beginShutdown()
         return;
 
     m_shuttingDown = true;
+    unsubscribeLogind();
 
     if (m_scene)
         m_scene->shutdown();
@@ -203,6 +208,57 @@ void Session::shutdown()
 Workspace *Session::workspace() const
 {
     return m_workspace ? m_workspace->workspace() : nullptr;
+}
+
+bool Session::subscribeLogind(const QString &path)
+{
+    if (isShuttingDown() || path.isEmpty() || path == QStringLiteral("/"))
+        return false;
+    if (!m_logindPath.isEmpty())
+        return m_logindPath == path;
+    if (!updateLogindSubscription(path, true)) {
+        updateLogindSubscription(path, false);
+        return false;
+    }
+    m_logindPath = path;
+    return true;
+}
+
+void Session::unsubscribeLogind()
+{
+    if (m_logindPath.isEmpty())
+        return;
+    const auto path = std::exchange(m_logindPath, QString());
+    updateLogindSubscription(path, false);
+}
+
+bool Session::updateLogindSubscription(const QString &path, bool subscribe)
+{
+    auto bus = QDBusConnection::systemBus();
+    const std::pair<const char *, const char *> subscriptions[] = {
+        {"Lock", SLOT(onLogindLock())},
+        {"Unlock", SLOT(onLogindUnlock())},
+    };
+    bool success = true;
+    for (const auto &[signal, slot] : subscriptions) {
+        const bool updated = subscribe
+            ? bus.connect(Logind::serviceName(), path, Logind::sessionIfaceName(), signal, this, slot)
+            : bus.disconnect(Logind::serviceName(), path, Logind::sessionIfaceName(), signal, this, slot);
+        success = updated && success;
+    }
+    return success;
+}
+
+void Session::onLogindLock()
+{
+    if (!m_logindPath.isEmpty())
+        Q_EMIT logindLockRequested(this, true);
+}
+
+void Session::onLogindUnlock()
+{
+    if (!m_logindPath.isEmpty())
+        Q_EMIT logindLockRequested(this, false);
 }
 
 void Session::setActive(bool active)

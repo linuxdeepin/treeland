@@ -7,12 +7,16 @@
 #include "core/waylandserver.h"
 #include <QDBusObjectPath>
 #include <QObject>
+#include <memory>
 #include <QQmlEngine>
 
+class QDBusPendingCallWatcher;
+class Session;
 class QLocalSocket;
 class QTimer;
 
 class LockScreen;
+class LockScreenManager;
 
 class GreeterProxy
     : public QObject
@@ -205,6 +209,8 @@ public:
      */
     void syncHasActiveSession();
 
+    void bindLockScreenManager(LockScreenManager *manager);
+
 public Q_SLOTS:
 
     /////////////
@@ -288,15 +294,8 @@ private Q_SLOTS:
     /** @brief Listener for org.freederktop.login1.Manager.SessionRemoved */
     void onSessionRemoved(const QString &id, const QDBusObjectPath &session);
 
-    /** @brief Listener for org.freederktop.login1.Session.Lock */
-    void onSessionLock();
-
-    /** @brief Listener for org.freederktop.login1.Session.Unlock */
-    void onSessionUnlock();
-
     /** @brief Listener for org.freedesktop.login1.Manager.PrepareForSleep */
     void onPrepareForSleep(bool preparing);
-
 Q_SIGNALS:
     void informationMessage(const QString &message);
 
@@ -368,6 +367,8 @@ private:
      */
     void setLock(bool isLocked);
 
+    void onSessionRelockRequested(const QString &id);
+
     /**
      * @brief Start waiting for the given user's authentication result.
      *
@@ -383,6 +384,9 @@ private:
      */
     void updateAuthSocket();
     void sendConnect();
+    void restoreLogindPath(const QString &id);
+    void onLogindPathRestored(QDBusPendingCallWatcher *watcher,
+                              const std::weak_ptr<Session> &expected);
 
     /**
      * @brief Check whether the user shown by the lockscreen has a session
