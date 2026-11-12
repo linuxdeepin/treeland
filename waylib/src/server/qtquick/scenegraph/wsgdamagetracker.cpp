@@ -74,10 +74,11 @@ void WSGDamageTracker::accumulateBackdropRecopy(const WSGDamageBackdropNode *nod
             viewport->setAttachedData<WSGViewportBackdropData>(data, [](void *p) {
                 delete static_cast<WSGViewportBackdropData*>(p);
             });
-            data->accumulate(node, node->recopySeed().native());
-        } else {
-            data->accumulate(node, damage);
         }
+        // A viewport can acquire its debt table from another backdrop first.
+        // Seed each newly observed backdrop with its accumulated history, not
+        // just the current delta; its cache has never consumed that history.
+        data->accumulate(node, data->contains(node) ? damage : node->recopySeed().native());
     }
 }
 

@@ -31,7 +31,7 @@
 
 #include "debughelpers.h"
 
-#include "debugsession.h"
+#include <QSaveFile>
 #ifdef TREELAND_DEBUG_LISTEN
 #include "debugserver.h"
 #endif
@@ -459,12 +459,19 @@ QString helpText()
         "Image capture:\n"
         "  screenshot output [name] [file]   Grab an output (name optional, primary by default)\n"
         "  screenshot window <id> [file]     Grab a single window\n"
+        "Damage diagnostics:\n"
+        "  damage highlight on|off     Toggle the compositor's damage-region overlay\n"
+        "  damage record <output> <dir> Save each committed output frame as PNG plus per-frame damage JSON\n"
+        "                             Stop with Ctrl+C; existing non-empty directories are refused\n"
+        "  damage stop                Stop an active recorder (also auto-stops if its client disappears)\n"
+        "\n"
         "\n"
 #ifdef TREELAND_DEBUG_LISTEN
         "Server:\n"
         "  listen [--port <port>] [--host <addr>]   Start HTTP/WebSocket server (default 0.0.0.0:8080)\n"
-        "                             All CLI commands available via HTTP and WebSocket.\n"
-        "                             Screenshots return raw bytes instead of saving to disk.\n"
+        "                             Most CLI commands are available over HTTP and WebSocket.\n"
+        "                             Damage frame recording is CLI-only; screenshots return raw\n"
+        "                             bytes instead of saving to disk.\n"
         "\n"
 #endif
         "Access:\n"
@@ -711,6 +718,8 @@ static int runEvents(Session &session, int timeoutMs, int intervalMs);
 
 // `watch` monitors a single window's changes.
 static int runWatch(Session &session, int timeoutMs, qint64 id, int intervalMs);
+static int runDamageRecord(Session &session, int timeoutMs,
+                           const QString &outputName, const QString &directory);
 // `shell` reads commands from stdin.
 static int runShell(Session &session, int timeoutMs, bool json, int previewOpt);
 // Dispatches the live/refreshing commands (top, events, watch). Returns true
@@ -1433,6 +1442,21 @@ static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt
             previewImage(data, previewOpt == 1);
         return EXIT_SUCCESS;
     }
+    case DebugCommand::DamageHighlight: {
+        const bool enabled = parsed.action == QLatin1String("on");
+        bool result = false;
+        if (!waitSlot(replica->setDamageHighlight(enabled), timeoutMs, &result))
+            return fail("setDamageHighlight() failed");
+        QTextStream(stdout) << (result ? "ok" : "failed") << Qt::endl;
+        return result ? EXIT_SUCCESS : EXIT_FAILURE;
+    }
+    case DebugCommand::DamageStop: {
+        bool result = false;
+        if (!waitSlot(replica->stopDamageRecording(), timeoutMs, &result))
+            return fail("stopDamageRecording() failed");
+        QTextStream(stdout) << (result ? "damage recording stopped" : "failed") << Qt::endl;
+        return result ? EXIT_SUCCESS : EXIT_FAILURE;
+    }
     case DebugCommand::Scene: {
         qint64 id = 0;
         if (!parsed.target.isEmpty()) {
@@ -1554,6 +1578,73 @@ static int runTop(Session &session, int timeoutMs, int intervalMs)
     QCoreApplication::exec();
     return rc;
 }
+static int runDamageRecord(Session &session, int timeoutMs,
+                           const QString &outputName, const QString &directory)
+{
+    QDir outputDir(directory);
+    if (outputDir.exists()
+        && !outputDir.entryList(QDir::AllEntries | QDir::NoDotAndDotDot).isEmpty()) {
+        return fail(QStringLiteral("damage record: refusing to overwrite non-empty directory '%1'")
+                        .arg(directory));
+    }
+    if (!QDir().mkpath(directory))
+        return fail(QStringLiteral("damage record: cannot create directory '%1'").arg(directory));
+
+    QObject context;
+    quint64 framesSaved = 0;
+    bool writeFailed = false;
+    QObject::connect(session.replica, &WindowTreeRemoteReplica::damageFrame, &context,
+                     [&](const QString &, quint64 sequence, const QByteArray &png,
+                         const QByteArray &metadata) {
+        const QString stem = QStringLiteral("frame-%1").arg(
+            QString::number(sequence).rightJustified(8, QLatin1Char('0')));
+        const auto save = [&](const QString &name, const QByteArray &bytes) {
+            QSaveFile file(outputDir.filePath(name));
+            if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size()
+                || !file.commit()) {
+                writeFailed = true;
+                QTextStream(stderr) << "treeland-debug: damage record: failed to write "
+                                    << file.fileName() << Qt::endl;
+                QCoreApplication::quit();
+                return false;
+            }
+            return true;
+        };
+        if (!png.isEmpty() && !save(stem + QStringLiteral(".png"), png))
+            return;
+        if (!save(stem + QStringLiteral(".json"), metadata))
+            return;
+        ++framesSaved;
+    });
+
+    bool started = false;
+    if (!waitSlot(session.replica->startDamageRecording(outputName), timeoutMs, &started))
+        return fail("startDamageRecording() failed");
+    if (!started)
+        return fail(QStringLiteral("damage record: output '%1' not found").arg(outputName));
+
+    SigIntInterrupt interrupt;
+    if (!interrupt.install()) {
+        bool stopped = false;
+        waitSlot(session.replica->stopDamageRecording(), timeoutMs, &stopped);
+        return fail("damage record: cannot install Ctrl+C handler");
+    }
+    QTimer keepAlive;
+    QObject::connect(&keepAlive, &QTimer::timeout, &context,
+                     [replica = session.replica] { replica->keepDamageRecordingAlive(); });
+    keepAlive.start(1000);
+    QTextStream(stdout) << "Recording committed frames from " << outputName << " to "
+                        << outputDir.absolutePath() << " (Ctrl+C to stop)" << Qt::endl;
+    QCoreApplication::exec();
+    keepAlive.stop();
+
+    bool stopped = false;
+    if (!waitSlot(session.replica->stopDamageRecording(), timeoutMs, &stopped) || !stopped)
+        return fail("stopDamageRecording() failed");
+    QTextStream(stdout) << "Saved " << framesSaved << " frames in "
+                        << outputDir.absolutePath() << Qt::endl;
+    return writeFailed ? EXIT_FAILURE : EXIT_SUCCESS;
+}
 
 static bool dispatchLiveCommand(Session &session, int timeoutMs,
                                 const QString &command, const QStringList &commandArgs,
@@ -1564,7 +1655,8 @@ static bool dispatchLiveCommand(Session &session, int timeoutMs,
     // Only the live commands (top/events/watch) are handled here; everything
     // else falls through to runCommand().
     if (parsed.command != DebugCommand::Top && parsed.command != DebugCommand::Events
-        && parsed.command != DebugCommand::Watch) {
+        && parsed.command != DebugCommand::Watch
+        && parsed.command != DebugCommand::DamageRecord) {
         return false;
     }
 
@@ -1590,6 +1682,9 @@ static bool dispatchLiveCommand(Session &session, int timeoutMs,
         *rc = runWatch(session, timeoutMs, id, parsed.intervalMs);
         return true;
     }
+    case DebugCommand::DamageRecord:
+        *rc = runDamageRecord(session, timeoutMs, parsed.outputName, parsed.filePath);
+        return true;
     default:
         return false;
     }

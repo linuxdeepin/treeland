@@ -17,6 +17,8 @@ treeland (0.11.0) unstable; urgency=medium
   * feat: add XKB settings to input manager
   * fix(greeter): dedup users and resolve accounts by uid
   * feat(input): support per-seat user DConfig
+  * fix(waylib): seed newly tracked backdrop caches with their accumulated
+    damage debt
 
  -- rewine <luhongxu@deepin.org>  Sat, 10 Oct 2026 11:34:34 +0800
 

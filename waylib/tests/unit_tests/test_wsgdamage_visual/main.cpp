@@ -401,14 +401,21 @@ private:
 
         const FrameSnap snap = captureOrSkip();
         const int pad = item == named("blurPanel") ? blurPad() : shadowPad();
-        const bool ok = expectRegionCovers(snap, oldRect.adjusted(-pad, -pad, pad, pad),
-                                           qPrintable(QStringLiteral("%1 old").arg(QLatin1String(what))))
+        const bool damageCoversMove =
+            expectRegionCovers(snap, oldRect.adjusted(-pad, -pad, pad, pad),
+                               qPrintable(QStringLiteral("%1 old").arg(QLatin1String(what))))
             && expectRegionCovers(snap, now.adjusted(-pad, -pad, pad, pad),
                                   qPrintable(QStringLiteral("%1 new").arg(QLatin1String(what))))
             && expectRegionAvoids(snap, sceneRect(named("sentinel")),
                                   qPrintable(QStringLiteral("%1 sentinel").arg(QLatin1String(what))))
             && expectRegionNotFullscreen(snap, what);
-        return ok;
+        if (!forceFullFlush())
+            return false;
+        const FrameSnap full = captureOrSkip(false);
+        const bool pixelsMatch = expectImagesMatch(
+            snap.buffer, full.buffer,
+            qPrintable(QStringLiteral("%1 partial vs rerender").arg(QLatin1String(what))));
+        return damageCoversMove && pixelsMatch;
     }
 
     bool expectTargetMoveIsPartial(const char *what)

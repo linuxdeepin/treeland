@@ -214,6 +214,7 @@ private slots:
     void stackedBackdropsRecaptureOverlap();
     void stackedBackdropsExclusiveDirtySkipsFront();
     void stackedBackdropsIndependentCopySources();
+    void newBackdropSeedsExistingViewportDebtTable();
     void backdropSeesRemovedSiblingHole();
     void backgroundDamageRecopySurvivesRepeatedCommit();
     void multiOutputDisjointSceneMapping();
@@ -2362,6 +2363,30 @@ void WSGDamageGraphTest::stackedBackdropsIndependentCopySources()
     COMPARE_REGION(WPixmanRegion(*WSGDamageNodeTestAccess::pendingRecopy(right, tracker.viewport.get())),
                    QRegion(150, 30, 8, 8));
 }
+void WSGDamageGraphTest::newBackdropSeedsExistingViewportDebtTable()
+{
+    WSGDamageNode root;
+    auto *existing = new WSGDamageBackdropNode;
+    existing->setBoundingRect(QRectF(0, 0, 80, 80));
+    root.appendChild(existing);
+
+    TestTracker tracker(&root);
+    tracker.commit();
+    existing->consumeRecopy(existing->pendingRecopy(tracker.viewport.get()),
+                            tracker.viewport.get());
+
+    // This backdrop accumulated copy debt before the viewport first observed
+    // it. Its first live delta must not replace that older debt.
+    WSGDamageBackdropNode late;
+    const WPixmanRegion history(QRect(20, 20, 10, 10));
+    const WPixmanRegion current(QRect(50, 50, 12, 12));
+    late.accumulateRecopy(history.native());
+    late.accumulateRecopy(current.native(), &tracker);
+
+    COMPARE_REGION(late.pendingRecopy(tracker.viewport.get()),
+                   QRegion(20, 20, 10, 10) + QRegion(50, 50, 12, 12));
+}
+
 
 void WSGDamageGraphTest::backdropSeesRemovedSiblingHole()
 {

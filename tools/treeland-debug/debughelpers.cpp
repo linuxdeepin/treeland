@@ -390,6 +390,46 @@ ParseResult parseCommand(const QString &command, const QStringList &args)
         return r;
     }
 
+    // ---- damage diagnostics ----
+    if (command == QLatin1String("damage")) {
+        if (args.isEmpty()) {
+            r.error = QStringLiteral(
+                "damage: usage: damage highlight on|off | record <output> <directory> | stop");
+            return r;
+        }
+        const QString sub = args[0];
+        if (sub == QLatin1String("highlight")) {
+            if (args.size() != 2
+                || (args[1] != QLatin1String("on") && args[1] != QLatin1String("off"))) {
+                r.error = QStringLiteral("damage highlight: usage: damage highlight on|off");
+                return r;
+            }
+            r.ok = true;
+            r.command = DebugCommand::DamageHighlight;
+            r.action = args[1];
+            return r;
+        }
+        if (sub == QLatin1String("record")) {
+            if (args.size() != 3 || args[1].isEmpty() || args[2].isEmpty()) {
+                r.error = QStringLiteral(
+                    "damage record: usage: damage record <output> <directory>");
+                return r;
+            }
+            r.ok = true;
+            r.command = DebugCommand::DamageRecord;
+            r.outputName = args[1];
+            r.filePath = args[2];
+            return r;
+        }
+        if (sub == QLatin1String("stop") && args.size() == 1) {
+            r.ok = true;
+            r.command = DebugCommand::DamageStop;
+            return r;
+        }
+        r.error = QStringLiteral("damage: unknown subcommand '%1'").arg(sub);
+        return r;
+    }
+
     // ---- live commands ----
     if (command == QLatin1String("top")) {
         r.ok = true;

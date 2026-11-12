@@ -411,6 +411,14 @@ struct WSGViewportBackdropData
         WPixmanRegion damage;
     };
     QList<DebtEntry> debts;
+    bool contains(const WSGDamageBackdropNode *node) const {
+        for (const auto &entry : debts) {
+            if (entry.node == node)
+                return true;
+        }
+        return false;
+    }
+
 
     const WPixmanRegion &pending(const WSGDamageBackdropNode *node) const {
         for (const auto &entry : debts) {
