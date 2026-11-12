@@ -2,7 +2,6 @@ set(MODULE_PATH ${PROJECT_SOURCE_DIR}/src/modules)
 
 add_subdirectory(test_window_blur)
 add_subdirectory(test_wallpaper_color)
-add_subdirectory(test_show_desktop)
 add_subdirectory(test_compositor-action)
 add_subdirectory(test_xdgport_wallpaper)
 add_subdirectory(test_output_manager)

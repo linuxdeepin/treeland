@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "modules/show-desktop/showdesktopinterfacev1.h"
+#include <QObject>
 
 class WaylandServer;
 class OutputManager;
@@ -13,13 +13,16 @@ class ShowDesktop : public QObject
 {
     Q_OBJECT
 public:
+    enum class State
+    {
+        Normal,
+        Show,
+    };
+
     ShowDesktop(WaylandServer *server, OutputManager *outputManager);
 
-    void initialize(WServer *server);
-    void connectProtocol();
-    bool isAvailable() const;
-    ShowDesktopInterfaceV1::State state() const;
-    void setState(ShowDesktopInterfaceV1::State state);
+    State state() const;
+    void setState(State state);
     void cancelShowDesktop(SurfaceWrapper *excludeSurface = nullptr);
     void restoreFromShowDesktop(SurfaceWrapper *activeSurface = nullptr);
     void restoreShowDesktopFocus();
@@ -28,11 +31,7 @@ Q_SIGNALS:
     void stateChanged();
 
 private:
-    void onShowDesktop();
-
-private:
     WaylandServer *m_server = nullptr;
     OutputManager *m_outputManager = nullptr;
-    ShowDesktopInterfaceV1 *m_showDesktopInterfaceV1 = nullptr;
-    ShowDesktopInterfaceV1::State m_showDesktop = ShowDesktopInterfaceV1::State::Normal;
+    State m_showDesktop = State::Normal;
 };

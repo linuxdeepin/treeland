@@ -5,9 +5,9 @@
 
 #include "common/treelandlogging.h"
 #include "interfaces/multitaskviewinterface.h"
-#include "modules/show-desktop/showdesktopinterfacev1.h"
 #include "output/output.h"
 #include "core/waylandserver.h"
+#include "showdesktop/showdesktop.h"
 #include "surface/surfacewrapper.h"
 #include "workspace/workspace.h"
 
@@ -67,14 +67,13 @@ void ShellActionExecutor::execute(ShellAction action)
         server->workspace()->switchToNext();
         break;
     case ShellAction::ToggleShowDesktop:
-        if (!server->isShowDesktopAvailable()
-            || server->currentMode() == WaylandServer::CurrentMode::Multitaskview) {
+        if (server->currentMode() == WaylandServer::CurrentMode::Multitaskview) {
             break;
         }
-        if (server->showDesktopState() == ShowDesktopInterfaceV1::State::Normal) {
-            server->setShowDesktopState(ShowDesktopInterfaceV1::State::Show);
-        } else if (server->showDesktopState() == ShowDesktopInterfaceV1::State::Show) {
-            server->setShowDesktopState(ShowDesktopInterfaceV1::State::Normal);
+        if (server->showDesktopState() == ShowDesktop::State::Normal) {
+            server->setShowDesktopState(ShowDesktop::State::Show);
+        } else if (server->showDesktopState() == ShowDesktop::State::Show) {
+            server->setShowDesktopState(ShowDesktop::State::Normal);
         }
         break;
     case ShellAction::OpenMultitaskView:

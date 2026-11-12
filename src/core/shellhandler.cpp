@@ -15,12 +15,12 @@
 #include "modules/dde-shell/ddeshellmanagerinterfacev2.h"
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv3.h"
 #include "modules/layer-shell-extension/layershellextensionmanagerinterfacev1.h"
-#include "modules/show-desktop/showdesktopinterfacev1.h"
 #include "modules/wine-window-management/winewindowmanagement.h"
 #include "modules/wine-window-state/winewindowstate.h"
 #include "output/output.h"
 #include "rootsurfacecontainer.h"
 #include "core/waylandserver.h"
+#include "showdesktop/showdesktop.h"
 #include "seat/seatmanager.h"
 #include "session/session.h"
 #include "session/sessionseatmanager.h"
@@ -213,7 +213,7 @@ void ShellHandler::updateXWaylandDesktopProperties()
                                        QVector<QRect>(workspace->count(), workarea),
                                        session->isActive()
                                            && WaylandServer::instance()->showDesktopState()
-                                               == ShowDesktopInterfaceV1::State::Show);
+                                               == ShowDesktop::State::Show);
     }
 }
 #endif

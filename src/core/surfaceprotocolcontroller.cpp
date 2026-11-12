@@ -4,6 +4,7 @@
 #include "surfaceprotocolcontroller.h"
 #include "session/sessionmanager.h"
 #include "waylandserver.h"
+#include "showdesktop/showdesktop.h"
 #include "rootsurfacecontainer.h"
 #include "shellhandler.h"
 #include "session/session.h"
@@ -80,7 +81,7 @@ void SurfaceProtocolController::connectForeignToplevel(WForeignToplevel *manager
                 auto *wrapper = m_server->rootContainer()->getSurface(surface);
                 if (!wrapper)
                     return;
-                if (m_server->showDesktopState() == ShowDesktopInterfaceV1::State::Show) {
+                if (m_server->showDesktopState() == ShowDesktop::State::Show) {
                     m_server->forceActivateSurface(wrapper);
                 } else if (minimized) {
                     wrapper->minimize();

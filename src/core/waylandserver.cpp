@@ -851,7 +851,7 @@ bool WaylandServer::toggleDebugMenuBar()
     return ok;
 }
 
-ShowDesktopInterfaceV1::State WaylandServer::showDesktopState() const
+ShowDesktop::State WaylandServer::showDesktopState() const
 {
     return m_showDesktop->state();
 }
@@ -1145,7 +1145,7 @@ void WaylandServer::restoreShowDesktopFocus()
     m_showDesktop->restoreShowDesktopFocus();
 }
 
-void WaylandServer::setShowDesktopState(ShowDesktopInterfaceV1::State state)
+void WaylandServer::setShowDesktopState(ShowDesktop::State state)
 {
     m_showDesktop->setState(state);
 }
@@ -1190,11 +1190,6 @@ void WaylandServer::finishLockScreenTransition()
     }
 }
 
-bool WaylandServer::isShowDesktopAvailable() const
-{
-    return m_showDesktop->isAvailable();
-}
-
 WXdgOutputManager *WaylandServer::installDesktopProtocols(QmlEngine *engine)
 {
     m_ddmInterfaceV1 = server()->attach<DDMInterfaceV1>();
@@ -1237,7 +1232,6 @@ WXdgOutputManager *WaylandServer::installDesktopProtocols(QmlEngine *engine)
             m_sessionManager,
             &SessionManager::syncActiveSessionXWaylandPrimaryOutput);
     m_wallpaperColorV1 = server()->attach<WallpaperColorInterfaceV1>();
-    m_showDesktop->initialize(server());
 #ifndef DISABLE_XWAYLAND
     m_xWindowControlInterfaceV1 = server()->attach<XWindowControlInterfaceV1>();
 #endif
@@ -1249,7 +1243,6 @@ WXdgOutputManager *WaylandServer::installDesktopProtocols(QmlEngine *engine)
     // New protocols (treeland-protocols 0.6.0)
 
     DConfigManager::instance()->initializeActiveUserConfig(this);
-    m_showDesktop->connectProtocol();
 
     qmlRegisterUncreatableType<Personalization>("Treeland.Protocols",
                                                 1,

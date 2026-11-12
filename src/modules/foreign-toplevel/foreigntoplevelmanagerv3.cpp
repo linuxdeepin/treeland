@@ -7,6 +7,7 @@
 #include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
 #include "core/waylandserver.h"
+#include "showdesktop/showdesktop.h"
 #include "surface/surfacewrapper.h"
 #include "session/session.h"
 #include <wscoplistener.h>
@@ -538,7 +539,7 @@ void ForeignToplevelManagerInterfaceV3::initializeToplevelHandle(SurfaceWrapper 
             wrapper,
             [wrapper](bool minimized) {
                 if ((WaylandServer::instance()->showDesktopState()
-                     == ShowDesktopInterfaceV1::State::Show)) {
+                     == ShowDesktop::State::Show)) {
                     WaylandServer::instance()->forceActivateSurface(wrapper);
                     return;
                 }

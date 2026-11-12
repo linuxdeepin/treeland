@@ -8,7 +8,7 @@
 #include "modules/activation/activationmanagerinterfacev1.h"
 #include "modules/wallpaper/wallpapermanagerinterfacev1.h"
 #include "modules/wallpaper/wallpapernotifierinterfacev1.h"
-#include "modules/show-desktop/showdesktopinterfacev1.h"
+#include "showdesktop/showdesktop.h"
 #ifndef DISABLE_XWAYLAND
 #include "modules/xwindow-control/xwindowcontrolinterfacev1.h"
 #endif
@@ -141,7 +141,6 @@ Q_MOC_INCLUDE("session/session.h")
 Q_MOC_INCLUDE("session/sessionmanager.h")
 class UserModel;
 class WallpaperColorInterfaceV1;
-class ShowDesktopInterfaceV1;
 class TreelandKeyboardStateNotifyManagerInterfaceV1;
 class TreelandActiveNotifyManagerInterfaceV1;
 class TreelandRegionWatchManagerInterfaceV1;
@@ -256,9 +255,8 @@ public:
 
     bool toggleDebugMenuBar();
 
-    ShowDesktopInterfaceV1::State showDesktopState() const;
-    bool isShowDesktopAvailable() const;
-    void setShowDesktopState(ShowDesktopInterfaceV1::State state);
+    ShowDesktop::State showDesktopState() const;
+    void setShowDesktopState(ShowDesktop::State state);
 
     Q_INVOKABLE void setLaunchpadMapped(WOutput *output, bool mapped);
     Q_INVOKABLE void showDesktop(WOutput *output);

@@ -18,7 +18,7 @@ description: "触发场景：调试/诊断/复现/分析运行中的 treeland（
 - `src/surface/` —— surface/window 封装、状态、可见性、几何（`surfacewrapper.cpp`）。
 - `src/seat/` —— seat 管理；桌面启动与协议组装在 `src/core/waylandserver.*`。
 - `src/workspace/` —— workspace 模型与切换。
-- `src/modules/` —— 功能模块（show-desktop、input-manager、output-manager、dde-shell 等）。
+- `src/modules/` —— 功能模块（compositor-action、input-manager、output-manager、dde-shell 等）。
 - `src/plugins/`（lockscreen、multitaskview）+ `src/modules/` —— 插件与功能集成。
 - `src/common/treelandlogging.*` —— 集中式日志分类。
 - `waylib/` —— 底层 wlroots+QtQuick 合成器框架（output 对应 `QQuickWindow`，surface 对应 `QQuickItem`）。
