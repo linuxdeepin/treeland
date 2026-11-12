@@ -31,6 +31,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [capture-unstable-v1](treeland-capture-unstable-v1/README.md) | E / V / P | 真实窗口选择、frame copy 与目标 buffer 像素；无 source 错误 |
 | [compositor-action-v1](treeland-compositor-action-v1/README.md) | E / P | trigger 路由到真实 Workspace 切换与 show-desktop 状态；zoom/未知动作被忽略不断连 |
 | [active-notify-unstable-v1](treeland-active-notify-unstable-v1/README.md) | P | notifier 创建/重建与无输入不发事件边界 |
+| [activation-token-unstable-v1](treeland-activation-token-unstable-v1/README.md) | E / P | 任意本 Session 客户端均可 bind（身份校验未实现，appid 认证是 TODO）；两次 `request_token` 各铸一个非空且互不相同的 token，第一个 token 经 `xdg_activation_v1.activate()` 处置为 `Active`；manager 每 Session 单例，同 Session 第二个客户端 `binding_rejected`，`destroy`/断连后释放；跨 Session：A 用户的 manager 不阻挡 B 用户 bind、A 铸的 token 在 B 处置为 `Invalid` |
 | [dde-shell-v2](treeland-dde-shell-v2/README.md) | E / P / I | v2 元数据、placement hint、skip 位域、重复创建报错；接口版本 2 的 role 初始与变化通知、always_on_top 真实层级、用户置顶/取消置顶双向同步、Overlay 子窗口层级及旧版本兼容；定位与 skip 的 wrapper 集成仍待补 |
 | [ddm-v1](treeland-ddm-v1/README.md) | I | 客户端连接生命周期 |
 | [foreign-toplevel-manager-v3](treeland-foreign-toplevel-manager-v3/README.md) | E | 真实 toplevel、dock preview、窗口状态（含最小化与布局正交）、激活/焦点与 icon rectangle |
@@ -111,13 +112,13 @@ xdg-shell 由共享 xdg-toplevel 夹具覆盖（多个 toplevel 测试复用）�
 request stub 算作 request 覆盖；生成的 client-protocol 文件本身不计入。`destroy` 也单列，
 因为它证明资源生命周期，却通常不承载主要业务语义。
 
-- **已注册并有测试目录的 22 个当前协议**：XML 共 160 条 request，其中测试客户端直接
-  调用了 **107 条（66.9%）**。
-- 其中 48 条是 `destroy` 生命周期 request，被直接调用的有 45 条；去掉后剩余 112 条工厂、
-  配置和业务 request 中有 **62 条（55.4%）** 被直接调用（62 + 45 = 107，112 + 48 = 160）。
-- 22 个协议中 **17 个（77.3%）** 至少有一条 E 级生产业务链路；其余 5 个仍停留在 I/P 层，
+- **已注册并有测试目录的 23 个当前协议**：XML 共 163 条 request，其中测试客户端直接
+  调用了 **110 条（67.5%）**。
+- 其中 50 条是 `destroy` 生命周期 request，被直接调用的有 47 条；去掉后剩余 113 条工厂、
+  配置和业务 request 中有 **63 条（55.8%）** 被直接调用（63 + 47 = 110，113 + 50 = 163）。
+- 23 个协议中 **18 个（78.3%）** 至少有一条 E 级生产业务链路；其余 5 个仍停留在 I/P 层，
   具体缺口见下表“主要未覆盖 request / event / 业务结果”列。
-- 当前 XML 共有 95 条 server event。这里**不发布“事件百分比”**：listener 中出现一个
+- 当前 XML 共有 96 条 server event。这里**不发布“事件百分比”**：listener 中出现一个
   callback、或 fixture 手工发出一次 event，都不能证明事件负载或其业务来源被断言。下表只
   列出已实际断言的关键 event，并明确列出尚未逐项验证的 event。
 
@@ -126,6 +127,7 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 | app-id-resolver-v1 | 4 / 4 | `identify_request` 的 id、真实 pidfd；`respond` 转换同一 splash wrapper 并写入 app-id | resolver 断开 fallback、sandbox 后续策略、XWayland |
 | capture-unstable-v1 | 8 / 11 | `source_ready/failed`、`buffer/buffer_done/ready/failed`；64×64 红色像素读回 | session 的 `start/frame_done`，及 `frame/object/ready/cancel` 持久流；OUTPUT/REGION、cursor、mask |
 | active-notify-unstable-v1 | 2 / 2 | notifier 创建/重建；无真实输入不伪造事件 | 真实输入驱动的 activity/drag 事件（uinput）、null seat 错误、多 notifier/seat、与 v1 并行双发 |
+| activation-token-unstable-v1 | 3 / 3 | bind 无特权判据（身份校验未实现，appid 认证是 TODO）；绑定成功的连接拿到两个独立非空 `token`，第一个经 `xdg_activation_v1.activate` 处置为 Active（回读生产 `activateRequested`）；manager 的每 Session 单例、`destroy` 与断连释放；跨 Session 的两条断言（另一用户可同时 bind、token 不跨 Session 解析） | token 过期；appid 认证恢复后的 `not_privileged` 拒绝路径（见实现 TODO） |
 | appearance-unstable-v1 + appearance-manager-unstable-v1 | 3 / 13 | bind 初始 `color_scheme`；manager `set_color_scheme` 广播 Dark | 其余外观字段、无效值、DConfig 配置替换 |
 | ddm-v1 | 0 / 7 | 无未请求 VT event；生产连接生命周期 | 所有会话/渲染控制 request 与 `switch_to_vt/acquire_vt` 的实际系统流程 |
 | decoration-unstable-v1 | 4 / 7 | `set_corner_radius` 后 mapped `SurfaceWrapper::radius()` == 12 | shadow、border、titlebar、协议错误与 SSD 协商 |

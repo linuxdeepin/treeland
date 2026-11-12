@@ -39,6 +39,12 @@ public:
 
     static constexpr int InterfaceVersion = 1;
 
+    // Mints a token on behalf of a privileged client (dde-application-manager).
+    // Such a token is accepted by xdg_activation_v1.activate() from any client
+    // and always resolves to TokenDisposition::Active, even without a serial.
+    // seat may be null; the activation path falls back to the default seat.
+    QString mintToken(const QString &appId, WAYLIB_SERVER_NAMESPACE::WSeat *seat);
+
 Q_SIGNALS:
     // The server emits one signal with precomputed disposition for policy handling.
     // token is the committed activation token string.

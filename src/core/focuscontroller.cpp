@@ -7,6 +7,7 @@
 #include "session/sessionprotocols.h"
 #include "waylandserver.h"
 #include "showdesktop/showdesktop.h"
+#include "modules/activation-token/activationtokenmanagerinterfacev1.h"
 #include "rootsurfacecontainer.h"
 #include "seat/seatmanager.h"
 #include "surface/surfacewrapper.h"
@@ -321,6 +322,12 @@ void FocusController::registerSession(Session *session)
     session->attachInterface(activation);
     connect(activation, &ActivationManagerInterfaceV1::activateRequested,
             this, &FocusController::onActivationRequested);
+
+    // Token source for dde-application-manager. It shares this Session's
+    // activation manager token table and its socket scope, so each user has
+    // its own instance. The caller is not verified yet; see the TODO in
+    // ActivationTokenManagerInterfaceV1 about appid-based authentication.
+    session->attachInterface(new ActivationTokenManagerInterfaceV1(activation));
 }
 bool FocusController::canTransferActivation(WSurface *surface, WSeat *seat) const
 {

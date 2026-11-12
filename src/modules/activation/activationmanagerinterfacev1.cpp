@@ -116,6 +116,7 @@ struct TokenInfo
     wl_client *requestingClient = nullptr;
     std::optional<uint32_t> serial;
     bool fromTrustedSurface = false; // set_surface called and surface was active at commit time
+    bool privileged = false;         // minted for a privileged client, see mintToken()
     QDeadlineTimer expiry;           // invalidated 60 s after registration
     QPointer<WSeat> seat;            // seat associated with the token via set_serial
     QPointer<WSurface> originatingSurface; // surface set via set_surface
@@ -147,7 +148,8 @@ public:
                           std::optional<uint32_t> serial,
                           bool fromTrustedSurface,
                           WSeat *seat,
-                          WSurface *originatingSurface)
+                          WSurface *originatingSurface,
+                          bool privileged = false)
     {
         const QString token = QUuid::createUuid().toString(QUuid::WithoutBraces);
         m_tokens.append(TokenInfo{ token,
@@ -155,13 +157,23 @@ public:
                                    client,
                                    serial,
                                    fromTrustedSurface,
+                                   privileged,
                                    QDeadlineTimer(TokenLifetimeMs),
                                    seat,
                                    originatingSurface });
         qCDebug(lcTlActivation) << "Registered activation token" << token.left(8) + u"..."_s
                                << "for app" << appId
-                               << (fromTrustedSurface ? "" : "(inactive-surface-token-request)");
+                               << (privileged ? "(privileged-client-token)"
+                                              : (fromTrustedSurface ? "" : "(inactive-surface-token-request)"));
         return token;
+    }
+
+    QString mintToken(const QString &appId, WSeat *seat)
+    {
+        // The only other sweep point is activate(); without this one a client
+        // that mints without consuming grows m_tokens without bound.
+        sweepExpiredTokens();
+        return registerToken(appId, nullptr, std::nullopt, false, seat, nullptr, true);
     }
 
     bool isTrustedSurface(WSurface *surface, WSeat *seat) const
@@ -223,11 +235,12 @@ protected:
         if (it != m_tokens.end()) {
             tokenSeat = it->seat.data();
             originatingSurface = it->originatingSurface;
-            disposition = it->fromTrustedSurface
-                ? (it->serial.has_value()
-                       ? ActivationManagerInterfaceV1::TokenDisposition::Active
-                       : ActivationManagerInterfaceV1::TokenDisposition::Attention)
-                : ActivationManagerInterfaceV1::TokenDisposition::Attention;
+            // A privileged-client token is trusted by construction: it carries
+            // no serial, so it must not be downgraded to Attention.
+            const bool active = it->privileged
+                || (it->fromTrustedSurface && it->serial.has_value());
+            disposition = active ? ActivationManagerInterfaceV1::TokenDisposition::Active
+                                 : ActivationManagerInterfaceV1::TokenDisposition::Attention;
         }
 
         qCInfo(lcTlActivation) << "activate: emitting activateRequested for token"
@@ -315,6 +328,11 @@ ActivationManagerInterfaceV1::~ActivationManagerInterfaceV1() = default;
 QByteArrayView ActivationManagerInterfaceV1::interfaceName() const
 {
     return d->interfaceName();
+}
+
+QString ActivationManagerInterfaceV1::mintToken(const QString &appId, WSeat *seat)
+{
+    return d->mintToken(appId, seat);
 }
 
 void ActivationManagerInterfaceV1::create(WServer *server)
