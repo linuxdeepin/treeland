@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="treeland_app_id_resolver_unstable_v2">
+    <copyright><![CDATA[
+    SPDX-FileCopyrightText: 2025 - 2026 UnionTech Software Technology Co., Ltd.
+    SPDX-License-Identifier: MIT
+    ]]></copyright>
+
+    <description summary="app id resolver bridge for treeland">
+        Internal bridge between treeland and the user-session treeland-session-helper.
+        Treeland is a multi-user compositor and does not host per-user-session D-Bus
+        itself, so it asks treeland-session-helper, running in the user session, to
+        map a process (identified by a pidfd) to its application identifier and
+        sandbox engine name. treeland-session-helper answers over this Wayland
+        protocol; it in turn resolves the request through D-Bus with
+        dde-application-manager. This protocol is only for that dedicated
+        treeland-session-helper bridge, not a general application-developer API,
+        and regular clients must not bind it.
+
+        The key words "must", "must not", "required", "shall",
+        "shall not", "should", "should not", "recommended", "may",
+        and "optional" in this document are to be interpreted as
+        described in RFC 2119.
+
+        Warning! This protocol is EXPERIMENTAL and under active development.
+        It may change at any time, including in backward-incompatible ways,
+        without incrementing the interface major version and without prior
+        notice. No compatibility guarantees of any kind are provided. Clients
+        and compositors must track the upstream definition in treeland-protocols
+        and must not rely on the current interface names, requests, events, or
+        semantics remaining stable across releases.
+    </description>
+
+    <interface name="treeland_app_id_resolver_manager_v2" version="1">
+        <description summary="manager for the app id resolver bridge">
+            Factory global for creating resolver objects. Typically exactly one
+            treeland-session-helper instance (a Wayland client in the user
+            session) binds this interface and serves identification requests
+            coming from the compositor. Only the treeland-session-helper bridge
+            should bind this global; regular application clients must not use it.
+        </description>
+
+        <enum name="error">
+            <entry name="resolver_already_exists" value="0"
+                summary="a resolver is already registered in this session"/>
+        </enum>
+
+        <request name="destroy" type="destructor">
+            <description summary="destroy the manager">
+                Destroy the manager object. Existing resolver objects remain
+                valid and must be destroyed independently.
+            </description>
+        </request>
+
+        <request name="get_resolver">
+            <description summary="create a resolver object">
+                Create a resolver object. Only one resolver may be registered
+                per session. Treeland is a multi-user compositor; different user
+                sessions may each register their own resolver. If a resolver is
+                already bound in the same session, the compositor will raise
+                the resolver_already_exists error and will not create a new
+                resolver object.
+            </description>
+            <arg name="id" type="new_id" interface="treeland_app_id_resolver_v2"/>
+        </request>
+    </interface>
+
+    <interface name="treeland_app_id_resolver_v2" version="1">
+        <description summary="app id resolver">
+            Per-session resolver object created through the manager. The
+            compositor sends identify_request events carrying a pidfd, and
+            treeland-session-helper must respond exactly once per request via
+            the respond request. If resolution fails it responds with an empty
+            app_id.
+        </description>
+
+        <request name="destroy" type="destructor">
+            <description summary="destroy the resolver">
+                Destroy the resolver object. The compositor will no longer send
+                identify_request events after this request is processed.
+            </description>
+        </request>
+
+        <request name="respond">
+            <description summary="respond with resolved application identifier">
+                Respond to a prior identify_request event. treeland-session-helper
+                must call this exactly once for each identify_request. If the
+                application cannot be identified, respond with an empty app_id. The
+                sandbox_engine_name must always be provided and describes the
+                security context in which the process is running (container,
+                sandbox, etc.).
+            </description>
+            <arg name="request_id" type="uint" summary="the request ID from identify_request"/>
+            <arg name="app_id" type="string" summary="the resolved application identifier, or empty string on failure"/>
+            <arg name="sandbox_engine_name" type="string" summary="the sandbox engine or security context name"/>
+        </request>
+
+        <event name="identify_request">
+            <description summary="request identification of a process">
+                Sent by the compositor to ask treeland-session-helper to resolve
+                a process to an application identifier. The compositor emits this
+                event each time it needs to identify a process for which it does not
+                already have a cached result. treeland-session-helper must respond
+                exactly once via the respond request using the provided request_id.
+                Failure to respond in a timely manner may cause the compositor
+                to treat the process as unidentified.
+            </description>
+            <arg name="request_id" type="uint" summary="monotonic id generated by compositor"/>
+            <arg name="pidfd" type="fd" summary="pidfd referencing the target process"/>
+        </event>
+    </interface>
+</protocol>

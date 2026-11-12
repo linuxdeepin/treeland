@@ -2,7 +2,7 @@ treeland_add_protocol_test(
     NAME session_isolation
     XML "${TREELAND_PROTOCOLS_DATA_DIR}/treeland-foreign-toplevel-manager-unstable-v3.xml"
     EXTRA_XMLS
-        "${TREELAND_PROTOCOLS_DATA_DIR}/treeland-prelaunch-splash-unstable-v2.xml"
+        "${PROJECT_SOURCE_DIR}/src/protocols/treeland-prelaunch-splash-unstable-v2.xml"
         "${TREELAND_PROTOCOLS_DATA_DIR}/treeland-shortcut-manager-unstable-v3.xml"
         "${TREELAND_PROTOCOLS_DATA_DIR}/treeland-appearance-unstable-v1.xml"
         "${TREELAND_PROTOCOLS_DATA_DIR}/treeland-appearance-manager-unstable-v1.xml"

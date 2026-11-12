@@ -6,7 +6,7 @@ waylib_generate_qtwayland_server_protocol(libtreeland
 )
 
 waylib_generate_qtwayland_server_protocol(libtreeland
-    PROTOCOL ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-wallpaper-shell-unstable-v1.xml
+    PROTOCOL ${PROJECT_SOURCE_DIR}/src/protocols/treeland-wallpaper-shell-unstable-v1.xml
     BASENAME treeland-wallpaper-shell-unstable-v1
 )
 
