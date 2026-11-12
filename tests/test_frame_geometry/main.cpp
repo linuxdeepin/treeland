@@ -353,6 +353,55 @@ private Q_SLOTS:
         item->setParentItem(nullptr);
     }
 
+    void highlightRadius_data()
+    {
+        QTest::addColumn<bool>("padded");
+        QTest::addColumn<qreal>("frameRadius");
+        QTest::addColumn<qreal>("paddingRadius");
+        QTest::addColumn<qreal>("expectedRadius");
+        QTest::newRow("ssd-rounded") << false << qreal(12) << qreal(18) << qreal(12);
+        QTest::newRow("ssd-square") << false << qreal(0) << qreal(18) << qreal(0);
+        QTest::newRow("ssd-scaled") << false << qreal(4.5) << qreal(18) << qreal(4.5);
+        QTest::newRow("csd-rounded") << false << qreal(6) << qreal(18) << qreal(6);
+        QTest::newRow("csd-maximized-or-fullscreen") << false << qreal(0) << qreal(18) << qreal(0);
+        QTest::newRow("padding-rounded") << true << qreal(12) << qreal(18) << qreal(18);
+        QTest::newRow("padding-square") << true << qreal(12) << qreal(0) << qreal(0);
+        QTest::newRow("padding-around-square-window") << true << qreal(0) << qreal(12) << qreal(12);
+    }
+
+    void highlightRadius()
+    {
+        QFETCH(bool, padded);
+        QFETCH(qreal, frameRadius);
+        QFETCH(qreal, paddingRadius);
+        QFETCH(qreal, expectedRadius);
+        QQmlEngine engine;
+        QQmlComponent component(&engine, QUrl::fromLocalFile(
+            QFINDTESTDATA("../../src/plugins/multitaskview/qml/WindowHighlight.qml")));
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        std::unique_ptr<QObject> highlight(component.createWithInitialProperties({
+            {"frameRadius", frameRadius}, {"padded", padded},
+            {"paddingRadius", paddingRadius}, {"width", 300}, {"height", 200},
+        }));
+        QVERIFY2(highlight, qPrintable(component.errorString()));
+        QQmlProperty borderWidth(highlight.get(), "border.width");
+        QVERIFY(borderWidth.write(2));
+        QCOMPARE(highlight->property("radius").toReal(), expectedRadius > 0 ? expectedRadius + 2 : 0);
+        QVERIFY(borderWidth.write(4));
+        QCOMPARE(highlight->property("radius").toReal(), expectedRadius > 0 ? expectedRadius + 4 : 0);
+        if (padded) {
+            QVERIFY(highlight->setProperty("paddingRadius", 0));
+            QCOMPARE(highlight->property("radius").toReal(), qreal(0));
+            QVERIFY(highlight->setProperty("paddingRadius", 5));
+            QCOMPARE(highlight->property("radius").toReal(), qreal(9));
+        } else {
+            QVERIFY(highlight->setProperty("frameRadius", 6));
+            QCOMPARE(highlight->property("radius").toReal(), qreal(10));
+            QVERIFY(highlight->setProperty("frameRadius", 0));
+            QCOMPARE(highlight->property("radius").toReal(), qreal(0));
+        }
+    }
+
     void maskLifetime()
     {
         FrameInputMask mask;

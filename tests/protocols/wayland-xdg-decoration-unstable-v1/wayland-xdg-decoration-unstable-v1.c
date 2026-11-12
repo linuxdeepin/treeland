@@ -93,7 +93,7 @@ static int test_decoration_mode(const char *socket_name, uint32_t mode) {
 
 	const int server_side = mode == ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE;
 	const int expected_mode = server_side ? 3 /* Server */ : 2 /* Client */;
-	struct xdg_decoration_server_state srv;
+	struct xdg_decoration_server_state srv = { 0 };
 	if (read_server(&srv)) {
 		failed = 1;
 	} else if (!srv.valid) {
@@ -109,6 +109,11 @@ static int test_decoration_mode(const char *socket_name, uint32_t mode) {
 			"(software=%d decorated=%d requested=%g frame=%g mask=%d)\n",
 			srv.software_renderer, srv.decorated, srv.requested_radius,
 			srv.frame_radius, srv.has_input_mask);
+		failed = 1;
+	}
+
+	if (srv.valid && !srv.full_proxy_allows_rounding) {
+		TEST_ERROR("xdg-decoration: full proxy suppressed the thumbnail radius (mode=%u)\n", mode);
 		failed = 1;
 	}
 

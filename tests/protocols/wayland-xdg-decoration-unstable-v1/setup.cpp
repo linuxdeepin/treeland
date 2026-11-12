@@ -5,6 +5,7 @@
 #include "core/shellhandler.h"
 #include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
+#include "surface/surfaceproxy.h"
 
 #include <wbackend.h>
 #include <protocols/wxdgdecorationmanager.h>
@@ -59,4 +60,14 @@ void xdg_decoration_read_server_state(void *data)
     if (g_decoMgr) {
         state->mode = static_cast<int>(g_decoMgr->modeBySurface(wsurface));
     }
+
+    // Switching to a full CSD proxy must not suppress its requested thumbnail radius.
+    SurfaceProxy proxy;
+    proxy.setSize(QSizeF(200, 150));
+    proxy.setRadius(12);
+    proxy.setSurface(g_wrapper);
+    proxy.setFullProxy(true);
+    auto *proxyWrapper = proxy.findChild<SurfaceWrapper *>();
+    state->full_proxy_allows_rounding = proxyWrapper && !proxyWrapper->noCornerRadius()
+        && proxyWrapper->radius() > 0;
 }

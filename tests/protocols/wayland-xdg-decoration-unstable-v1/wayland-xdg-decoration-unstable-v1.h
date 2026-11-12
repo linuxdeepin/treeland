@@ -23,6 +23,7 @@ struct xdg_decoration_server_state {
 	int decorated;
 	int software_renderer;
 	int has_input_mask;
+	int full_proxy_allows_rounding;
 	double requested_radius;
 	double frame_radius;
 };

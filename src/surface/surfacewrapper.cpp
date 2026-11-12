@@ -2389,8 +2389,10 @@ void SurfaceWrapper::updateFrameGeometry()
             connect(item, &QQuickItem::heightChanged, this, &SurfaceWrapper::updateFrameGeometry);
         }
     }
-    // graphicsApi() reports the RHI API even when the software scene graph is active.
-    const bool rounded = m_decoration && m_visibleDecoration && !m_noCornerRadius
+    // Static QQuickWindow::graphicsApi() can report the RHI API for the software scene graph.
+    // Proxies round on the radius alone: a client-side decorated source has no decoration
+    // item, but its thumbnail still needs a frame to clip the scaled content.
+    const bool rounded = (m_decoration || m_isProxy) && m_visibleDecoration && !m_noCornerRadius
         && QQuickWindow::sceneGraphBackend() != QStringLiteral("software");
     const FrameGeometry geometry(QRectF(QPointF(), item ? item->size() : QSizeF()),
                                  rounded ? radius() : 0);

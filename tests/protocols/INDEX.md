@@ -98,7 +98,7 @@ xdg-shell 由共享 xdg-toplevel 夹具覆盖（多个 toplevel 测试复用）�
 | [wayland-text-input-unstable-v3](wayland-text-input-unstable-v3/README.md) | E | 创建 text_input v3 + enable/commit，回读真实 `wlr_text_input_v3::current_enabled` == true；fake input method 流程断言空 preedit/done 早于 `leave`、已 disable 时不发状态更新 |
 | [wayland-viewporter](wayland-viewporter/README.md) | E | 映射 toplevel + `set_destination(320,240)`，回读真实 `wlr_surface::current.viewport` dst 状态 |
 | [wayland-xdg-activation-v1](wayland-xdg-activation-v1/README.md) | E | `get_activation_token` + `activate`，回读真实 `ActivationManagerInterfaceV1::activateRequested` 信号的 disposition == Attention |
-| [wayland-xdg-decoration-unstable-v1](wayland-xdg-decoration-unstable-v1/README.md) | E | 映射 toplevel + `set_mode`，回读 Client / Server；软件后端 SSD 的有效圆角为 0、客户区无圆角 input mask |
+| [wayland-xdg-decoration-unstable-v1](wayland-xdg-decoration-unstable-v1/README.md) | E | 映射 toplevel + `set_mode`，回读 Client / Server；软件后端 SSD 的有效圆角为 0、客户区无圆角 input mask；切换 full proxy 不禁止请求的缩略图圆角 |
 | [wayland-xdg-dialog-v1](wayland-xdg-dialog-v1/README.md) | E | 回读真实 `SurfaceWrapper::modal()` 在 `set_modal` 后由 false 翻转为 true |
 | [wayland-xdg-foreign-unstable-v2](wayland-xdg-foreign-unstable-v2/README.md) | E | 两个 mapped toplevel，`export_toplevel` + `import_toplevel` + `set_parent_of`，回读真实 `WXdgToplevelSurface::parentXdgSurface()` 非空 |
 | [wayland-xdg-output-unstable-v1](wayland-xdg-output-unstable-v1/README.md) | E | 客户端 `logical_position`/`logical_size` 事件与回读的真实 `WOutput::position()`/`effectiveSize()` 逐字段一致 |
@@ -192,7 +192,7 @@ focus 到 `active` event 的链路；`ext-image-copy-capture-v1` 已验证 outpu
 | `text-input-unstable-v3` | `wlr_text_input_v3::current_enabled` == true；空 preedit/done 早于 `leave`；已 disable 时不发 preedit |
 | `viewporter` | `wlr_surface::current.viewport` dst 状态 |
 | `xdg-activation-v1` | `ActivationManagerInterfaceV1::activateRequested` 的 disposition == Attention |
-| `xdg-decoration-unstable-v1` | `WXdgDecorationManager::modeBySurface` 返回 Client / Server；软件后端真实 `SurfaceWrapper::frameGeometry().radius()` 为 0、客户区无圆角 input mask |
+| `xdg-decoration-unstable-v1` | `WXdgDecorationManager::modeBySurface` 返回 Client / Server；软件后端真实 `SurfaceWrapper::frameGeometry().radius()` 为 0、客户区无圆角 input mask；真实代理的 fullProxy 切换保留圆角开关 |
 | `xdg-dialog-v1` | `SurfaceWrapper::modal()` 由 false 翻转为 true |
 | `xdg-foreign-unstable-v2` | `WXdgToplevelSurface::parentXdgSurface()` 非空 |
 | `xdg-output-unstable-v1` | `WOutput::position()`/`effectiveSize()` 与客户端事件一致 |

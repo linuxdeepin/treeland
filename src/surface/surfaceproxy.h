@@ -55,15 +55,17 @@ private:
     void updateLive();
     void updateNoTitleBar();
     void updateNoDecoration();
-    void updateNoCornerRadius();
     void updateImplicitSize();
     void onSourceRadiusChanged();
+    bool isFullSizeState() const;
+    bool keepsClientSideMargins() const;
 
     SurfaceWrapper *m_sourceSurface = nullptr;
     SurfaceWrapper *m_proxySurface = nullptr;
     QList<QMetaObject::Connection> m_sourceConnections;
     QQuickItem *m_shadow = nullptr;
     qreal m_radius = -1;
+    qreal m_proxySurfaceScale = 1;
     bool m_live = true;
     bool m_fullProxy = false;
     QSizeF m_maxSize;
