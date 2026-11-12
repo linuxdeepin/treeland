@@ -14,7 +14,7 @@ extern int compositor_action_global_exists(void *data);
 extern void compositor_action_get_workspace_index(void *data);
 extern void compositor_action_get_show_desktop_state(void *data);
 
-/* ShowDesktopInterfaceV1::State on the wire (Normal = 0, Show = 1) */
+/* ShowDesktop::State on the wire (Normal = 0, Show = 1) */
 enum {
     PROD_DESKTOP_NORMAL = 0,
     PROD_DESKTOP_SHOW = 1,

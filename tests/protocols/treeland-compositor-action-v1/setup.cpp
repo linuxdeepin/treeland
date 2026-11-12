@@ -1,7 +1,6 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "modules/compositor-action/compositoractioninterfacev1.h"
-#include "modules/show-desktop/showdesktopinterfacev1.h"
 #include "core/waylandserver.h"
 #include "server-bridge.h"
 #include "workspace/workspace.h"

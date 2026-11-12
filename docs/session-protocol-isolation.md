@@ -19,7 +19,7 @@ SessionProtocols 是每个 Session 的协议集合，Session::attachInterface �
 | wl_seat / input / text-input / input-method | SeatManager / WSeat / WInputMethodHelper | SessionSeatManager 独立持有逻辑 WSeat、serial、IME；活动 SeatManager 仅投影物理设备，新增回归未运行 |
 | data-device / primary-selection / data-control / drag | WServerPrivate::init、installCommonProtocols、WSeat | 四组 manager 已迁入 SessionProtocols，selection 和拖放由所属逻辑 seat 保存；新增回归未运行 |
 | xdg-foreign | installCommonProtocols | 每个 Session 使用独立 registry；exporter/importer 各有一个接口对象和 global，绑定相同所属 socket |
-| personalization / appearance / show-desktop | WaylandServer / SurfaceProtocolController | personalization/appearance 已改为独立实例和固定配置，旧全局 appearance context 广播已移除；show-desktop 等仍需迁移 |
+| personalization / appearance | WaylandServer / SurfaceProtocolController | personalization/appearance 已改为独立实例和固定配置，旧全局 appearance context 广播已移除；show-desktop 全局已随协议废弃删除，改由 compositor-action 触发 |
 | capture / screencopy / session-lock / activation | CaptureManager / LockScreenManager / FocusController | activation 与窗口过渡 token 表已迁入 Session；捕获授权、输出枚举/结果及锁屏权限仍需迁移 |
 | core compositor / subcompositor / shm / dmabuf 等 | WServer 及 renderer | 即便协议本身主要服务单客户端，也必须固定于资源所属协议域，不能默认绕过用户边界 |
 

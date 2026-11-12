@@ -7,6 +7,7 @@
 #include "treelanduserconfig.hpp"
 #include "common/treelandlogging.h"
 #include "core/waylandserver.h"
+#include "showdesktop/showdesktop.h"
 #include "seat/seatmanager.h"
 #include "core/shellhandler.h"
 #include "output/output.h"
@@ -98,7 +99,7 @@ void SeatSurfaceManager::onActivatedSurfaceFocusCapabilityChanged()
     // While showing the desktop, keyboard focus is on the desktop layer, not on the
     // (hidden) activated surface; a focus-capability change of the activated
     // surface must not yank keyboard focus back to the window.
-    if (server->showDesktopState() == ShowDesktopInterfaceV1::State::Show)
+    if (server->showDesktopState() == ShowDesktop::State::Show)
         return;
 
     if (m_activatedSurface->hasFocusCapability()) {
@@ -563,7 +564,7 @@ void SeatSurfaceManager::onKeyboardGrabEnd()
     // While showing the desktop, allow returning focus to a desktop menu's
     // parent, but never restore focus to a hidden activated window.
     if (auto *server = WaylandServer::instance()) {
-        if (server->showDesktopState() == ShowDesktopInterfaceV1::State::Show
+        if (server->showDesktopState() == ShowDesktop::State::Show
             && (!restoreSurface || !restoreSurface->isDesktop()))
             return;
     }
