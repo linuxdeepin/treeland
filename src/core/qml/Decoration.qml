@@ -24,26 +24,18 @@ Item {
 
         readonly property XWaylandSurface xwaylandSurface: root.surface.shellSurface as XWaylandSurface
 
-        // Respect the input region only when the X11 client has an input shape.
-        containmentMask: xwaylandSurface && xwaylandSurface.hasInputShape ? inputShapeMask : null
-
-        QtObject {
-            id: inputShapeMask
-
-            function contains(position: point): bool {
-                const eventItem = root.surface.surfaceItem?.eventItem;
-                if (!eventItem)
-                    return false;
-
-                // Mapping to the event item already accounts for surfaceSizeRatio.
-                const local = eventItem.mapFromItem(resizeArea, position);
-                return local.x >= 0 && local.y >= 0
-                        && local.x < eventItem.width && local.y < eventItem.height
-                        && eventItem.contains(local);
-            }
+        containmentMask: FrameInputMask {
+            id: resizeMask
+            geometry: root.surface.frameGeometry
+            frameItem: root.surface.frameItem
+            target: resizeArea
+            resizeMargin: root.edgeSize
         }
 
-        enabled: surface.type !== SurfaceWrapper.Type.XdgPopup
+        // Do not manufacture a frame around an arbitrary X11 input shape.
+        enabled: surface.isResizable && !surface.prelaunchSplash
+                    && !(xwaylandSurface && xwaylandSurface.hasInputShape)
+                    && surface.type !== SurfaceWrapper.Type.XdgPopup
                     && surface.type !== SurfaceWrapper.Type.Layer
                     && surface.type !== SurfaceWrapper.Type.SplashScreen
         property int edges: 0
@@ -78,12 +70,12 @@ Item {
         }
 
         onPositionChanged: function (event) {
-            edges = WaylibHelper.getEdges(Qt.rect(0, 0, width, height), Qt.point(event.x, event.y), root.edgeSize)
+            edges = resizeMask.edgesAt(Qt.point(event.x, event.y))
         }
 
         onPressed: function (event) {
-            // Maybe missing onPositionChanged when use touchscreen
-            edges = WaylibHelper.getEdges(Qt.rect(0, 0, width, height), Qt.point(event.x, event.y), root.edgeSize)
+            // Touch presses need not have a preceding hover event.
+            edges = resizeMask.edgesAt(Qt.point(event.x, event.y))
             if (edges)
                 surface.resizeRequested(edges, /*overrideCursor=*/true)
         }
@@ -91,9 +83,9 @@ Item {
 
     XdgShadow {
         id: shadow
-        width: surface.width
-        height: surface.height
-        cornerRadius: surface.radius
+        width: surface.presentationFrameGeometry.rect.width
+        height: surface.presentationFrameGeometry.rect.height
+        cornerRadius: surface.presentationFrameGeometry.radius
         anchors.centerIn: parent
         visible: surface.shadowVisible
         shadowBlur: surface.shadowBlurRadius
@@ -104,10 +96,10 @@ Item {
 
     Border {
         visible: surface.visibleDecoration && surface.borderVisible
-        parent: surface.surfaceItem ? surface.surfaceItem : surface.prelaunchSplash
+        parent: surface.prelaunchSplash ? surface.prelaunchSplash : surface.surfaceItem
         z: SurfaceItem.ZOrder.ContentItem + 1
         anchors.fill: parent
-        radius: surface.radius
+        radius: surface.presentationFrameGeometry.radius
         outsideColor: surface.borderColor
         borderWidth: surface.borderWidth
     }

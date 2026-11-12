@@ -18,6 +18,7 @@
 #include <QElapsedTimer>
 #include <QSignalSpy>
 #include <QTest>
+#include <QVector4D>
 
 #include <woutputrenderwindow.h>
 #include <woutputviewport.h>
@@ -189,6 +190,7 @@ private:
         m_glass->setProperty("blurAmount", 0.6);
         m_glass->setProperty("blurMultiplier", 0.0);
         m_glass->setProperty("radius", 60.0);
+        m_glass->setProperty("frameRect", QRectF(0, 0, 256, 256));
         m_glass->setProperty("bezelWidth", 60.0);
         m_glass->setProperty("thickness", 50.0);
         m_glass->setProperty("ior", 1.5);
@@ -258,6 +260,28 @@ private Q_SLOTS:
         QCOMPARE(contents.value("blurAmount").toObject().value("value").toDouble(), 0.6);
         QCOMPARE(contents.value("blurMultiplier").toObject().value("value").toDouble(), 0.0);
     }
+    void frameRectUniformBounds_data()
+    {
+        QTest::addColumn<QRectF>("frameRect");
+        QTest::addColumn<QVector4D>("expected");
+        QTest::newRow("offset") << QRectF(10, -40, 256, 296) << QVector4D(10, -40, 256, 296);
+        QTest::newRow("zero") << QRectF(10, -40, 0, 0) << QVector4D(10, -40, 1, 1);
+        QTest::newRow("negative") << QRectF(10, -40, -2, -3) << QVector4D(10, -40, 1, 1);
+        QTest::newRow("subpixel-width") << QRectF(10, -40, 0.5, 2) << QVector4D(10, -40, 1, 2);
+        QTest::newRow("subpixel-height") << QRectF(10, -40, 2, 0.5) << QVector4D(10, -40, 2, 1);
+    }
+
+    void frameRectUniformBounds()
+    {
+        QFETCH(QRectF, frameRect);
+        QFETCH(QVector4D, expected);
+        auto *shader = m_glass->findChild<QObject *>("glassShader");
+        QVERIFY(shader);
+        QVERIFY(m_glass->setProperty("frameRect", frameRect));
+        QCOMPARE(m_glass->property("frameRect").toRectF(), frameRect);
+        QCOMPARE(shader->property("frameRect").value<QVector4D>(), expected);
+    }
+
     void innerShadowDefaultIsDisabled()
     {
         QCOMPARE(m_glass->property("innerShadow").toReal(), 0.0);
