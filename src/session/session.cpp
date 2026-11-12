@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "session.h"
+#include "utils/loginddbustypes.h"
+
+#include <QDBusConnection>
+#include <utility>
 #include "sessionmanager.h"
 #include "desktop/desktopenvironment.h"
 #include "surface/surfacecontainer.h"
@@ -56,6 +60,7 @@ void Session::beginShutdown()
         return;
 
     m_shuttingDown = true;
+    unsubscribeLogind();
 
     if (m_scene)
         m_scene->shutdown();
@@ -203,6 +208,52 @@ void Session::shutdown()
 Workspace *Session::workspace() const
 {
     return m_workspace ? m_workspace->workspace() : nullptr;
+}
+
+bool Session::subscribeLogind(const QString &path)
+{
+    if (isShuttingDown() || path.isEmpty() || path == QStringLiteral("/"))
+        return false;
+    if (!m_logindPath.isEmpty())
+        return m_logindPath == path;
+
+    auto bus = QDBusConnection::systemBus();
+    const auto service = Logind::serviceName();
+    const auto interface = Logind::sessionIfaceName();
+    if (!bus.connect(service, path, interface, "Lock", this, SLOT(onLogindLock())))
+        return false;
+    if (!bus.connect(service, path, interface, "Unlock", this, SLOT(onLogindUnlock()))) {
+        bus.disconnect(service, path, interface, "Lock", this, SLOT(onLogindLock()));
+        return false;
+    }
+
+    m_logindPath = path;
+    return true;
+}
+
+void Session::unsubscribeLogind()
+{
+    if (m_logindPath.isEmpty())
+        return;
+    const auto path = std::exchange(m_logindPath, QString());
+
+    auto bus = QDBusConnection::systemBus();
+    const auto service = Logind::serviceName();
+    const auto interface = Logind::sessionIfaceName();
+    bus.disconnect(service, path, interface, "Lock", this, SLOT(onLogindLock()));
+    bus.disconnect(service, path, interface, "Unlock", this, SLOT(onLogindUnlock()));
+}
+
+void Session::onLogindLock()
+{
+    if (!m_logindPath.isEmpty())
+        Q_EMIT lock(this);
+}
+
+void Session::onLogindUnlock()
+{
+    if (!m_logindPath.isEmpty())
+        Q_EMIT unlock(this);
 }
 
 void Session::setActive(bool active)
