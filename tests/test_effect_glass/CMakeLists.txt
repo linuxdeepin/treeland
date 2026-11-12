@@ -32,13 +32,23 @@ set_source_files_properties(${GLASS_EFFECT_QML}
 add_executable(test_effect_glass
     main.cpp
     TestHelper.cpp
+    "${PROJECT_SOURCE_DIR}/src/surface/framegeometry.cpp"
+    "${PROJECT_SOURCE_DIR}/src/surface/framegeometry.h"
 )
+target_include_directories(test_effect_glass PRIVATE
+    "${PROJECT_SOURCE_DIR}/src"
+    "${PROJECT_SOURCE_DIR}/src/surface"
+)
+set(FRAME_CLIP_QML "${PROJECT_SOURCE_DIR}/src/core/qml/FrameClip.qml")
+set_source_files_properties(${FRAME_CLIP_QML} PROPERTIES QT_RESOURCE_ALIAS "FrameClip.qml")
 
 qt_add_qml_module(test_effect_glass
     URI TestGlass
     VERSION "1.0"
     QML_FILES
         ${GLASS_EFFECT_QML}
+        ${FRAME_CLIP_QML}
+        FrameClipScene.qml
         GlassEffectScene.qml
         TestWindow.qml
     SOURCES
