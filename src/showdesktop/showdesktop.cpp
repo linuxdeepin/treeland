@@ -10,58 +10,37 @@
 #include "seat/seatmanager.h"
 #include "surface/surfacewrapper.h"
 
-#include <wserver.h>
-
 ShowDesktop::ShowDesktop(WaylandServer *server, OutputManager *outputManager)
     : QObject(server),
     m_server(server),
     m_outputManager(outputManager)
 {}
 
-void ShowDesktop::initialize(WServer *server)
-{
-    m_showDesktopInterfaceV1 = server->attach<ShowDesktopInterfaceV1>();
-}
-
-void ShowDesktop::connectProtocol()
-{
-    connect(m_showDesktopInterfaceV1, &ShowDesktopInterfaceV1::desktopStateChanged,
-            this, &ShowDesktop::onShowDesktop);
-}
-
-ShowDesktopInterfaceV1::State ShowDesktop::state() const
+ShowDesktop::State ShowDesktop::state() const
 {
     return m_showDesktop;
 }
 
-void ShowDesktop::setState(ShowDesktopInterfaceV1::State state)
+void ShowDesktop::setState(State state)
 {
-    m_showDesktopInterfaceV1->setDesktopState(state);
-}
-
-void ShowDesktop::onShowDesktop()
-{
-    ShowDesktopInterfaceV1::State s = m_showDesktopInterfaceV1->desktopState();
-    if (m_showDesktop == s
-        || (s != ShowDesktopInterfaceV1::State::Normal
-            && s != ShowDesktopInterfaceV1::State::Show))
+    if (m_showDesktop == state)
         return;
 
-    m_showDesktop = s;
+    m_showDesktop = state;
     Q_EMIT stateChanged();
     const auto &surfaces = m_outputManager->workspaceSurfaces();
     for (auto &surface : surfaces) {
         if (surface->isMinimized()) {
             continue;
         }
-        if (s == ShowDesktopInterfaceV1::State::Normal) {
+        if (state == State::Normal) {
             surface->startShowDesktopAnimation(true);
-        } else if (s == ShowDesktopInterfaceV1::State::Show) {
+        } else if (state == State::Show) {
             surface->startShowDesktopAnimation(false);
         }
     }
 
-    if (s == ShowDesktopInterfaceV1::State::Show) {
+    if (state == State::Show) {
         // Find the desktop background surface first
         SurfaceWrapper *desktopSurface = nullptr;
         const auto &backgroundSurfaces = m_server->shellHandler()->backgroundContainer()->surfaces();
@@ -88,8 +67,7 @@ void ShowDesktop::onShowDesktop()
             // on focus loss exit.
             m_server->requestKeyboardFocus(desktopSurface, Qt::OtherFocusReason, seat);
         }
-    } else if (s == ShowDesktopInterfaceV1::State::Normal) {
-        // m_showDesktop already set to s above; the protocol state is already Normal.
+    } else {
         restoreShowDesktopFocus();
     }
 }
@@ -105,10 +83,9 @@ void ShowDesktop::restoreShowDesktopFocus()
 
 void ShowDesktop::cancelShowDesktop(SurfaceWrapper *excludeSurface)
 {
-    if (m_showDesktop != ShowDesktopInterfaceV1::State::Show)
+    if (m_showDesktop != State::Show)
         return;
-    m_showDesktop = ShowDesktopInterfaceV1::State::Normal;
-    m_showDesktopInterfaceV1->setDesktopState(ShowDesktopInterfaceV1::State::Normal);
+    m_showDesktop = State::Normal;
     const auto &surfaces = m_outputManager->workspaceSurfaces();
     for (auto &surface : surfaces) {
         if (surface == excludeSurface)
@@ -122,16 +99,11 @@ void ShowDesktop::cancelShowDesktop(SurfaceWrapper *excludeSurface)
 
 void ShowDesktop::restoreFromShowDesktop(SurfaceWrapper *activeSurface)
 {
-    if (m_showDesktop != ShowDesktopInterfaceV1::State::Show)
+    if (m_showDesktop != State::Show)
         return;
     cancelShowDesktop(activeSurface);
     if (activeSurface) {
         activeSurface->restoreFromMinimized();
     }
     restoreShowDesktopFocus();
-}
-
-bool ShowDesktop::isAvailable() const
-{
-    return m_showDesktopInterfaceV1 != nullptr;
 }

@@ -6,6 +6,7 @@
 #include "session/session.h"
 #include "session/sessionprotocols.h"
 #include "waylandserver.h"
+#include "showdesktop/showdesktop.h"
 #include "rootsurfacecontainer.h"
 #include "seat/seatmanager.h"
 #include "surface/surfacewrapper.h"
@@ -213,7 +214,7 @@ void FocusController::setActivatedSurface(SurfaceWrapper *newActivateSurface, WS
     }
 
     if (newActivateSurface) {
-        if (m_server->showDesktopState() == ShowDesktopInterfaceV1::State::Show) {
+        if (m_server->showDesktopState() == ShowDesktop::State::Show) {
             m_server->cancelShowDesktop(newActivateSurface);
             newActivateSurface->setHideByShowDesk(true);
             wasShowingDesktop = true;

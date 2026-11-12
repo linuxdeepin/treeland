@@ -50,7 +50,6 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [wallpaper-manager-unstable-v1](treeland-wallpaper-manager-unstable-v1/README.md) | I / P | 真实输出上的壁纸资源生命周期 |
 | [wallpaper-shell-unstable-v1](treeland-wallpaper-shell-unstable-v1/README.md) | I / P | wallpaper shell 与 notifier 生命周期 |
 | [wallpaper desktop 联合路径](treeland-wallpaper-desktop-v1/README.md) | P / E | manager 配置、shell surface 与真实 output 的关联 |
-| [show-desktop-v1](treeland-show-desktop-v1/README.md) | E / P | show-desktop 隐藏并恢复真实窗口 |
 | [treeland-xwindow-control-unstable-v1](treeland-xwindow-control-unstable-v1/README.md) | P | 仅 `DISABLE_XWAYLAND=OFF` 注册；`set_xwindow_position_relative` 失败回调；成功路径需 Xwayland，当前环境未覆盖 |
 | [wine-window-management-unstable-v1](treeland-wine-window-management-unstable-v1/README.md) | P / E | 真实 wrapper 的位置与置顶层同步 |
 | [wine-window-state-unstable-v1](treeland-wine-window-state-unstable-v1/README.md) | P / E | 真实 wrapper 的最小化、attention 与可见性同步 |
@@ -112,13 +111,13 @@ xdg-shell 由共享 xdg-toplevel 夹具覆盖（多个 toplevel 测试复用）�
 request stub 算作 request 覆盖；生成的 client-protocol 文件本身不计入。`destroy` 也单列，
 因为它证明资源生命周期，却通常不承载主要业务语义。
 
-- **已注册并有测试目录的 25 个当前协议**：XML 共 226 条 request，其中测试客户端直接
-  调用了 **172 条（76.1%）**。
-- 去掉 61 条 `destroy` 生命周期 request 后，剩余 165 条工厂、配置和业务 request 中有
-  **115 条（69.7%）** 被直接调用。
-- 25 个协议中 **20 个（80.0%）** 至少有一条 E 级生产业务链路；仅 DDM、output-manager
+- **已注册并有测试目录的 24 个当前协议**：XML 共 224 条 request，其中测试客户端直接
+  调用了 **170 条（75.9%）**。
+- 其中 60 条是 `destroy` 生命周期 request，被直接调用的有 56 条；去掉后剩余 164 条工厂、
+  配置和业务 request 中有 **114 条（69.5%）** 被直接调用（114 + 56 = 170，164 + 60 = 224）。
+- 24 个协议中 **19 个（79.2%）** 至少有一条 E 级生产业务链路；仅 DDM、output-manager
   picture-control、wallpaper-color 仍停留在 I/P 层。
-- 当前 XML 共有 115 条 server event。这里**不发布“事件百分比”**：listener 中出现一个
+- 当前 XML 共有 114 条 server event。这里**不发布“事件百分比”**：listener 中出现一个
   callback、或 fixture 手工发出一次 event，都不能证明事件负载或其业务来源被断言。下表只
   列出已实际断言的关键 event，并明确列出尚未逐项验证的 event。
 
@@ -145,7 +144,6 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 | wallpaper-color-v1 | 3 / 3 | `output_color` 订阅与去重 | 真实壁纸分析来源、壁纸应用后的 output 色彩变化 |
 | wallpaper-manager-unstable-v1 | 4 / 5 | `failed/changed`；`set_image_source` 与 wallpaper shell/output 关联 | `set_video_source`、实际映射/QML 接入、媒体解码失败、最终 output 像素 |
 | wallpaper-shell-unstable-v1 | 5 / 6 | notifier add/remove、play/pause/slow-down；wallpaper shell 资源生命周期 | `ready` 的实际 owner 映射路径、`position/set_playback_rate` event payload、媒体播放和最终 output 像素 |
-| show-desktop-v1 | 2 / 2 | `show_desktop_state`；真实 wrapper 可见性与 paint order | 多 workspace、minimized policy |
 | layer-shell-extension-unstable-v1 | 4 / 4 | `begin_resize` 的 `resize_rejected(bad_serial)` | 成功 resize、clamp、`resizing` 生命周期 |
 | wine-window-management-unstable-v1 | 5 / 5 | `window_id/configure_position/configure_stacking`；真实 QQuickItem 位置/Z 值 | bottom/insert-after、多窗口 sibling、无效 sibling、重复 bind、越界坐标 |
 | wine-window-state-unstable-v1 | 6 / 7 | `state_changed`；真实最小化、attention 与可见性 | `activate/activate_denied`、重复 bind、toplevel 销毁后的 inert 状态 |
