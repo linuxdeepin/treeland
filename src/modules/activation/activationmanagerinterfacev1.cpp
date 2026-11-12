@@ -14,6 +14,8 @@
 #include <QUuid>
 
 #include <algorithm>
+#include <cstddef>
+#include <deque>
 #include <optional>
 
 WAYLIB_SERVER_USE_NAMESPACE
@@ -121,6 +123,12 @@ struct TokenInfo
     QPointer<WSurface> originatingSurface; // surface set via set_surface
 };
 
+struct PrivilegedToken
+{
+    QString token;
+    QDeadlineTimer expiry;           // invalidated 60 s after minting
+};
+
 class ActivationManagerInterfaceV1Private
     : public QtWaylandServer::xdg_activation_v1
 {
@@ -149,18 +157,43 @@ public:
                           WSeat *seat,
                           WSurface *originatingSurface)
     {
+        if (m_tokens.size() >= MaxPendingTokens) {
+            sweepExpiredTokens();
+        }
+        if (m_tokens.size() >= MaxPendingTokens) {
+            qCWarning(lcTlActivation) << "Pending activation token table reached limit"
+                                      << MaxPendingTokens << "- evicting oldest token";
+            m_tokens.pop_front();
+        }
         const QString token = QUuid::createUuid().toString(QUuid::WithoutBraces);
-        m_tokens.append(TokenInfo{ token,
-                                   appId,
-                                   client,
-                                   serial,
-                                   fromTrustedSurface,
-                                   QDeadlineTimer(TokenLifetimeMs),
-                                   seat,
-                                   originatingSurface });
+        m_tokens.push_back(TokenInfo{ token,
+                                      appId,
+                                      client,
+                                      serial,
+                                      fromTrustedSurface,
+                                      QDeadlineTimer(TokenLifetimeMs),
+                                      seat,
+                                      originatingSurface });
         qCDebug(lcTlActivation) << "Registered activation token" << token.left(8) + u"..."_s
                                << "for app" << appId
                                << (fromTrustedSurface ? "" : "(inactive-surface-token-request)");
+        return token;
+    }
+
+    QString mintToken()
+    {
+        // The only other sweep point is activate(); without this one a client
+        // that mints without consuming grows m_privilegedTokens without bound.
+        sweepExpiredPrivilegedTokens();
+        if (m_privilegedTokens.size() >= MaxPendingTokens) {
+            qCWarning(lcTlActivation) << "Pending privileged activation token queue reached limit"
+                                      << MaxPendingTokens << "- evicting oldest token";
+            m_privilegedTokens.pop_front();
+        }
+        const QString token = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        m_privilegedTokens.push_back(PrivilegedToken{ token, QDeadlineTimer(TokenLifetimeMs) });
+        qCDebug(lcTlActivation) << "Minted privileged activation token (pending:"
+                                << m_privilegedTokens.size() << ")";
         return token;
     }
 
@@ -201,6 +234,7 @@ protected:
                   struct ::wl_resource *surface) override
     {
         sweepExpiredTokens();
+        sweepExpiredPrivilegedTokens();
 
         auto *wlrSurface = wlr_surface_from_resource(surface);
         if (!wlrSurface) {
@@ -218,25 +252,29 @@ protected:
         WSeat *tokenSeat = nullptr;
         WSurface *originatingSurface = nullptr;
 
-        auto it = std::find_if(m_tokens.begin(), m_tokens.end(),
-                               [&token](const TokenInfo &t) { return t.token == token; });
-        if (it != m_tokens.end()) {
-            tokenSeat = it->seat.data();
-            originatingSurface = it->originatingSurface;
-            disposition = it->fromTrustedSurface
-                ? (it->serial.has_value()
-                       ? ActivationManagerInterfaceV1::TokenDisposition::Active
-                       : ActivationManagerInterfaceV1::TokenDisposition::Attention)
-                : ActivationManagerInterfaceV1::TokenDisposition::Attention;
+        auto privIt = std::find_if(m_privilegedTokens.begin(), m_privilegedTokens.end(),
+                                   [&token](const PrivilegedToken &t) { return t.token == token; });
+        if (privIt != m_privilegedTokens.end()) {
+            // A privileged-client token is trusted by construction: it carries
+            // no serial, so it must not be downgraded to Attention.
+            disposition = ActivationManagerInterfaceV1::TokenDisposition::Active;
+            m_privilegedTokens.erase(privIt);
+        } else {
+            auto it = std::find_if(m_tokens.begin(), m_tokens.end(),
+                                   [&token](const TokenInfo &t) { return t.token == token; });
+            if (it != m_tokens.end()) {
+                tokenSeat = it->seat.data();
+                originatingSurface = it->originatingSurface;
+                const bool active = it->fromTrustedSurface && it->serial.has_value();
+                disposition = active ? ActivationManagerInterfaceV1::TokenDisposition::Active
+                                     : ActivationManagerInterfaceV1::TokenDisposition::Attention;
+                // Keep token one-shot semantics
+                m_tokens.erase(it);
+            }
         }
 
         qCInfo(lcTlActivation) << "activate: emitting activateRequested for token"
                                << token.left(8) + u"..."_s << "with disposition" << disposition;
-
-        // Keep token one-shot semantics
-        if (it != m_tokens.end()) {
-            m_tokens.erase(it);
-        }
 
         Q_EMIT q->activateRequested(token, disposition, wsurface, tokenSeat, originatingSurface);
     }
@@ -255,11 +293,26 @@ private:
         }
     }
 
+    void sweepExpiredPrivilegedTokens()
+    {
+        auto it = m_privilegedTokens.begin();
+        while (it != m_privilegedTokens.end()) {
+            if (it->expiry.hasExpired()) {
+                qCDebug(lcTlActivation) << "Sweeping expired privileged activation token";
+                it = m_privilegedTokens.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
     ActivationManagerInterfaceV1 *q;
-    QList<TokenInfo> m_tokens;
+    std::deque<TokenInfo> m_tokens;
+    std::deque<PrivilegedToken> m_privilegedTokens;
     std::function<bool(WSurface *, WSeat *)> m_trustedSurfaceChecker;
 
     static constexpr int TokenLifetimeMs = 60'000;
+    static constexpr std::size_t MaxPendingTokens = 1024;
 };
 
 // ---------------------------------------------------------------------------
@@ -315,6 +368,11 @@ ActivationManagerInterfaceV1::~ActivationManagerInterfaceV1() = default;
 QByteArrayView ActivationManagerInterfaceV1::interfaceName() const
 {
     return d->interfaceName();
+}
+
+QString ActivationManagerInterfaceV1::mintToken()
+{
+    return d->mintToken();
 }
 
 void ActivationManagerInterfaceV1::create(WServer *server)
