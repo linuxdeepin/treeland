@@ -259,12 +259,17 @@ private:
         if (m_compositorBus == bus)
             return true;
 
+        // Each user's Wayland listener survives desktop switches. Only initial
+        // startup and compositor service recovery need to register it again.
+        if (m_type == "wayland") {
+            m_compositorBus = bus;
+            return true;
+        }
+
         // Xwayland only has to react to auth refreshes. Its display number and
         // the XAUTHORITY path survive a wlroots in-place Xwayland restart, so
         // a session change does not affect it and must not re-run activation.
-        const QString signalName = m_type == "xwayland"
-            ? QStringLiteral("XWaylandAuthChanged")
-            : QStringLiteral("SessionChanged");
+        const QString signalName = QStringLiteral("XWaylandAuthChanged");
 
         if (m_compositorBus.has_value()) {
             auto oldConnection = dbusConnection(*m_compositorBus);

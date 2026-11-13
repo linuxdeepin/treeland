@@ -591,8 +591,10 @@ void GreeterProxy::readyRead()
                 break;
             }
 
-            if (!WaylandServer::instance()->activateUserSession(user, sessionId))
+            if (!WaylandServer::instance()->activateUserSession(user, sessionId)) {
+                qCWarning(lcTlGreeter) << "Failed to activate desktop for user" << user << "session" << sessionId;
                 break;
+            }
 
             restoreLogindPath(sessionId);
             qCInfo(lcTlGreeter) << "activate successfully: " << user << ", XDG_SESSION_ID: " << sessionId;

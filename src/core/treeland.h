@@ -53,6 +53,7 @@ public Q_SLOTS:
 #endif
 
 private:
+    void releaseUserWaylandSocket(QString user, WAYLIB_SERVER_NAMESPACE::WSocket *expected);
     void initialize();
     void runPrestartScripts();
     void continueStartup();
