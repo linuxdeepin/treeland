@@ -421,6 +421,8 @@ void WSurfaceItemContent::setSurface(WSurface *surface)
                 oldSurface->disconnect(d->textureProvider);
         }
 
+        // The provider still holds a texture from the replaced surface.
+        d->cleanTextureProvider();
         if (d->surface)
             d->init();
     }
