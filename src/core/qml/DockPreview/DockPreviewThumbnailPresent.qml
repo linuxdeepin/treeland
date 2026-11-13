@@ -11,8 +11,7 @@ Item {
     id: root
 
     required property QtObject preview
-    // The pointer is over the popover, so the title row shows its close-all
-    // button.
+    // Whether the pointer is over the popover.
     property bool hovered: false
 
     // Corner radius shared by the slots and their hover border.
@@ -396,8 +395,10 @@ Item {
             maximumSize: Math.min(PopoverStyle.closeButtonMaxSize, preview.titleRowHeight)
             // Only the thumbnail presentation has a close-all action; the
             // list has one per row and the tooltip has none.
+            // A hovered slot shows its own close button instead.
             visible: preview.requestedPresentation === DockPreview.Presentation.Thumbnail
                      && root.hovered
+                     && !root.hoveredSlot?.hovered
             Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
             onClicked: {
                 preview.closeAllWindow();
