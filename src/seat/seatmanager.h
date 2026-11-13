@@ -10,6 +10,7 @@
 #include <wserver.h>
 
 #include <QObject>
+#include <QHash>
 #include <QMap>
 #include <QRegularExpression>
 
@@ -123,5 +124,12 @@ private:
     WSeat *m_defaultSeat = nullptr;
     QStringList m_seatNames;
     QString m_fallbackName;
+    // Per-seat QObject::destroyed hooks that prune m_seats/m_defaultSeat when
+    // WServer (~WServer's qDeleteAll of interfaceList) deletes a WSeat before
+    // this manager does. Cleared up-front in ~SeatManager so the hook body
+    // never touches manager members during self-destruction.
+    QHash<WSeat *, QMetaObject::Connection> m_seatCleanupHooks;
+    void hookSeat(WSeat *seat);
+    void unhookSeat(WSeat *seat);
     mutable QMap<WInputDevice*, WSeat*> m_deviceCache;
 };

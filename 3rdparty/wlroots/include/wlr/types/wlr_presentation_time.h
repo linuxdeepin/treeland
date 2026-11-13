@@ -75,6 +75,12 @@ struct wlr_presentation *wlr_presentation_create(struct wl_display *display,
  */
 struct wlr_presentation_feedback *wlr_presentation_surface_sampled(
 	struct wlr_surface *surface);
+
+// waylib extension (not upstream): query whether the surface currently has a
+// pending/queued wp_presentation feedback without consuming it. Used by the
+// compositor to avoid creating a per-surface presentation footprint node for
+// clients that never requested feedback.
+bool waylib_wlr_presentation_surface_has_feedback(struct wlr_surface *surface);
 void wlr_presentation_feedback_send_presented(
 	struct wlr_presentation_feedback *feedback,
 	const struct wlr_presentation_event *event);
