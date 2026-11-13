@@ -77,7 +77,7 @@ SurfaceWrapper *SessionInputContext::surface(WSurface *native) const
 {
     if (!native)
         return nullptr;
-    auto *root = WSurface::fromHandle(wlr_surface_get_root_surface(native->handle()));
+    auto *root = native->rootSurface();
     if (!root)
         return nullptr;
     auto *wrapper = m_runtime->rootContainer()->getSurface(root);
