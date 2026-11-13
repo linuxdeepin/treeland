@@ -571,6 +571,17 @@ bool WXWaylandSurface::isBelow() const
     return d->handle()->below;
 }
 
+bool WXWaylandSurface::isX11Mapped() const
+{
+    W_DC(WXWaylandSurface);
+    const auto *handle = d->handle();
+    // wlroots owns the map/stack state: MapNotify links the managed window
+    // into surfaces_in_stack_order, while UnmapNotify dissociates it and
+    // unlinks it. Do not keep a second map state in waylib.
+    return handle && !handle->override_redirect && !handle->withdrawn
+        && !wl_list_empty(&handle->stack_link);
+}
+
 bool WXWaylandSurface::isModal() const
 {
     W_DC(WXWaylandSurface);
@@ -712,6 +723,17 @@ void WXWaylandSurface::restack(WXWaylandSurface *sibling, StackMode mode)
     }
 
     wlr_xwayland_surface_restack(handle(), nullptr, static_cast<xcb_stack_mode_t>(mode));
+}
+
+void WXWaylandSurface::notifyX11MapCompleted()
+{
+    // Re-check wlroots' state instead of keeping a waylib-side map flag: the
+    // window may have been unmapped or turned override-redirect while the
+    // queued notification was pending.
+    if (!isX11Mapped())
+        return;
+
+    Q_EMIT x11MapCompleted();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

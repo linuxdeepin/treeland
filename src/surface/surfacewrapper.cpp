@@ -635,6 +635,10 @@ void SurfaceWrapper::setup()
                 &WXWaylandSurface::belowChanged,
                 this,
                 &SurfaceWrapper::updateXWaylandStackingState);
+        connect(xwaylandSurface,
+                &WXWaylandSurface::x11MapCompleted,
+                this,
+                &SurfaceWrapper::syncXWaylandStacking);
         updateX11SkipFlags();
         updateXWaylandStackingState();
     }
@@ -917,6 +921,12 @@ void SurfaceWrapper::completeSplashTransition(const QSizeF &targetImplicitSize, 
         m_decoration->stackBefore(m_surfaceItem);
     }
 
+    // A prelaunch wrapper is already active before its real X11 window maps,
+    // so no activation change will re-raise it. Synchronize the native stack
+    // once here as well, for the case where MapNotify was handled before this
+    // wrapper was connected to the surface.
+    syncXWaylandStacking();
+
     m_surfaceItem->setVisible(true);
     if (m_type == Type::XWayland
         && (m_surfaceState == State::Maximized || m_surfaceState == State::Fullscreen)) {
@@ -943,6 +953,29 @@ void SurfaceWrapper::completeSplashTransition(const QSizeF &targetImplicitSize, 
     // Now that the splash is hidden and deleted, the surface can be considered active if it's
     // mapped
     updateHasActiveCapability(ActiveControlState::MappedOrSplash, surface() && surface()->mapped());
+}
+
+void SurfaceWrapper::syncXWaylandStacking()
+{
+    auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface.data());
+    if (!xwaylandSurface || m_wrapperAboutToRemove || m_isProxy || m_type != Type::XWayland
+        || xwaylandSurface->isBypassManager() || !xwaylandSurface->isX11Mapped()) {
+        return;
+    }
+
+    // wlroots restacks every managed X11 window below when it handles MapNotify.
+    // Restore the stacking direction Treeland wants after that point: explicit
+    // ABOVE wins, an active normal window is raised, and BELOW always stays at
+    // the bottom. Inactive normal windows keep wlroots' native ordering.
+    const bool above = xwaylandSurface->isAbove();
+    const bool below = !above && xwaylandSurface->isBelow();
+    if (above || (m_isActivated && !below)) {
+        stackToLast();
+        xwaylandSurface->restack(nullptr, WXWaylandSurface::XCB_STACK_MODE_ABOVE);
+    } else if (below) {
+        stackToFirst();
+        xwaylandSurface->restack(nullptr, WXWaylandSurface::XCB_STACK_MODE_BELOW);
+    }
 }
 
 WSurface *SurfaceWrapper::surface() const
@@ -3283,11 +3316,7 @@ void SurfaceWrapper::updateXWaylandStackingState()
     const bool below = !above && xwaylandSurface->isBelow();
     setAlwaysOnBottom(below);
     setAlwaysOnTop(above);
-    if (above) {
-        stackToLast();
-    } else if (below) {
-        stackToFirst();
-    }
+    syncXWaylandStacking();
 }
 #endif
 
