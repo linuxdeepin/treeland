@@ -49,6 +49,7 @@
 #include <QDir>
 #include <QStandardPaths>
 
+#include <cerrno>
 #include <fcntl.h>
 #include <functional>
 #include <memory>
@@ -361,7 +362,6 @@ private:
     std::vector<PluginInterface *> plugins;
     QLocalSocket *helperSocket{ nullptr };
     WaylandServer *server{ nullptr };
-    QMap<QString, std::shared_ptr<QDBusUnixFileDescriptor>> userDisplayFds;
     ScriptRunner *m_scriptRunner{ nullptr };
     std::vector<QAction *> shortcuts;
     std::map<PluginInterface *, QTranslator *> pluginTs;
@@ -579,76 +579,114 @@ RootSurfaceContainer *Treeland::rootSurfaceContainer() const
     return d->server->rootSurfaceContainer();
 }
 
+void Treeland::releaseUserWaylandSocket(const QString &user, WSocket *expected)
+{
+    Q_D(Treeland);
+    if (!d)
+        return;
+    auto *userModel = d->server->qmlEngine()->singletonInstance<UserModel *>("Treeland", "UserModel");
+    const auto account = userModel->getUser(user);
+    if (!account || account->waylandSocket().get() != expected)
+        return;
+    // Retain the socket until cleanup finishes, and defer watcher deletion so
+    // an unregister callback does not destroy its own sender synchronously.
+    const auto socket = account->waylandSocket();
+    if (auto *watcher = socket->findChild<QDBusServiceWatcher *>(QStringLiteral("WaylandSocketOwner"))) {
+        watcher->setParent(nullptr);
+        watcher->deleteLater();
+    }
+    qCDebug(lcTlDBus) << "Releasing Wayland socket for user" << user
+                      << "with" << socket->clients().size() << "clients";
+    account->setWaylandSocket(nullptr);
+}
+
 bool Treeland::ActivateWayland(QDBusUnixFileDescriptor _fd)
 {
     Q_D(Treeland);
-
     if (!_fd.isValid()) {
+        qCWarning(lcTlDBus) << "Cannot activate Wayland socket: invalid file descriptor";
         return false;
     }
 
-    auto fd = std::make_shared<QDBusUnixFileDescriptor>();
-    fd->swap(_fd);
-
-    auto uid = connection().interface()->serviceUid(message().service());
-    auto session = d->server->sessionManager()->sessionForUid(uid);
-
+    const auto owner = message().service();
+    const auto uid = connection().interface()->serviceUid(owner);
+    if (!uid.isValid()) {
+        qCWarning(lcTlDBus) << "Cannot resolve Wayland socket owner" << owner << uid.error();
+        return false;
+    }
+    const auto session = d->server->sessionManager()->sessionForUid(uid.value());
     WSocket *sessionSocket = session ? session->socket() : nullptr;
-    if (!sessionSocket)
+    if (!sessionSocket) {
+        qCWarning(lcTlDBus) << "Cannot activate Wayland socket: no session for uid" << uid.value();
         return false;
-    auto userModel =
-        d->server->qmlEngine()->singletonInstance<UserModel *>("Treeland", "UserModel");
+    }
+    auto *userModel = d->server->qmlEngine()->singletonInstance<UserModel *>("Treeland", "UserModel");
     const QString user = session->username();
-    auto u = userModel->getUser(user);
-    if (!u)
+    const auto account = userModel->getUser(user);
+    if (!account) {
+        qCWarning(lcTlDBus) << "Cannot activate Wayland socket: user account not found" << user;
         return false;
+    }
 
-    struct stat incomingStat {};
-    if (fstat(fd->fileDescriptor(), &incomingStat) < 0)
-        return false;
-
-    // SessionChanged makes treeland-sd submit the same listening socket again.
-    // Keep its WSocket and clients alive instead of replacing the connection owner.
-    if (auto existing = u->waylandSocket(); existing && existing->parentSocket() == sessionSocket) {
-        struct stat existingStat {};
-        if (fstat(existing->socketFd(), &existingStat) == 0
-            && existingStat.st_dev == incomingStat.st_dev
-            && existingStat.st_ino == incomingStat.st_ino) {
+    if (const auto existing = account->waylandSocket();
+        existing && existing->parentSocket() == sessionSocket && existing->isValid()) {
+        struct stat incomingStat {}, existingStat {};
+        if (fstat(_fd.fileDescriptor(), &incomingStat) != 0) {
+            const int err = errno;
+            qCWarning(lcTlDBus) << "Cannot stat incoming Wayland socket for user" << user
+                                << "errno" << err << qt_error_string(err);
+            return false;
+        }
+        if (fstat(existing->socketFd(), &existingStat) != 0) {
+            const int err = errno;
+            qCWarning(lcTlDBus) << "Cannot stat existing Wayland socket for user" << user
+                                << "errno" << err << qt_error_string(err) << "- replacing socket";
+        } else if (incomingStat.st_dev == existingStat.st_dev
+                   && incomingStat.st_ino == existingStat.st_ino) {
+            auto *watcher = existing->findChild<QDBusServiceWatcher *>(QStringLiteral("WaylandSocketOwner"));
+            if (watcher)
+                watcher->setWatchedServices({owner});
+            qCDebug(lcTlDBus) << "Reusing Wayland socket for user" << user
+                              << "session" << session->id() << "owner" << owner;
             return true;
         }
     }
 
-    // WSocket::create owns its fd; do not share ownership with the DBus wrapper.
-    const int socketFd = fcntl(fd->fileDescriptor(), F_DUPFD_CLOEXEC, 0);
-    if (socketFd < 0)
+    // Give WSocket its own descriptor while the D-Bus wrapper retains the input.
+    const int socketFd = fcntl(_fd.fileDescriptor(), F_DUPFD_CLOEXEC, 0);
+    if (socketFd < 0) {
+        const int err = errno;
+        qCWarning(lcTlDBus) << "Cannot duplicate Wayland socket for user" << user
+                            << "errno" << err << qt_error_string(err);
         return false;
-    std::shared_ptr<WSocket> socket = std::make_shared<WSocket>(sessionSocket);
-
+    }
+    auto socket = std::make_shared<WSocket>(sessionSocket);
     if (!socket->create(socketFd, false)) {
+        qCWarning(lcTlDBus) << "Cannot create Wayland socket for user" << user << "session" << session->id();
         ::close(socketFd);
         return false;
     }
 
-    u->setWaylandSocket(socket);
-
-    socket->setEnabled(userModel->currentUserName() == user,
-                       WaylandServer::instance()->sessionManager()->globalSession()->socket());
-
+    socket->setEnabled(sessionSocket->isEnabled());
+    connect(sessionSocket, &WSocket::enabledChanged, socket.get(),
+            [child = socket.get(), sessionSocket] { child->setEnabled(sessionSocket->isEnabled()); });
     d->server->addSocket(socket.get());
+    account->setWaylandSocket(socket);
 
-    d->userDisplayFds[user] = fd;
-
-    // Only the connection that supplied this socket may trigger its cleanup.
-    auto *watcher = new QDBusServiceWatcher(message().service(), connection(),
-                                           QDBusServiceWatcher::WatchForUnregistration,
-                                           socket.get());
+    auto *watcher = new QDBusServiceWatcher(owner, connection(),
+        QDBusServiceWatcher::WatchForUnregistration, socket.get());
+    watcher->setObjectName(QStringLiteral("WaylandSocketOwner"));
     connect(watcher, &QDBusServiceWatcher::serviceUnregistered, socket.get(),
-            [user, userModel, d] {
-                d->userDisplayFds.remove(user);
-                if (auto u = userModel->getUser(user))
-                    u->setWaylandSocket(nullptr);
+            [this, user, expected = socket.get(), watcher](const QString &service) {
+                if (watcher->watchedServices().contains(service))
+                    releaseUserWaylandSocket(user, expected);
             });
+    // Client cleanup needs the socket ancestry to identify security-context descendants.
+    connect(session.get(), &Session::clientsClosed, socket.get(),
+            [this, user, expected = socket.get()] { releaseUserWaylandSocket(user, expected); });
 
+    qCDebug(lcTlDBus) << "Registered Wayland socket for user" << user
+                      << "session" << session->id() << "owner" << owner;
     return true;
 }
 

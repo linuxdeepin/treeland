@@ -145,6 +145,7 @@ void Session::shutdown()
 #endif
 
     closeClients();
+    Q_EMIT clientsClosed();
 
     // Native surfaces have now been destroyed with their clients. Retire their
     // disabled wrappers before removing the protocols used by invalidation.
