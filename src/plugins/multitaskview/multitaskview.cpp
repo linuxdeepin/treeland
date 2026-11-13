@@ -340,7 +340,10 @@ void MultitaskviewSurfaceModel::setLayoutArea(const QRectF &newLayoutArea)
     if (m_layoutArea == newLayoutArea)
         return;
     m_layoutArea = newLayoutArea;
-    initializeModel();
+    if (!m_modelReady)
+        initializeModel();
+    else if (output() && !m_layoutArea.isEmpty())
+        calcLayout();
     Q_EMIT layoutAreaChanged();
 }
 
@@ -463,7 +466,7 @@ void MultitaskviewSurfaceModel::doCalculateLayout(const QList<ModelDataPtr> &raw
         }
         rowH -= windowHeightStep;
     }
-    if (rowH < minWindowHeight) {
+    if (rowH <= minWindowHeight) {
         tryLayout(rawData, minWindowHeight, true);
     }
     calcDisplayPos(rawData);
