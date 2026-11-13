@@ -29,7 +29,7 @@ layout(binding = 1) uniform sampler2D source;
 const float kSqrt2 = 1.4142135623730951;
 const float kInvSqrt2 = 0.7071067811865476;
 
-vec2 halfSize = max(ubuf.itemSize, vec2(1.0)) * 0.5;
+vec2 halfSize = ubuf.itemSize * 0.5;
 
 float sdRoundedRect(vec2 p, vec2 halfSize, float r)
 {
@@ -371,8 +371,7 @@ vec4 finishColor(vec3 color, float shapeAlpha)
 // ── Main ──────────────────────────────────────────────────────────────
 void main()
 {
-    vec2 size = max(ubuf.itemSize, vec2(1.0));
-    vec2 p = texCoord * size - size * 0.5;
+    vec2 p = texCoord * ubuf.itemSize - ubuf.itemSize * 0.5;
 
     float outerRadius = min(max(ubuf.radius, 0.0), min(halfSize.x, halfSize.y));
     float sd = sdRoundedRect(p, halfSize, outerRadius);
@@ -460,15 +459,15 @@ void main()
     vec2 inward = -n2;
     vec2 offG = inward * magG;
 
-    vec2 sampleUv = shadePoint / size + 0.5 + offG / size;
+    vec2 sampleUv = shadePoint / ubuf.itemSize + 0.5 + offG / ubuf.itemSize;
     // Soften only where UV stretch exceeds ~1px (curved warp jaggies).
     float filterPx = 0.0;
     if (magG > 0.5) {
-        float stretchX = length(vec2(dFdx(sampleUv.x), dFdy(sampleUv.x))) * size.x;
-        float stretchY = length(vec2(dFdx(sampleUv.y), dFdy(sampleUv.y))) * size.y;
+        float stretchX = length(vec2(dFdx(sampleUv.x), dFdy(sampleUv.x))) * ubuf.itemSize.x;
+        float stretchY = length(vec2(dFdx(sampleUv.y), dFdy(sampleUv.y))) * ubuf.itemSize.y;
         filterPx = clamp(max(max(stretchX, stretchY) - 1.0, 0.0) * 0.85, 0.0, 2.5);
     }
-    vec3 color = sampleBgSoft(sampleUv, size, filterPx);
+    vec3 color = sampleBgSoft(sampleUv, ubuf.itemSize, filterPx);
 
     if (ubuf.specular > 1e-4) {
         vec3 N = normalize(vec3(n2 * slopeMag, 1.0));
