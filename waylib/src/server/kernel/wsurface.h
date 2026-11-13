@@ -53,6 +53,7 @@ public:
     void notifyFrameDone();
 
     bool isSubsurface() const;
+    WSurface *rootSurface();
     bool hasSubsurface() const;
     const QList<WSubsurface *> &subsurfaces() const;
     QList<WSubsurface *> subsurfacesBelow() const;

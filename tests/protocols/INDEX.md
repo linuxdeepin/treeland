@@ -40,7 +40,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [region-watch-unstable-v1](treeland-region-watch-unstable-v1/README.md) | E / P | 输出边缘区域的全局坐标注册；真实 toplevel 映射/关闭驱动的 enter/leave；输出重绑、output_removed 与惰性语义 |
 | [appearance-unstable-v1](treeland-appearance-unstable-v1/README.md) | I / P | 初始 `color_scheme` 与 manager setter 触发的 client 广播 | 其余外观字段、无效值和 DConfig 配置替换 |
 | [decoration-unstable-v1](treeland-decoration-unstable-v1/README.md) | E | mapped toplevel 的 `set_corner_radius` 回读真实 `SurfaceWrapper::radius()` | shadow、border、titlebar 和协议错误路径 |
-| [remote-subsurface-unstable-v1](treeland-remote-subsurface-unstable-v1/README.md) | E / P | token 导出、真实 Remote `WSubsurface` 的父子关系、位置与层级；`parent_rejected` / `invalid_sibling` | 跨 client、循环 parent、映射生命周期与 sibling 间排序 |
+| [remote-subsurface-unstable-v1](treeland-remote-subsurface-unstable-v1/README.md) | E / P | token 导出、真实 Remote `WSubsurface` 的父子关系、位置与层级、输入上下文查找父窗口、`parent_rejected` / `invalid_sibling` | 跨 client、循环 parent、映射生命周期与 sibling 间排序 |
 | [prelaunch-splash-v2](treeland-prelaunch-splash-v2/README.md) | I / E | splash 请求/关闭信号；生产 splash wrapper 创建、加入 workspace 与销毁 |
 | [prelaunch splash 桌面集成](treeland-prelaunch-splash-desktop-v2/README.md) | E / V | splash wrapper 创建/销毁；AM 图标在 splash item 与客户端 `wl_buffer` 都销毁后仍由 wrapper 持有；dock preview 标题行图标 item 的 buffer 指针、尺寸与纹理像素；无图标窗口与悬停切换不产生 `WBufferItem` / QML 警告 |
 | [screensaver-v2](treeland-screensaver-v2/README.md) | E / P | 真实 ext-idle 抑制生命周期 |
@@ -137,7 +137,7 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 | output-manager-v2 | 7 / 7 | `primary_output` 初值与 uuid 确认、`primary_output_failed(invalid_output)` 非致命；picture-control 初始 `brightness`/`color_temperature`、`result`（success/invalid_output）与失效后 inert、越界色温致命协议错误 | `set_color_temperature/set_brightness` 成功路径及 brightness/color_temperature 事件回读、`invalid_brightness`、`unsupported`、真实像素变化、uuid 热插拔跟随 |
 | personalization-manager-v1 | 37 / 37* | cursor/font/appearance 回读 event；真实 wrapper 个性化状态 | manager `destroy` 为 v2 request（v1 global 只能走错误/兼容性边界）；字体渲染和 appearance 的最终 UI 像素 |
 | region-watch-unstable-v1 | 4 / 4 | `set_region` 后的强制评估；真实 toplevel 映射/关闭驱动的 `enter/leave`；输出重绑、`output_removed` 与惰性语义 | `invalid_anchor/invalid_size` 致命错误路径、输出 scale/mode 变化后的重新注册、多 watcher |
-| remote-subsurface-unstable-v1 | 8 / 8 | token；真实 Remote `WSubsurface` 的父子关系、位置、Below 层级；`parent_rejected` / `invalid_sibling` | 跨 client、循环 parent、映射生命周期、sibling 间排序 |
+| remote-subsurface-unstable-v1 | 8 / 8 | token；真实 Remote `WSubsurface` 的父子关系、位置、Below 层级、输入上下文查找父窗口；`parent_rejected` / `invalid_sibling` | 跨 client、循环 parent、映射生命周期、sibling 间排序 |
 | prelaunch-splash-v2 | 3 / 3 | 创建、关闭；真实 splash wrapper 加入/离开 workspace | splash QML 最终可见性、纹理和像素 |
 | screensaver-v1 | 2 / 3 | 真实 ext-idle 被 inhibit/uninhibit 改变 | 显式 `destroy` request、实际锁屏 UI |
 | shortcut-manager-v3 | 6 / 9 | `bind_failure`、`captured`、`activated`；真实 virtual keyboard 输入链 | swipe、hold、`unbind` 的业务分支；物理键盘 |
