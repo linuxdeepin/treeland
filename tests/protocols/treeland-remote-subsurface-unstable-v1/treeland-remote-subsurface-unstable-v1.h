@@ -10,6 +10,7 @@ extern "C" {
 struct remote_subsurface_server_state {
     int valid;
     int parent_matches;
+    int input_window_matches;
     int type;
     int place;
     double x;
