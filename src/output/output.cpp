@@ -732,12 +732,12 @@ QPointF Output::calculateBasePosition(SurfaceWrapper *surface, const QPointF &dP
     // dPos is expressed in the parent's surface coordinates: xdg-shell positions
     // a popup relative to the parent's window geometry, and wlr reports it with
     // the popup's own window geometry offset subtracted, so dPos carries both
-    // the parent's CSD margins and the popup's. The wrapper is placed at the
-    // popup's window geometry origin, which needs those offsets cancelled out.
-    // Mapping through the parent surface item also applies its paddings, i.e.
-    // the compositor-drawn titlebar of SSD parents, so no separate titlebar
-    // offset is needed here.
-    const QPointF parentContentPos = parent->surfaceItem()->mapFromSurface(dPos);
+    // the parent's CSD margins and the popup's. The wrapper is positioned at
+    // its own item origin; mapFromSurface() folds in the content geometry
+    // offset (CSD margins) and paddings (SSD titlebar) to land the anchor on
+    // the parent's content area, and the popup's own offsets are cancelled
+    // below so the wrapper lands on the anchor the client requested.
+    const QPointF parentContentPos = parent->mapFromSurface(dPos);
 
     QPointF ownContentOffset;
     if (auto *shell = surface->shellSurface())
@@ -745,9 +745,8 @@ QPointF Output::calculateBasePosition(SurfaceWrapper *surface, const QPointF &dP
     if (auto *item = surface->surfaceItem())
         ownContentOffset -= QPointF(item->leftPadding(), item->topPadding());
 
-    const QPointF pos = parentContentPos + ownContentOffset;
-    return QPointF(parent->x() + parent->surfaceItem()->x() + pos.x(),
-                   parent->y() + parent->surfaceItem()->y() + pos.y());
+    return QPointF(parent->x() + parentContentPos.x() + ownContentOffset.x(),
+                   parent->y() + parentContentPos.y() + ownContentOffset.y());
 }
 
 void Output::adjustToOutputBounds(QPointF &pos, const QRectF &normalGeo, const QRectF &outputRect) const

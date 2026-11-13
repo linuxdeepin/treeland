@@ -257,6 +257,11 @@ public:
     QRectF normalGeometry() const;
     void moveNormalGeometryInOutput(const QPointF &position);
     QPointF alignToPixelGrid(const QPointF &pos) const;
+
+    // Maps a point from this surface's buffer/surface-local coordinate space to
+    // the wrapper's coordinate space: applies the surface item's position within
+    // the wrapper plus the item's content offset (window geometry + paddings).
+    QPointF mapFromSurface(const QPointF &surfacePoint) const;
     QRectF alignGeometryToPixelGrid(const QRectF &geometry) const;
     qreal getOutputDevicePixelRatio(const QPointF &pos) const;
 

@@ -325,8 +325,10 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
             if (auto xdgPopupSurface = qobject_cast<WXdgPopupSurface *>(surface->shellSurface())) {
                 if (parentSurface->type() != SurfaceWrapper::Type::Layer) {
                     // If parentSurface is Layer surface, follow parentSurface->ownsOutput
-                    auto pos = parentSurface->position() + parentSurface->surfaceItem()->position()
-                        + xdgPopupSurface->getPopupPosition();
+                    // getPopupPosition() is in the parent's surface coordinates;
+                    // map it through the parent wrapper (content offset + paddings).
+                    auto pos = parentSurface->position()
+                        + parentSurface->mapFromSurface(xdgPopupSurface->getPopupPosition());
                     if (auto op = wlr_output_layout_output_at(m_outputLayout->handle(), pos.x(), pos.y()))
                         output =
                             WaylandServer::instance()->getOutput(WOutput::fromHandle(op));
