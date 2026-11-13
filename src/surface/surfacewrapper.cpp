@@ -1019,6 +1019,17 @@ QRectF SurfaceWrapper::normalGeometry() const
     return m_normalGeometry;
 }
 
+QPointF SurfaceWrapper::mapFromSurface(const QPointF &surfacePoint) const
+{
+    // WSurfaceItem::mapFromSurface() already folds the content geometry offset
+    // (CSD margins / window geometry) and paddings (SSD titlebar) into a
+    // surface-item-local point. Add the item's position within the wrapper.
+    if (!m_surfaceItem)
+        return surfacePoint;
+    const QPointF itemPos = m_surfaceItem->mapFromSurface(surfacePoint);
+    return QPointF(m_surfaceItem->x() + itemPos.x(), m_surfaceItem->y() + itemPos.y());
+}
+
 void SurfaceWrapper::moveNormalGeometryInOutput(const QPointF &position)
 {
     QPointF alignedPosition = alignToPixelGrid(position);

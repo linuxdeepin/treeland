@@ -158,7 +158,7 @@ std::optional<QPointF> SurfaceWindowTransition::mapTransitionPointToGlobal(
     if (!item || !item->surface() || !item->shellSurface())
         return std::nullopt;
 
-    return m_wrapper->position() + item->mapFromSurface(surfacePoint);
+    return m_wrapper->position() + m_wrapper->mapFromSurface(surfacePoint);
 }
 
 void SurfaceWindowTransition::releaseSourceOutputs()

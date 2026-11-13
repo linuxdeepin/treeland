@@ -1168,6 +1168,12 @@ QRectF WSurfaceItem::getContentGeometry() const
 
 QPointF WSurfaceItem::mapFromSurface(const QPointF &point) const
 {
+    // NOTE: this does NOT divide by surfaceSizeRatio. Unlike
+    // updateContentPosition(), which maps buffer-space content into the
+    // (scaled) contentContainer, this maps a surface/buffer-local point into
+    // item-local coordinates assuming ratio == 1. XDG popup parents are Wayland
+    // surfaces (ratio always 1), so popup placement is safe; XWayland callers
+    // (ratio may differ) must scale before calling this.
     const QPointF offset = getContentGeometry().topLeft();
     return QPointF(point.x() + leftPadding() - offset.x(),
                    point.y() + topPadding() - offset.y());
