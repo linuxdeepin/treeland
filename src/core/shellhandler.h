@@ -137,12 +137,14 @@ private Q_SLOTS:
     void onLayerSurfaceAdded(WAYLIB_SERVER_NAMESPACE::WLayerSurface *surface);
     void onLayerSurfaceRemoved(WAYLIB_SERVER_NAMESPACE::WLayerSurface *surface);
 
-    void onInputPopupSurfaceV2Added(WAYLIB_SERVER_NAMESPACE::WInputPopupSurface *surface);
-
-    void onInputPopupSurfaceV2Removed(WAYLIB_SERVER_NAMESPACE::WInputPopupSurface *surface);
     void onWindowMenuClosed();
 
 private:
+    void onInputPopupSurfaceV2Added(WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *helper,
+                                    WAYLIB_SERVER_NAMESPACE::WInputPopupSurface *surface);
+    void onInputPopupSurfaceV2Removed(WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *helper,
+                                      WAYLIB_SERVER_NAMESPACE::WInputPopupSurface *surface);
+    void onTextInputFocusSurfaceChanged(WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *helper);
     void setupSurfaceActiveWatcher(SurfaceWrapper *wrapper);
     void onSurfaceInactivationRequested(SurfaceWrapper *wrapper);
     void updateSurfaceAcceptKeyboardFocus(SurfaceWrapper *wrapper, bool accept);
@@ -196,6 +198,11 @@ private:
     SurfaceContainer *m_popupContainer = nullptr;
     SurfaceContainer *m_privilegedOverlayContainer = nullptr;
     SurfaceContainer *m_snapMaskContainer = nullptr;
+    // Input-method popup (candidate window) wrappers, grouped by the helper
+    // (and therefore the session/seat) that owns them.  A global list would
+    // re-anchor popups when another user's session changes focus.
+    QHash<WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *,
+          QList<QPointer<SurfaceWrapper>>> m_inputPopupWrappers;
     QObject *m_windowMenu = nullptr;
     // Dock preview QML object
     // Pending toplevel surfaces (XDG or XWayland) awaiting async AppId resolve; callbacks continue

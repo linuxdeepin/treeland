@@ -19,6 +19,8 @@
 #include <wtextinputv3_p.h>
 #include <wvirtualkeyboardv1_p.h>
 
+#include <utility>
+
 WAYLIB_SERVER_USE_NAMESPACE
 
 SessionSeatManager::SessionSeatManager(Session *session)
@@ -26,6 +28,8 @@ SessionSeatManager::SessionSeatManager(Session *session)
 {
     m_pointerGestures = new WPointerGesturesV1;
     session->attachInterface(m_pointerGestures);
+    connect(this, &SessionSeatManager::inputMethodChanged,
+            session, &Session::inputMethodChanged);
     createInputMethodProtocols();
     auto *hardware = WaylandServer::instance()->seatManager();
     const auto names = hardware->configuredSeatNames();
@@ -63,6 +67,44 @@ WInputMethodHelper *SessionSeatManager::inputMethodHelper(WSeat *seat) const
 }
 IMCandidatePanelManager *SessionSeatManager::candidatePanels() const { return m_candidatePanels; }
 
+bool SessionSeatManager::hasInputMethod() const
+{
+    for (auto *helper : m_helpers) {
+        if (helper && helper->inputMethodConnected())
+            return true;
+    }
+    return false;
+}
+
+void SessionSeatManager::activate()
+{
+    // Seats are re-projected by SeatManager; their focus signals drive the
+    // per-helper reconciliation.  Publish the aggregate state in case it
+    // changed while this session was in the background.
+    updateInputMethodState();
+}
+
+void SessionSeatManager::deactivate()
+{
+    // A user switch clears seat focus after this component is deactivated.
+    // End each seat's input-method session explicitly so a held composition
+    // cannot survive into another user's desktop.
+    for (auto *helper : std::as_const(m_helpers)) {
+        if (helper)
+            helper->deactivate();
+    }
+    updateInputMethodState();
+}
+
+void SessionSeatManager::updateInputMethodState()
+{
+    const bool connected = hasInputMethod();
+    if (connected == m_inputMethodConnected)
+        return;
+    m_inputMethodConnected = connected;
+    Q_EMIT inputMethodChanged(connected);
+}
+
 void SessionSeatManager::addSeat(WSeat *seat, bool fallback)
 {
     if (m_seats.contains(seat))
@@ -78,7 +120,10 @@ void SessionSeatManager::addSeat(WSeat *seat, bool fallback)
         WaylandServer::instance()->server(), seat, m_inputMethodProtocols);
     helper->setParent(this);
     WaylandServer::instance()->shellHandler()->registerInputMethodHelper(helper);
+    connect(helper, &WInputMethodHelper::inputMethodChanged,
+            this, &SessionSeatManager::updateInputMethodState);
     m_helpers.insert(seat, helper);
+    updateInputMethodState();
     if (!m_candidatePanels)
         m_candidatePanels = new IMCandidatePanelManager(
             WaylandServer::instance()->shellHandler(), helper, this);
@@ -89,6 +134,7 @@ void SessionSeatManager::addSeat(WSeat *seat, bool fallback)
 void SessionSeatManager::removeSeat(WSeat *seat)
 {
     delete m_helpers.take(seat);
+    updateInputMethodState();
     if (m_candidatePanels)
         m_candidatePanels->setInputMethodHelper(m_helpers.isEmpty() ? nullptr : m_helpers.first());
     m_seats.removeAll(seat);

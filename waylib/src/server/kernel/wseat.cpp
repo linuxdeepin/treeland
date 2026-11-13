@@ -237,7 +237,11 @@ public:
             const wlr_keyboard_modifiers *modifiers = nullptr;
             const uint32_t *keycodes = nullptr;
             size_t numKeycodes = 0;
-            auto keyboard = q_func()->keyboard();
+            // Prefer the keyboard group for the enter payload: while an input
+            // method owns the keys, the seat's current keyboard may be the
+            // input method's virtual keyboard, whose empty or stale pressed-key
+            // state must not leak into focus transitions.
+            auto keyboard = groupkeyboardDevice ? groupkeyboardDevice : q_func()->keyboard();
             if (keyboard) {
                 auto *wlr_keyboard = wlr_keyboard_from_input_device(keyboard->handle());
                 if (wlr_keyboard) {
@@ -332,6 +336,28 @@ public:
 
     // for keyboard event
     inline bool doNotifyKey(WInputDevice *device, uint32_t keycode, uint32_t state, uint32_t timestamp) {
+        if (keyboardFocusSurface() && keyboardFilter
+            && keyboardFilter->filterKey(q_func(), device, keycode, state, timestamp)) {
+            // The filter owns this press/release. Keep the client's enter
+            // payload from exposing a key it never received, and stop any
+            // compositor-side repeat for it; input methods generate their own
+            // repeat from the repeat-info sent on the keyboard endpoint.
+            if (state == WL_KEYBOARD_KEY_STATE_PRESSED)
+                filteredKeys.insert(keycode);
+            else
+                filteredKeys.remove(keycode);
+            m_repeatTimer.stop();
+            m_repeatKey.reset();
+            keyFilteredThisEvent = true;
+            return true;
+        }
+
+        // A release that bypasses the filter still ends any filtered press
+        // record (synthetic events do not always pass the compositor's
+        // shortcut-release cleanup).
+        if (state == WL_KEYBOARD_KEY_STATE_RELEASED)
+            filteredKeys.remove(keycode);
+
         q_func()->setKeyboard(device);
 
         if (!keyboardFocusSurface())
@@ -343,6 +369,11 @@ public:
     }
     inline bool doNotifyModifiers(WInputDevice *device) {
         auto keyboard = wlr_keyboard_from_input_device(device->handle());
+
+        if (keyboardFocusSurface() && keyboardFilter
+            && keyboardFilter->filterModifiers(q_func(), device, &keyboard->modifiers)) {
+            return true;
+        }
 
         // wlr_seat_set_keyboard() already sends modifiers when the keyboard
         // changes, so skip the explicit send to avoid a duplicate.
@@ -402,6 +433,7 @@ public:
     QVector<WInputDevice*> deviceList;
     QVector<WInputDevice*> touchDeviceList;
     QPointer<WSeatEventFilter> eventFilter;
+    WSeatKeyboardFilter *keyboardFilter = nullptr;
     QPointer<QWindow> focusWindow;
     QPointer<QObject> pointerFocusEventObject;
     QPointer<WSurface> m_keyboardFocusSurface;
@@ -473,6 +505,7 @@ public:
     // for keyboard event
     QTimer m_repeatTimer;
     std::unique_ptr<QKeyEvent> m_repeatKey;
+    bool keyFilteredThisEvent = false;
 
     // for cursor data
     // TODO: make to QWSeatClient in wlroots
@@ -632,10 +665,19 @@ void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *
     if (focusWindow) {
         const QPointer<WSeat> seatGuard(q_func());
         const QPointer<WInputDevice> deviceGuard(device);
+        keyFilteredThisEvent = false;
         handleKeyEvent(e);
         // Dispatch may have switched desktops or destroyed this seat/device.
         if (!seatGuard || !deviceGuard || !focusWindow || deviceGuard->seat() != seatGuard)
             return;
+        // The input method consumed the key during QML/WSurfaceItem dispatch;
+        // it generates its own repeat from the repeat-info sent on the
+        // keyboard endpoint.  Do not start the compositor-side repeat timer for
+        // a key that never reached a client.
+        if (keyFilteredThisEvent) {
+            keyFilteredThisEvent = false;
+            return;
+        }
         if (et == QEvent::KeyPress && xkb_keymap_key_repeats(keyboard->keymap, code)) {
             if (m_repeatKey) {
                 m_repeatTimer.stop();
@@ -1197,6 +1239,8 @@ void WSeat::setKeyboardFocusSurface(WSurface *surface)
         setKeyboard(d->groupkeyboardDevice);
     }
 
+    d->m_repeatTimer.stop();
+    d->m_repeatKey.reset();
     d->m_keyboardFocusSurface = surface;
     if (isValid())
         d->doSetKeyboardFocus(surface ? surface->handle() : nullptr);
@@ -1213,7 +1257,15 @@ WSurface *WSeat::keyboardFocusSurface() const
 void WSeat::clearKeyboardFocusSurface()
 {
     W_D(WSeat);
+    const bool hadSurface = !d->m_keyboardFocusSurface.isNull();
+    d->m_repeatTimer.stop();
+    d->m_repeatKey.reset();
     d->doSetKeyboardFocus(nullptr);
+    // Keep the wrapper view and the focus-change signal consistent with the
+    // raw seat state; input-method helpers reconcile on it.
+    d->m_keyboardFocusSurface = nullptr;
+    if (hadSurface)
+        Q_EMIT keyboardFocusSurfaceChanged();
 }
 
 void WSeat::addFilteredKey(uint32_t keycode)
@@ -1255,6 +1307,10 @@ size_t WSeat::unfilteredKeycodes(const uint32_t *keycodes, size_t numKeycodes,
 void WSeat::setKeyboardFocusWindow(QWindow *window)
 {
     W_D(WSeat);
+    if (d->focusWindow == window)
+        return;
+    d->m_repeatTimer.stop();
+    d->m_repeatKey.reset();
     d->focusWindow = window;
 }
 
@@ -1716,6 +1772,26 @@ void WSeat::setPointerGestures(WPointerGesturesV1 *gestures)
     d->gesture = gestures;
 }
 
+WSeatKeyboardFilter *WSeat::keyboardFilter() const
+{
+    W_DC(WSeat);
+    return d->keyboardFilter;
+}
+
+void WSeat::setKeyboardFilter(WSeatKeyboardFilter *filter)
+{
+    W_D(WSeat);
+    // A single filter slot: replacing another filter silently would leave that
+    // owner believing it still sees the keyboard. Report it instead of hiding
+    // the mistake behind an assert that disappears in release builds.
+    if (filter && d->keyboardFilter && d->keyboardFilter != filter) {
+        qCWarning(lcWlSeat) << "Replacing the keyboard filter of seat" << d->name
+                            << "oldFilter" << static_cast<void *>(d->keyboardFilter)
+                            << "newFilter" << static_cast<void *>(filter);
+    }
+    d->keyboardFilter = filter;
+}
+
 void WSeat::create(WServer *server)
 {
     W_D(WSeat);
@@ -1762,6 +1838,7 @@ void WSeat::destroy(WServer *)
 
     d->deviceList.clear();
 
+    d->keyboardFilter = nullptr;
     d->filteredKeys.clear();
 
     // Need not call the DCursor::detachInputDevice on destroy WSeat, so do

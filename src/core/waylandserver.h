@@ -206,6 +206,11 @@ public:
     WOutputRenderWindow *window() const;
     GraphicsPlatform *graphicsPlatform() const;
     ShellHandler *shellHandler() const;
+    // Whether the user session identified by @p uid currently has an input
+    // method on any of its seats.  Session daemons query this after registering
+    // a socket; D-Bus signals are not replayed, so the initial state must be
+    // fetchable.
+    bool inputMethodStateForUid(uint uid) const;
     Session *activeSession() const;
     DesktopEnvironment *desktop() const;
     QList<DesktopEnvironment *> desktopEnvironments() const;
@@ -347,6 +352,9 @@ public Q_SLOTS:
 Q_SIGNALS:
     void wallpaperChanged();
     void activeSessionChanged();
+    // UID-scoped so every user's session daemon can ignore other users'
+    // input-method changes instead of handing over a socket it does not own.
+    void inputMethodChanged(uint uid, bool connected);
     void workspaceChanged();
     void workspaceAdded();
     void animationConfigChanged();

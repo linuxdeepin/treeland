@@ -215,6 +215,14 @@ public:
     Type type() const;
     SurfaceWrapper *parentSurface() const;
 
+    // Input-method popups are structurally attached to the surface that was
+    // focused when the panel was created, but their placement follows the
+    // text-input surface that currently owns the input method.  Keep both
+    // roles separately so a focus change between two windows of one client
+    // can re-anchor the candidate window without re-parenting its QML item.
+    SurfaceWrapper *inputPopupPlacementParent() const;
+    void setInputPopupPlacementParent(SurfaceWrapper *parent);
+
     Output *ownsOutput() const;
     void setOwnsOutput(Output *newOwnsOutput);
     // `recordDiagnostics` is set by RootSurfaceContainer::updateSurfaceOutputs()
@@ -607,6 +615,7 @@ private:
     QPointer<SurfaceContainer> m_container;
     QList<SurfaceWrapper *> m_subSurfaces;
     SurfaceWrapper *m_parentSurface = nullptr;
+    QPointer<SurfaceWrapper> m_inputPopupPlacementParent;
 
     QPointer<WToplevelSurface> m_shellSurface;
     WSurfaceItem *m_surfaceItem = nullptr;

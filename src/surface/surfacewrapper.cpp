@@ -300,6 +300,8 @@ void SurfaceWrapper::invalidate()
     }
     for (auto subS : std::as_const(m_subSurfaces)) {
         subS->m_parentSurface = nullptr;
+        if (subS->m_inputPopupPlacementParent == this)
+            subS->m_inputPopupPlacementParent = nullptr;
     }
 
     updateHasActiveCapability(ActiveControlState::MappedOrSplash, false);
@@ -1169,6 +1171,18 @@ SurfaceWrapper::Type SurfaceWrapper::type() const
 SurfaceWrapper *SurfaceWrapper::parentSurface() const
 {
     return m_parentSurface;
+}
+
+SurfaceWrapper *SurfaceWrapper::inputPopupPlacementParent() const
+{
+    return m_inputPopupPlacementParent;
+}
+
+void SurfaceWrapper::setInputPopupPlacementParent(SurfaceWrapper *parent)
+{
+    if (m_inputPopupPlacementParent == parent)
+        return;
+    m_inputPopupPlacementParent = parent;
 }
 
 Output *SurfaceWrapper::ownsOutput() const

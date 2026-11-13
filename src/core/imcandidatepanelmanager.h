@@ -56,6 +56,7 @@ private:
     void applyIMCandidatePanel(SurfaceWrapper *wrapper);
     void arrangeIMCandidatePanels(Output *output, const QPointF &basePos);
     void onIMCandidatePanelGeometryChanged();
+    void onTextInputFocusSurfaceChanged();
 
     static const QLatin1String IM_CANDIDATE_PANEL;
     void applyInitialPositionAtCursor();
@@ -66,6 +67,7 @@ private:
 
     ShellHandler *m_shellHandler;
     QPointer<WAYLIB_SERVER_NAMESPACE::WInputMethodHelper> m_inputMethodHelper;
+    QMetaObject::Connection m_inputMethodFocusConnection;
 #ifndef DISABLE_XWAYLAND
     QPointer<WAYLIB_SERVER_NAMESPACE::WXWayland> m_xwayland;
     xcb_atom_t m_imCandidatePanelAtom = XCB_ATOM_NONE;
