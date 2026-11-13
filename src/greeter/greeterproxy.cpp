@@ -334,10 +334,7 @@ void GreeterProxy::onSessionNew(const QString &id, [[maybe_unused]] const QDBusO
 
         if (userModel()->currentUserName() == user)
             setLock(false);
-        if (!m_hasActiveSession) {
-            m_hasActiveSession = true;
-            Q_EMIT hasActiveSessionChanged(true);
-        }
+        syncHasActiveSession();
     }
 }
 
@@ -358,20 +355,38 @@ void GreeterProxy::onSessionRemoved(const QString &id, [[maybe_unused]] const QD
                     this,
                     SLOT(onSessionUnlock()));
 
-    auto session = WaylandServer::instance()->sessionManager()->sessionForId(id);
+    auto *sessionManager = WaylandServer::instance()->sessionManager();
+    auto session = sessionManager->sessionForId(id);
     if (session) {
         QString username = session->username();
         qCInfo(lcTlGreeter) << "Session removed: id=" << id << ", user=" << username;
-        if (WaylandServer::instance()->sessionManager()->activeSession().lock() == session)
-            setLock(true);
+        const bool wasActive = sessionManager->activeSession().lock() == session;
         userModel()->updateUserLoginState(username, false);
-        WaylandServer::instance()->sessionManager()->removeSession(session);
+        sessionManager->removeSession(session);
+        // Update before showing the greeter, so the lockscreen is not painted
+        // as locked for one frame.
+        syncHasActiveSession();
+        if (wasActive)
+            setLock(true);
     }
+}
 
-    if (m_hasActiveSession && WaylandServer::instance()->sessionManager()->sessions().isEmpty()) {
-        m_hasActiveSession = false;
-        Q_EMIT hasActiveSessionChanged(false);
-    }
+bool GreeterProxy::currentUserHasSession() const
+{
+    const QString user = userModel()->currentUserName();
+    // The "dde" sentinel session belongs to the greeter, not to a logged-in user.
+    if (user.isEmpty() || user == QLatin1String("dde"))
+        return false;
+    return WaylandServer::instance()->sessionManager()->sessionForUser(user) != nullptr;
+}
+
+void GreeterProxy::syncHasActiveSession()
+{
+    const bool hasActiveSession = currentUserHasSession();
+    if (m_hasActiveSession == hasActiveSession)
+        return;
+    m_hasActiveSession = hasActiveSession;
+    Q_EMIT hasActiveSessionChanged(hasActiveSession);
 }
 
 void GreeterProxy::onSessionLock()
@@ -603,6 +618,7 @@ void GreeterProxy::readyRead()
                 break;
 
             qCInfo(lcTlGreeter) << "activate successfully: " << user << ", XDG_SESSION_ID: " << sessionId;
+            syncHasActiveSession();
 
             // DDM drives the direct login (autologin / unlock), so the greeter
             // must hide unconditionally. onSessionNew's setLock(false) may never
@@ -645,6 +661,8 @@ void GreeterProxy::readyRead()
             if (userPtr) {
                 userModel()->updateUserLoginState(user, true);
                 Q_EMIT userModel()->userLoggedIn(user, sessionId);
+                // Logind does not report the session again after a crash recovery.
+                syncHasActiveSession();
                 QThreadPool::globalInstance()->start([this, sessionId] {
                     // Connect to Lock/Unlock signals
                     auto conn = QDBusConnection::systemBus();

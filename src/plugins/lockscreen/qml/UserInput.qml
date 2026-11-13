@@ -24,7 +24,12 @@ Item {
     Item {
         width: 32
         height: 32
-        visible: GreeterProxy.isLocked
+        // Only a real lockscreen (an active session that got locked) shows the
+        // lock badge; the greeter (login / switch-user) must not.
+        // Manual user name login is a login screen too, whatever the user shown
+        // before had a session.
+        visible: GreeterProxy.isLocked && GreeterProxy.hasActiveSession
+                 && !loginGroup.enteringOtherUser
         anchors {
             horizontalCenter: parent.horizontalCenter
             bottom: parent.top
