@@ -126,6 +126,7 @@ Item {
         const fresh = !root.slots.some(slot => wrappers.includes(slot.wrapper));
         if (fresh) {
             root.currentSlot = 0;
+            scrollHint.stopPage();
             slotView.contentX = 0;
             slotView.contentY = 0;
         }
@@ -314,6 +315,19 @@ Item {
                     root.updateHoverBorder();
                 }
             }
+        }
+
+        // The strip scrolls sideways on a top or bottom dock and up and down on
+        // the other two; the hints follow whichever axis it uses.
+        DockPreviewScrollHint {
+            id: scrollHint
+
+            view: slotView
+            horizontal: preview.isHorizontal
+            duration: preview.aniDuration
+            enableAnimation: preview.enableAnimation
+            opacity: preview.thumbnailReveal
+            interactive: preview.thumbnailReveal === 1
         }
     }
 

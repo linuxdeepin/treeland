@@ -207,6 +207,17 @@ Item {
         }
     }
 
+    // The list only scrolls up and down; a chevron floats over each end that
+    // still has rows hidden past it.
+    DockPreviewScrollHint {
+        view: scroller
+        horizontal: false
+        duration: preview.aniDuration
+        enableAnimation: preview.enableAnimation
+        enabled: listLayer.interactive
+        interactive: listLayer.opacity === 1
+    }
+
     Component {
         id: rowComponent
 

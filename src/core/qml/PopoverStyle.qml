@@ -59,6 +59,15 @@ QtObject {
     // the rows, so the panel padding still sits outside the cap.
     readonly property int listMaxFrameHeight: 400
 
+    /* --- the preview scroll hints --- */
+    // The arrow that marks content hidden beyond a scroll viewport. The glyph
+    // itself comes from the icon theme, so only its box is styled here.
+    readonly property int scrollHintSize: 12
+    readonly property int scrollHintThickness: 20
+    readonly property int scrollHintLength: 46
+    // Gap between the button and the viewport edge it points away from.
+    readonly property int scrollHintMargin: 3
+
     // Placeholder behind a preview thumbnail. This is DPalette::ItemBackground,
     // which DTK does not export to QML in this version, so the two palette
     // values are kept here instead of being inlined in DockPreview.qml.
