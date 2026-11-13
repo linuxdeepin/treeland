@@ -6,6 +6,7 @@
 #include "core/shellhandler.h"
 #include "protocols/wremotesubsurfacemanagerv1.h"
 #include "core/waylandserver.h"
+#include "session/sessioninputcontext.h"
 #include "surface/surfacewrapper.h"
 
 #include <wbackend.h>
@@ -46,6 +47,8 @@ extern "C" void remote_subsurface_read_server_state(void *data)
 
     state->valid = 1;
     state->parent_matches = subsurface->parentSurface() == g_parent->surface();
+    SessionInputContext inputContext(nullptr, WaylandServer::instance(), nullptr);
+    state->input_window_matches = inputContext.surface(subsurface->surface()) == g_parent;
     state->type = static_cast<int>(subsurface->type());
     state->place = static_cast<int>(subsurface->place());
     const auto position = subsurface->position();

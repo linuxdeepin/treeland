@@ -129,6 +129,10 @@ int protocol_test_run(const char *socket_name)
         fprintf(stderr, "remote-subsurface: server state was not applied\n");
         return 1;
     }
+    if (!server_state.input_window_matches) {
+        fprintf(stderr, "remote-subsurface: input did not resolve to the parent window\n");
+        return 1;
+    }
     treeland_remote_subsurface_v1_place_above(remote, "missing-sibling");
     if (wl_display_roundtrip(connection.display) < 0 || remote_state.invalid_sibling != 1
         || strcmp(remote_state.sibling_token, "missing-sibling") != 0) {

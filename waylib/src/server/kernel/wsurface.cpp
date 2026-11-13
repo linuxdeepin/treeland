@@ -558,6 +558,18 @@ bool WSurface::isSubsurface() const
     return d->subsurface != nullptr;
 }
 
+WSurface *WSurface::rootSurface() const
+{
+    auto *root = this;
+    while (auto *subsurface = root->d_func()->subsurface.data()) {
+        auto *parent = subsurface->parentSurface();
+        if (!parent)
+            return nullptr;
+        root = parent;
+    }
+    return const_cast<WSurface *>(root);
+}
+
 bool WSurface::hasSubsurface() const
 {
     W_DC(WSurface);
