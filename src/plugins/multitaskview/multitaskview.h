@@ -206,7 +206,7 @@ private:
     QList<QList<ModelDataPtr>> m_rows{};
     qreal m_rowHeight{ 0 };
     qreal m_contentHeight{ 0 };
-    bool m_modelReady;
+    bool m_modelReady{ false };
     QList<ModelDataPtr> m_toBeInserted;
     WorkspaceModel *m_workspace = nullptr;
     Output *m_output = nullptr;
