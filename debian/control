@@ -85,10 +85,13 @@ Package: treeland
 Section: dde
 Architecture: any
 Multi-Arch: same
+# `treeland-debug debug` writes the remoteDebug switch as root, which needs the
+# daemon's root exception (dde-app-services 1.0.48); older daemons reject it.
 Depends: qml6-module-qtquick-layouts,
          qml6-module-qtquick-effects,
          qml6-module-qtquick-particles,
          treeland-data (= ${source:Version}),
+         dde-dconfig-daemon (>= 1.0.48),
          xwayland,
          treeland-wallpaper-factory,
          ${misc:Depends},

@@ -583,7 +583,7 @@ void WaylandServer::applyCurrentUserConfig(const QString &userName,
     if (m_wallpaperInitialized) {
         wallpaperManager()->loadWallpaperConfig();
     }
-    if (userName == "dde") {
+    if (userName == QLatin1String(TREELAND_SYSTEM_USER)) {
         return;
     }
 
@@ -1329,8 +1329,8 @@ void WaylandServer::installRuntimeProtocols(WXdgOutputManager *xdgOutputManager)
 #else
     m_outputManager->setXdgOutputManagers(xdgOutputManager, nullptr, m_sessionManager);
 #endif
-    // User dde does not has a real Logind session, so just pass "0" as id
-    m_sessionManager->updateActiveUserSession(QStringLiteral("dde"), QStringLiteral("0"));
+    // The system user does not have a real Logind session, so just pass "0" as id
+    m_sessionManager->updateActiveUserSession(QStringLiteral(TREELAND_SYSTEM_USER), QStringLiteral("0"));
     m_bootstrapInputFilter->setEnabled(false);
     connect(m_userModel, &UserModel::userLoggedIn, m_sessionManager, &SessionManager::updateActiveUserSession);
 

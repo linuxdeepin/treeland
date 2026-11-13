@@ -275,7 +275,7 @@ void GreeterProxy::logout()
 void GreeterProxy::lock()
 {
     auto session = WaylandServer::instance()->sessionManager()->activeSession().lock();
-    if (!session || session->username() == "dde") {
+    if (!session || session->username() == QLatin1String(TREELAND_SYSTEM_USER)) {
         qCInfo(lcTlGreeter) << "Trying to lock when no user session active, show lockscreen directly.";
         setLock(true);
         return;

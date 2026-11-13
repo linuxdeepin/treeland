@@ -177,6 +177,12 @@ GNUInstallDirs_get_absolute_install_dir(
 
 set(TREELAND_SYSCONFDIR "${CMAKE_INSTALL_FULL_SYSCONFDIR}/treeland" CACHE PATH "treeland system config directory")
 
+# The user the global treeland service runs as, and the user the default (system)
+# session belongs to.  This is the only place the name is written: the C++ code,
+# the systemd unit and the D-Bus policy all follow this value.
+set(TREELAND_SYSTEM_USER "dde" CACHE STRING "User the global treeland service runs as")
+add_compile_definitions("TREELAND_SYSTEM_USER=\"${TREELAND_SYSTEM_USER}\"")
+
 add_compile_definitions("TREELAND_DATA_DIR=\"${TREELAND_FULL_DATA_DIR}\"")
 # NOTE:: remove force assert before stable version
 add_compile_definitions("QT_FORCE_ASSERTS")

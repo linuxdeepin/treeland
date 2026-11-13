@@ -205,14 +205,14 @@ std::weak_ptr<Session> SessionManager::activeSession() const
 /**
  * Get the default session
  *
- * The default session is the session for the "dde" user.
+ * The default session is the session for the system user (TREELAND_SYSTEM_USER).
  * It manages the default Wayland socket and XWayland instance.
  *
  * @returns shared_ptr to the default session
  */
 std::shared_ptr<Session> SessionManager::globalSession() const
 {
-    return sessionForUser("dde");
+    return sessionForUser(QStringLiteral(TREELAND_SYSTEM_USER));
 }
 
 /**

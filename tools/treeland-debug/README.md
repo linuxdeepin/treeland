@@ -29,8 +29,9 @@ Set `CMAKE_INSTALL_PREFIX` during configuration to use another prefix.
 
 ## Enabling the debug source in Treeland
 
-Treeland runs as the `dde` user in global mode. Who may connect to its debug
-socket depends on the build type:
+Treeland runs as the system user in global mode (`dde` by default, set at build
+time with `-DTREELAND_SYSTEM_USER=<name>`). Who may connect to its debug socket
+depends on the build type:
 
 - **Debug builds** — the development socket is owner-only (mode `0600`); run
   `treeland-debug` as the same UID as the compositor. No polkit prompt is needed.
@@ -83,7 +84,9 @@ runs as, so the command finds that user through the running compositor and
 escalates through `pkexec` when it is not you (`--no-escalate` reports the
 requirement instead of prompting). With root, the same thing by hand is
 `dde-dconfig -u <compositor uid> set -a org.deepin.dde.treeland -r
-org.deepin.dde.treeland -k remoteDebug -v true`.
+org.deepin.dde.treeland -k remoteDebug -v true`. Note that `-u` takes a numeric
+uid, not a user name: a `dde-dconfig` older than 1.0.48 silently read `dde` as 0,
+so `-u dde` wrote root's own copy; 1.0.48 and later reject it with exit code 1.
 
 Toggling `remoteDebug` takes effect immediately: the compositor watches
 `remoteDebugChanged` and creates or destroys the Remote Object source on the

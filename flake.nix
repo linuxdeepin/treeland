@@ -24,6 +24,10 @@
       (system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+          # The user the compositor's global service runs as.  Fed to the C++,
+          # the systemd unit, the D-Bus policy and the VM fixture below, so
+          # renaming it is a one-line change here.
+          treelandSystemUser = "dde";
         in
         rec {
           nixosConfigurations.vm = nixpkgs.lib.nixosSystem {
@@ -49,12 +53,12 @@
                   '';
 
                   ddm-greeter.text = ''
-                    auth     required       pam_succeed_if.so audit quiet_success user = dde
+                    auth     required       pam_succeed_if.so audit quiet_success user = ${treelandSystemUser}
                     auth     optional       pam_permit.so
-                    account  required       pam_succeed_if.so audit quiet_success user = dde
+                    account  required       pam_succeed_if.so audit quiet_success user = ${treelandSystemUser}
                     account  sufficient     pam_unix.so
                     password required       pam_deny.so
-                    session  required       pam_succeed_if.so audit quiet_success user = dde
+                    session  required       pam_succeed_if.so audit quiet_success user = ${treelandSystemUser}
                     session  required       pam_env.so conffile=/etc/pam/environment readenv=0
                     session  optional       ${pkgs.systemd}/lib/security/pam_systemd.so
                     session  optional       pam_keyinit.so force revoke
@@ -91,10 +95,10 @@
                 '';
                 environment.pathsToLink = [ "/share/ddm" ];
 
-                users.groups.dde = { };
-                users.users.dde = {
+                users.groups.${treelandSystemUser} = { };
+                users.users.${treelandSystemUser} = {
                   home = "/var/lib/ddm";
-                  group = "dde";
+                  group = treelandSystemUser;
                   isSystemUser = true;
                 };
                 services.deepin.dde-daemon.enable = true; # DDM
@@ -159,7 +163,7 @@
 
 
           packages = (import ./default.nix {
-              inherit pkgs nix-filter;
+              inherit pkgs nix-filter treelandSystemUser;
               ddm = ddm.packages.${system}.default;
               treeland-protocols = treeland-protocols.packages.${system}.default;
             }) // {

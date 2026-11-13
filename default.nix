@@ -3,6 +3,7 @@
   nix-filter,
   ddm,
   treeland-protocols,
+  treelandSystemUser ? "dde",
 }:
 rec {
   waylib = pkgs.qt6Packages.callPackage ./waylib/nix {
@@ -16,6 +17,7 @@ rec {
       ddm
       treeland-protocols
       waylib
+      treelandSystemUser
       ;
   };
 }
