@@ -179,9 +179,15 @@ QPointF WXdgPopupSurface::getPopupPosition() const
 {
     auto wpopup = handle();
     Q_ASSERT(wpopup);
-    // Only query the popup geometry when the parent is another xdg popup
-    // (wlr_xdg_popup_get_position asserts the parent is a valid xdg surface);
-    // otherwise fall back to the committed geometry, as in master.
+    // wlr_xdg_popup_get_position() asserts the parent is a valid xdg surface,
+    // and xdg-shell only ever creates popups with an xdg_surface parent (see
+    // xdg_surface_handle_get_popup). The parent==NULL case is rejected earlier:
+    // parentSurface() above asserts it. The fallback below is therefore
+    // unreachable for xdg-shell clients; keep it as a defensive guard only.
+    // Note its coordinate space differs from the wlr branch: the fallback
+    // returns the popup's own window-geometry anchor (relative to the parent
+    // window geometry) without the parent's offset applied, so callers must
+    // not treat the two branches as the same space.
     if (wpopup->parent && wlr_xdg_surface_try_from_wlr_surface(wpopup->parent)) {
         double popup_sx, popup_sy;
         wlr_xdg_popup_get_position(wpopup, &popup_sx, &popup_sy);
