@@ -16,6 +16,25 @@ if (NOT DISABLE_DDM)
     if (DDM_VERSION VERSION_LESS 0.3.8)
         add_compile_definitions(DDM_VERSION_LT_0_3_8)
     endif()
+    # DDM >= 0.4.0 master added SessionDirs/LastLogin to DaemonMessages, but
+    # the released 0.4.0 tag (and Arch's ddm 0.4.0-2 package) does not have them.
+    # Detect at configure time so treeland builds against both old and new DDM.
+    include(CheckCXXSourceCompiles)
+    set(_saved_required_includes "${CMAKE_REQUIRED_INCLUDES}")
+    set(CMAKE_REQUIRED_INCLUDES "${DDM_INCLUDE_DIRS}")
+    check_cxx_source_compiles("
+    #include <Messages.h>
+    int main() {
+        auto s = DDM::DaemonMessages::SessionDirs;
+        auto l = DDM::DaemonMessages::LastLogin;
+        (void)s; (void)l;
+        return 0;
+    }
+    " DDM_HAS_LAST_LOGIN_SESSION_DIRS)
+    set(CMAKE_REQUIRED_INCLUDES "${_saved_required_includes}")
+    if (DDM_HAS_LAST_LOGIN_SESSION_DIRS)
+        add_compile_definitions(DDM_HAS_LAST_LOGIN_SESSION_DIRS)
+    endif()
 endif()
 find_package(QT NAMES Qt6 COMPONENTS Core REQUIRED)
 find_package(Qt6 CONFIG REQUIRED ShaderTools Concurrent RemoteObjects Network)
