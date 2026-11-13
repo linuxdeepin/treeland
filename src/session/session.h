@@ -104,6 +104,7 @@ public:
 Q_SIGNALS:
     void activeChanged(bool active);
     void aboutToBeDestroyed();
+    void clientsClosed();
     void lock(Session *session);
     void unlock(Session *session);
 
