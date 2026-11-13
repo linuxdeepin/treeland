@@ -436,6 +436,10 @@ void OutputManager::outputRemoved(WOutput *output)
 
     m_powerOffOutputs.remove(output->handle());
 
+    // The membership copy never outlives the output's own config: a re-added
+    // output starts from whatever the config persisted.
+    m_outputGroupMembership.remove(o->uuid());
+
     delete o;
     Q_EMIT outputsChanged();
 }
@@ -965,6 +969,11 @@ QList<OutputGroupMemberInfo> OutputManager::outputGroupMembers() const
             // one means the record is not usable yet.
             continue;
         }
+        if (auto it = m_outputGroupMembership.constFind(uuid);
+            it != m_outputGroupMembership.cend()) {
+            members.append(*it);
+            continue;
+        }
         members.append({ uuid, config->groupName(), config->joinTime(), config->lastSetSourceTime() });
     }
     return members;
@@ -991,6 +1000,7 @@ void OutputManager::writeOutputGroupMembership(const QString &uuid,
     config->setGroupName(groupName);
     config->setJoinTime(joinTime);
     config->setLastSetSourceTime(lastSetSourceTime);
+    m_outputGroupMembership.insert(uuid, { uuid, groupName, joinTime, lastSetSourceTime });
 }
 
 Output *OutputManager::findOutputByUuid(const QString &uuid) const

@@ -7,6 +7,7 @@
 #include <QPointer>
 #include <QPoint>
 #include <QList>
+#include <QHash>
 #include <QMap>
 #include <QSet>
 #include <QString>
@@ -192,6 +193,18 @@ private:
     bool m_groupsDirty = false;
     int m_inFlightOutputCommits = 0;
     QMap<QString, bool> m_primaryRestoreIntents;
+    // Authoritative copy of the memberships written in this session. The
+    // output config persists them, but its value is also updated
+    // asynchronously by the DConfig daemon, so a late notification from an
+    // earlier write can revert the record the compositor just wrote. Reads
+    // must not observe that revert.
+    //
+    // Contract: this copy lives exactly as long as the output it belongs to. A
+    // write from outside this process (another tool, a config reset, a
+    // migration) only takes effect on the next start, and a failed config write
+    // is not visible here at all: the runtime state stays correct while the
+    // persisted one may lag behind until the next successful write.
+    QHash<QString, OutputGroupMemberInfo> m_outputGroupMembership;
     QList<Output *> m_outputs;
     QMap<WAYLIB_SERVER_NAMESPACE::WOutput *, OutputConfig *> m_pendingOutputs;
     QSet<wlr_output *> m_powerOffOutputs;
