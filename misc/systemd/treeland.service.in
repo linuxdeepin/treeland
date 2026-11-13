@@ -8,7 +8,7 @@ Requires=dde-seatd.service
 After=dde-seatd.service
 
 [Service]
-User=dde
+User=@TREELAND_SYSTEM_USER@
 # The debug socket lives in a directory of its own: its no-auth window widens that
 # directory to 0711, which must never be %t/treeland -- Qt requires XDG_RUNTIME_DIR
 # to stay 0700 and moves new sessions' wayland sockets to $TMPDIR otherwise.
@@ -26,7 +26,7 @@ Environment=TREELAND_INPUT_ENHANCE=1
 # Kill orphaned Xwayland processes from previous treeland instance.
 # When treeland crashes, its Xwayland child processes may become orphans
 # because the cleanup code in Session::~Session() is not executed.
-ExecStartPre=-/usr/bin/pkill -9 -u dde -f '^Xwayland[[:space:]]+:[0-9]+'
+ExecStartPre=-/usr/bin/pkill -9 -u @TREELAND_SYSTEM_USER@ -f '^Xwayland[[:space:]]+:[0-9]+'
 ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/treeland.sh --lockscreen
 Restart=on-failure
 RestartSec=1s
@@ -35,7 +35,7 @@ RestartSec=1s
 StandardOutput=null
 StandardError=null
 
-# NoNewPrivileges must stay false: treeland runs as user dde and the
+# NoNewPrivileges must stay false: treeland runs as user @TREELAND_SYSTEM_USER@ and the
 # NVIDIA driver relies on the setuid bit of nvidia-modprobe to
 # auto-create /dev/nvidia* nodes on demand. With NoNewPrivileges=true
 # the setuid bit is dropped, EGL init fails and treeland falls back to

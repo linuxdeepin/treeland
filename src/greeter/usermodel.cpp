@@ -87,7 +87,7 @@ UserModel::UserModel(QObject *parent)
             runningUid = pw->pw_uid;
         }
 
-        if (runningUser != QLatin1String("dde") && runningUid != 0) {
+        if (runningUser != QLatin1String(TREELAND_SYSTEM_USER) && runningUid != 0) {
             UserPtr record = getUser(runningUid);
             if (!record && tryAddNssUser(runningUser)) {
                 record = getUser(runningUid);

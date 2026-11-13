@@ -91,9 +91,9 @@ public:
         auto userModel = qmlEngine->singletonInstance<UserModel *>("Treeland", "UserModel");
         const QString initialUserName = userModel && !userModel->currentUserName().isEmpty()
             ? userModel->currentUserName()
-            : QStringLiteral("dde");
+            : QStringLiteral(TREELAND_SYSTEM_USER);
 #else
-        const QString initialUserName = QStringLiteral("dde");
+        const QString initialUserName = QStringLiteral(TREELAND_SYSTEM_USER);
 #endif
         auto initializeTreeland = [this, q, onInitialized = std::move(onInitialized)] {
             server = qmlEngine->singletonInstance<WaylandServer *>("Treeland", "WaylandServer");

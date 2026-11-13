@@ -28,7 +28,7 @@ description: "触发场景：调试/诊断/复现/分析运行中的 treeland（
 ## 运行环境
 treeland 既可作为 Release 服务运行，也可作为开发中的构建运行：
 
-- **全局模式**（首选，DDM 场景）：单进程管理所有用户；以 **`dde`** 用户身份由 systemd **system** 单元 `treeland.service` 启动（`User=dde`，安装在 `SYSTEMD_SYSTEM_UNIT_DIR`），总线名 `org.deepin.Compositor1`，`ExecStart=.../treeland.sh --lockscreen`。
+- **全局模式**（首选，DDM 场景）：单进程管理所有用户；以系统用户身份（默认 `dde`，构建时 `-DTREELAND_SYSTEM_USER` 可改）由 systemd **system** 单元 `treeland.service` 启动（`User=@TREELAND_SYSTEM_USER@`，安装在 `SYSTEMD_SYSTEM_UNIT_DIR`），总线名 `org.deepin.Compositor1`，`ExecStart=.../treeland.sh --lockscreen`。
 - **用户模式**：按用户启动，行为类似普通窗口管理器。
 - **开发（dev）构建、嵌套运行**：正在开发的版本通常**不是**已安装的发行版，而是从工作树构建、作为**当前用户身份**的独立进程，嵌套在已有 Wayland 或 X11 会话里。见下一节。
 
@@ -78,7 +78,7 @@ WLR_BACKENDS=x11 ./build/src/treeland.sh
 `remoteDebug` 是调试功能的总开关，**Release 构建里默认关闭**，Debug 构建里则被忽略（始终开启）：开关打开时 Treeland 就会发布调试 socket，谁连上来就给谁提供 `WindowTree` 远程对象。
 
 - 连不上时先看 stderr：`treeland-debug` 会提示"没有发布调试 socket"，此时要么开关没开，要么 Treeland 没在运行。
-- 开关归属合成器运行用户：DConfig 的应用级键按用户分开存储，Treeland 只读自己运行用户的那一个，所以要用该用户身份（global 模式下是 `dde`）由 root 以 `dde-dconfig -u <uid>` 写入。`treeland-debug debug on|off` 已经封装了这一步：它从运行中的合成器查出该 uid，必要时自己走 `pkexec` 提权。
+- 开关归属合成器运行用户：DConfig 的应用级键按用户分开存储，Treeland 只读自己运行用户的那一个，所以要用该用户身份（global 模式下是 `dde`）由 root 以 `dde-dconfig -u <uid>` 写入。`treeland-debug debug on|off` 已经封装了这一步：它从运行中的合成器查出该 uid，需要时自己走 `pkexec` 提权。`-u` 只收数字 uid：1.0.48 之前的 `dde-dconfig` 会把用户名读成 0（`-u dde` 写到 root 自己那份，静默成功），1.0.48 起直接报错退出 1。
 - 远程源是个无状态薄壳：窗口树、截图、场景树都在每次调用时现场采集。唯一的会话级资源是输入事件捕获 —— 只在客户端轮询 `getEvents()` 时挂上 `eventFilter` 与环形缓冲（`startEventCapture()`），空闲后自动拆掉（`stopEventCapture()`）。所以没人连时除了那条 socket 没有别的开销；要彻底禁止调试就把开关关掉（socket 也随之消失）。
 
 ```bash

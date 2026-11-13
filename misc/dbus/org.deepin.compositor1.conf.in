@@ -3,7 +3,7 @@
         "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
 
 <busconfig>
-        <policy user="dde">
+        <policy user="@TREELAND_SYSTEM_USER@">
                 <allow own="org.deepin.Compositor1"/>
                 <allow send_destination="org.deepin.Compositor1"/>
                 <allow receive_sender="org.deepin.Compositor1"/>

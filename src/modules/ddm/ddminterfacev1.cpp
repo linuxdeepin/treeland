@@ -60,7 +60,7 @@ void DDMInterfaceV1Private::switch_to_user([[maybe_unused]] Resource *resource, 
 {
     qCWarning(lcTlCore) << "DDM protocol: switch_to_user" << username;
     auto server = WaylandServer::instance();
-    if (username == "dde") {
+    if (username == QLatin1String(TREELAND_SYSTEM_USER)) {
         server->showLockScreen(false);
     } else if (username != server->userModel()->currentUserName()) {
         server->userModel()->setCurrentUserName(username);

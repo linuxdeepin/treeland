@@ -6,7 +6,7 @@
 #include <utility>
 
 SessionScene::SessionScene(Session *owner)
-    : SessionComponent(owner), m_system(owner->username() == QStringLiteral("dde"))
+    : SessionComponent(owner), m_system(owner->username() == QStringLiteral(TREELAND_SYSTEM_USER))
 {
     initializeActiveState();
 }

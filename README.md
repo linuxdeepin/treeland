@@ -125,6 +125,9 @@ Flip the switch with `treeland-debug debug on` / `treeland-debug debug off`
 per-user DConfig key that Treeland reads for the user it runs as, so the command
 finds that user through the running compositor and escalates through `pkexec`
 when it is not you; `--no-escalate` reports the requirement instead of prompting.
+Note that `-u` takes a numeric uid, not a user name: a `dde-dconfig` older than
+1.0.48 silently read `dde` as 0, so `-u dde` wrote root's own copy; 1.0.48 and
+later reject it with exit code 1.
 Underneath it runs, as root, the equivalent of:
 
 ```bash
@@ -135,7 +138,8 @@ dde-dconfig -u <compositor uid> set \
   -v true
 ```
 
-All commands below are run as the `dde` user, e.g.
+All commands below are run as the system user, `dde` by default (set at build
+time with `-DTREELAND_SYSTEM_USER=<name>`), e.g.
 `sudo -u dde -- treeland-debug windows`.
 
 ### Socket naming and connection

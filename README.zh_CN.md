@@ -103,7 +103,9 @@ socket 自身的权限位。窗口开着时可以同时挂多个客户端。如�
 用 `treeland-debug debug on` / `treeland-debug debug off` 切换（不带参数的 `debug`
 打印当前状态）。开关是按用户存放的 DConfig 键，Treeland 只读自己运行用户的那个，因此该
 命令会从运行中的合成器查到这个用户，不是你本人时通过 `pkexec` 提权（`--no-escalate`
-只报告需要提权而不弹认证）。它在底层以 root 执行等价于：
+只报告需要提权而不弹认证）。`-u` 只收数字 uid，不收用户名（1.0.48 之前的 `dde-dconfig`
+会把非数字文本读成 0，`-u dde` 写的是 root 自己那份且静默成功；1.0.48 起直接报错退出 1）。
+它在底层以 root 执行等价于：
 
 ```bash
 dde-dconfig -u <合成器 uid> set \
@@ -113,7 +115,8 @@ dde-dconfig -u <合成器 uid> set \
   -v true
 ```
 
-下文所有命令均以 `dde` 用户运行，例如 `sudo -u dde -- treeland-debug windows`。
+下文所有命令均以系统用户身份运行，默认即 `dde`（构建时可用 `-DTREELAND_SYSTEM_USER=<名字>`
+改），例如 `sudo -u dde -- treeland-debug windows`。
 
 ### socket 命名与连接
 

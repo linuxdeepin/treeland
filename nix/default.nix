@@ -26,6 +26,7 @@
   libinput,
   nixos-artwork,
   waylib,
+  treelandSystemUser ? "dde",
 }:
 
 stdenv.mkDerivation (finalAttrs: {
@@ -88,6 +89,7 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   cmakeFlags = [
+    (lib.cmakeFeature "TREELAND_SYSTEM_USER" treelandSystemUser)
     (lib.cmakeFeature "QT_IMPORTS_DIR" "${placeholder "out"}/${qtbase.qtQmlPrefix}")
     (lib.cmakeFeature "CMAKE_INSTALL_SYSCONFDIR" "${placeholder "out"}/etc")
     (lib.cmakeFeature "SYSTEMD_SYSTEM_UNIT_DIR" "${placeholder "out"}/lib/systemd/system")
