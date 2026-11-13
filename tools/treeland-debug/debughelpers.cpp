@@ -3,6 +3,8 @@
 
 #include "debughelpers.h"
 
+#include <linux/input-event-codes.h>
+
 #include <QDateTime>
 #include <QFile>
 #include <QFileInfo>
@@ -68,30 +70,124 @@ int buttonCode(const QString &name, bool *ok)
     return 0;
 }
 
-// Maps a key name to a Qt::Key enum value using Qt's meta-object system.
-// Accepts the enum name with or without the "Key_" prefix, case-insensitively
-// (e.g. "Escape", "escape", "Key_Escape" all resolve to Qt::Key_Escape).
-// Raw integer values pass through unchanged. Sets *ok=false for unknown names.
+namespace {
+
+// Qt::Key -> Linux evdev keycode, used to translate a key name into the value
+// wlr_seat_keyboard_notify_key() expects. The table is fixed rather than
+// derived from the live xkb keymap: injection produces a *physical* key press,
+// and a reverse lookup over the keymap is ambiguous there (many keycodes share
+// a level-0 symbol on a multi-layout keymap, while keys such as Return or the
+// arrow keys have no level-0 symbol at all). Which symbol the injected keycode
+// then produces is up to the user's layout, exactly as with a real keyboard.
+struct KeyMapping
+{
+    Qt::Key key;
+    int evdev;
+};
+
+constexpr KeyMapping kKeyMap[] = {
+    // Letters, digits and punctuation, i.e. the US-layout physical block.
+    { Qt::Key_A, KEY_A },           { Qt::Key_B, KEY_B },
+    { Qt::Key_C, KEY_C },           { Qt::Key_D, KEY_D },
+    { Qt::Key_E, KEY_E },           { Qt::Key_F, KEY_F },
+    { Qt::Key_G, KEY_G },           { Qt::Key_H, KEY_H },
+    { Qt::Key_I, KEY_I },           { Qt::Key_J, KEY_J },
+    { Qt::Key_K, KEY_K },           { Qt::Key_L, KEY_L },
+    { Qt::Key_M, KEY_M },           { Qt::Key_N, KEY_N },
+    { Qt::Key_O, KEY_O },           { Qt::Key_P, KEY_P },
+    { Qt::Key_Q, KEY_Q },           { Qt::Key_R, KEY_R },
+    { Qt::Key_S, KEY_S },           { Qt::Key_T, KEY_T },
+    { Qt::Key_U, KEY_U },           { Qt::Key_V, KEY_V },
+    { Qt::Key_W, KEY_W },           { Qt::Key_X, KEY_X },
+    { Qt::Key_Y, KEY_Y },           { Qt::Key_Z, KEY_Z },
+    { Qt::Key_0, KEY_0 },           { Qt::Key_1, KEY_1 },
+    { Qt::Key_2, KEY_2 },           { Qt::Key_3, KEY_3 },
+    { Qt::Key_4, KEY_4 },           { Qt::Key_5, KEY_5 },
+    { Qt::Key_6, KEY_6 },           { Qt::Key_7, KEY_7 },
+    { Qt::Key_8, KEY_8 },           { Qt::Key_9, KEY_9 },
+    { Qt::Key_Minus, KEY_MINUS },   { Qt::Key_Equal, KEY_EQUAL },
+    { Qt::Key_BracketLeft, KEY_LEFTBRACE },
+    { Qt::Key_BracketRight, KEY_RIGHTBRACE },
+    { Qt::Key_Backslash, KEY_BACKSLASH },
+    { Qt::Key_Semicolon, KEY_SEMICOLON },
+    { Qt::Key_Apostrophe, KEY_APOSTROPHE },
+    { Qt::Key_QuoteLeft, KEY_GRAVE },   { Qt::Key_Comma, KEY_COMMA },
+    { Qt::Key_Period, KEY_DOT },        { Qt::Key_Slash, KEY_SLASH },
+    // Whitespace and editing.
+    { Qt::Key_Escape, KEY_ESC },        { Qt::Key_Tab, KEY_TAB },
+    { Qt::Key_Backspace, KEY_BACKSPACE }, { Qt::Key_Return, KEY_ENTER },
+    { Qt::Key_Enter, KEY_KPENTER },     { Qt::Key_Space, KEY_SPACE },
+    { Qt::Key_Insert, KEY_INSERT },     { Qt::Key_Delete, KEY_DELETE },
+    // Cursor movement.
+    { Qt::Key_Home, KEY_HOME },         { Qt::Key_End, KEY_END },
+    { Qt::Key_PageUp, KEY_PAGEUP },     { Qt::Key_PageDown, KEY_PAGEDOWN },
+    { Qt::Key_Left, KEY_LEFT },         { Qt::Key_Right, KEY_RIGHT },
+    { Qt::Key_Up, KEY_UP },             { Qt::Key_Down, KEY_DOWN },
+    // Modifiers and locks.
+    { Qt::Key_Shift, KEY_LEFTSHIFT },   { Qt::Key_Control, KEY_LEFTCTRL },
+    { Qt::Key_Alt, KEY_LEFTALT },       { Qt::Key_Meta, KEY_LEFTMETA },
+    { Qt::Key_Super_L, KEY_LEFTMETA },  { Qt::Key_Super_R, KEY_RIGHTMETA },
+    { Qt::Key_AltGr, KEY_RIGHTALT },    { Qt::Key_CapsLock, KEY_CAPSLOCK },
+    { Qt::Key_NumLock, KEY_NUMLOCK },   { Qt::Key_ScrollLock, KEY_SCROLLLOCK },
+    { Qt::Key_Menu, KEY_MENU },
+    // Function and system keys.
+    { Qt::Key_F1, KEY_F1 },             { Qt::Key_F2, KEY_F2 },
+    { Qt::Key_F3, KEY_F3 },             { Qt::Key_F4, KEY_F4 },
+    { Qt::Key_F5, KEY_F5 },             { Qt::Key_F6, KEY_F6 },
+    { Qt::Key_F7, KEY_F7 },             { Qt::Key_F8, KEY_F8 },
+    { Qt::Key_F9, KEY_F9 },             { Qt::Key_F10, KEY_F10 },
+    { Qt::Key_F11, KEY_F11 },           { Qt::Key_F12, KEY_F12 },
+    { Qt::Key_Print, KEY_SYSRQ },       { Qt::Key_Pause, KEY_PAUSE },
+    { Qt::Key_VolumeDown, KEY_VOLUMEDOWN },
+    { Qt::Key_VolumeMute, KEY_MUTE },
+    { Qt::Key_VolumeUp, KEY_VOLUMEUP },
+    { Qt::Key_MediaPlay, KEY_PLAYPAUSE },
+    { Qt::Key_MediaStop, KEY_STOPCD },
+    { Qt::Key_MediaPrevious, KEY_PREVIOUSSONG },
+    { Qt::Key_MediaNext, KEY_NEXTSONG },
+    { Qt::Key_MediaRecord, KEY_RECORD },
+    { Qt::Key_PowerOff, KEY_POWER },    { Qt::Key_Sleep, KEY_SLEEP },
+    { Qt::Key_WakeUp, KEY_WAKEUP },     { Qt::Key_Calculator, KEY_CALC },
+    { Qt::Key_HomePage, KEY_HOMEPAGE }, { Qt::Key_LaunchMail, KEY_MAIL },
+};
+
+} // namespace
+
+// Maps a key name to a Linux evdev keycode. A name is a Qt::Key enum name with
+// or without the "Key_" prefix, case-insensitively ("Escape", "escape",
+// "Key_Escape"), resolved through Qt's meta-object system and then translated
+// by kKeyMap. Otherwise a decimal number is taken as a raw evdev keycode, the
+// same convention as evtest and ydotool. Names win over numbers, so "5" is
+// Qt::Key_5 and not evdev 5 (KEY_4). Sets *ok=false when nothing matches.
 int keyCode(const QString &name, bool *ok)
 {
     *ok = true;
-    // Raw integer passthrough (Qt::Key value).
-    bool parsed = false;
-    const int code = name.toInt(&parsed);
-    if (parsed)
-        return code;
-
-    // Use QMetaEnum to convert key names to Qt::Key values. The user types
-    // "Escape" or "escape"; we match it against "Key_Escape" in the enum.
+    // Trimmed up front: a stray space would otherwise miss the name lookup and
+    // silently fall through to the numeric branch (" 5" -> evdev 5 = KEY_4).
+    const QString trimmed = name.trimmed();
     static const QMetaEnum meta = QMetaEnum::fromType<Qt::Key>();
-    const QString lower = name.toLower();
+    const QString lower = trimmed.toLower();
     const QString lowerWithPrefix = QLatin1String("key_") + lower;
 
     for (int i = 0; i < meta.keyCount(); ++i) {
         const QString key = QString::fromUtf8(meta.key(i)).toLower();
-        if (key == lower || key == lowerWithPrefix)
-            return meta.value(i);
+        if (key != lower && key != lowerWithPrefix)
+            continue;
+        const auto qtKey = static_cast<Qt::Key>(meta.value(i));
+        for (const auto &mapping : kKeyMap) {
+            if (mapping.key == qtKey)
+                return mapping.evdev;
+        }
+        // A known Qt::Key without an evdev keycode.
+        *ok = false;
+        return 0;
     }
+
+    bool parsed = false;
+    const int numeric = trimmed.toInt(&parsed);
+    // Keymaps cover keycodes 1..255; anything else cannot be pressed.
+    if (parsed && numeric > 0 && numeric <= 255)
+        return numeric;
 
     *ok = false;
     return 0;

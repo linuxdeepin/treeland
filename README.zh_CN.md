@@ -193,10 +193,13 @@ treeland 可同时运行。Debug 构建的 treeland-debug 客户端自动优先�
 | `event key` | `<name\|evdev-code> [press\|release\|tap]` | `ok` / `failed`（默认 `tap`）。 |
 
 指针按键使用 Linux input 码（`left`=0x110、`right`=0x111、`middle`=0x112，或数字码）。
-键盘按键使用 Linux evdev 键码；支持常见名称（`esc`、`enter`、`space`、`tab`、`a`–`z`、
-`0`–`9`、方向键、`f1`–`f12`、`home`/`end`/`pageup`/`pagedown`/`insert`/`del` 等），也可直接传
-原始码。按键发送到当前键盘焦点 surface——先用 `activate` 激活目标窗口；指针按键发送到
-光标所在 surface。
+键盘按键可以用 Qt 键名（带不带 `Key_` 前缀均可、不区分大小写，如 `space`、`Escape`、
+`Return`、`Left`、`A`–`Z`、`0`–`9`、`F1`–`F12`、`VolumeMute` 等；`Enter` 是小键盘回车），
+也可以用多位数字传 Linux evdev 键码（与 evtest/ydotool 一致，`57`=空格、`30`=`A` 键）。
+名字优先于数字（`5` 就是 `5` 键），无法映射时报 `unknown key '<name>'`。注入的是 US 参考
+布局上的**物理键位**，最终字符取决于当前布局（德语布局下 `event key Z` 打出 `y`）。
+按键发送到当前键盘焦点 surface——先用 `activate` 激活目标窗口；指针按键发送到光标所在
+surface。
 
 #### 图像抓取
 
@@ -299,7 +302,7 @@ sudo -u dde -- treeland-debug move-cursor 960 540
 sudo -u dde -- treeland-debug event button left click
 
 # 发送一次按键
-sudo -u dde -- treeland-debug event key enter tap
+sudo -u dde -- treeland-debug event key Return tap
 
 # 截图主输出到文件
 sudo -u dde -- treeland-debug screenshot output /tmp/ss.png

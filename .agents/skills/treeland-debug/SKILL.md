@@ -125,7 +125,7 @@ dde-dconfig -u <uid> set -a org.deepin.dde.treeland -r org.deepin.dde.treeland -
 `activate`、`close`、`minimize`、`maximize`、`fullscreen`、`move <id> <x> <y>`、`resize <id> <w> <h>`、`workspace <id> <ws-id>`。每条命令输出 `ok`/`failed`。
 
 ### 输入注入
-`move-cursor <x> <y>`、`event motion <x> <y>`、`event button <btn> [press|release|click]`、`event key <key> [press|release|tap]`。指针按键使用 Linux input code（`left`=0x110，`right`=0x111，`middle`=0x112）；数字键值按 **Qt::Key** 传入（不是 Linux evdev keycode），也可以使用常见名字（`enter`、`esc`、`space`、`a`–`z`、`0`–`9`、`f1`–`f12`、方向键）。键盘事件发往**键盘聚焦**的 surface —— 先 `activate` 窗口；指针按键发往光标下的 surface —— 先把光标移过去。
+`move-cursor <x> <y>`、`event motion <x> <y>`、`event button <btn> [press|release|click]`、`event key <key> [press|release|tap]`。指针按键使用 Linux input code（`left`=0x110，`right`=0x111，`middle`=0x112）；键盘可以用 Qt 键名（`Return`、`Space`、`Left`、`A`–`Z`、`0`–`9`、`F1`–`F12`、`VolumeMute` 等，不带 `Key_` 前缀、不区分大小写；`Enter` 是小键盘回车），多位数字则按 **Linux evdev keycode** 传入（与 evtest/ydotool 一致，`30`=`A` 键、`57`=空格）——名字优先于数字。注入的是**物理键位**（US 参考布局），最终字符取决于当前布局；名字无法映射时报 `unknown key '<name>'`。键盘事件发往**键盘聚焦**的 surface —— 先 `activate` 窗口；指针按键发往光标下的 surface —— 先把光标移过去。
 
 ### 截图
 `screenshot output [name] [file]` 与 `screenshot window <id> [file]`。服务端渲染，PNG 字节返回给客户端，由客户端写文件并打印路径（省略 `file` 时自动落在 `/tmp` 下）。
@@ -151,7 +151,7 @@ treeland-debug maximize 93824992268800
 treeland-debug close dde-file-manager
 
 # 注入输入
-treeland-debug event key enter tap
+treeland-debug event key Return tap
 treeland-debug event button left click
 
 # 截图
@@ -202,7 +202,7 @@ sudo journalctl -u treeland.service -f
 3. 相关分类：`treeland.shortcut`。
 
 **输入不落地 / 目标不对：**
-1. `treeland-debug move-cursor <x> <y>` 后 `treeland-debug event button left click`；`treeland-debug event key enter tap`。
+1. `treeland-debug move-cursor <x> <y>` 后 `treeland-debug event button left click`；`treeland-debug event key Return tap`。
 2. 用 `windows`（`active`）确认指针/键盘焦点 —— 键盘事件发往键盘聚焦的 surface，按键发往光标下的 surface。
 3. 输入区域不对时看 `windows` 的 `inputRegion`（surface 局部坐标的 box 列表）：未设置（`NULL`）的输入区域按协议是**无穷大**，打印出来是覆盖整面的一个 box；为空则要么是客户端显式提交了空 region（完全不接受输入），要么是 surface 还没提交过 buffer。出现多个小块通常是客户端只为命中区设了输入区域（如标题栏、按钮）。`opaqueRegion` 为空只表示客户端没有声明不透明区域（默认值），不要读成窗口透明，也不要和“不接收输入”混。
 4. 相关分类：`treeland.input`、`treeland.seat`、`waylib.input.pointer`、`waylib.seat`。检查 seatd：`sudo journalctl -u dde-seatd -f`，以及 `LIBSEAT_BACKEND=seatd`/`SEATD_SOCK=/run/dde-seatd.sock` 是否已设置（见 `misc/systemd/treeland.service.in`）。
