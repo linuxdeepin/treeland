@@ -706,7 +706,7 @@ void SeatManager::assignDevice(WInputDevice *device,
     }
 
     // Setup cursor for pointer devices
-    if (deviceType == WInputDevice::Type::Pointer && !assignedSeat->cursor()) {
+    if ((deviceType == WInputDevice::Type::Pointer || deviceType == WInputDevice::Type::Tablet) && !assignedSeat->cursor()) {
         WCursor *cursor = new WCursor(assignedSeat);
         cursor->setParent(assignedSeat);
         if (layout) {
