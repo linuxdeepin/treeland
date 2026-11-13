@@ -81,3 +81,8 @@ xdg-foreign 接口新增状态断言（未编译、未执行）：每个 Session
 分别对应两个 WServerInterface 对象，绑定同一所属 socket，共享 native registry。
 配合现有 C registry 断言检查各连接仅看见自己的 exporter/importer global。
 尚未覆盖创建期间的广播、restart 以及 export/import token 的完整请求链路。
+
+注销重登新增断言（未编译、未执行）：关闭测试连接后，通过实际 SessionManager 连续
+三次移除并重建 B，确认旧 Session 已析构；A/B 的新连接各自仍只枚举一份所属 shell、
+selection、IME、xdg-foreign 和捕获协议 globals，防止已注销会话的 native global 泄露。
+此用例不覆盖 DDM/PAM 认证及真实 dde-shell 启动。

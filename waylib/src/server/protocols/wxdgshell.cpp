@@ -146,6 +146,9 @@ void WXdgShell::create(WServer *server)
 
 void WXdgShell::destroy([[maybe_unused]] WServer *server)
 {
+    if (auto *global = this->global())
+        wl_global_remove(global);
+
     W_D(WXdgShell);
 
     QVector<WXdgToplevelSurface*> toplevelList;

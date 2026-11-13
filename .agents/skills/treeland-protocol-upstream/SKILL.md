@@ -95,8 +95,10 @@ void WFoo::create(WServer *server)
 
 void WFoo::destroy([[maybe_unused]] WServer *server)
 {
-    // 该类型没有 wlr_foo_manager_v1_destroy()：native 对象随 wl_display 回收，
-    // 只需清空句柄，使重启后能重新创建 global。
+    // 该类型没有 wlr_foo_manager_v1_destroy()：先撤销 global，
+    // native 对象仍随 wl_display 回收；清空句柄以支持重新创建。
+    if (auto *global = this->global())
+        wl_global_remove(global);
     m_handle = nullptr;
 }
 
@@ -120,13 +122,15 @@ QByteArrayView WFoo::interfaceName() const
 
 native handle 是存在 `m_handle`（`void*`）里的 wlroots 原始 C 指针。销毁方式取决于 native 所有权：
 
-- 如果 `wlr_*_create(...)` 返回的对象没有公开的 destroy 函数，`destroy()` 通常只需清空 `m_handle = nullptr` —— native 对象会在 `WServer::stop()` 销毁 `wl_display` 时被回收
+- 如果 `wlr_*_create(...)` 返回的对象没有公开的 destroy 函数，且 global 尚无撤销路径，在封装的 `destroy()` 中先调用一次 `wl_global_remove()`，再清空 `m_handle = nullptr`；native 对象仍在 `WServer::stop()` 销毁 `wl_display` 时回收
 - 如果该 wlroots 类型提供显式 `wlr_*_destroy(...)` / reset / listener 清理 API，就在 `destroy()` 里调用它
 - waylib 的 `WObject` 作用域监听列表（`listeners()->add(...)`）会在 `destroy()` 之前自动摘除：`WServer::stop()` 和 `WServer::detach()` 会对属于 `WObject` 的接口调用 `WObject::teardown()`。不要释放 display teardown 已经负责的 native 状态。`~WObject` 在还有监听组残留时会 abort，所以注册了监听的封装必须同时在自己的析构函数里调用 `teardown()`（见 `waylib/src/server/kernel/wglobal.h` 中 `WObject::teardown()` 的注释）。
 
 判断方法：
 
 注意 Session 级接口可在 `wl_display` 仍运行时被 detach。此时仅清空 `m_handle` 会留下 native global；接口从 WServer 列表移除后，该 global 可能失去用户隔离过滤和事件监听。必须单独核对运行时 detach 的 global 撤销路径，不能把仅适用于整个 display 关闭的清理方式直接用于 Session 注销。没有公开 native destroy 函数时，也应查明如何安全撤销 global，以及最终 display 清理是否会重复销毁。
+
+`wl_global_remove()` 对同一个 global 只能调用一次，重复调用会 abort。撤销由具体协议封装负责，不能在 `WServer::detach()` 中无条件追加：使用项目 scanner 的封装可能已通过 `globalRemove()` 撤销，部分 native 销毁函数也会自行撤销。不要在注销时提前 `wl_global_destroy()` 一个仍由 wlroots 保存并负责最终销毁的 global。
 
 1. 读同目录下邻近的 `W...` 封装
 2. 读 `3rdparty/wlroots/include/wlr` 中对应 `wlr_*` 类型是否提供显式 `destroy()` 之类 API

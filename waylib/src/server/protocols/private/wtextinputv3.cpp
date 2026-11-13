@@ -71,6 +71,9 @@ void WTextInputManagerV3::create(WServer *server)
 
 void WTextInputManagerV3::destroy([[maybe_unused]] WServer *server)
 {
+    if (auto *global = this->global())
+        wl_global_remove(global);
+
     W_D(WTextInputManagerV3);
     for (auto *ti : std::as_const(d->textInputs)) {
         Q_EMIT ti->entityAboutToDestroy();

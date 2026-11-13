@@ -33,8 +33,8 @@ WAYLIB_SERVER_USE_NAMESPACE
 namespace {
 constexpr uint32_t ExtDataControlManagerVersion = 1;
 
-// Native managers are display-owned. Session withdraws every advertised global
-// before releasing the wrapper; client resources are destroyed before detach.
+// Native managers are display-owned. Each wrapper withdraws its own global
+// before releasing its handle; client resources are destroyed before detach.
 template<auto Create>
 class NativeSessionProtocol : public QObject, public WServerInterface
 {
@@ -44,7 +44,12 @@ public:
     QByteArrayView interfaceName() const override { return m_name; }
 protected:
     void create(WServer *server) override { m_handle = Create(server->handle()); }
-    void destroy(WServer *) override { m_handle = nullptr; }
+    void destroy(WServer *) override
+    {
+        if (auto *global = this->global())
+            wl_global_remove(global);
+        m_handle = nullptr;
+    }
     wl_global *global() const override
     {
         auto *native = nativeInterface<Native>();
@@ -193,6 +198,8 @@ protected:
     void create(WServer *server) override { m_handle = m_registry->acquire(server); }
     void destroy(WServer *) override
     {
+        if (auto *global = this->global())
+            wl_global_remove(global);
         m_registry->release();
         m_handle = nullptr;
     }

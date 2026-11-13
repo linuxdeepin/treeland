@@ -141,6 +141,9 @@ void WXdgDialogManagerV1::create(WServer *server)
 
 void WXdgDialogManagerV1::destroy([[maybe_unused]] WServer *server)
 {
+    if (auto *global = this->global())
+        wl_global_remove(global);
+
     W_D(WXdgDialogManagerV1);
     // Manager-owned listeners were already dropped by WServer teardown.
     // Clearing dialogListeners destroys per-dialog WListenerOwner tokens.

@@ -79,6 +79,9 @@ void WXdgToplevelTagManagerV1::create([[maybe_unused]] WServer *wserver)
 
 void WXdgToplevelTagManagerV1::destroy([[maybe_unused]] WServer *server)
 {
+    if (auto *global = this->global())
+        wl_global_remove(global);
+
     W_D(WXdgToplevelTagManagerV1);
     if (d->manager) {
         wl_list_remove(&d->set_tag_listener.link);

@@ -736,6 +736,28 @@ cleanup:
     return result;
 }
 
+static int session_test_logout_relogin(const char *socket_name)
+{
+    for (int i = 0; i < 3; ++i) {
+        struct isolation_state state = {0};
+        struct client_connection a = {0}, b = {0};
+        int isolated = invoke_on_server_thread(isolation_recreate_b, &state)
+            && state.ready
+            && client_connect(&a, socket_name)
+            && client_connect(&b, state.socket_name)
+            && has_own_shell_globals(&a)
+            && has_own_shell_globals(&b)
+            && has_independent_capture_globals(&a, &b);
+        if (b.display) client_disconnect(&b);
+        if (a.display) client_disconnect(&a);
+        if (!isolated) {
+            fprintf(stderr, "FAIL: logout/relogin exposed stale session globals\n");
+            return 1;
+        }
+    }
+    return 0;
+}
+
 int protocol_test_run(const char *socket_name)
 {
     struct client_connection a = {0}, b = {0};
@@ -913,5 +935,7 @@ cleanup:
         xdg_toplevel_client_destroy(&a_window);
         client_disconnect(&a);
     }
+    if (result == 0)
+        result = session_test_logout_relogin(socket_name);
     return result;
 }

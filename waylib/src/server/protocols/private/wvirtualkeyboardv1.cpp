@@ -45,6 +45,9 @@ void WVirtualKeyboardManagerV1::create(WServer *server)
 
 void WVirtualKeyboardManagerV1::destroy([[maybe_unused]] WServer *server)
 {
+    if (auto *global = this->global())
+        wl_global_remove(global);
+
     // The wlr_virtual_keyboard_manager_v1 is reclaimed by display.reset() in
     // WServer::stop(); null m_handle so handle()/global() return null instead
     // of a dangling pointer. Manager-owned listeners were already dropped by

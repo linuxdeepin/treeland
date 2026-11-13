@@ -275,6 +275,29 @@ extern "C" void isolation_reactivate_b(void *)
     WaylandServer::instance()->sessionManager()->updateActiveUserSession(sessionB->username(), sessionB->id());
 }
 
+extern "C" void isolation_recreate_b(void *data)
+{
+    auto *state = static_cast<isolation_state *>(data);
+    *state = {};
+    if (!sessionB)
+        return;
+    auto *manager = WaylandServer::instance()->sessionManager();
+    const auto id = sessionB->id();
+    const auto username = sessionB->username();
+    const std::weak_ptr<Session> previous = sessionB;
+    manager->removeSession(sessionB);
+    sessionB.reset();
+    if (!previous.expired())
+        return;
+    sessionB = manager->ensureSession(id, username);
+    if (!sessionB)
+        return;
+    sessionB->socket()->setEnabled(true);
+    const auto name = sessionB->socket()->fullServerName().toUtf8();
+    std::strncpy(state->socket_name, name.constData(), sizeof(state->socket_name) - 1);
+    state->ready = 1;
+}
+
 extern "C" void isolation_restore_a(void *)
 {
     const auto clients = sessionB->socket()->clients();

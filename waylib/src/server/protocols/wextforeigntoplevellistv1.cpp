@@ -146,6 +146,9 @@ void WExtForeignToplevelListV1::create(WServer *server)
 
 void WExtForeignToplevelListV1::destroy([[maybe_unused]] WServer *server)
 {
+    if (auto *global = this->global())
+        wl_global_remove(global);
+
     // The wlr_ext_foreign_toplevel_list_v1 is reclaimed by display.reset() in
     // WServer::stop(); null m_handle so handle()/global() return null instead
     // of a dangling pointer (kept as an explicit override rather than the

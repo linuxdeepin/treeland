@@ -107,6 +107,9 @@ void WLayerShell::create(WServer *server)
 
 void WLayerShell::destroy([[maybe_unused]] WServer *server)
 {
+    if (auto *global = this->global())
+        wl_global_remove(global);
+
     W_D(WLayerShell);
 
     auto list = d->surfaceList;

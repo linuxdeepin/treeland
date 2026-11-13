@@ -171,6 +171,9 @@ void WXdgDecorationManager::create(WServer *server)
 
 void WXdgDecorationManager::destroy([[maybe_unused]] WServer *server)
 {
+    if (auto *global = this->global())
+        wl_global_remove(global);
+
     W_D(WXdgDecorationManager);
     // Manager-owned listeners were already dropped by WServer teardown.
     // Clearing decorationListeners destroys per-decoration WListenerOwner
