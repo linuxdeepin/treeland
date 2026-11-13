@@ -693,6 +693,12 @@ void WaylandServer::init(Treeland::Treeland *treeland)
     m_lockScreenManager->setGreeterProxy(m_greeterProxy);
     m_userModel = engine->singletonInstance<UserModel *>("Treeland", "UserModel");
     m_sessionModel = engine->singletonInstance<SessionModel *>("Treeland", "SessionModel");
+    // The lockscreen shows one user at a time; switching the shown user changes
+    // whether it is a locked session or the login screen.
+    connect(m_userModel,
+            &UserModel::currentUserNameChanged,
+            m_greeterProxy,
+            &GreeterProxy::syncHasActiveSession);
 #endif
 
     engine->setContextForObject(m_renderWindow, engine->rootContext());

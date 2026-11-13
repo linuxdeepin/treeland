@@ -131,10 +131,11 @@ public:
     inline bool showAnimation()    const { return m_showAnimation;    };
 
     /**
-     * @brief Get whether there is an active user session
+     * @brief Get whether the user shown by the lockscreen has a session
      * QML elements should listen to this property to show/hide session related UI
+     * The "dde" sentinel session of the greeter does not count.
      *
-     * @return true if has active session
+     * @return true if the current user has a session
      */
     inline bool hasActiveSession() const { return m_hasActiveSession; };
 
@@ -167,6 +168,11 @@ public:
      * @param lockScreen LockScreen instance
      */
     inline void setLockScreen(LockScreen *lockScreen) { m_lockScreen = lockScreen; };
+
+    /**
+     * @brief Recompute hasActiveSession and emit the change if it flipped
+     */
+    void syncHasActiveSession();
 
 public Q_SLOTS:
 
@@ -326,6 +332,11 @@ private:
      */
     void updateAuthSocket();
     void sendConnect();
+
+    /**
+     * @brief Check whether the user shown by the lockscreen has a session
+     */
+    bool currentUserHasSession() const;
 
     /////////////////////
     // Property values //
