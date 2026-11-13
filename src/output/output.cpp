@@ -501,16 +501,13 @@ void Output::addSurface(SurfaceWrapper *surface)
 
         arrangeLayerSurfaces();
     } else {
-        auto layoutSurface = [surface, this] {
-            if (!surface->hasInitializeContainer())
-                return;
-            arrangeNonLayerSurface(surface, ArrangeReason::InitialPlacement);
-        };
-
-        connect(surface, &SurfaceWrapper::widthChanged, this, layoutSurface);
-        connect(surface, &SurfaceWrapper::heightChanged, this, layoutSurface);
-        connect(surface, &SurfaceWrapper::hasInitializeContainerChanged, this, layoutSurface);
-        layoutSurface();
+        connect(surface, &SurfaceWrapper::widthChanged, this, &Output::handleSurfaceSizeChanged);
+        connect(surface, &SurfaceWrapper::heightChanged, this, &Output::handleSurfaceSizeChanged);
+        connect(surface,
+                &SurfaceWrapper::hasInitializeContainerChanged,
+                this,
+                &Output::handleSurfaceContainerReady);
+        layoutSurface(surface, ArrangeReason::InitialPlacement);
 
         if (surface->type() == SurfaceWrapper::Type::XdgPopup) {
             auto xdgPopupSurfaceItem = qobject_cast<WXdgPopupSurfaceItem *>(surface->surfaceItem());
@@ -532,6 +529,7 @@ void Output::removeSurface(SurfaceWrapper *surface)
 {
     clearPopupCache(surface);
     m_initialWindowPositionRatio.remove(surface);
+    m_initialPlacementDone.remove(surface);
     Q_ASSERT(hasSurface(surface));
     SurfaceListModel::removeSurface(surface);
     if (auto *desktop = surface->desktop())
@@ -578,13 +576,41 @@ void Output::arrangeLayerSurfaces()
         Q_EMIT exclusiveZoneChanged();
 }
 
+void Output::layoutSurface(SurfaceWrapper *surface, ArrangeReason reason)
+{
+    // A window is placed once: when its container becomes ready or when it
+    // receives its first non-empty geometry (windows are created 0x0).
+    // Later size changes only clamp the position -- they are not initial
+    // placements, and re-running the placement makes a resizing window
+    // (e.g. an animated dialog) jump on every frame.
+    if (!surface->hasInitializeContainer() || surface->normalGeometry().isEmpty())
+        return;
+    if (reason != ArrangeReason::InitialPlacement && !m_initialPlacementDone.contains(surface))
+        reason = ArrangeReason::InitialPlacement;
+    if (reason == ArrangeReason::InitialPlacement)
+        m_initialPlacementDone.insert(surface);
+    arrangeNonLayerSurface(surface, reason);
+}
+
+void Output::handleSurfaceSizeChanged()
+{
+    if (auto surface = qobject_cast<SurfaceWrapper *>(sender()))
+        layoutSurface(surface, ArrangeReason::SurfaceGeometryChanged);
+}
+
+void Output::handleSurfaceContainerReady()
+{
+    if (auto surface = qobject_cast<SurfaceWrapper *>(sender()))
+        layoutSurface(surface, ArrangeReason::InitialPlacement);
+}
+
 void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, ArrangeReason reason)
 {
     Q_ASSERT(surface->type() != SurfaceWrapper::Type::Layer);
     if (surface->isIMCandidatePanel())
         return;
     // Output::addSurface() hooks width/height/hasInitializeContainer straight to
-    // this function, bypassing the arrangeNonLayerSurfaces() filter. A lock surface
+    // the placement path, bypassing the arrangeNonLayerSurfaces() filter. A lock surface
     // must cover the whole output: arranging it would shrink it to validGeometry()
     // (exclusive zone removed) and center it, i.e. the maximized rect.
     if (surface->type() == SurfaceWrapper::Type::LockScreen)
