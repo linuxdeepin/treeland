@@ -1,15 +1,20 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "modules/prelaunch-splash/prelaunchsplash.h"
-#include "server-bridge.h"
+#include "core/waylandserver.h"
+#include "session/session.h"
+#include "session/sessionmanager.h"
+#include "session/sessionprelaunch.h"
 #include "treeland-prelaunch-splash-v2.h"
 
 #include <QString>
 #include <wserver.h>
+#include <wsocket.h>
 
 #include <wlr_all.h>
 
 #include <cstdio>
+#include <wayland-server-core.h>
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -37,7 +42,10 @@ static void recordRequest(const QString &appId, const QString &instanceId, bool 
 
 void protocol_test_setup(WaylandServer *server)
 {
-    auto *splash = find_server_interface<PrelaunchSplash>(server);
+    // The protocol object is per Session, so read it from the session that owns
+    // the test client socket instead of searching the compositor globals.
+    auto session = server->sessionManager()->globalSession();
+    auto *splash = session ? session->prelaunch()->protocol() : nullptr;
     Q_ASSERT(splash);
     QObject::connect(splash, &PrelaunchSplash::splashRequested,
                      [](const QString &appId, const QString &instanceId, wlr_buffer *iconBuffer) {
@@ -58,4 +66,16 @@ extern "C" void splash_query_state(void *data)
 {
     auto *state = static_cast<splash_server_state *>(data);
     *state = g_state;
+}
+
+// Mirrors a real hangup when the test client's socket close has not been dispatched
+// yet: wl_client_destroy runs the same resource teardown callbacks as the event loop.
+extern "C" void splash_disconnect_clients(void *)
+{
+    auto session = WaylandServer::instance()->sessionManager()->globalSession();
+    if (!session)
+        return;
+    const auto clients = session->socket()->clients();
+    for (auto *client : clients)
+        wl_client_destroy(client->handle());
 }

@@ -7,6 +7,7 @@
 #include "server-bridge-api.h"
 #include "treeland-prelaunch-splash-unstable-v2-client-protocol.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -76,6 +77,7 @@ int test_print_results(struct test_ctx *ctx)
 
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
 {
+    ctx->socket_name = socket_name;
     if (!client_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
@@ -194,6 +196,99 @@ static int destroy_manager(struct test_ctx *ctx)
     return 1;
 }
 
+static int rebind_manager(struct test_ctx *ctx)
+{
+    ctx->manager = client_bind(&ctx->connection, "treeland_prelaunch_splash_manager_v2",
+                               &treeland_prelaunch_splash_manager_v2_interface, 1);
+    return ctx->manager && wl_display_roundtrip(ctx->display) >= 0;
+}
+
+static int second_client_rejected(struct test_ctx *ctx)
+{
+    if (!client_connect(&ctx->second, ctx->socket_name))
+        return 0;
+    if (!client_bind(&ctx->second, "treeland_prelaunch_splash_manager_v2",
+                     &treeland_prelaunch_splash_manager_v2_interface, 1)) {
+        client_disconnect(&ctx->second);
+        return 0;
+    }
+    const int dispatched = wl_display_roundtrip(ctx->second.display);
+    const struct wl_interface *interface = NULL;
+    uint32_t id = 0;
+    const uint32_t code = wl_display_get_protocol_error(ctx->second.display, &interface, &id);
+    const int rejected = dispatched < 0
+        && wl_display_get_error(ctx->second.display) == EPROTO
+        && code == TREELAND_PRELAUNCH_SPLASH_MANAGER_V2_ERROR_BINDING_REJECTED
+        && interface == &treeland_prelaunch_splash_manager_v2_interface;
+    client_disconnect(&ctx->second);
+    return rejected;
+}
+
+static int create_splash_after_reject(struct test_ctx *ctx)
+{
+    ctx->splash4 = treeland_prelaunch_splash_manager_v2_create_splash(
+        ctx->manager, "test-app", "test-instance-4", "org.deepin.Sandbox", NULL);
+    return ctx->splash4 != NULL;
+}
+
+static int splash_requested_after_reject(struct test_ctx *ctx)
+{
+    return ctx->server.request_count == 4
+        && strcmp(ctx->server.requests[3].app_id, "test-app") == 0
+        && strcmp(ctx->server.requests[3].instance_id, "test-instance-4") == 0;
+}
+
+static int rebind_after_incumbent_disconnect(struct test_ctx *ctx)
+{
+    // These resources die with the incumbent connection below.
+    ctx->splash1 = ctx->splash2 = ctx->splash3 = ctx->splash4 = NULL;
+    ctx->icon_buffer = NULL;
+    client_disconnect(&ctx->connection);
+    ctx->manager = NULL;
+    ctx->display = NULL;
+    // Covers the case where the socket hangup has not been dispatched yet.
+    if (!invoke_on_server_thread(splash_disconnect_clients, NULL))
+        return 0;
+    struct client_connection rebound = {0};
+    int rebound_ok = client_connect(&rebound, ctx->socket_name);
+    if (rebound_ok) {
+        struct treeland_prelaunch_splash_manager_v2 *manager = client_bind(&rebound,
+            "treeland_prelaunch_splash_manager_v2",
+            &treeland_prelaunch_splash_manager_v2_interface, 1);
+        rebound_ok = manager && wl_display_roundtrip(rebound.display) >= 0;
+    }
+    client_disconnect(&rebound);
+    return rebound_ok;
+}
+
+static void run_binding_cases(struct test_ctx *ctx)
+{
+    int index = test_add(ctx, "binding.second_client_rejected");
+    if (second_client_rejected(ctx))
+        test_pass(ctx, index);
+    else
+        test_fail(ctx, index, "expected binding_rejected protocol error");
+
+    index = test_add(ctx, "binding.incumbent_can_create_splash");
+    if (create_splash_after_reject(ctx) && wl_display_roundtrip(ctx->display) >= 0
+        && query_server(ctx) && splash_requested_after_reject(ctx))
+        test_pass(ctx, index);
+    else
+        test_fail(ctx, index, "incumbent splash request was not delivered");
+
+    index = test_add(ctx, "binding.rebind_after_last_manager_destroy");
+    if (destroy_manager(ctx) && wl_display_roundtrip(ctx->display) >= 0 && rebind_manager(ctx))
+        test_pass(ctx, index);
+    else
+        test_fail(ctx, index, "rebind after last manager destroy was rejected");
+
+    index = test_add(ctx, "binding.rebind_after_incumbent_disconnect");
+    if (rebind_after_incumbent_disconnect(ctx))
+        test_pass(ctx, index);
+    else
+        test_fail(ctx, index, "rebind after incumbent disconnect was rejected");
+}
+
 static const struct test_case cases[] = {
     { "manager.bind", bind_manager },
     { "manager.create_splash_null_icon", create_splash_null_icon },
@@ -208,7 +303,6 @@ static const struct test_case cases[] = {
     { "splash.destroy", destroy_splash },
     { "server.splash_close_requested", query_server },
     { "server.assert_splash_close_requested", splash_close_requested },
-    { "manager.destroy", destroy_manager },
 };
 
 void test_cleanup(struct test_ctx *ctx)
@@ -239,6 +333,8 @@ int protocol_test_run(const char *socket_name)
         if (wl_display_roundtrip(ctx.display) < 0)
             test_fail(&ctx, result, "Wayland connection failed");
     }
+
+    run_binding_cases(&ctx);
 
     test_cleanup(&ctx);
     const int success = test_print_results(&ctx);
