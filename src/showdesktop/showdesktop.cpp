@@ -86,6 +86,7 @@ void ShowDesktop::cancelShowDesktop(SurfaceWrapper *excludeSurface)
     if (m_showDesktop != State::Show)
         return;
     m_showDesktop = State::Normal;
+    Q_EMIT stateChanged();
     const auto &surfaces = m_outputManager->workspaceSurfaces();
     for (auto &surface : surfaces) {
         if (surface == excludeSurface)
