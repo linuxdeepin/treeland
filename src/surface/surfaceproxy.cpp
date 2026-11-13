@@ -8,6 +8,13 @@
 
 #include <private/qquickitem_p.h>
 
+namespace {
+// Display-only radius for a client-side decorated window in a non-maximized state, in proxy
+// coordinates. Its clip contour stays square so the drawn corner and shadow in the client's
+// buffer are not cut away.
+constexpr qreal kClientSideDecoratedRadius = 6;
+}
+
 SurfaceProxy::SurfaceProxy(QQuickItem *parent)
     : QQuickItem(parent)
 {
@@ -52,11 +59,18 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
         if (!m_fullProxy) {
             if (!m_shadow)
                 m_shadow = m_sourceSurface->m_engine->createXdgShadow(this);
-            m_shadow->setProperty("cornerRadius", radius());
             m_shadow->stackBefore(m_proxySurface);
             QQuickItemPrivate::get(m_shadow)->culled = true;
         }
 
+        m_sourceConnections << connect(m_proxySurface, &SurfaceWrapper::frameGeometryChanged,
+                                       this, &SurfaceProxy::updateShadowGeometry);
+        m_sourceConnections << connect(m_proxySurface, &QQuickItem::scaleChanged,
+                                       this, &SurfaceProxy::updateShadowGeometry);
+        m_sourceConnections << connect(m_proxySurface, &SurfaceWrapper::presentationFrameGeometryChanged,
+                                       this, &SurfaceProxy::effectiveRadiusChanged);
+        m_sourceConnections << connect(m_proxySurface, &QQuickItem::scaleChanged,
+                                       this, &SurfaceProxy::effectiveRadiusChanged);
         auto updateProxyFlagsAndDelegate = [this]() {
             auto proxyItem = m_proxySurface ? m_proxySurface->surfaceItem() : nullptr;
             auto sourceItem = m_sourceSurface ? m_sourceSurface->surfaceItem() : nullptr;
@@ -117,10 +131,21 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
                                        &SurfaceWrapper::noDecorationChanged,
                                        this,
                                        &SurfaceProxy::updateNoDecoration);
+        // The proxy radius depends on the source decoration mode and state.
         m_sourceConnections << connect(m_sourceSurface,
-                                       &SurfaceWrapper::noCornerRadiusChanged,
+                                       &SurfaceWrapper::noDecorationChanged,
                                        this,
-                                       &SurfaceProxy::updateNoCornerRadius);
+                                       &SurfaceProxy::updateProxySurfaceScale);
+        m_sourceConnections << connect(m_sourceSurface,
+                                       &SurfaceWrapper::surfaceStateChanged,
+                                       this,
+                                       &SurfaceProxy::updateProxySurfaceScale);
+        // effectiveRadius() also reads the source state (a client-side decorated proxy keeps a
+        // display radius while its clip contour is square), so notify it directly.
+        m_sourceConnections << connect(m_sourceSurface,
+                                       &SurfaceWrapper::surfaceStateChanged,
+                                       this,
+                                       &SurfaceProxy::effectiveRadiusChanged);
 
         m_sourceConnections << connect(m_proxySurface,
                                        &SurfaceWrapper::widthChanged,
@@ -134,6 +159,7 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
         updateImplicitSize();
         updateProxySurfaceScale();
         updateShape();
+        updateShadowGeometry();
     } else {
         if (m_shadow) {
             m_shadow->deleteLater();
@@ -142,6 +168,7 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
     }
 
     Q_EMIT surfaceChanged();
+    Q_EMIT effectiveRadiusChanged();
 }
 
 void SurfaceProxy::geometryChange(const QRectF &newGeo, const QRectF &oldGeo)
@@ -150,8 +177,7 @@ void SurfaceProxy::geometryChange(const QRectF &newGeo, const QRectF &oldGeo)
 
     if (m_proxySurface) {
         updateProxySurfaceScale();
-        if (m_shadow)
-            m_shadow->setSize(newGeo.size());
+        updateShadowGeometry();
     }
 }
 
@@ -163,20 +189,29 @@ void SurfaceProxy::updateProxySurfaceScale()
     QSizeF surfaceSize = m_proxySurface->size();
     surfaceSize.scale(size(), Qt::KeepAspectRatio);
 
-    if (surfaceSize.width() < m_proxySurface->width()) {
-        m_proxySurface->setScale(surfaceSize.width() / m_proxySurface->width());
-        m_proxySurface->setRadius(radius() / m_proxySurface->scale());
-    } else {
-        m_proxySurface->setScale(1.0);
-        m_proxySurface->setRadius(radius());
-    }
+    if (surfaceSize.width() < m_proxySurface->width())
+        m_proxySurfaceScale = surfaceSize.width() / m_proxySurface->width();
+    else
+        m_proxySurfaceScale = 1.0;
+    m_proxySurface->setScale(m_proxySurfaceScale);
+    m_proxySurface->setRadius(radius() / m_proxySurfaceScale);
+    // radius() also follows the source decoration state and the proxy scale.
+    Q_EMIT radiusChanged();
+}
+
+void SurfaceProxy::updateShadowGeometry()
+{
+    if (!m_shadow || !m_proxySurface)
+        return;
+    const auto geometry = m_proxySurface->frameGeometry();
+    m_shadow->setSize(geometry.rect().size() * m_proxySurface->scale());
+    m_shadow->setProperty("cornerRadius", geometry.radius() * m_proxySurface->scale());
 }
 
 void SurfaceProxy::updateShape()
 {
     updateNoTitleBar();
     updateNoDecoration();
-    updateNoCornerRadius();
 }
 
 void SurfaceProxy::updateNoTitleBar()
@@ -187,11 +222,8 @@ void SurfaceProxy::updateNoTitleBar()
 void SurfaceProxy::updateNoDecoration()
 {
     m_proxySurface->setNoDecoration(m_fullProxy ? m_sourceSurface->noDecoration() : false);
-}
-
-void SurfaceProxy::updateNoCornerRadius()
-{
-    m_proxySurface->setNoCornerRadius(m_fullProxy ? m_sourceSurface->noCornerRadius() : false);
+    // radius() already decides whether the thumbnail needs rounded clipping.
+    m_proxySurface->setNoCornerRadius(false);
 }
 
 void SurfaceProxy::updateImplicitSize()
@@ -212,18 +244,54 @@ void SurfaceProxy::updateImplicitSize()
 
 void SurfaceProxy::onSourceRadiusChanged()
 {
-    m_proxySurface->setRadius(radius() / m_proxySurface->scale());
-    if (m_shadow)
-        m_shadow->setProperty("radius", radius());
+    m_proxySurface->setRadius(radius() / m_proxySurfaceScale);
     if (m_radius < 0)
         Q_EMIT radiusChanged();
+}
+
+bool SurfaceProxy::isFullSizeState() const
+{
+    const auto state = m_sourceSurface->surfaceState();
+    return state == SurfaceWrapper::State::Maximized
+        || state == SurfaceWrapper::State::Fullscreen;
+}
+
+bool SurfaceProxy::keepsClientSideMargins() const
+{
+    if (!m_sourceSurface || !m_sourceSurface->noDecoration())
+        return false;
+    // A maximized or fullscreen client drops its CSD margins: there is no drawn corner or
+    // shadow left in the buffer to protect.
+    return !isFullSizeState();
 }
 
 qreal SurfaceProxy::radius() const
 {
     if (m_radius >= 0)
         return m_radius;
-    return m_sourceSurface ? m_sourceSurface->radius() : 0;
+    if (!m_sourceSurface)
+        return 0;
+    // A client-side decorated client draws its corners and shadow inside its own buffer,
+    // outside the frame geometry, so a rounded clip would cut that shadow away.
+    if (keepsClientSideMargins())
+        return 0;
+    // A maximized or fullscreen window has no visible corner of its own, and its window radius
+    // shrunk to thumbnail scale is only a few pixels there, so the thumbnail takes the radius
+    // as a display value instead of a faithful sample of the scaled window.
+    if (isFullSizeState())
+        return m_sourceSurface->radius();
+    // A thumbnail keeps the window's corner shape: the radius shrinks with the proxy.
+    return m_sourceSurface->radius() * m_proxySurfaceScale;
+}
+
+qreal SurfaceProxy::effectiveRadius() const
+{
+    // The outline keeps a display radius for a thumbnail whose clip contour is square.
+    if (m_radius < 0 && keepsClientSideMargins())
+        return kClientSideDecoratedRadius;
+    return m_proxySurface
+        ? m_proxySurface->presentationFrameGeometry().radius() * m_proxySurface->scale()
+        : 0;
 }
 
 void SurfaceProxy::setRadius(qreal newRadius)
@@ -231,11 +299,8 @@ void SurfaceProxy::setRadius(qreal newRadius)
     if (qFuzzyCompare(m_radius, newRadius))
         return;
     m_radius = newRadius;
-    if (m_proxySurface) {
-        m_proxySurface->setRadius(radius() / m_proxySurface->scale());
-        if (m_shadow)
-            m_shadow->setProperty("radius", radius());
-    }
+    if (m_proxySurface)
+        m_proxySurface->setRadius(radius() / m_proxySurfaceScale);
 
     Q_EMIT radiusChanged();
 }
@@ -304,11 +369,11 @@ void SurfaceProxy::setFullProxy(bool newFullProxy)
             }
         } else if (!m_shadow) {
             m_shadow = m_sourceSurface->m_engine->createXdgShadow(this);
-            m_shadow->setProperty("cornerRadius", radius());
             m_shadow->stackBefore(m_proxySurface);
             QQuickItemPrivate::get(m_shadow)->culled = true;
         }
         updateShape();
+        updateShadowGeometry();
     }
 
     Q_EMIT fullProxyChanged();

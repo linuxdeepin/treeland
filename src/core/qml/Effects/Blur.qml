@@ -12,6 +12,7 @@ RenderBufferBlitter {
     smooth: true
 
     property real radius: 0
+    property rect frameRect: Qt.rect(0, 0, width, height)
     property bool radiusEnabled: radius > 0
     property int blurMax: WaylandServer.config.blurStrength
     property bool blurEnabled: blurMax > 0 && blurAmount > 0
@@ -45,7 +46,8 @@ RenderBufferBlitter {
         GlassEffect {
             anchors.fill: parent
             source: blitter.content
-            radius: blitter.radius
+            radius: blitter.radiusEnabled ? blitter.radius : 0
+            frameRect: blitter.frameRect
             blurEnabled: blitter.blurEnabled
             blurMax: blitter.blurMax
             blurAmount: blitter.blurAmount
@@ -87,21 +89,11 @@ RenderBufferBlitter {
             }
 
             Loader {
-                x: blur.x
-                y: blur.y
+                anchors.fill: parent
                 active: blitter.radiusEnabled
-                sourceComponent: Shape {
-                    anchors.fill: parent
-                    preferredRendererType: Shape.CurveRenderer
-                    ShapePath {
-                        strokeWidth: 0
-                        fillItem: blur
-                        PathRectangle {
-                            width: blur.width
-                            height: blur.height
-                            radius: blitter.radius
-                        }
-                    }
+                sourceComponent: FrameClip {
+                    source: blur
+                    geometry: ({ rect: blitter.frameRect, radius: blitter.radius })
                 }
             }
         }

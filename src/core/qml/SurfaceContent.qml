@@ -14,7 +14,32 @@ Item {
     readonly property SurfaceWrapper wrapper: surface?.parent as SurfaceWrapper
     readonly property XWaylandSurface xwaylandSurface: wrapper?.shellSurface as XWaylandSurface
     readonly property bool hasClipShape: xwaylandSurface?.hasClipShape ?? false
-    readonly property real cornerRadius: wrapper?.radius ?? 0
+    readonly property real cornerRadius: wrapper?.frameGeometry.radius ?? 0
+    readonly property real frameScale: 1 / (surface?.contentItem?.scale ?? 1)
+    readonly property point frameOffset: Qt.point(
+        -(surface?.contentItem?.x ?? 0) * frameScale,
+        -(surface?.contentItem?.y ?? 0) * frameScale)
+    readonly property rect effectFrameRect: wrapper
+        ? Qt.rect(frameOffset.x, frameOffset.y,
+                  wrapper.frameGeometry.rect.width * frameScale,
+                  wrapper.frameGeometry.rect.height * frameScale)
+        : Qt.rect(0, 0, width, height)
+
+    Loader {
+        id: clientMask
+        active: root.cornerRadius > 0
+        sourceComponent: FrameInputMask {
+            geometry: root.wrapper.frameGeometry
+            frameItem: root.wrapper.frameItem
+            target: root.surface?.eventItem ?? null
+        }
+    }
+    Binding {
+        target: root.surface?.eventItem ?? null
+        property: "containmentMask"
+        value: clientMask.item
+        when: clientMask.active && target !== null
+    }
 
     anchors.fill: parent
     opacity: content.alphaModifier
@@ -45,7 +70,8 @@ Item {
         sourceComponent: Blur {
             anchors.fill: parent
             radiusEnabled: cornerRadius > 0
-            radius: cornerRadius
+            radius: root.cornerRadius * root.frameScale
+            frameRect: root.effectFrameRect
         }
     }
 
@@ -71,40 +97,17 @@ Item {
         id: effectLoader
 
         anchors.fill: parent
-        active: {
-            if (GraphicsInfo.api === GraphicsInfo.Software)
-                return false;
-
-            if (!root.wrapper)
-                return false;
-            return (cornerRadius > 0) &&
-                    !root.wrapper.noCornerRadius &&
-                    root.wrapper.decoration &&
-                    root.wrapper.visibleDecoration;
-        }
+        active: root.cornerRadius > 0
 
         opacity: shapeLoader.active ? 0 : 1
         layer.enabled: shapeLoader.active
 
-        sourceComponent: Shape {
-            fillMode: Shape.PreserveAspectFit
-            preferredRendererType: Shape.CurveRenderer
-            ShapePath {
-                strokeWidth: 0
-                fillItem: content
-                PathRectangle {
-                    readonly property real scale: width / content.width
-
-                    x: content.bufferSourceRect.x
-                    y: content.bufferSourceRect.y
-                    width: content.bufferSourceRect.width
-                    height: content.bufferSourceRect.height
-                    topLeftRadius: wrapper?.noTitleBar ? cornerRadius * scale : 0
-                    topRightRadius: wrapper?.noTitleBar ? cornerRadius * scale : 0
-                    bottomLeftRadius: cornerRadius * scale
-                    bottomRightRadius: cornerRadius * scale
-                }
-            }
+        sourceComponent: FrameClip {
+            source: content
+            sourceRect: content.bufferSourceRect
+            geometry: root.wrapper.frameGeometry
+            geometryScale: root.frameScale
+            geometryOffset: root.frameOffset
         }
     }
 

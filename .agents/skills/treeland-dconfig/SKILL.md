@@ -264,7 +264,9 @@ Q_PROPERTY(TreelandUserConfig* config READ config NOTIFY configChanged FINAL)
 Q_PROPERTY(TreelandConfig* globalConfig READ globalConfig CONSTANT FINAL)
 ```
 
-这意味着 `WaylandServer.config` 会在当前用户变化时改变，而 `WaylandServer.globalConfig` 恒定。用户级 QML 绑定应通过 `WaylandServer.config` 绑定，以便 QML 在 `configChanged()` 后重新求值。C++ 中保存 `TreelandUserConfig *` 或连接用户配置信号的代码，必须在 `WaylandServer::configChanged()` 后重新连接，否则可能一直监听旧用户的配置对象、错过新用户的变更。
+这意味着 `WaylandServer.config` 会在当前用户变化时改变，而 `WaylandServer.globalConfig` 恒定。仅使用活动桌面兼容入口的 QML 绑定通过 `WaylandServer.config` 随 `configChanged()` 重新求值；从该入口保存指针或连接信号的 C++ 代码也必须重新订阅。
+
+属于固定 Desktop 的窗口和组件使用注入的 `DesktopEnvironment::config()`（`CONSTANT`，成员为 `TreelandUserConfig *const`），不监听 `WaylandServer::configChanged()`。例如 `SurfaceWrapper` 在 `setSession()` 后订阅所属 Desktop 的半径变化；活动用户切换不能改变已有窗口的配置归属。不要把活动配置入口的重绑要求套用到这些对象上。
 
 ## override 与可变性
 规范允许 override 文件修改 `value` 与 `permissions`，除非该项带 `nooverride`。

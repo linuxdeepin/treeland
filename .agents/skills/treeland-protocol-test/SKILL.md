@@ -103,3 +103,5 @@ ctest --test-dir build --output-on-failure -L protocols
 部分用例按设计会 skip（没有 `/dev/uinput`、没有 GPU、没有 D-Bus 服务）。CTest 把这种情况记为退出码 `77` 或 `SKIP   :` 行，二者都在 `tests/protocols/framework/ProtocolTest.cmake` 中配置；skip 不算覆盖。报告某个场景通过之前，先看 `-V` 输出。
 
 优先用 CTest 而不是直接启动测试可执行文件，因为 CTest 会提供 headless 后端、渲染器、超时与 skip 环境。
+
+在 DDE 桌面环境中，如果 QTest 已输出全部 PASS 且测试进程已退出，但 CTest 仍超时，检查是否有隔离 D-Bus 激活的 `xdg-desktop-portal-dde` 子进程持有测试的 stderr 管道。与 portal 无关的协议用例可用 `QT_NO_XDG_DESKTOP_PORTAL=1 ctest --test-dir build -V -R '^test_<name>$'` 隔离 Qt 的 portal 集成；不要把这种超时当作协议失败，也不要提高 timeout 或将用例标为 skip。

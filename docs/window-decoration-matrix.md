@@ -1,6 +1,6 @@
 # 窗口装饰器 / 圆角 / 默认值一览
 
-> 状态：2026-11-09 更新。本文汇总 `SurfaceWrapper` 各窗口类型下「是否画装饰器（SSD 边框 +
+> 状态：2026-11-11 更新。本文汇总 `SurfaceWrapper` 各窗口类型下「是否画装饰器（SSD 边框 +
 > 阴影）、是否画标题栏、默认圆角」的实际行为，以及目前散落在各处的特判。
 >
 > 核心代码位置：
@@ -8,8 +8,10 @@
 > - 构造默认值：`src/surface/surfacewrapper.cpp`（三个构造函数初始化列表）
 > - 装饰器/标题栏创建：`SurfaceWrapper::setNoDecoration()` / `updateDecoration()` /
 >   `updateTitleBar()`
-> - 圆角计算：`SurfaceWrapper::radius()` / `setRadius()` / `setNoCornerRadius()`
-> - 圆角渲染（裁剪）：`src/core/qml/SurfaceContent.qml`
+> - 请求半径：`SurfaceWrapper::radius()` / `setRadius()` / `setNoCornerRadius()`
+> - 实际几何：`SurfaceWrapper::frameGeometry()` / `src/surface/framegeometry.*`
+> - 圆角渲染（裁剪）：`src/core/qml/FrameClip.qml`
+> - 输入裁剪与 resize：`src/surface/frameinputmask.*`
 > - 边框 + 阴影渲染：`src/core/qml/Decoration.qml`（`XdgShadow` + `Border`）
 > - 协议仲裁：`src/core/surfaceprotocolcontroller.cpp`（`onSurfaceWrapperAdded`）
 > - DConfig 默认值：`misc/dconfig/org.deepin.dde.treeland.user.json`
@@ -24,9 +26,9 @@
 2. **`noTitleBar()` 已经包含 `noDecoration`。** getter 返回
    `m_noTitleBar || m_noDecoration`（全屏时恒为 true）。所以「无边框」的窗口**不可能**有
    标题栏，`setNoTitleBar(false)` 也不会让无边框窗口凭空长出标题栏。
-3. **圆角只对「有装饰器」的窗口生效。** `SurfaceContent.qml` 的圆角裁剪条件是
-   `cornerRadius > 0 && !noCornerRadius && decoration && visibleDecoration`。`m_noDecoration`
-   为 true 时 `m_decoration` 为 null，圆角不渲染。
+3. **实际圆角只由 `SurfaceWrapper::frameGeometry` 决定。** 有装饰器、装饰可见、
+   未设置 `noCornerRadius` 且不是软件渲染时，才使用请求半径；其余情况实际半径为 0。
+   标题栏、客户区、边框、阴影和输入不能再各自推导实际圆角。
 
 ### 全局默认值（DConfig）
 
@@ -152,16 +154,50 @@ return radius;
 - `m_radius >= 1` 表示有 per-window 显式覆盖（旧 personalization `set_corner_radius` 或新
   decoration `set_corner_radius`），直接使用（`radius < 1` 时才回退到 DConfig）。
 - `Type::Layer` 被**排除**在 DConfig 回退之外 → layer（含启动器）默认圆角 0，compositor 不
-  给 layer 画圆角；layer 的圆角只能靠客户端自绘。
+  给 layer 画圆角；如需合成器圆角，layer 必须显式请求，不能依赖用户配置回退。
 - 两种协议的 corner radius 写入**未仲裁**（见代码 NOTE：客户端只应使用其中一种，后到的
   signal 覆盖先到的）。
 
-### 圆角是否真正生效的三个条件
+### 实际几何与坐标系
 
-1. `cornerRadius > 0`
-2. `!noCornerRadius`（无边框 / 非 Normal 状态会置 true）
-3. `decoration != null && visibleDecoration`（必须有装饰器）
+上述 `radius()` 是请求值，`frameGeometry.radius` 才是实际值：满足装饰和渲染条件时，
+限制在 `[0, min(frameWidth, frameHeight) / 2]`；其余情况为 0。非法/空尺寸不可命中。
 
+- `frameGeometry.rect` 使用 `frameItem` 的逻辑坐标，包含标题栏，不包含阴影。
+- 普通窗口的 `frameItem` 是 `surfaceItem`；预启动时是 splash。
+- 客户区通过 content container 的位置、缩放映射几何；bufferSourceRect 只影响纹理采样。
+- 大圆角按整窗尺寸归一化。标题栏和客户区使用同一轮廓的切片，不能按局部高度再次限制半径。
+- 尺寸、装饰、半径和窗口状态变化更新几何；`setSession()` 后订阅所属 Desktop 的固定 DConfig 对象，
+  活动用户切换不改变已有窗口的配置归属，无需监听 `WaylandServer::configChanged`。
+- splash 消费实时几何；proxy 的显式半径覆盖保留，其阴影采用代理实际半径乘显示缩放。
+
+### 输入契约
+
+`FrameInputMask` 把目标 Item 的局部点映射到外框坐标，采用有限、左上包含右下排除的边界。
+
+- 客户区：native input_region 与合成器圆角取交集；圆角关闭时移除额外 mask。
+- 标题栏：自身矩形与整窗轮廓取交集，子控件也受局部裁剪约束。
+- resize：外扩轮廓减去窗口内部；角上返回两条边，零半径保留矩形角点行为。
+- mask、光标和 resize 请求统一使用 `edgesAt()`，不能各用一套算法。
+- 带 X11 input shape 的窗口不额外制造 resize 外沿。native X Shape 判断不变。
+- 阴影参数不参与输入；不对整个 subsurface/popup 子树附加窗口裁剪。
+- 已经开始的鼠标/触摸 grab 不因移动到圆角外而转交给下层。
+
+`FrameClip.qml` 复用同一几何进行渲染，GLSL 使用相同的外框尺寸、位置和半径；
+抗锯齿像素不是新的输入区域，命中时不读取纹理或生成路径。
+
+### 多任务缩略图高亮
+
+- 普通窗口保留原有展示形状；最大化/全屏窗口按下述缩略图策略补圆角。高亮框本身不增加裁剪，也不修改原窗口状态。
+- 合成器管理的外框读取 `SurfaceProxy::effectiveRadius`：代理展示几何的有效半径乘代理显示缩放。
+- 完全客户端自绘（`noDecoration`）的窗口无法读取真实圆角，且非最大化时它的圆角与阴影都画在 buffer 边距里（在 `frameGeometry` 之外）：
+  因此这类窗口的**裁剪轮廓保持直角**（`SurfaceProxy::keepsClientSideMargins()` → `radius()` 返回 0，`FrameClip` 不激活，客户端的自绘阴影不被裁掉），
+  高亮框用一个固定的 6 个缩略图逻辑像素展示值（`effectiveRadius`）。
+- 最大化/全屏的 CSD 窗口已经丢掉边距（没有自绘角与阴影），缩略图可以裁圆角。
+- 最大化/全屏窗口（CSD 与 SSD 一样）用**展示半径**：窗口半径不再乘缩略图缩放，直接沿用 `windowRadius` 的显示像素值
+  （按窗口半径等比缩小后只剩几像素，看起来仍是直角），高亮框跟随该半径。
+- 有 padding 背景时，高亮包围的是背景卡片，沿用卡片自身的圆角。
+- 高亮外框在非零半径上加边框宽度；零半径仍为 0，不能因外扩又产生小圆角。
 ---
 
 ## 6. 标题栏高度
@@ -173,7 +209,21 @@ return radius;
 
 ---
 
-## 7. 修改这类代码时的检查清单
+## 7. 回归测试
+
+- `test_frame_geometry`：半径归一化、有限外沿、跨标题栏的圆弧、非零原点、
+  1×/1.25×/2× 鼠标/触摸、原生 input_region 空洞、grab 保持和 mask 生命周期；
+  直接加载六个生产窗口动画验证展示半径绑定；加载 `WindowHighlight.qml` 验证传入半径
+  （含直角 0 与 CSD 展示值 6）、padding 卡片和动态属性更新。
+- `test_effect_glass`：直接加载生产 `FrameClip.qml`，比较裁剪像素与 CPU 命中，
+  覆盖标题栏/客户区切片、缩放和非零纹理裁剪偏移；另验证 Glass 使用整窗坐标。
+
+```bash
+cmake --build --preset ci --target treeland test_frame_geometry test_effect_glass
+ctest --test-dir build --output-on-failure -R '^(test_frame_geometry|test_effect_glass)$'
+```
+
+## 8. 修改这类代码时的检查清单
 
 - [ ] 改了 `noDecoration` / `noTitleBar` 的赋值，确认有没有破坏「装饰器默认关」的不变量。
 - [ ] 确认 `noTitleBar()` getter 的 `m_noTitleBar || m_noDecoration` 语义：无边框窗口永无标题栏。

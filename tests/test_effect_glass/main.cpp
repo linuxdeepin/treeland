@@ -1,7 +1,11 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include "surface/framegeometry.h"
+
 #include <array>
+#include <memory>
+#include <QQmlComponent>
 #include <cmath>
 #include <algorithm>
 #include <vector>
@@ -18,6 +22,7 @@
 #include <QElapsedTimer>
 #include <QSignalSpy>
 #include <QTest>
+#include <QVector4D>
 
 #include <woutputrenderwindow.h>
 #include <woutputviewport.h>
@@ -29,6 +34,22 @@
 #include "TestHelper.h"
 
 WAYLIB_SERVER_USE_NAMESPACE
+
+// Model only the geometry properties; execute the production splash bindings below.
+class SplashSurfaceFixture : public QObject
+{
+    Q_OBJECT
+    Q_PROPERTY(FrameGeometry frameGeometry MEMBER m_frameGeometry NOTIFY frameGeometryChanged)
+    Q_PROPERTY(FrameGeometry presentationFrameGeometry MEMBER m_presentationFrameGeometry NOTIFY presentationFrameGeometryChanged)
+public:
+    using QObject::QObject;
+Q_SIGNALS:
+    void frameGeometryChanged();
+    void presentationFrameGeometryChanged();
+private:
+    FrameGeometry m_frameGeometry;
+    FrameGeometry m_presentationFrameGeometry;
+};
 
 /// Liquid Glass effect test using waylib's headless backend for OpenGL.
 ///
@@ -152,6 +173,8 @@ private:
     static bool requiresShaderRendering(const char *testFunction)
     {
         static constexpr const char *renderingTests[] = {
+            "frameClipMatchesInput",
+            "glassUsesFrameCoordinates",
             "specularProducesDifferentRender",
             "tintControlProducesDifferentRender",
             "specularControlChangesRim",
@@ -189,6 +212,7 @@ private:
         m_glass->setProperty("blurAmount", 0.6);
         m_glass->setProperty("blurMultiplier", 0.0);
         m_glass->setProperty("radius", 60.0);
+        m_glass->setProperty("frameRect", QRectF(0, 0, 256, 256));
         m_glass->setProperty("bezelWidth", 60.0);
         m_glass->setProperty("thickness", 50.0);
         m_glass->setProperty("ior", 1.5);
@@ -226,8 +250,6 @@ private Q_SLOTS:
         resetGlass();
     }
 
-    // ── Property tests: read derived properties at runtime ─────────────
-
     void liquidGlassDefaultsMatch()
     {
         QCOMPARE(m_glass->property("radius").toReal(), 12.0);
@@ -241,6 +263,117 @@ private Q_SLOTS:
         QCOMPARE(m_glass->property("refractionMaxTan").toReal(), 3.3);
 
     }
+
+    void frameClipMatchesInput_data()
+    {
+        QTest::addColumn<qreal>("ratio");
+        QTest::addColumn<QRectF>("sourceRect");
+        QTest::newRow("1x") << qreal(1) << QRectF(40, 20, 240, 160);
+        QTest::newRow("fractional") << qreal(1.25) << QRectF(50, 25, 300, 200);
+        QTest::newRow("2x") << qreal(2) << QRectF(80, 40, 480, 320);
+        // Crop up to the green texel centers; widening either axis samples the blue surround.
+        QTest::newRow("subpixel-width") << qreal(1) << QRectF(279, 40, 0.5, 100);
+        QTest::newRow("subpixel-height") << qreal(1) << QRectF(80, 179, 100, 0.5);
+        QTest::newRow("subpixel-both") << qreal(1) << QRectF(279, 179, 0.5, 0.5);
+    }
+
+    void frameClipMatchesInput()
+    {
+        QFETCH(qreal, ratio);
+        QFETCH(QRectF, sourceRect);
+        QQmlComponent component(qmlEngine(m_scene), "TestGlass", "FrameClipScene");
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        std::unique_ptr<QQuickItem> scene(qobject_cast<QQuickItem *>(
+            component.createWithInitialProperties({{"contentScale", ratio},
+                                                   {"clientSourceRect", sourceRect}})));
+        QVERIFY(scene);
+        QCOMPARE(scene->property("clientSourceRect").toRectF(), sourceRect);
+        scene->setParentItem(m_scene);
+        QTest::qWait(50);
+        const auto image = grabImage(scene.get(), QSize(240, 200));
+        QVERIFY(!image.isNull());
+        const FrameGeometry geometry(QRectF(0, 0, 240, 200), 80);
+        for (int y = 4; y < 196; y += 8) {
+            for (int x = 4; x < 236; x += 8) {
+                const QPointF point(x + 0.5, y + 0.5);
+                const bool inside = geometry.contains(point);
+                // Compare away from the renderer's antialiasing fringe.
+                if (geometry.contains(point + QPointF(2, 0)) != inside
+                    || geometry.contains(point - QPointF(2, 0)) != inside
+                    || geometry.contains(point + QPointF(0, 2)) != inside
+                    || geometry.contains(point - QPointF(0, 2)) != inside)
+                    continue;
+                const QColor color = image.pixelColor(x, y);
+                const auto location = QString("pixel (%1, %2), alpha %3")
+                                          .arg(x).arg(y).arg(color.alpha());
+                QVERIFY2(inside ? color.alpha() > 240 : color.alpha() < 15, qPrintable(location));
+                if (inside) {
+                    QVERIFY(y < 40 ? color.red() > 240 : color.green() > 240);
+                    QVERIFY(color.blue() < 15);
+                }
+            }
+        }
+    }
+
+    void prelaunchKeepsPresentationGeometry()
+    {
+        qmlRegisterType<SplashSurfaceFixture>("SplashFixture", 2, 0, "SurfaceWrapper");
+        QQmlEngine engine;
+        SplashSurfaceFixture surface;
+        const FrameGeometry splashGeometry(QRectF(0, 0, 256, 256), 12);
+        surface.setProperty("frameGeometry", QVariant::fromValue(splashGeometry));
+        surface.setProperty("presentationFrameGeometry", QVariant::fromValue(splashGeometry));
+        const auto path = QStringLiteral(SOURCE_DIR "/src/core/qml/PrelaunchSplash.qml");
+        QFile source(path);
+        QVERIFY(source.open(QIODevice::ReadOnly));
+        auto code = source.readAll();
+        code.replace("import Treeland", "import SplashFixture 2.0");
+        QQmlComponent component(&engine);
+        component.setData(code, QUrl::fromLocalFile(path));
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        std::unique_ptr<QQuickItem> splash(qobject_cast<QQuickItem *>(component.createWithInitialProperties({
+            {"surface", QVariant::fromValue(&surface)},
+            {"iconBuffer", QVariant::fromValue(static_cast<wlr_buffer *>(nullptr))},
+            {"backgroundColor", QColor(Qt::white)},
+        })));
+        QVERIFY2(splash, qPrintable(component.errorString()));
+        splash->setParentItem(m_scene);
+        QVERIFY(!splash->childItems().isEmpty());
+        auto *background = splash->childItems().first();
+        QCOMPARE(background->property("radius").toReal(), qreal(12));
+        for (const auto &incoming : {FrameGeometry(), FrameGeometry(QRectF(0, 0, 256, 256), 64),
+                                      FrameGeometry(QRectF(0, 0, 256, 256), 0)}) {
+            surface.setProperty("frameGeometry", QVariant::fromValue(incoming));
+            QCoreApplication::processEvents();
+            QVERIFY(splash->isVisible());
+            QCOMPARE(background->property("radius").toReal(), qreal(12));
+            const auto image = grabImage(splash.get());
+            QVERIFY(!image.isNull());
+            QVERIFY(image.pixelColor(1, 1).alpha() < 15);
+            QVERIFY(image.pixelColor(8, 8).alpha() > 240);
+        }
+        splash->setVisible(false);
+        surface.setProperty("presentationFrameGeometry",
+                            QVariant::fromValue(FrameGeometry(QRectF(0, 0, 256, 256), 0)));
+        QCOMPARE(background->property("radius").toReal(), qreal(0));
+        QVERIFY(!splash->isVisible());
+    }
+
+    void glassUsesFrameCoordinates()
+    {
+        m_scene->setProperty("backdropVisible", false);
+        m_glass->setProperty("radius", 80.0);
+        m_glass->setProperty("frameRect", QRectF(0, -40, 256, 296));
+        QTest::qWait(50);
+        const auto image = grabImage(m_glass);
+        QVERIFY(!image.isNull());
+        QVERIFY(image.pixelColor(2, 2).alpha() < 15);
+        QVERIFY(image.pixelColor(20, 2).alpha() > 240);
+        m_glass->setProperty("frameRect", QRectF(0, 0, 256, 256));
+    }
+
+    // ── Property tests: read derived properties at runtime ─────────────
+
     void dconfigDefaultsMatch()
     {
         QFile descriptor(QStringLiteral(SOURCE_DIR
@@ -258,6 +391,28 @@ private Q_SLOTS:
         QCOMPARE(contents.value("blurAmount").toObject().value("value").toDouble(), 0.6);
         QCOMPARE(contents.value("blurMultiplier").toObject().value("value").toDouble(), 0.0);
     }
+    void frameRectUniformBounds_data()
+    {
+        QTest::addColumn<QRectF>("frameRect");
+        QTest::addColumn<QVector4D>("expected");
+        QTest::newRow("offset") << QRectF(10, -40, 256, 296) << QVector4D(10, -40, 256, 296);
+        QTest::newRow("zero") << QRectF(10, -40, 0, 0) << QVector4D(10, -40, 1, 1);
+        QTest::newRow("negative") << QRectF(10, -40, -2, -3) << QVector4D(10, -40, 1, 1);
+        QTest::newRow("subpixel-width") << QRectF(10, -40, 0.5, 2) << QVector4D(10, -40, 1, 2);
+        QTest::newRow("subpixel-height") << QRectF(10, -40, 2, 0.5) << QVector4D(10, -40, 2, 1);
+    }
+
+    void frameRectUniformBounds()
+    {
+        QFETCH(QRectF, frameRect);
+        QFETCH(QVector4D, expected);
+        auto *shader = m_glass->findChild<QObject *>("glassShader");
+        QVERIFY(shader);
+        QVERIFY(m_glass->setProperty("frameRect", frameRect));
+        QCOMPARE(m_glass->property("frameRect").toRectF(), frameRect);
+        QCOMPARE(shader->property("frameRect").value<QVector4D>(), expected);
+    }
+
     void innerShadowDefaultIsDisabled()
     {
         QCOMPARE(m_glass->property("innerShadow").toReal(), 0.0);

@@ -14,13 +14,18 @@ extern "C" {
 /*
  * E-level readback: the production WXdgDecorationManager reports the
  * effective decoration mode for the mapped toplevel surface.  The client
- * requests CLIENT_SIDE via set_mode; after commit the production object's
- * modeBySurface() must reflect the client's preference, proving the
- * decoration request reached the real compositor decoration pipeline.
+ * requests each mode via set_mode. Server-side decoration also exposes the
+ * real wrapper frame and input-mask state for the software-renderer regression.
  */
 struct xdg_decoration_server_state {
 	int valid; /* a mapped SurfaceWrapper was captured */
 	int mode; /* WXdgDecorationManager::DecorationMode: 0=Undefined,1=None,2=Client,3=Server */
+	int decorated;
+	int software_renderer;
+	int has_input_mask;
+	int full_proxy_allows_rounding;
+	double requested_radius;
+	double frame_radius;
 };
 
 void xdg_decoration_read_server_state(void *data);

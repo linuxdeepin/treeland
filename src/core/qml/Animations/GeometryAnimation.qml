@@ -30,7 +30,7 @@ Item {
     XdgShadow {
         anchors.fill: parent
         visible: surface.visibleDecoration && !surface.noDecoration
-        cornerRadius: surface.radius
+        cornerRadius: surface.presentationFrameGeometry.radius
         shadowBlur: surface.shadowBlurRadius
         shadowOffsetX: surface.shadowOffsetX
         shadowOffsetY: surface.shadowOffsetY
@@ -42,7 +42,7 @@ Item {
         anchors.fill: parent
         sourceComponent: Blur {
             anchors.fill: parent
-            radius: surface.radius
+            radius: surface.presentationFrameGeometry.radius
         }
     }
 
@@ -87,16 +87,19 @@ Item {
     ParallelAnimation {
         id: animation
 
-        XAnimator {
+        // Keep position in sync with size and backdrop sampling on the GUI thread.
+        NumberAnimation {
             target: root
+            property: "x"
             duration: root.duration
             easing.type: Easing.OutCubic
             from: root.fromGeometry.x
             to: root.toGeometry.x
         }
 
-        YAnimator {
+        NumberAnimation {
             target: root
+            property: "y"
             duration: root.duration
             easing.type: Easing.OutCubic
             from: root.fromGeometry.y

@@ -75,8 +75,7 @@ public:
     QQuickItem *createLockScreenFallback(QQuickItem *parent,
                                          const QVariantMap &properties = QVariantMap());
     QQuickItem *createFpsDisplay(QQuickItem *parent);
-    QQuickItem *createPrelaunchSplash(QQuickItem *parent,
-                                      qreal initialRadius,
+    QQuickItem *createPrelaunchSplash(SurfaceWrapper *parent,
                                       wlr_buffer *iconBuffer,
                                       const QColor &backgroundColor);
 

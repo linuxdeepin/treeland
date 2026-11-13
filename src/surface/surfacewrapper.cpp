@@ -33,6 +33,7 @@
 #endif
 
 #include <QColor>
+#include <QQuickWindow>
 #include <QVariant>
 
 #define OPEN_ANIMATION 1
@@ -82,6 +83,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
 {
     m_windowTransition = std::make_unique<SurfaceWindowTransition>(this);
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
+    initializeFrameGeometry();
 
     setup();
 }
@@ -126,6 +128,7 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     });
     m_windowTransition = std::make_unique<SurfaceWindowTransition>(this);
     QQmlEngine::setContextForObject(this, m_engine->rootContext());
+    initializeFrameGeometry();
 
     if (original->m_shellSurface) {
         setup();
@@ -139,17 +142,19 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
 
         m_prelaunchSplash =
             m_engine->createPrelaunchSplash(this,
-                                            original->radius(),
                                             iconVar.value<wlr_buffer *>(),
                                             bgColor);
+        Q_EMIT prelaunchSplashChanged();
         setNoDecoration(false);
 
         connect(original, &SurfaceWrapper::surfaceItemCreated, this, [this, original]() {
             m_shellSurface = original->m_shellSurface;
             m_type = original->m_type;
             if (m_prelaunchSplash) {
+                m_prelaunchSplash->setVisible(false);
                 m_prelaunchSplash->deleteLater();
                 m_prelaunchSplash = nullptr;
+                Q_EMIT prelaunchSplashChanged();
             }
             setup();
         });
@@ -199,6 +204,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
 {
     m_windowTransition = std::make_unique<SurfaceWindowTransition>(this);
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
+    initializeFrameGeometry();
     if (initialSize.isValid() && initialSize.width() > 0 && initialSize.height() > 0) {
         // Also set implicit size to keep QML layout consistent
         setImplicitSize(initialSize.width(), initialSize.height());
@@ -207,7 +213,8 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
         setImplicitSize(800, 600);
     }
     m_prelaunchSplash =
-        m_engine->createPrelaunchSplash(this, radius(), m_appIcon.get(), backgroundColor);
+        m_engine->createPrelaunchSplash(this, m_appIcon.get(), backgroundColor);
+    Q_EMIT prelaunchSplashChanged();
 
     setNoDecoration(false);
     updateHasActiveCapability(ActiveControlState::HasActivateCapability, true);
@@ -639,14 +646,6 @@ void SurfaceWrapper::setup()
         updateXWaylandStackingState();
     }
 #endif
-    // Connect DConfig windowRadius change so QML bindings re-evaluate radius()
-    if (m_type == Type::XdgToplevel || m_type == Type::XWayland) {
-        if (auto *owner = desktop()) {
-            connect(owner->config(), &TreelandUserConfig::windowRadiusChanged,
-                    this, &SurfaceWrapper::radiusChanged);
-        }
-    }
-
     updateActivateCapability();
     updateFocusCapability();
     if (m_prelaunchSplash) {
@@ -917,7 +916,6 @@ void SurfaceWrapper::completeSplashTransition(const QSizeF &targetImplicitSize, 
         m_decoration->stackBefore(m_surfaceItem);
     }
 
-    m_surfaceItem->setVisible(true);
     if (m_type == Type::XWayland
         && (m_surfaceState == State::Maximized || m_surfaceState == State::Fullscreen)) {
         QMetaObject::invokeMethod(
@@ -938,7 +936,10 @@ void SurfaceWrapper::completeSplashTransition(const QSizeF &targetImplicitSize, 
     m_prelaunchSplash->setVisible(false);
     m_prelaunchSplash->deleteLater();
     m_prelaunchSplash = nullptr;
+    m_prelaunchFrameGeometry.reset();
     Q_EMIT prelaunchSplashChanged();
+    Q_EMIT presentationFrameGeometryChanged();
+    m_surfaceItem->setVisible(true);
 
     // Now that the splash is hidden and deleted, the surface can be considered active if it's
     // mapped
@@ -2359,6 +2360,61 @@ void SurfaceWrapper::startShowDesktopAnimation(bool show)
     Q_ASSERT(ok);
 }
 
+void SurfaceWrapper::initializeFrameGeometry()
+{
+    connect(this, &SurfaceWrapper::radiusChanged, this, &SurfaceWrapper::updateFrameGeometry);
+    connect(this, &SurfaceWrapper::noCornerRadiusChanged, this, &SurfaceWrapper::updateFrameGeometry);
+    connect(this, &SurfaceWrapper::noDecorationChanged, this, &SurfaceWrapper::updateFrameGeometry);
+    connect(this, &SurfaceWrapper::visibleDecorationChanged, this, &SurfaceWrapper::updateFrameGeometry);
+    connect(this, &SurfaceWrapper::surfaceItemCreated, this, &SurfaceWrapper::updateFrameGeometry);
+    connect(this, &SurfaceWrapper::prelaunchSplashChanged, this, &SurfaceWrapper::updateFrameGeometry);
+    updateRadiusConfig();
+}
+
+void SurfaceWrapper::updateRadiusConfig()
+{
+    disconnect(m_radiusConfigConnection);
+    if (auto *owner = desktop()) {
+        m_radiusConfigConnection = connect(owner->config(), &TreelandUserConfig::windowRadiusChanged,
+                                           this, &SurfaceWrapper::radiusChanged);
+    }
+    Q_EMIT radiusChanged();
+}
+
+void SurfaceWrapper::updateFrameGeometry()
+{
+    QQuickItem *item = m_surfaceItem ? m_surfaceItem : m_prelaunchSplash.data();
+    const bool itemChanged = m_frameItem != item;
+    if (itemChanged && m_prelaunchSplash && m_frameItem == m_prelaunchSplash && m_surfaceItem) {
+        // The visible splash must not inherit the incoming surface's provisional geometry.
+        m_prelaunchFrameGeometry = m_frameGeometry;
+    }
+    if (itemChanged) {
+        if (m_frameItem) {
+            disconnect(m_frameItem, &QQuickItem::widthChanged, this, &SurfaceWrapper::updateFrameGeometry);
+            disconnect(m_frameItem, &QQuickItem::heightChanged, this, &SurfaceWrapper::updateFrameGeometry);
+        }
+        m_frameItem = item;
+        if (item) {
+            connect(item, &QQuickItem::widthChanged, this, &SurfaceWrapper::updateFrameGeometry);
+            connect(item, &QQuickItem::heightChanged, this, &SurfaceWrapper::updateFrameGeometry);
+        }
+    }
+    // Static QQuickWindow::graphicsApi() can report the RHI API for the software scene graph.
+    // Proxies round on the radius alone: a client-side decorated source has no decoration
+    // item, but its thumbnail still needs a frame to clip the scaled content.
+    const bool rounded = (m_decoration || m_isProxy) && m_visibleDecoration && !m_noCornerRadius
+        && QQuickWindow::sceneGraphBackend() != QStringLiteral("software");
+    const FrameGeometry geometry(QRectF(QPointF(), item ? item->size() : QSizeF()),
+                                 rounded ? radius() : 0);
+    if (!itemChanged && geometry == m_frameGeometry)
+        return;
+    m_frameGeometry = geometry;
+    Q_EMIT frameGeometryChanged();
+    if (!m_prelaunchFrameGeometry)
+        Q_EMIT presentationFrameGeometryChanged();
+}
+
 qreal SurfaceWrapper::radius() const
 {
     if (isInputPopupLike())
@@ -2997,6 +3053,7 @@ void SurfaceWrapper::setSession(Session *session)
     }
     if (session && (type() == Type::XdgToplevel || type() == Type::XWayland || !shellSurface()))
         session->registerWindow(this);
+    updateRadiusConfig();
 }
 
 int SurfaceWrapper::workspaceId() const
