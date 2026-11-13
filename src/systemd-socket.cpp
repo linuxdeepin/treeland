@@ -87,10 +87,11 @@ public Q_SLOTS:
 
         if (updateFd.isValid()) {
             if (m_type == "wayland") {
-                if (!callDBus(updateFd,
-                              QStringLiteral("ActivateWayland"),
-                              QStringLiteral("Failed to activate Wayland socket"),
-                              QVariant::fromValue(*m_unixFileDescriptor))) {
+                const QDBusReply<bool> activated = updateFd.call(
+                    QStringLiteral("ActivateWayland"), QVariant::fromValue(*m_unixFileDescriptor));
+                if (!activated.isValid() || !activated.value()) {
+                    qCWarning(lcSdSocket) << "Failed to activate Wayland socket";
+                    scheduleActivateRetry();
                     return;
                 }
 
@@ -116,10 +117,12 @@ public Q_SLOTS:
                               QStringLiteral("UpdateActivationEnvironment"),
                               QStringLiteral("Failed to update Wayland activation environment"),
                               QVariant::fromValue(env))) {
+                    scheduleActivateRetry();
                     return;
                 }
 
                 sd_notify(0, "READY=1");
+                clearPendingRetry(ActivateRetry);
             } else if (m_type == "xwayland") {
                 QDBusMessage reply = updateFd.call("XWaylandName");
                 if (reply.type() == QDBusMessage::ReplyMessage) {
@@ -167,7 +170,7 @@ public Q_SLOTS:
                 }
             }
         }
-        if (m_type == "xwayland" && !updateFd.isValid()) {
+        if (!updateFd.isValid()) {
             scheduleActivateRetry();
         }
     }
@@ -259,9 +262,8 @@ private:
         if (m_compositorBus == bus)
             return true;
 
-        // Xwayland only has to react to auth refreshes. Its display number and
-        // the XAUTHORITY path survive a wlroots in-place Xwayland restart, so
-        // a session change does not affect it and must not re-run activation.
+        // Re-register the Wayland listener when a new Session replaces the old one.
+        // ActivateWayland reuses it when the Session is unchanged.
         const QString signalName = m_type == "xwayland"
             ? QStringLiteral("XWaylandAuthChanged")
             : QStringLiteral("SessionChanged");
@@ -311,7 +313,7 @@ private:
             Q_UNUSED(service)
             if (m_compositorBus == bus) {
                 m_started = false;
-                resetXwaylandActivationState();
+                resetActivationState();
                 scheduleStartRetry();
             }
         });
@@ -332,7 +334,7 @@ private:
     }
 
     void scheduleActivateRetry() {
-        if (m_type != "xwayland" || isRetryPending(ActivateRetry))
+        if (isRetryPending(ActivateRetry))
             return;
 
         setPendingRetry(ActivateRetry);
@@ -345,10 +347,7 @@ private:
         });
     }
 
-    void resetXwaylandActivationState() {
-        if (m_type != "xwayland")
-            return;
-
+    void resetActivationState() {
         m_lastXwaylandAuth.clear();
         clearPendingRetry(ActivateRetry);
     }

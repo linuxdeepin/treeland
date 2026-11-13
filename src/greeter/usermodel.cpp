@@ -345,13 +345,6 @@ void UserModel::setCurrentUserName(const QString &userName) noexcept
 {
     d->currentUserName = userName;
 
-    for (const auto &user : d->users) {
-        if (user->waylandSocket()) {
-            user->waylandSocket()->setEnabled(user->userName() == userName,
-                                              WaylandServer::instance()->sessionManager()->globalSession()->socket());
-        }
-    }
-
     Q_EMIT currentUserNameChanged();
 }
 
