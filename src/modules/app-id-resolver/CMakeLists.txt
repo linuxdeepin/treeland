@@ -1,7 +1,6 @@
-find_package(TreelandProtocols REQUIRED)
 
 waylib_generate_qtwayland_server_protocol(libtreeland
-    PROTOCOL ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-app-id-resolver-unstable-v2.xml
+    PROTOCOL ${PROJECT_SOURCE_DIR}/src/protocols/treeland-app-id-resolver-unstable-v2.xml
     BASENAME treeland-app-id-resolver-unstable-v2
 )
 

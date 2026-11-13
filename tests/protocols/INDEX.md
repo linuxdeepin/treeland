@@ -107,7 +107,7 @@ xdg-shell 由共享 xdg-toplevel 夹具覆盖（多个 toplevel 测试复用）�
 ## XML request / event / 业务链路盘点
 
 本节是对当前工作树的源码审计，不是某一次 CTest 的通过率。审计读取已安装的
-`/usr/share/treeland-protocols/treeland-*.xml`，并只把测试客户端中实际调用的生成
+`/usr/share/treeland-protocols/treeland-*.xml` 与仓库内的 `src/protocols/*.xml`，并只把测试客户端中实际调用的生成
 request stub 算作 request 覆盖；生成的 client-protocol 文件本身不计入。`destroy` 也单列，
 因为它证明资源生命周期，却通常不承载主要业务语义。
 
