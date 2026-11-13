@@ -352,6 +352,7 @@ qt_add_qml_module(libtreeland
         core/qml/DockPreview/DockPreviewListLayer.qml
         core/qml/DockPreview/DockPreviewListPresent.qml
         core/qml/DockPreview/DockPreviewListRow.qml
+        core/qml/DockPreview/DockPreviewScrollHint.qml
         core/qml/DockPreview/DockPreviewSlot.qml
         core/qml/DockPreview/DockPreviewSurface.qml
         core/qml/DockPreview/DockPreviewThumbnailPresent.qml
