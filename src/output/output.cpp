@@ -697,13 +697,10 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, ArrangeReason reaso
 }
 
 namespace {
-// Get the popup position (dPos) from the surface-local coordinate space,
-// adjusted to the SurfaceWrapper coordinate space.
-// - XDG popups: implicitPosition from wlr_xdg_popup_get_position already
-//   subtracts parent_geom, so it's relative to content geometry (no adjustment).
-// - Input popups: cursorRect is in raw surface coordinates; adjust by
-//   content geometry offset (e.g., CSD title bar) to match the rendering
-//   position of WSurfaceItem's contentContainer.
+// Get the popup position (dPos) in the parent surface's coordinate space.
+// Both popup kinds report surface coordinates: implicitPosition comes from
+// wlr_xdg_popup_get_position(), and cursorRect is the IME client's raw surface
+// rect. calculateBasePosition() maps that space onto the parent wrapper.
 std::optional<QPointF> popupDPos(SurfaceWrapper *surface)
 {
     using Type = SurfaceWrapper::Type;
@@ -715,15 +712,8 @@ std::optional<QPointF> popupDPos(SurfaceWrapper *surface)
 
     if (surface->type() == Type::InputPopup) {
         auto *shell = qobject_cast<WInputPopupSurface *>(surface->shellSurface());
-        if (shell) {
-            QPointF dPos = shell->cursorRect().bottomLeft();
-            auto parent = surface->parentSurface();
-            if (parent && parent->shellSurface()) {
-                const QPoint offset = parent->shellSurface()->getContentGeometry().topLeft();
-                dPos -= QPointF(offset.x(), offset.y());
-            }
-            return dPos;
-        }
+        if (shell)
+            return shell->cursorRect().bottomLeft();
     }
 
     qCWarning(lcTlOutput) << " Invalid popup surface type:" << surface->type();
@@ -739,12 +729,25 @@ QPointF Output::calculateBasePosition(SurfaceWrapper *surface, const QPointF &dP
         return QPointF();
     }
 
-    const qreal titlebarOffset = parent->titlebarGeometry().isNull()
-        ? 0.0
-        : parent->titlebarGeometry().height();
+    // dPos is expressed in the parent's surface coordinates: xdg-shell positions
+    // a popup relative to the parent's window geometry, and wlr reports it with
+    // the popup's own window geometry offset subtracted, so dPos carries both
+    // the parent's CSD margins and the popup's. The wrapper is placed at the
+    // popup's window geometry origin, which needs those offsets cancelled out.
+    // Mapping through the parent surface item also applies its paddings, i.e.
+    // the compositor-drawn titlebar of SSD parents, so no separate titlebar
+    // offset is needed here.
+    const QPointF parentContentPos = parent->surfaceItem()->mapFromSurface(dPos);
 
-    return QPointF(parent->x() + parent->surfaceItem()->x() + dPos.x(),
-                   parent->y() + parent->surfaceItem()->y() + dPos.y() + titlebarOffset);
+    QPointF ownContentOffset;
+    if (auto *shell = surface->shellSurface())
+        ownContentOffset = QPointF(shell->getContentGeometry().topLeft());
+    if (auto *item = surface->surfaceItem())
+        ownContentOffset -= QPointF(item->leftPadding(), item->topPadding());
+
+    const QPointF pos = parentContentPos + ownContentOffset;
+    return QPointF(parent->x() + parent->surfaceItem()->x() + pos.x(),
+                   parent->y() + parent->surfaceItem()->y() + pos.y());
 }
 
 void Output::adjustToOutputBounds(QPointF &pos, const QRectF &normalGeo, const QRectF &outputRect) const
