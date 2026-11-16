@@ -100,7 +100,42 @@ wlr_output_mode *closestOutputMode(WAYLIB_SERVER_NAMESPACE::WOutput *output,
     }
     return closestMode;
 }
+
+bool stageOutputConfig(Output *output,
+                       int width,
+                       int height,
+                       int refresh,
+                       qlonglong transform,
+                       double scale,
+                       bool adaptiveSync)
+{
+    if (!output || width <= 0 || height <= 0 || refresh <= 0 || scale <= 0.0)
+        return false;
+
+    qCInfo(lcTlOutput) << "Restoring output" << output->output()->name()
+                       << "mode" << QSize(width, height) << "@" << refresh
+                       << "scale" << scale << "transform" << transform;
+
+    WOutputHelper::ExtraState extra;
+    // Restoring an output means bringing it up: during the initial scan the
+    // output may be temporarily disabled, and a commit without ENABLED would
+    // leave the restored mode/scale unapplied until something else enables it.
+    wlr_output_state_set_enabled(extra.get(), true);
+    if (auto *mode = closestOutputMode(output->output(), width, height, refresh))
+        wlr_output_state_set_mode(extra.get(), mode);
+    else
+        wlr_output_state_set_custom_mode(extra.get(), width, height, refresh);
+    wlr_output_state_set_transform(extra.get(), static_cast<wl_output_transform>(transform));
+    wlr_output_state_set_scale(extra.get(), scale);
+    wlr_output_state_set_adaptive_sync_enabled(extra.get(), adaptiveSync);
+    if (!output->setExtraState(extra))
+        return false;
+
+    output->applyPendingGeometry();
+    return true;
 }
+
+} // namespace
 
 OutputManager::OutputManager(RootSurfaceContainer *rootContainer,
                              TreelandConfig *config,
@@ -153,13 +188,14 @@ void OutputManager::setScale(WOutput *target, qreal scale)
     if (!output || !std::isfinite(scale) || scale <= 0
         || !configurationReady(output->config()))
         return;
-    WOutputStateGuard state;
-    wlr_output_state_set_scale(state.get(), scale);
-    if (!wlr_output_commit_state(target->handle(), state.get()))
+    auto extra = output->extraState();
+    if (!extra)
+        extra = WOutputHelper::ExtraState();
+    wlr_output_state_set_scale(extra.get(), scale);
+    if (!output->setExtraState(extra))
         return;
+    output->applyPendingGeometry();
     output->config()->setScale(scale);
-    if (auto *viewport = ownOutputViewport(target))
-        viewport->setOutputScale(scale);
     Q_EMIT configurationChanged();
 }
 
@@ -753,7 +789,19 @@ void OutputManager::restoreOutputConfig(WAYLIB_SERVER_NAMESPACE::WOutput *output
 
     const int width = static_cast<int>(config->width());
     const int height = static_cast<int>(config->height());
-    const int refresh = static_cast<int>(config->refresh());
+    int refresh = static_cast<int>(config->refresh());
+    // A scale-only protocol change may have persisted a custom mode without a
+    // refresh; reuse the rate the output is actually running at.
+    if (refresh <= 0) {
+        auto *wlrOutput = output->handle();
+        if (wlrOutput->current_mode) {
+            refresh = wlrOutput->current_mode->refresh;
+        } else if (auto *mode = closestOutputMode(output, width, height, 0)) {
+            refresh = mode->refresh;
+        } else if (wlrOutput->refresh > 0) {
+            refresh = wlrOutput->refresh;
+        }
+    }
     const double scale = config->scale();
     const qlonglong transform = config->transform();
     if (width <= 0 || height <= 0 || refresh <= 0 || scale <= 0.0) {
@@ -770,35 +818,29 @@ void OutputManager::restoreOutputConfig(WAYLIB_SERVER_NAMESPACE::WOutput *output
         return;
     }
 
-    WOutputStateGuard newState;
-    wlr_output_state_set_enabled(newState.get(), true);
-
     if (auto *layout = m_rootContainer->outputLayout()) {
         layout->move(output, QPoint(static_cast<int>(config->x()), static_cast<int>(config->y())));
     }
 
-    if (auto *mode = closestOutputMode(output, width, height, refresh)) {
-        wlr_output_state_set_mode(newState.get(), mode);
-    } else {
-        wlr_output_state_set_custom_mode(newState.get(), width, height, refresh);
-    }
-
-    wlr_output_state_set_adaptive_sync_enabled(newState.get(), config->adaptiveSyncEnabled());
-    wlr_output_state_set_transform(newState.get(), static_cast<wl_output_transform>(transform));
-    wlr_output_state_set_scale(newState.get(), scale);
-    const bool commitOk = wlr_output_commit_state(output->handle(), newState.get());
-    if (!commitOk) {
+    if (!stageOutputConfig(outputObject,
+                           width,
+                           height,
+                           refresh,
+                           transform,
+                           scale,
+                           config->adaptiveSyncEnabled())) {
         qCCritical(lcTlCore) << "commit failed on output" << output->name();
         return;
     }
 
-    if (auto *outputItem = outputObject->outputItem()) {
-        QMetaObject::invokeMethod(outputItem,
-                                  "setTransform",
-                                  Q_ARG(QVariant, QVariant::fromValue(static_cast<WOutput::Transform>(transform))));
-    }
-
-    saveCurrentConfig(outputObject);
+    // Store what was staged. Reading the values back from the output here
+    // would still see the previous commit, because the helper commits on the
+    // next frame, and would overwrite the user's settings with stale ones.
+    config->setWidth(width);
+    config->setHeight(height);
+    config->setRefresh(refresh);
+    config->setTransform(static_cast<int>(transform));
+    config->setScale(scale);
 }
 
 int OutputManager::indexOf(WAYLIB_SERVER_NAMESPACE::WOutput *output) const
@@ -1323,27 +1365,19 @@ void OutputManager::restoreExtensionOutput(Output *outputObject)
         layout->move(output, position);
     }
 
-    WOutputStateGuard state;
-    wlr_output_state_set_enabled(state.get(), true);
-    if (auto *mode = closestOutputMode(output, width, height, refresh)) {
-        wlr_output_state_set_mode(state.get(), mode);
-    } else {
-        wlr_output_state_set_custom_mode(state.get(), width, height, refresh);
-    }
-    wlr_output_state_set_adaptive_sync_enabled(
-        state.get(), config->adaptiveSyncEnabled());
-    wlr_output_state_set_transform(
-        state.get(), static_cast<wl_output_transform>(transform));
-    wlr_output_state_set_scale(state.get(), scale);
-    if (!wlr_output_commit_state(output->handle(), state.get())) {
+    if (!stageOutputConfig(outputObject,
+                           width,
+                           height,
+                           refresh,
+                           transform,
+                           scale,
+                           config->adaptiveSyncEnabled())) {
         qCCritical(lcTlOutput) << "Failed to restore extension state for"
                                << output->name();
         return;
     }
-    if (auto *viewport = ownOutputViewport(output)) {
-        viewport->setOutputScale(scale);
-        viewport->rotateOutput(static_cast<WOutput::Transform>(transform));
-    }
+    // stageOutputConfig() stages the state and resizes the item/viewport,
+    // including the viewport rotation, before the commit frame is rendered.
 }
 
 void OutputManager::restoreInitialOutputConfiguration()
@@ -1629,18 +1663,10 @@ void OutputManager::testOrApplyConfiguration(WOutputManagerV1 *protocol,
                     state.customModeRefresh);
             }
             wlr_output_state_set_scale(extraState.get(), state.scale);
-            wlr_output_state_set_transform(
-                extraState.get(), static_cast<wl_output_transform>(state.transform));
+            // The transform is committed by the rotation animation at its
+            // halfway point, together with the viewport rotation.
             wlr_output_state_set_adaptive_sync_enabled(
                 extraState.get(), state.adaptiveSyncEnabled);
-
-            if (auto *outputItem = qobject_cast<WOutputItem *>(viewport->parentItem())) {
-                QMetaObject::invokeMethod(
-                    outputItem,
-                    "setTransform",
-                    Q_ARG(QVariant,
-                          QVariant::fromValue(static_cast<WOutput::Transform>(state.transform))));
-            }
         }
 
         if (!outputHelper->setExtraState(extraState)) {
@@ -1648,6 +1674,16 @@ void OutputManager::testOrApplyConfiguration(WOutputManagerV1 *protocol,
                                 << state.output->name();
             answerPendingConfiguration(false);
             return;
+        }
+
+        if (state.enabled) {
+            // Resize the QML item/viewport now; the rotation animation stages
+            // the transform and rotates the viewport at its halfway point (or
+            // applies both at once when animations are off).
+            output->applyPendingGeometry(false);
+            output->rotationOutput(state.transform);
+        } else {
+            output->applyPendingGeometry();
         }
 
         auto pendingConfig = m_pendingOutputConfig.config;
@@ -1750,6 +1786,13 @@ void OutputManager::handleOutputCommit(
                 layout->remove(output);
             }
         }
+        if (!success && output) {
+            // The staged state was dropped, so the geometry applied before the
+            // commit no longer matches the output. extraState is already
+            // cleared here, so this reads the committed values.
+            if (auto *outputObject = outputFor(output))
+                outputObject->applyPendingGeometry();
+        }
         if (currentRequest)
             onOutputCommitFinished(pendingConfig, success);
         if (success && committedState) {
@@ -1820,9 +1863,13 @@ void OutputManager::answerPendingConfiguration(bool ok)
                 state.mode ? state.mode->width : state.customModeSize.width());
             outputConfig->setHeight(
                 state.mode ? state.mode->height : state.customModeSize.height());
-            outputConfig->setRefresh(
-                state.mode ? state.mode->refresh : state.customModeRefresh);
-            outputConfig->setTransform(output->output()->handle()->transform);
+            const int refresh = state.mode
+                ? state.mode->refresh
+                : (state.customModeRefresh > 0
+                       ? state.customModeRefresh
+                       : output->output()->handle()->refresh);
+            outputConfig->setRefresh(refresh);
+            outputConfig->setTransform(static_cast<int>(state.transform));
             outputConfig->setScale(state.scale);
             outputConfig->setAdaptiveSyncEnabled(state.adaptiveSyncEnabled);
         }

@@ -9,6 +9,8 @@ OutputItem {
     id: outputItem
 
     required property SourceOutput targetOutputItem
+    // Treeland::Output wrapper, assigned by Output::createCopy().
+    property QtObject treelandOutput
     property OutputViewport screenViewport: viewport
 
     property OutputViewport sourceScreenViewport: targetOutputItem.screenViewport
@@ -113,8 +115,16 @@ OutputItem {
         Timer {
             id: transformTimer
             property var scheduleTransform
-            onTriggered: viewport.rotateOutput(scheduleTransform)
+            onTriggered: treelandOutput.setTransform(scheduleTransform)
             interval: rotationAnimator.duration / 2
+        }
+
+        // Rotation requests (protocol or menu) go through
+        // Output::rotationOutput(); this handler provides the animation.
+        Component.onCompleted: {
+            treelandOutput.rotationOutputHandler = function(transform) {
+                viewport.rotationOutput(transform)
+            }
         }
 
         function rotationAngle(orientation) {
@@ -131,18 +141,18 @@ OutputItem {
         }
 
         function rotationOutput(orientation) {
-            transformTimer.scheduleTransform = orientation
+            transformTimer.stop()
 
             if (!WaylandServer.animationConfig.mirrorOutputRotation) {
                 // Apply the visual value and the real transform together instead
                 // of waiting for the half-way timer.
-                transformTimer.stop()
                 rotationAnimator.complete()
                 rotation = rotationAngle(orientation)
-                viewport.rotateOutput(orientation)
+                treelandOutput.setTransform(orientation)
                 return
             }
 
+            transformTimer.scheduleTransform = orientation
             transformTimer.start()
             rotationAnimator.to = rotationAngle(orientation)
             rotationAnimator.from = rotation
@@ -151,7 +161,7 @@ OutputItem {
     }
 
     function setTransform(transform) {
-        viewport.rotationOutput(transform)
+        treelandOutput.rotationOutput(transform)
     }
 
     function setScale(scale) {

@@ -45,10 +45,6 @@ public:
     void setBuffer(wlr_buffer *buffer);
     wlr_buffer *buffer() const;
 
-    // TODO: Deprecate these methods in favor of setExtraState() for atomic operations
-    // These modify internal state directly and are kept for simple QML use cases
-    void setScale(float scale);
-    void setTransform(WOutput::Transform t);
 
     void setDamage(const pixman_region32 *damage);
     const pixman_region32 *damage() const;

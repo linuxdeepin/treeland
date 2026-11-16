@@ -175,18 +175,6 @@ wlr_buffer *WOutputHelper::buffer() const
     return d->state.buffer;
 }
 
-void WOutputHelper::setScale(float scale)
-{
-    W_D(WOutputHelper);
-    wlr_output_state_set_scale(&d->state, scale);
-}
-
-void WOutputHelper::setTransform(WOutput::Transform t)
-{
-    W_D(WOutputHelper);
-    wlr_output_state_set_transform(&d->state, static_cast<wl_output_transform>(t));
-}
-
 void WOutputHelper::setDamage(const pixman_region32 *damage)
 {
     W_D(WOutputHelper);
