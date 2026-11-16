@@ -30,13 +30,21 @@ public:
     WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *inputMethodHelper(
         WAYLIB_SERVER_NAMESPACE::WSeat *seat) const;
     IMCandidatePanelManager *candidatePanels() const { return m_candidatePanels; };
+    bool hasInputMethod() const;
     void addSeat(WAYLIB_SERVER_NAMESPACE::WSeat *seat, bool fallback);
     void removeSeat(WAYLIB_SERVER_NAMESPACE::WSeat *seat);
 
-private:
-    void createInputMethodProtocols();
+Q_SIGNALS:
+    void inputMethodChanged(bool connected);
+
+protected:
+    void activate() override;
+    void deactivate() override;
 
 private:
+    void createInputMethodProtocols();
+    void updateInputMethodState();
+    bool m_inputMethodConnected = false;
     WAYLIB_SERVER_NAMESPACE::WPointerGesturesV1 *m_pointerGestures = nullptr;
     WAYLIB_SERVER_NAMESPACE::WInputMethodHelper::Protocols m_inputMethodProtocols;
     QList<QPointer<WAYLIB_SERVER_NAMESPACE::WSeat>> m_seats;
