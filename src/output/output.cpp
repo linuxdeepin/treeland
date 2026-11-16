@@ -34,6 +34,7 @@
 #include <QQmlEngine>
 
 #include <algorithm>
+#include <cmath>
 #include <optional>
 
 #define SAME_APP_OFFSET_FACTOR 1.0
@@ -59,9 +60,18 @@ QString Output::getOutputId()
 Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 {
     auto *config = WaylandServer::instance()->globalConfig();
+    auto *o = new Output(output, parent);
+    o->m_type = Type::Source;
+
     QQmlComponent delegate(engine, "Treeland", "SourceOutput");
     QObject *obj = delegate.beginCreate(engine->rootContext());
-    delegate.setInitialProperties(obj, { { "forceSoftwareCursor", config->forceSoftwareCursor() } });
+    if (Q_UNLIKELY(!obj)) {
+        qCFatal(lcTlOutput) << "Can't create SourceOutput:" << delegate.errorString();
+    }
+    delegate.setInitialProperties(obj, {
+        { "forceSoftwareCursor", config->forceSoftwareCursor() },
+        { "treelandOutput", QVariant::fromValue<QObject *>(o) },
+    });
     delegate.completeCreate();
     WOutputItem *outputItem = qobject_cast<WOutputItem *>(obj);
     Q_ASSERT(outputItem);
@@ -70,6 +80,7 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
     auto contentItem = WaylandServer::instance()->window()->contentItem();
     outputItem->setParentItem(contentItem);
     outputItem->setOutput(output);
+    o->setOutputItem(outputItem);
 
     connect(WaylandServer::instance()->globalConfig(),
             &TreelandConfig::forceSoftwareCursorChanged,
@@ -80,10 +91,7 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
                 obj->setProperty("forceSoftwareCursor", forceSoftwareCursor);
             });
 
-    auto o = new Output(outputItem, parent);
-    o->m_type = Type::Source;
     obj->setParent(o);
-
 
     // Triggering layout updates using a queue helps reduce window jitter.
     // When the screen scaling factor changes, the scale of WOutput is updated first,
@@ -120,12 +128,20 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 
 Output *Output::createCopy(WOutput *output, Output *proxy, QQmlEngine *engine, QObject *parent)
 {
+    auto *o = new Output(output, parent);
+    o->m_type = Type::Mirror;
+    o->m_proxy = proxy;
+
     QQmlComponent delegate(engine, "Treeland", "MirrorOutput");
     QObject *obj = delegate.createWithInitialProperties(
         {
             { "targetOutputItem", QVariant::fromValue(proxy->outputItem()) },
+            { "treelandOutput", QVariant::fromValue<QObject *>(o) },
         },
         engine->rootContext());
+    if (Q_UNLIKELY(!obj)) {
+        qCFatal(lcTlOutput) << "Can't create MirrorOutput:" << delegate.errorString();
+    }
     WOutputItem *outputItem = qobject_cast<WOutputItem *>(obj);
     Q_ASSERT(outputItem);
     QQmlEngine::setObjectOwnership(outputItem, QQmlEngine::CppOwnership);
@@ -133,10 +149,7 @@ Output *Output::createCopy(WOutput *output, Output *proxy, QQmlEngine *engine, Q
     auto contentItem = WaylandServer::instance()->window()->contentItem();
     outputItem->setParentItem(contentItem);
     outputItem->setOutput(output);
-
-    auto o = new Output(outputItem, parent);
-    o->m_type = Type::Mirror;
-    o->m_proxy = proxy;
+    o->setOutputItem(outputItem);
     obj->setParent(o);
 
     o->updateOutputHardwareLayers();
@@ -148,14 +161,11 @@ Output *Output::createCopy(WOutput *output, Output *proxy, QQmlEngine *engine, Q
     return o;
 }
 
-Output::Output(WOutputItem *output, QObject *parent)
+Output::Output(WOutput *output, QObject *parent)
     : SurfaceListModel(parent)
-    , m_item(output)
-    , m_backlight(Backlight::createForOutput(output->output()))
+    , m_backlight(Backlight::createForOutput(output))
 {
-    m_outputViewport = output->property("screenViewport").value<WOutputViewport *>();
-
-    QString outputName = Output::getOutputId(output->output()->handle());
+    QString outputName = Output::getOutputId(output->handle());
     auto *configManager = DConfigManager::instance();
     Q_ASSERT(configManager);
     m_config = configManager ? configManager->outputConfig(outputName) : nullptr;
@@ -164,6 +174,14 @@ Output::Output(WOutputItem *output, QObject *parent)
             this, &Output::minimizedSurfacesChanged);
     connect(WaylandServer::instance(), &WaylandServer::desktopChanged,
             this, &Output::arrangeAllSurfaces);
+}
+
+void Output::setOutputItem(WOutputItem *item)
+{
+    Q_ASSERT(item);
+    Q_ASSERT(!m_item);
+    m_item = item;
+    m_outputViewport = item->property("screenViewport").value<WOutputViewport *>();
 }
 
 Output::~Output()
@@ -429,6 +447,147 @@ qreal Output::preferredScaleFactor(const QSize &pixelSize) const
     return calcPreferredScale(pixelSize.width(), pixelSize.height(), o->phys_width, o->phys_height);
 }
 
+void Output::applyGeometry(const QSize &modePixels, WOutput::Transform transform, qreal scale)
+{
+    if (!modePixels.isValid() || modePixels.isEmpty() || !std::isfinite(scale) || scale <= 0.0)
+        return;
+
+    QSize logical = modePixels;
+    if (int(transform) % 2 != 0)
+        logical.transpose();
+    if (m_item) {
+        m_item->setWidth(logical.width() / scale);
+        m_item->setHeight(logical.height() / scale);
+    }
+    if (m_outputViewport) {
+        m_outputViewport->setWidth(modePixels.width() / scale);
+        m_outputViewport->setHeight(modePixels.height() / scale);
+    }
+}
+
+bool Output::setTransform(WOutput::Transform transform)
+{
+    auto *handle = output() ? output()->handle() : nullptr;
+    if (!handle || handle->width <= 0 || handle->height <= 0)
+        return false;
+
+    auto extra = extraState();
+    if (!extra)
+        extra = WOutputHelper::ExtraState();
+    wlr_output_state_set_transform(extra.get(),
+                                   static_cast<wl_output_transform>(transform));
+    if (!setExtraState(extra))
+        return false;
+
+    // The rotation animation owns the viewport rotation, so only the geometry
+    // is resynced here.
+    applyPendingGeometry(false);
+    return true;
+}
+
+void Output::setViewportRotation(WOutput::Transform transform)
+{
+    if (!m_outputViewport)
+        return;
+
+    // Same mapping as the rotation animation in SourceOutput.qml.
+    int angle = 0;
+    switch (transform) {
+    case WOutput::Transform::R90:
+        angle = 90;
+        break;
+    case WOutput::Transform::R180:
+        angle = 180;
+        break;
+    case WOutput::Transform::R270:
+        angle = -90;
+        break;
+    default:
+        break;
+    }
+    m_outputViewport->setRotation(angle);
+}
+
+QJSValue Output::rotationOutputHandler() const
+{
+    return m_rotationOutputHandler;
+}
+
+void Output::setRotationOutputHandler(const QJSValue &handler)
+{
+    if (m_rotationOutputHandler.equals(handler))
+        return;
+    m_rotationOutputHandler = handler;
+    Q_EMIT rotationOutputHandlerChanged();
+}
+
+void Output::rotationOutput(WOutput::Transform transform)
+{
+    if (m_rotationOutputHandler.isCallable()) {
+        QJSValueList args;
+        args << QJSValue(static_cast<int>(transform));
+        m_rotationOutputHandler.call(args);
+        return;
+    }
+
+    setViewportRotation(transform);
+    setTransform(transform);
+}
+
+void Output::applyPendingGeometry(bool rotateViewport)
+{
+    auto *handle = output() ? output()->handle() : nullptr;
+    if (!handle)
+        return;
+
+    QSize mode = handle->current_mode
+        ? QSize(handle->current_mode->width, handle->current_mode->height)
+        : QSize(handle->width, handle->height);
+    auto transform = output()->orientation();
+    qreal scale = output()->scale();
+
+    // A staged mode/transform/scale is not committed yet, but the QML item and
+    // viewport must already match it, otherwise the frame that commits the new
+    // state draws at the old size.
+    if (auto extra = extraState()) {
+        if (extra->committed & WLR_OUTPUT_STATE_MODE) {
+            if (extra->mode_type == WLR_OUTPUT_STATE_MODE_FIXED && extra->mode) {
+                mode = QSize(extra->mode->width, extra->mode->height);
+            } else if (extra->mode_type == WLR_OUTPUT_STATE_MODE_CUSTOM) {
+                mode = QSize(extra->custom_mode.width, extra->custom_mode.height);
+            }
+        }
+        if (extra->committed & WLR_OUTPUT_STATE_TRANSFORM)
+            transform = static_cast<WOutput::Transform>(extra->transform);
+        if (extra->committed & WLR_OUTPUT_STATE_SCALE)
+            scale = extra->scale;
+    }
+
+    applyGeometry(mode, transform, scale);
+    if (rotateViewport)
+        setViewportRotation(transform);
+}
+
+bool Output::setExtraState(WOutputHelper::ExtraState state)
+{
+    auto *window = m_outputViewport ? m_outputViewport->outputRenderWindow() : nullptr;
+    auto *helper = window ? window->getOutputHelper(m_outputViewport) : nullptr;
+    if (!helper || !helper->setExtraState(state))
+        return false;
+    if (auto *woutput = output())
+        woutput->scheduleFrame();
+    return true;
+}
+
+WOutputHelper::ExtraState Output::extraState() const
+{
+    auto *window = m_outputViewport ? m_outputViewport->outputRenderWindow() : nullptr;
+    auto *helper = window ? window->getOutputHelper(m_outputViewport) : nullptr;
+    if (!helper)
+        return {};
+    return helper->extraState();
+}
+
 void Output::enable()
 {
     // Enable on default
@@ -460,6 +619,7 @@ void Output::enable()
             qCCritical(lcTlCore, "commit failed on output %s", wlrOutput->name);
             return;
         }
+        applyPendingGeometry();
         output()->setProperty("_Enabled", true);
         qCInfo(lcTlOutput) << "Enabled output" << wlrOutput->name
                            << "cached:" << cachedEnabled
@@ -1152,7 +1312,11 @@ void Output::setOutputColor(qreal brightness,
                      g,
                      b);
 
-    WOutputHelper::ExtraState newState;
+    // Keep mode/scale/transform that is already staged for this output; a
+    // colour-only replacement would silently drop it.
+    WOutputHelper::ExtraState newState = extraState();
+    if (!newState)
+        newState = WOutputHelper::ExtraState();
     auto *viewport = screenViewport();
     auto *renderWindow = screenViewport()->outputRenderWindow();
     auto *tr = wlr_color_transform_init_lut_3x1d(gammaSize,

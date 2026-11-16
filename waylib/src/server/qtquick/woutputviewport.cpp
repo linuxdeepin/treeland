@@ -4,6 +4,7 @@
 #include "woutputviewport.h"
 #include "woutputviewport_p.h"
 #include "woutput.h"
+#include "woutputhelper.h"
 #include "wsgtextureprovider.h"
 #include "wbufferrenderer_p.h"
 
@@ -495,15 +496,31 @@ void WOutputViewport::setDepends(const QList<WOutputViewport *> &newDepends)
 void WOutputViewport::setOutputScale(float scale)
 {
     W_D(WOutputViewport);
-    if (auto window = d->outputWindow())
-        window->setOutputScale(this, scale);
+    auto *window = d->outputWindow();
+    auto *helper = window ? window->getOutputHelper(this) : nullptr;
+    if (!helper)
+        return;
+    WOutputHelper::ExtraState extra = helper->extraState();
+    if (!extra)
+        extra = WOutputHelper::ExtraState();
+    wlr_output_state_set_scale(extra.get(), scale);
+    if (helper->setExtraState(extra))
+        d->output->scheduleFrame();
 }
 
 void WOutputViewport::rotateOutput(WOutput::Transform t)
 {
     W_D(WOutputViewport);
-    if (auto window = d->outputWindow())
-        window->rotateOutput(this, t);
+    auto *window = d->outputWindow();
+    auto *helper = window ? window->getOutputHelper(this) : nullptr;
+    if (!helper)
+        return;
+    WOutputHelper::ExtraState extra = helper->extraState();
+    if (!extra)
+        extra = WOutputHelper::ExtraState();
+    wlr_output_state_set_transform(extra.get(), static_cast<wl_output_transform>(t));
+    if (helper->setExtraState(extra))
+        d->output->scheduleFrame();
 }
 
 void WOutputViewport::render(bool doCommit)

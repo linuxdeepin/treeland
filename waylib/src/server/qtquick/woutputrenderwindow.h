@@ -44,11 +44,6 @@ public:
 
     WOutputHelper *getOutputHelper(WOutputViewport *output) const;
 
-    // TODO: Deprecate these convenience methods in favor of getOutputHelper() + setExtraState()
-    // for atomic multi-property operations. These are kept for simple QML use cases.
-    void setOutputScale(WOutputViewport *output, float scale);
-    void rotateOutput(WOutputViewport *output, WOutput::Transform t);
-
     void init(wlr_renderer *renderer, wlr_allocator *allocator);
     wlr_renderer *renderer() const;
     wlr_allocator *allocator() const;
