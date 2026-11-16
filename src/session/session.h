@@ -42,6 +42,7 @@ class SessionProtocols;
 class SessionPrelaunch;
 class SessionScene;
 class SessionWorkspace;
+class SessionMultitaskView;
 class SessionOutputManager;
 class SessionSwitcher;
 class InputManager;
@@ -70,6 +71,7 @@ public:
 #endif
     Workspace *workspace() const;
     SessionWorkspace *sessionWorkspace() const { return m_workspace; }
+    SessionMultitaskView *multitaskView() const { return m_multitaskView; }
     DesktopSurfaceModel *windows() const { return m_desktop->windows(); };
     TreelandUserConfig *config() const { return m_config; };
     SessionSeatManager *seatManager() const { return m_seatManager; };
@@ -110,6 +112,7 @@ private:
     SessionPrelaunch *m_prelaunch = nullptr;
     SessionScene *m_scene = nullptr;
     SessionWorkspace *m_workspace = nullptr;
+    SessionMultitaskView *m_multitaskView = nullptr;
     SessionOutputManager *m_outputManager = nullptr;
     QList<WServerInterface *> m_interfaces;
     QPointer<ForeignToplevelManagerInterfaceV3> m_windowManagement;

@@ -327,12 +327,12 @@ public:
             updatePluginTs(plugin, scope);
 #endif
 
-            if (auto *multitaskview = qobject_cast<IMultitaskView *>(pluginInstance)) {
+            if (auto *multitaskview = qobject_cast<IMultitaskViewFactory *>(pluginInstance)) {
                 qCDebug(lcTlPlugin) << "Get MultitaskView Instance.";
                 connect(pluginInstance, &QObject::destroyed, this, [this] {
-                    server->setMultitaskViewImpl(nullptr);
+                    server->setMultitaskViewFactory(nullptr);
                 });
-                server->setMultitaskViewImpl(multitaskview);
+                server->setMultitaskViewFactory(multitaskview);
             }
 
 #if !defined(DISABLE_DDM) || defined(EXT_SESSION_LOCK_V1)

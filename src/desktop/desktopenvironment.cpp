@@ -60,10 +60,19 @@ DesktopSurfaceModel *DesktopEnvironment::windows() const { return m_windows; }
 InputManager *DesktopEnvironment::input() const { return m_input; }
 WallpaperManager *DesktopEnvironment::wallpaper() const { return m_wallpaper; }
 SessionSwitcher *DesktopEnvironment::switcher() const { return m_switcher; }
+SessionMultitaskView *DesktopEnvironment::multitaskView() const { return m_multitaskView; }
+
+
 SessionOutputManager *DesktopEnvironment::outputs() const { return m_outputs; }
 ForeignToplevelManagerInterfaceV3 *DesktopEnvironment::windowManagement() const { return m_windowManagement; }
 SurfaceWrapper *DesktopEnvironment::activatedWindow() const { return m_activatedWindow; }
 QQuickItem *DesktopEnvironment::viewRoot() const { return m_viewRoot; }
+
+void DesktopEnvironment::attachMultitaskView(SessionMultitaskView *view)
+{
+    Q_ASSERT(!m_multitaskView && view);
+    m_multitaskView = view;
+}
 
 void DesktopEnvironment::attachOutputs(SessionOutputManager *outputs)
 {

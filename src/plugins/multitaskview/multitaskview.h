@@ -6,18 +6,23 @@
 
 #include <QAbstractListModel>
 #include <QQuickItem>
+#include <QPointer>
 Q_MOC_INCLUDE("surface/surfacecontainer.h")
 Q_MOC_INCLUDE("workspace/workspacemodel.h")
 Q_MOC_INCLUDE("output/output.h")
+class DesktopEnvironment;
+Q_MOC_INCLUDE("desktop/desktopenvironment.h")
 class SurfaceListModel;
 class SurfaceWrapper;
 class WorkspaceModel;
 class Output;
 
-class Multitaskview : public QQuickItem
+class Multitaskview : public QQuickItem, public IMultitaskView
 {
     Q_OBJECT
     QML_ELEMENT
+    Q_INTERFACES(IMultitaskView)
+    Q_PROPERTY(DesktopEnvironment *desktop READ desktop WRITE setDesktop NOTIFY desktopChanged REQUIRED FINAL)
     Q_PROPERTY(Status status READ status NOTIFY actionFinished FINAL)
     Q_PROPERTY(ActiveReason activeReason READ activeReason NOTIFY activeReasonChanged FINAL)
     Q_PROPERTY(qreal partialFactor READ partialFactor NOTIFY partialFactorChanged FINAL)
@@ -49,15 +54,21 @@ public:
 
     Multitaskview(QQuickItem *parent = nullptr);
 
+    DesktopEnvironment *desktop() const;
+    void setDesktop(DesktopEnvironment *desktop);
+    void setStatus(IMultitaskView::Status status) override;
+    void toggleMultitaskView(IMultitaskView::ActiveReason reason) override;
+    void immediatelyExit() override;
     Status status() const;
-    void commitGesture(bool triggered);
+    void commitGesture(bool triggered) override;
     void setStatus(Status status);
-    void updatePartialFactor(qreal progress);
+    void updatePartialFactor(qreal progress) override;
     ActiveReason activeReason() const;
-    qreal partialFactor() const;
+    qreal partialFactor() const override;
     void setActiveReason(ActiveReason activeReason);
 
 Q_SIGNALS:
+    void desktopChanged();
     void actionFinished();
     void activeReasonChanged();
     void partialFactorChanged();
@@ -72,6 +83,7 @@ private:
     // part of this view (for example another compositor overlay).
     void onActiveFocusItemChanged();
 
+    QPointer<DesktopEnvironment> m_desktop;
     Status m_status;
     ActiveReason m_activeReason;
     qreal m_partialFactor{ 0.0 };

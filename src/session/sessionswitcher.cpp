@@ -24,7 +24,8 @@ SessionSwitcher::SessionSwitcher(Workspace *workspace, QmlEngine *engine, Waylan
 void SessionSwitcher::setShortcutController(ShortcutController *controller, ShortcutManagerV3 *protocol)
 {
     Q_ASSERT(!m_shortcuts);
-    m_shortcuts = new ShortcutRunner(m_workspace, this, controller, m_runtime, m_inputFilter, protocol);
+    m_shortcuts = new ShortcutRunner(m_workspace, this, controller, m_desktop->multitaskView(),
+                                    m_runtime, m_inputFilter, protocol);
     if (m_running)
         m_shortcuts->start();
 }

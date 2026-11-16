@@ -110,6 +110,7 @@ class GraphicsPlatform;
 class GreeterProxy;
 class ILockScreen;
 class IMultitaskView;
+class IMultitaskViewFactory;
 class LockScreen;
 class LockScreenInterface;
 class Multitaskview;
@@ -265,7 +266,9 @@ public:
     Q_INVOKABLE QString currentWorkspaceWallpaper(WOutput *output);
     Q_INVOKABLE QString currentLockScreenWallpaper(WOutput *output);
 
-    void setMultitaskViewImpl(IMultitaskView *impl);
+    void setMultitaskViewFactory(IMultitaskViewFactory *factory);
+    QQuickItem *createMultitaskView(DesktopEnvironment *desktop);
+    IMultitaskView *multitaskView() const;
     void setLockScreenImpl(ILockScreen *impl);
 
     CurrentMode currentMode() const
@@ -471,7 +474,7 @@ private:
     QPropertyAnimation *m_workspaceScaleAnimation{ nullptr };
     QPropertyAnimation *m_workspaceOpacityAnimation{ nullptr };
 
-    IMultitaskView *m_multitaskView{ nullptr };
+    IMultitaskViewFactory *m_multitaskViewFactory{ nullptr };
     UserModel *m_userModel{ nullptr };
     SessionModel *m_sessionModel{ nullptr };
     GreeterProxy *m_greeterProxy{ nullptr };

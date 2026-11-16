@@ -248,6 +248,8 @@ qt_add_qml_module(libtreeland
         session/sessioncomponent.h
         session/sessionworkspace.cpp
         session/sessionworkspace.h
+        session/sessionmultitaskview.cpp
+        session/sessionmultitaskview.h
         session/sessionscene.cpp
         session/sessionscene.h
         session/sessionswitcher.cpp

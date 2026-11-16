@@ -14,6 +14,7 @@ class QmlEngine;
 class WaylandServer;
 class TreelandUserConfig;
 class SessionSwitcher;
+class SessionMultitaskView;
 class SessionInputChannel;
 class SessionOutputManager;
 class ForeignToplevelManagerInterfaceV3;
@@ -61,6 +62,8 @@ public:
     InputManager *input() const;
     WallpaperManager *wallpaper() const;
     SessionSwitcher *switcher() const;
+    SessionMultitaskView *multitaskView() const;
+    void attachMultitaskView(SessionMultitaskView *view);
     SessionOutputManager *outputs() const;
     ForeignToplevelManagerInterfaceV3 *windowManagement() const;
     SurfaceWrapper *activatedWindow() const;
@@ -95,6 +98,7 @@ private:
     InputManager *const m_input;
     WallpaperManager *const m_wallpaper;
     SessionSwitcher *const m_switcher;
+    SessionMultitaskView *m_multitaskView = nullptr;
     SessionInputChannel *m_inputChannel = nullptr;
     SessionOutputManager *m_outputs = nullptr;
     QPointer<ForeignToplevelManagerInterfaceV3> m_windowManagement;
