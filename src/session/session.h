@@ -105,6 +105,7 @@ public:
 
 Q_SIGNALS:
     void activeChanged(bool active);
+    void inputMethodChanged(bool connected);
     void aboutToBeDestroyed();
     void clientsClosed();
     void lock(Session *session);

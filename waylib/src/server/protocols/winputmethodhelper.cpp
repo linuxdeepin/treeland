@@ -114,6 +114,14 @@ public:
 
     bool isTextInputEligible(WTextInput *ti) const
     {
+        // A deactivated session must not route text input at all, even if the
+        // seat focus or a text input keeps changing underneath it. Without this
+        // an activation that a later event triggers (a popup closing, a text
+        // input committing) would re-arm the input method of a session that is
+        // no longer on screen.
+        if (suspended)
+            return false;
+
         if (!ti || !seat)
             return false;
 
@@ -251,7 +259,9 @@ public:
             || !activeKeyboardGrab || isInputMethodVirtualKeyboard(activeKeyboardGrab, device)) {
             return true;
         }
-        if (!hasEligibleTextInput())
+        // A suspended session must never absorb keys, even if a grab endpoint
+        // is still installed: its client is no longer on screen.
+        if (suspended || !hasEligibleTextInput())
             return true;
 
         // An xdg-popup or drag-and-drop grab owns the seat keyboard while it is
@@ -313,6 +323,11 @@ public:
     WInputMethodV2 *activeInputMethod { nullptr };
     wlr_input_method_keyboard_grab_v2 *activeKeyboardGrab {nullptr};
     bool inputMethodActive = false;
+    // Set while the owning session is inactive. isTextInputEligible() reports
+    // nothing then, so reconcileTextInput() cannot re-activate the input method
+    // from an event that arrives after deactivate() (a closing popup, a focus
+    // move, a late commit).
+    bool suspended = false;
     bool updatingFocus = false;
     bool pendingResync = false;
     bool drainingPopupSurfaces = false;
@@ -532,21 +547,47 @@ bool WInputMethodHelper::inputMethodConnected() const
     return d->activeInputMethod != nullptr;
 }
 
+bool WInputMethodHelper::inputMethodActive() const
+{
+    W_DC(WInputMethodHelper);
+    return d->inputMethodActive;
+}
+
+bool WInputMethodHelper::isSuspended() const
+{
+    W_DC(WInputMethodHelper);
+    return d->suspended;
+}
+
 void WInputMethodHelper::deactivate()
 {
     W_D(WInputMethodHelper);
-    if (!d->inputMethodActive)
-        return;
-    if (auto *im = d->activeInputMethod) {
-        im->sendDeactivate();
-        im->sendDone();
+    // Latch suspension first: notifyLeave() below can run client code that
+    // reports focus changes straight back into the helper, and those must not
+    // re-activate what is being shut down.
+    const bool alreadySuspended = d->suspended;
+    d->suspended = true;
+
+    if (d->inputMethodActive) {
+        if (auto *im = d->activeInputMethod) {
+            im->sendDeactivate();
+            im->sendDone();
+        }
+        d->inputMethodActive = false;
+        d->forwardedKeys.clear();
+        // The client must drop composition together with the session; leaving
+        // it latched would let the old user's preedit survive into the next
+        // session.
+        notifyLeave();
+        d->resyncKeyboardState();
     }
-    d->inputMethodActive = false;
-    d->forwardedKeys.clear();
-    // The client must drop composition together with the session; leaving it
-    // latched would let the old user's preedit survive into the next session.
-    notifyLeave();
-    d->resyncKeyboardState();
+
+    // Reconcile unconditionally (not only when a composition was active): the
+    // helper may have been suspended while only text-input focus tracking was
+    // live. reconcileTextInput() now reports no candidate, which drops the
+    // anchor and releases pending popups.
+    if (!alreadySuspended)
+        reconcileTextInput("helper deactivated");
 }
 
 void WInputMethodHelper::activate()
@@ -554,6 +595,9 @@ void WInputMethodHelper::activate()
     W_D(WInputMethodHelper);
     if (!d->seat)
         return;
+    // Clearing the latch is what lets isTextInputEligible() match again; the
+    // full re-send re-enters this session's text input on return.
+    d->suspended = false;
     resendKeyboardFocus();
 }
 
@@ -706,6 +750,10 @@ void WInputMethodHelper::resendKeyboardFocus()
 {
     W_D(WInputMethodHelper);
     if (!d->seat)
+        return;
+    // A suspended session must not drive text-input enter/leave at all. It is
+    // woken by activate(), which clears the latch and re-runs this.
+    if (d->suspended)
         return;
     auto *seatFocus = d->seat->keyboardFocusSurface();
     auto *focus = d->textInputFocusForCurrentSeatFocus();

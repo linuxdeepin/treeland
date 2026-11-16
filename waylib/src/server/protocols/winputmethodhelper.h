@@ -45,6 +45,13 @@ public:
     WSurface *textInputFocusSurface() const;
     QRect textInputCursorRect() const;
     bool inputMethodConnected() const;
+    // Whether the seat's input method is currently activated for this helper.
+    // Cleared by deactivate() and by losing the focused text input; kept
+    // observable so session switching and tests can assert the invariant that a
+    // suspended helper never holds an active composition.
+    bool inputMethodActive() const;
+    // Whether the owning session has suspended this helper.
+    bool isSuspended() const;
 
 public Q_SLOTS:
     // End the active input-method session without destroying the helper.
