@@ -410,11 +410,20 @@ bool UserModel::tryAddNssUser(const QString &userName)
     // pw_gecos is comma-separated ("Full Name,Room,Work,Home,Other"); use only the first field.
     QString fullName = QString::fromLocal8Bit(pw->pw_gecos).section(QLatin1Char(','), 0, 0);
 
+    // Copy the NSS fields before calling into the account service.
+    const auto uid = static_cast<uid_t>(pw->pw_uid);
+    const auto gid = static_cast<gid_t>(pw->pw_gid);
+    const auto homeDir = QString::fromLocal8Bit(pw->pw_dir);
+
+    auto account = d->manager.findUserById(uid);
+    if (account && QString::fromUtf8(account.value()->userName()) == userName)
+        return addUser(std::make_unique<User>(std::move(account).value()));
+
     qCInfo(lcTlGreeter) << "Adding NSS/LDAP user to model:" << userName;
     return addUser(std::make_unique<User>(
         userName,
-        static_cast<uid_t>(pw->pw_uid),
-        static_cast<gid_t>(pw->pw_gid),
-        QString::fromLocal8Bit(pw->pw_dir),
+        uid,
+        gid,
+        homeDir,
         fullName));
 }
