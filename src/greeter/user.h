@@ -44,10 +44,11 @@ public:
     void merge(const User &other);
 
 Q_SIGNALS:
-    void userDataChanged();
     void limitTimeChanged(const QString &time);
 
 private:
+    void updateUserData();
+
     UserPrivate *d{ nullptr };
 };
 

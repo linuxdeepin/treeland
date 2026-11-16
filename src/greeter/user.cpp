@@ -51,9 +51,12 @@ User::User(AccountsUserPtr ptr)
         qCFatal(lcTlGreeter) << "connect to AccountService Failed";
     }
 
-    connect(d->inter.data(), &DAccountsUser::userDataChanged, [this] {
-        d->updateUserData();
-        Q_EMIT userDataChanged();
+    connect(d->inter.data(), &DAccountsUser::userDataChanged, this, &User::updateUserData);
+    connect(d->inter.data(), &DAccountsUser::iconFileChanged, this, [this](const QUrl &icon) {
+        if (d->icon == icon)
+            return;
+
+        d->icon = icon;
     });
 
     d->updateUserData();
@@ -75,6 +78,11 @@ User::User(const QString &userName, uid_t uid, gid_t gid,
 User::~User()
 {
     delete d;
+}
+
+void User::updateUserData()
+{
+    d->updateUserData();
 }
 
 bool User::noPasswdLogin() const noexcept
@@ -159,8 +167,6 @@ void User::merge(const User &other)
     d->locale = other.d->locale;
     d->identity = other.d->identity;
     d->noPasswdLogin = other.d->noPasswdLogin;
-
-    Q_EMIT userDataChanged();
 }
 
 std::shared_ptr<WAYLIB_SERVER_NAMESPACE::WSocket> User::waylandSocket() const
