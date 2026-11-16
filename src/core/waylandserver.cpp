@@ -3,6 +3,7 @@
 
 #include "waylandserver.h"
 #include "session/sessionmanager.h"
+#include "session/sessionmultitaskview.h"
 #include "lockscreen/lockscreenmanager.h"
 #include "showdesktop/showdesktop.h"
 #include "surfaceprotocolcontroller.h"
@@ -461,8 +462,8 @@ bool WaylandServer::surfaceBelongsToCurrentSession(SurfaceWrapper *wrapper)
 
 void WaylandServer::onWorkspaceChanged()
 {
-    if (m_multitaskView)
-        m_multitaskView->immediatelyExit();
+    if (auto *view = multitaskView())
+        view->immediatelyExit();
     if (m_currentMode == CurrentMode::Multitaskview)
         setCurrentMode(CurrentMode::Normal);
     deleteTaskSwitch();
@@ -894,9 +895,24 @@ QString WaylandServer::currentLockScreenWallpaper(WOutput *output)
     return wallpaperManager()->currentLockScreenWallpaper(output);
 }
 
-void WaylandServer::setMultitaskViewImpl(IMultitaskView *impl)
+void WaylandServer::setMultitaskViewFactory(IMultitaskViewFactory *factory)
 {
-    m_multitaskView = impl;
+    if (m_multitaskViewFactory == factory)
+        return;
+    for (const auto &owner : m_sessionManager->sessions())
+        owner->multitaskView()->immediatelyExit();
+    m_multitaskViewFactory = factory;
+}
+
+QQuickItem *WaylandServer::createMultitaskView(DesktopEnvironment *desktop)
+{
+    return m_multitaskViewFactory ? m_multitaskViewFactory->createMultitaskView(desktop) : nullptr;
+}
+
+IMultitaskView *WaylandServer::multitaskView() const
+{
+    auto *owner = activeSession();
+    return owner ? owner->multitaskView() : nullptr;
 }
 
 void WaylandServer::setCurrentMode(CurrentMode mode)
@@ -917,8 +933,8 @@ void WaylandServer::setCurrentMode(CurrentMode mode)
 
 void WaylandServer::prepareLockScreenTransition(bool isShutdownView)
 {
-    if (m_multitaskView) {
-        m_multitaskView->immediatelyExit();
+    if (auto *view = multitaskView()) {
+        view->immediatelyExit();
     }
     deleteTaskSwitch();
     m_rootSurfaceContainer->dismissAllPopups();
@@ -1209,8 +1225,8 @@ WXdgOutputManager *WaylandServer::installDesktopProtocols(QmlEngine *engine)
     m_surfaceProtocols->installRegionWatch(server());
 
     connect(m_ddeShellV1, &DDEShellManagerInterfaceV1::toggleMultitaskview, this, [this] {
-        if (m_multitaskView) {
-            m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
+        if (auto *view = multitaskView()) {
+            view->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
         }
     });
     connect(m_ddeShellV1,

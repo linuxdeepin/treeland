@@ -91,7 +91,7 @@ Item {
                 to: "taskview"
                 enabled: root.enableAnimation
                 SequentialAnimation {
-                    PauseAnimation { duration: WaylandServer.config.multitaskviewAnimationDuration }
+                    PauseAnimation { duration: root.multitaskview.desktop.config.multitaskviewAnimationDuration }
                     PropertyAction { target: surfaceGridView; property: "clip" }
                 }
             }
@@ -169,7 +169,7 @@ Item {
                                     width: (geometry.width - initialGeometry.width) * multitaskview.taskviewVal + initialGeometry.width
                                     height: (geometry.height - initialGeometry.height) * multitaskview.taskviewVal + initialGeometry.height
                                     scale: 1.0
-                                    paddingOpacity: WaylandServer.config.multitaskviewPaddingOpacity * multitaskview.taskviewVal
+                                    paddingOpacity: root.multitaskview.desktop.config.multitaskviewPaddingOpacity * multitaskview.taskviewVal
                                     needPadding: true
                                 }
                             }
@@ -184,7 +184,7 @@ Item {
                                     height: geometry.height
                                     needPadding: padding
                                     scale: 1.0
-                                    paddingOpacity: WaylandServer.config.multitaskviewPaddingOpacity
+                                    paddingOpacity: root.multitaskview.desktop.config.multitaskviewPaddingOpacity
                                 }
                             }
                         },
@@ -198,7 +198,7 @@ Item {
                                     y: mapToItem(draggedParent, 0, 0).y
                                     z: Multitaskview.FloatingItem
                                     scale: (Math.max(0, Math.min(drg.activeTranslation.y / fullY, 1)) * (100 - width) + width) / width
-                                    paddingOpacity: WaylandServer.config.multitaskviewPaddingOpacity
+                                    paddingOpacity: root.multitaskview.desktop.config.multitaskviewPaddingOpacity
                                     transformOrigin: Item.Center
                                     needPadding: false
                                 }
@@ -206,12 +206,12 @@ Item {
                         }
                     ]
 
-                    Behavior on x {enabled:surfaceItemDelegate.enableAnimation; XAnimator {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
-                    Behavior on y {enabled:surfaceItemDelegate.enableAnimation; YAnimator {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
-                    Behavior on width {enabled:surfaceItemDelegate.enableAnimation; NumberAnimation {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
-                    Behavior on height {enabled:surfaceItemDelegate.enableAnimation; NumberAnimation {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
-                    Behavior on paddingOpacity {enabled:surfaceItemDelegate.enableAnimation; NumberAnimation {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
-                    Behavior on scale {enabled:surfaceItemDelegate.enableAnimation; ScaleAnimator {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
+                    Behavior on x {enabled:surfaceItemDelegate.enableAnimation; XAnimator {duration: root.multitaskview.desktop.config.multitaskviewAnimationDuration; easing.type: root.multitaskview.desktop.config.multitaskviewEasingCurveType} }
+                    Behavior on y {enabled:surfaceItemDelegate.enableAnimation; YAnimator {duration: root.multitaskview.desktop.config.multitaskviewAnimationDuration; easing.type: root.multitaskview.desktop.config.multitaskviewEasingCurveType} }
+                    Behavior on width {enabled:surfaceItemDelegate.enableAnimation; NumberAnimation {duration: root.multitaskview.desktop.config.multitaskviewAnimationDuration; easing.type: root.multitaskview.desktop.config.multitaskviewEasingCurveType} }
+                    Behavior on height {enabled:surfaceItemDelegate.enableAnimation; NumberAnimation {duration: root.multitaskview.desktop.config.multitaskviewAnimationDuration; easing.type: root.multitaskview.desktop.config.multitaskviewEasingCurveType} }
+                    Behavior on paddingOpacity {enabled:surfaceItemDelegate.enableAnimation; NumberAnimation {duration: root.multitaskview.desktop.config.multitaskviewAnimationDuration; easing.type: root.multitaskview.desktop.config.multitaskviewEasingCurveType} }
+                    Behavior on scale {enabled:surfaceItemDelegate.enableAnimation; ScaleAnimator {duration: root.multitaskview.desktop.config.multitaskviewAnimationDuration; easing.type: root.multitaskview.desktop.config.multitaskviewEasingCurveType} }
 
                     D.BoxShadow {
                         id: paddingRectShadow
@@ -237,9 +237,9 @@ Item {
                         frameRadius: surfaceProxy.effectiveRadius
                         padded: surfaceItemDelegate.needPadding
                         paddingRadius: paddingRect.radius
-                        border.width: WaylandServer.config.highlightBorderWidth
+                        border.width: root.multitaskview.desktop.config.highlightBorderWidth
                         visible: highlighted
-                        anchors.margins: -WaylandServer.config.highlightBorderWidth
+                        anchors.margins: -root.multitaskview.desktop.config.highlightBorderWidth
                         anchors.fill: parent
                     }
 
@@ -346,9 +346,9 @@ Item {
                                     || workspaceNumComposedKeys.includes(event.key)) {
                                 let index = workspaceNumKeys.includes(event.key) ?
                                         workspaceNumKeys.indexOf(event.key) : workspaceNumComposedKeys.indexOf(event.key)
-                                const ws = WaylandServer.workspace.modelAt(index)
+                                const ws = root.multitaskview.desktop.workspace.modelAt(index)
                                 if (ws && wrapper)
-                                    WaylandServer.workspace.moveSurfaceTo(wrapper, ws.id)
+                                    root.multitaskview.desktop.workspace.moveSurfaceTo(wrapper, ws.id)
                             }
                         } else if (event.modifiers === Qt.AltModifier
                                    && event.key === Qt.Key_QuoteLeft && loaderFinished) {
@@ -385,15 +385,15 @@ Item {
                                 id: bgRect
                                 anchors.fill: parent
                                 color: Qt.rgba(16, 16, 16, .1)
-                                radius: WaylandServer.config.titleBoxCornerRadius
+                                radius: root.multitaskview.desktop.config.titleBoxCornerRadius
                             }
                             Blur {
                                 anchors.fill: bgRect
-                                radius: WaylandServer.config.titleBoxCornerRadius
+                                radius: root.multitaskview.desktop.config.titleBoxCornerRadius
                             }
                             Border {
                                 anchors.fill: parent
-                                radius: WaylandServer.config.titleBoxCornerRadius
+                                radius: root.multitaskview.desktop.config.titleBoxCornerRadius
                                 insideColor: Qt.rgba(255, 255, 255, 0.05)
                             }
                         }
@@ -415,8 +415,8 @@ Item {
                 Behavior on opacity {
                     enabled: state !== "partial" && root.enableAnimation
                     OpacityAnimator {
-                        duration: WaylandServer.config.multitaskviewAnimationDuration
-                        easing.type: WaylandServer.config.multitaskviewEasingCurveType
+                        duration: root.multitaskview.desktop.config.multitaskviewAnimationDuration
+                        easing.type: root.multitaskview.desktop.config.multitaskviewEasingCurveType
                     }
                 }
                 state: multitaskview.state
@@ -460,16 +460,16 @@ Item {
                         id: hintBgRect
                         anchors.fill: parent
                         color: Qt.rgba(16, 16, 16, .1)
-                        radius: WaylandServer.config.titleBoxCornerRadius
+                        radius: root.multitaskview.desktop.config.titleBoxCornerRadius
                     }
                     Blur {
                         anchors.fill: hintBgRect
-                        radius: WaylandServer.config.titleBoxCornerRadius
+                        radius: root.multitaskview.desktop.config.titleBoxCornerRadius
                     }
                     D.BoxShadow {
                         anchors.fill: parent
                         visible: true
-                        cornerRadius: WaylandServer.config.titleBoxCornerRadius
+                        cornerRadius: root.multitaskview.desktop.config.titleBoxCornerRadius
                         shadowColor: Qt.rgba(0, 0, 0, 0.15)
                         shadowOffsetY: 8
                         shadowBlur: 20
@@ -477,7 +477,7 @@ Item {
                     }
                     Border {
                         anchors.fill: parent
-                        radius: WaylandServer.config.titleBoxCornerRadius
+                        radius: root.multitaskview.desktop.config.titleBoxCornerRadius
                         insideColor: Qt.rgba(255, 255, 255, 0.05)
                     }
                 }
@@ -501,11 +501,11 @@ Item {
                 multitaskview.exit()
             }
         } else if (event.modifiers === Qt.AltModifier) {
-            if (event.key === Qt.Key_Minus && WaylandServer.workspace.count > 1) {
-                WaylandServer.workspace.removeModel(WaylandServer.workspace.currentIndex)
-            } else if (event.key === Qt.Key_Equal && WaylandServer.workspace.count < WaylandServer.config.maxWorkspace) {
-                WaylandServer.workspace.createModel()
-                WaylandServer.workspace.switchTo(WaylandServer.workspace.count - 1)
+            if (event.key === Qt.Key_Minus && root.multitaskview.desktop.workspace.count > 1) {
+                root.multitaskview.desktop.workspace.removeModel(root.multitaskview.desktop.workspace.currentIndex)
+            } else if (event.key === Qt.Key_Equal && root.multitaskview.desktop.workspace.count < root.multitaskview.desktop.config.maxWorkspace) {
+                root.multitaskview.desktop.workspace.createModel()
+                root.multitaskview.desktop.workspace.switchTo(root.multitaskview.desktop.workspace.count - 1)
             }
         }
     }

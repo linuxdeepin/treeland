@@ -8,7 +8,7 @@
 #include "interfaces/proxyinterface.h"
 #include "multitaskview.h"
 #include "core/waylandserver.h"
-#include "workspace/workspace.h"
+#include "desktop/desktopenvironment.h"
 
 void MultitaskViewPlugin::initialize(TreelandProxyInterface *proxy)
 {
@@ -20,87 +20,14 @@ void MultitaskViewPlugin::initialize(TreelandProxyInterface *proxy)
 
 void MultitaskViewPlugin::shutdown()
 {
+    if (m_proxy)
+        WaylandServer::instance()->setMultitaskViewFactory(nullptr);
     m_proxy = nullptr;
-
-    if (m_multitaskview) {
-        m_multitaskview->exit();
-    }
 }
 
-QQuickItem *MultitaskViewPlugin::createMultitaskview(QQuickItem *parent)
+QQuickItem *MultitaskViewPlugin::createMultitaskView(DesktopEnvironment *desktop)
 {
-    return m_proxy->qmlEngine()->createComponent(m_multitaskViewComponent, parent);
-}
-
-void MultitaskViewPlugin::setStatus(IMultitaskView::Status status)
-{
-    if (m_multitaskview)
-        m_multitaskview->setStatus(static_cast<Multitaskview::Status>(status));
-}
-
-void MultitaskViewPlugin::toggleMultitaskView(IMultitaskView::ActiveReason reason)
-{
-    if (!m_multitaskview) {
-        m_proxy->workspace()->setSwitcherEnabled(false);
-        m_multitaskview =
-            qobject_cast<Multitaskview *>(createMultitaskview(m_proxy->rootSurfaceContainer()));
-        connect(m_multitaskview.data(), &Multitaskview::visibleChanged, this, [this] {
-            if (!m_multitaskview->isVisible()) {
-                m_multitaskview->deleteLater();
-                m_proxy->workspace()->setSwitcherEnabled(true);
-            }
-        });
-
-        m_multitaskview->enter(static_cast<Multitaskview::ActiveReason>(reason));
-        if (static_cast<Multitaskview::ActiveReason>(reason)
-            == Multitaskview::ActiveReason::ShortcutKey)
-            updatePartialFactor(1.0);
-    } else {
-        if (reason == IMultitaskView::Gesture) {
-            if (m_multitaskview->status() == Multitaskview::Exited) {
-                m_multitaskview->exit(nullptr);
-                updatePartialFactor(0.0);
-            } else {
-                m_multitaskview->enter(static_cast<Multitaskview::ActiveReason>(reason));
-                updatePartialFactor(1.0);
-            }
-        } else {
-            if (m_multitaskview->status() == Multitaskview::Exited) {
-                m_multitaskview->enter(static_cast<Multitaskview::ActiveReason>(reason));
-                updatePartialFactor(1.0);
-            } else {
-                m_multitaskview->exit(nullptr);
-                updatePartialFactor(0.0);
-            }
-        }
-    }
-}
-
-void MultitaskViewPlugin::commitGesture(bool triggered)
-{
-    if (m_multitaskview) {
-        m_multitaskview->commitGesture(triggered);
-    }
-}
-
-qreal MultitaskViewPlugin::partialFactor()
-{
-    if (m_multitaskview) {
-        return m_multitaskview->partialFactor();
-    }
-    return 0.0;
-}
-
-void MultitaskViewPlugin::updatePartialFactor(qreal progress)
-{
-    if (m_multitaskview) {
-        m_multitaskview->updatePartialFactor(progress);
-    }
-}
-
-void MultitaskViewPlugin::immediatelyExit()
-{
-    if (m_multitaskview) {
-        m_multitaskview->exit(nullptr, true);
-    }
+    return m_proxy->qmlEngine()->createComponent(
+        m_multitaskViewComponent, desktop->viewRoot(),
+        {{"desktop", QVariant::fromValue(desktop)}});
 }

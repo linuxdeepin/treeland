@@ -10,6 +10,7 @@
 
 class Workspace;
 class SessionSwitcher;
+class SessionMultitaskView;
 class WaylandServer;
 class CompositorInputFilter;
 class ShortcutManagerV3;
@@ -19,7 +20,8 @@ class ShortcutRunner : public QObject
     Q_OBJECT
 public:
     ShortcutRunner(Workspace *workspace, SessionSwitcher *switcher, ShortcutController *controller,
-                   WaylandServer *runtime, CompositorInputFilter *inputFilter, ShortcutManagerV3 *protocol);
+                   SessionMultitaskView *multitaskView, WaylandServer *runtime,
+                   CompositorInputFilter *inputFilter, ShortcutManagerV3 *protocol);
     void start();
     void stop();
 
@@ -45,6 +47,7 @@ private:
 
     Workspace *const m_workspace;
     SessionSwitcher *const m_switcher;
+    SessionMultitaskView *const m_multitaskView;
     WaylandServer *const m_runtime;
     CompositorInputFilter *const m_inputFilter;
     ShortcutController *const m_controller;

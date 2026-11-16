@@ -13,11 +13,11 @@
 class MultitaskViewPlugin
     : public QObject
     , public PluginInterface
-    , public IMultitaskView
+    , public IMultitaskViewFactory
 {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "org.deepin.treeland.plugin.multitaskview/1.0" FILE "metadata.json")
-    Q_INTERFACES(PluginInterface IMultitaskView)
+    Q_INTERFACES(PluginInterface IMultitaskViewFactory)
 public:
     QString name() const override
     {
@@ -37,18 +37,9 @@ public:
         return true;
     }
 
-    qreal partialFactor() override;
-    void setStatus(IMultitaskView::Status status) override;
-    void updatePartialFactor(qreal progress) override;
-    void toggleMultitaskView(IMultitaskView::ActiveReason reason) override;
-    void immediatelyExit() override;
-    void commitGesture(bool triggered) override;
+    QQuickItem *createMultitaskView(DesktopEnvironment *desktop) override;
 
 private:
-    QQuickItem *createMultitaskview(QQuickItem *parent);
-
-private:
-    TreelandProxyInterface *m_proxy;
+    TreelandProxyInterface *m_proxy = nullptr;
     QQmlComponent m_multitaskViewComponent;
-    QPointer<Multitaskview> m_multitaskview{ nullptr };
 };
