@@ -132,6 +132,13 @@ native handle 是存在 `m_handle`（`void*`）里的 wlroots 原始 C 指针。
 
 核心规则：销毁方式必须与 native handle 所有权一致。
 
+## 每会话 global 的隔离与撤销
+
+- 每个 Session 独立创建 manager，经 `Session::attachInterface()` 在暴露 global 前设置 owning socket。
+- `WServerInterface::ownsClient()` 接受 socket 的父域；要求精确 Session 隔离时，还应通过 `setFilter()` 校验 `Session::ownsClient()`，不能只依赖 `setOwnsSocket()`。
+- display-owned manager 在 detach 后仍可能存活到 display 销毁。若它没有原生 destroy API，撤销其 global（`wl_global_remove()`）后再清空 wrapper handle，防止失去 wrapper/filter 映射后继续被绑定。支持显式销毁的 group/handle 仍须清理。
+- commit 事件携带 wlroots 临时请求列表时，使用 `Qt::DirectConnection` 同步处理；不要将列表或请求指针排队到下一轮事件循环。
+
 ## 通过 `WaylandServer::init` 接线
 最终仍要接回 `src/core/waylandserver.cpp`：
 

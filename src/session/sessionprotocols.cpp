@@ -3,6 +3,7 @@
 
 #include "sessionprotocols.h"
 #include "session.h"
+#include "sessionworkspace.h"
 #include "core/waylandserver.h"
 #include "core/rootsurfacecontainer.h"
 #include "surface/surfacewrapper.h"
@@ -214,6 +215,7 @@ private:
 SessionProtocols::SessionProtocols(Session *session)
     : SessionComponent(session)
 {
+    session->sessionWorkspace()->installProtocol();
     session->attachInterface(new NativeSessionProtocol<wlr_data_device_manager_create>("wl_data_device_manager"));
     session->attachInterface(new NativeSessionProtocol<wlr_primary_selection_v1_device_manager_create>("zwp_primary_selection_device_manager_v1"));
     session->attachInterface(new NativeSessionProtocol<wlr_data_control_manager_v1_create>("zwlr_data_control_manager_v1"));
