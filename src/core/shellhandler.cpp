@@ -1176,13 +1176,24 @@ void ShellHandler::updateLayerSurfaceContainer(SurfaceWrapper *surface)
     }
 }
 
-void ShellHandler::onInputPopupSurfaceV2Added(WInputPopupSurface *surface)
+void ShellHandler::onInputPopupSurfaceV2Added(WInputMethodHelper *helper,
+                                              WInputPopupSurface *surface)
 {
+    auto *parent = surface->parentSurface();
+    auto *parentWrapper = m_rootSurfaceContainer->getSurface(parent);
+    if (!parentWrapper) {
+        // The anchoring text-input surface is already gone (client teardown):
+        // there is nothing to attach the candidate window to.
+        qCWarning(lcTlShell) << "[popup] skip input popup without a parent wrapper"
+                             << "surface=" << surface
+                             << "parent=" << parent;
+        return;
+    }
+
     auto wrapper = new SurfaceWrapper(WaylandServer::instance()->qmlEngine(),
                                       surface,
                                       SurfaceWrapper::Type::InputPopup);
-    auto parent = surface->parentSurface();
-    auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
+    wrapper->setInputPopupPlacementParent(parentWrapper);
     parentWrapper->addSubSurface(wrapper);
     m_popupContainer->addSurface(wrapper);
     // m_popupContainer is a simple SurfaceContainer, so input popups need the
@@ -1190,15 +1201,53 @@ void ShellHandler::onInputPopupSurfaceV2Added(WInputPopupSurface *surface)
     wrapper->setHasInitializeContainer(true);
     wrapper->setOwnsOutput(parentWrapper->ownsOutput());
     Q_ASSERT(wrapper->parentItem());
+    m_inputPopupWrappers[helper].append(wrapper);
     Q_EMIT surfaceWrapperAdded(wrapper);
 }
 
-void ShellHandler::onInputPopupSurfaceV2Removed(WInputPopupSurface *surface)
+void ShellHandler::onInputPopupSurfaceV2Removed(WInputMethodHelper *helper,
+                                                WInputPopupSurface *surface)
 {
     auto wrapper = m_rootSurfaceContainer->getSurface(surface->surface());
+    if (!wrapper) {
+        // onInputPopupSurfaceV2Added() skipped this popup (no parent wrapper
+        // left), so there is no wrapper to detach here either.
+        return;
+    }
+
+    auto &wrappers = m_inputPopupWrappers[helper];
+    wrappers.removeAll(wrapper);
+    if (wrappers.isEmpty())
+        m_inputPopupWrappers.remove(helper);
+
     Q_EMIT surfaceWrapperAboutToRemove(wrapper);
     wrapper->setHasInitializeContainer(false);
     m_rootSurfaceContainer->destroyForSurface(wrapper);
+}
+
+void ShellHandler::onTextInputFocusSurfaceChanged(WInputMethodHelper *helper)
+{
+    const auto it = m_inputPopupWrappers.constFind(helper);
+    if (it == m_inputPopupWrappers.cend())
+        return;
+
+    // Copy before arranging: setOwnsOutput() and the output layout can run
+    // compositor code that removes another popup or the helper's map entry.
+    const auto popups = it.value();
+
+    SurfaceWrapper *placementParent = nullptr;
+    if (auto *focusSurface = helper->textInputFocusSurface())
+        placementParent = m_rootSurfaceContainer->getSurface(focusSurface);
+
+    for (const auto &popup : popups) {
+        if (!popup)
+            continue;
+        auto *target = placementParent ? placementParent : popup->inputPopupPlacementParent();
+        if (!target)
+            target = popup->parentSurface();
+        if (auto *output = popup->ownsOutput())
+            output->retargetInputPopupSurface(popup, target);
+    }
 }
 
 void ShellHandler::setupSurfaceWindowMenu(SurfaceWrapper *wrapper)
@@ -1344,7 +1393,25 @@ IMCandidatePanelManager *ShellHandler::candidatePanels(Session *session) const
 void ShellHandler::registerInputMethodHelper(WInputMethodHelper *helper)
 {
     connect(helper, &WInputMethodHelper::inputPopupSurfaceV2Added,
-            this, &ShellHandler::onInputPopupSurfaceV2Added);
+            this, [this, helper](WInputPopupSurface *surface) {
+        onInputPopupSurfaceV2Added(helper, surface);
+    });
     connect(helper, &WInputMethodHelper::inputPopupSurfaceV2Removed,
-            this, &ShellHandler::onInputPopupSurfaceV2Removed);
+            this, [this, helper](WInputPopupSurface *surface) {
+        onInputPopupSurfaceV2Removed(helper, surface);
+    });
+    connect(helper, &WInputMethodHelper::textInputFocusSurfaceChanged,
+            this, [this, helper](WSurface *) {
+        onTextInputFocusSurfaceChanged(helper);
+    });
+    connect(helper, &QObject::destroyed, this, [this, helper] {
+        const auto wrappers = m_inputPopupWrappers.take(helper);
+        for (const auto &popup : wrappers) {
+            if (!popup)
+                continue;
+            Q_EMIT surfaceWrapperAboutToRemove(popup);
+            popup->setHasInitializeContainer(false);
+            m_rootSurfaceContainer->destroyForSurface(popup);
+        }
+    });
 }
