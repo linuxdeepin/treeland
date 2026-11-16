@@ -17,6 +17,7 @@ class QmlEngine;
 class WaylandServer;
 class DesktopEnvironment;
 class CompositorInputFilter;
+
 class SessionSwitcher : public QObject
 {
     Q_OBJECT
@@ -24,6 +25,7 @@ class SessionSwitcher : public QObject
 public:
     SessionSwitcher(Workspace *workspace, QmlEngine *engine, WaylandServer *runtime,
                     DesktopEnvironment *desktop);
+
     void activate();
     void deactivate();
     void setInputFilter(CompositorInputFilter *filter);
@@ -35,10 +37,10 @@ public Q_SLOTS:
     void close();
 
 private:
-    Workspace *const m_workspace;
-    QmlEngine *const m_engine;
-    WaylandServer *const m_runtime;
-    DesktopEnvironment *const m_desktop;
+    Workspace *const m_workspace = nullptr;
+    QmlEngine *const m_engine = nullptr;
+    WaylandServer *const m_runtime = nullptr;
+    DesktopEnvironment *const m_desktop = nullptr;
     CompositorInputFilter *m_inputFilter = nullptr;
     bool m_running = false;
     ShortcutRunner *m_shortcuts = nullptr;

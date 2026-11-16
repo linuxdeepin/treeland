@@ -20,7 +20,6 @@
 #include "wallpaper/wallpapermanager.h"
 #include "surface/surfacecontainer.h"
 #include "seat/seatmanager.h"
-
 #include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
 #include "core/shellhandler.h"
@@ -32,6 +31,7 @@
 #ifndef DISABLE_XWAYLAND
 #include "xsettings/settingmanager.h"
 #endif
+#include "surface/surfacewrapper.h"
 
 #include <woutputrenderwindow.h>
 #include <wsocket.h>
@@ -43,9 +43,8 @@
 #include <wxwayland.h>
 #endif
 
-#include "surface/surfacewrapper.h"
-
 #include <pwd.h>
+
 #include <wlr_all.h>
 #ifndef DISABLE_XWAYLAND
 #include <xcb/randr.h>
@@ -107,6 +106,7 @@ std::shared_ptr<Session> SessionManager::sessionForClient(WClient *client) const
 {
     if (!client)
         return nullptr;
+
     for (auto *socket = client->socket(); socket; socket = socket->parentSocket()) {
         if (auto session = sessionForSocket(socket))
             return session;
@@ -118,8 +118,10 @@ bool SessionManager::isActiveWindow(SurfaceWrapper *window) const
 {
     if (!window)
         return false;
+
     if (window->session())
         return window->renderingEnabled();
+
     return !activeSessionObject();
 }
 
@@ -187,21 +189,6 @@ void SessionManager::syncActiveSessionXWaylandPrimaryOutput()
 #endif
 }
 
-const QList<std::shared_ptr<Session>> &SessionManager::sessions() const
-{
-    return m_sessions;
-}
-
-/**
- * Get the currently active session
- *
- * @returns weak_ptr to the active session
- */
-std::weak_ptr<Session> SessionManager::activeSession() const
-{
-    return m_activeSession;
-}
-
 /**
  * Get the default session
  *
@@ -225,6 +212,7 @@ bool SessionManager::activeSocketEnabled() const
     auto ptr = m_activeSession.lock();
     if (ptr && ptr->m_socket)
         return ptr->m_socket->isEnabled();
+
     return false;
 }
 
@@ -454,6 +442,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
     session->m_socket->setEnabled(false, globalSession() ? globalSession()->socket() : nullptr);
     // Add session to list
     m_sessions.append(session);
+
     return session;
 }
 
@@ -470,6 +459,7 @@ std::shared_ptr<Session> SessionManager::sessionForId(const QString &id) const
         if (session && session->m_id == id)
             return session;
     }
+
     return nullptr;
 }
 
@@ -485,6 +475,7 @@ std::shared_ptr<Session> SessionManager::sessionForUid(uid_t uid) const
         if (session && session->m_uid == uid)
             return session;
     }
+
     return nullptr;
 }
 
@@ -500,6 +491,7 @@ std::shared_ptr<Session> SessionManager::sessionForUser(const QString &username)
         if (session && session->m_username == username)
             return session;
     }
+
     return nullptr;
 }
 
@@ -516,6 +508,7 @@ std::shared_ptr<Session> SessionManager::sessionForXWayland(WXWayland *xwayland)
         if (session && session->m_xwayland == xwayland)
             return session;
     }
+
     return nullptr;
 }
 #endif
@@ -532,6 +525,7 @@ std::shared_ptr<Session> SessionManager::sessionForSocket(WSocket *socket) const
         if (session && session->m_socket == socket)
             return session;
     }
+
     return nullptr;
 }
 
@@ -542,9 +536,11 @@ bool SessionManager::isDDEUserClient(WClient *client)
     // a null globalSession() here previously caused a SIGSEGV.
     if (!client)
         return false;
+
     const auto global = globalSession();
     if (!global || !global->socket())
         return false;
+
     return client->socket() == global->socket();
 }
 
@@ -554,11 +550,13 @@ void SessionManager::syncSessionScaleSettings()
     for (const auto &session : std::as_const(m_sessions)) {
         if (!session || !session->m_settingManager)
             continue;
+
         const qreal scale = session->outputManager()->effectiveScale();
         const auto settings = QPointer(session->m_settingManager);
         QMetaObject::invokeMethod(settings, [settings, scale] {
             if (!settings)
                 return;
+
             settings->setGlobalScale(scale);
             settings->apply();
         }, Qt::QueuedConnection);
@@ -673,5 +671,6 @@ WallpaperManager::WallpaperLibrary SessionManager::wallpaperLibrary(wlr_output *
         for (auto it = used.cbegin(); it != used.cend(); ++it)
             result.insert(it.key(), it.value());
     }
+
     return result;
 }

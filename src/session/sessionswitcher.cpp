@@ -49,6 +49,7 @@ void SessionSwitcher::close()
 {
     if (!m_taskSwitcher)
         return;
+
     disconnect(m_taskSwitcher, nullptr, this, nullptr);
     m_taskSwitcher->setVisible(false);
     m_taskSwitcher->deleteLater();
@@ -63,6 +64,7 @@ void SessionSwitcher::deactivate()
     m_running = false;
     if (m_shortcuts)
         m_shortcuts->stop();
+
     close();
 }
 

@@ -4,17 +4,17 @@
 #pragma once
 
 #include "input/inputcontext.h"
+
 #include <QObject>
 
 class Session;
 class WaylandServer;
 
-// Boundary adapter: identity and shared compositor services stay here, outside
-// the event filter. A null owner is used only for the startup input path.
 class SessionInputContext final : public QObject, public InputContext
 {
 public:
     SessionInputContext(Session *owner, WaylandServer *runtime, QObject *parent);
+
     bool available() const override;
     bool locked() const override;
     bool normal() const override;
@@ -29,8 +29,11 @@ public:
     void endMoveResize(WAYLIB_SERVER_NAMESPACE::WSeat *seat) override;
     void cancelMoveResize(WAYLIB_SERVER_NAMESPACE::WSeat *seat) override;
     void detectEdgeTiling(WAYLIB_SERVER_NAMESPACE::WSeat *seat) override;
+
 private:
     bool ownsSeat(WAYLIB_SERVER_NAMESPACE::WSeat *seat) const;
-    Session *const m_owner;
-    WaylandServer *const m_runtime;
+
+private:
+    Session *const m_owner = nullptr;
+    WaylandServer *const m_runtime = nullptr;
 };

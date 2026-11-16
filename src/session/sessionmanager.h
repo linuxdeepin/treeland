@@ -5,20 +5,14 @@
 
 #include "session.h"
 
-#include <memory>
-
-/**
- * SessionManager manages user sessions, including their associated
- * WSocket and WXWayland instances.
- */
 class SessionManager : public QObject {
     Q_OBJECT
 public:
     explicit SessionManager(QObject *parent = nullptr);
     ~SessionManager();
 
-    const QList<std::shared_ptr<Session>> &sessions() const;
-    std::weak_ptr<Session> activeSession() const;
+    const QList<std::shared_ptr<Session>> &sessions() const { return m_sessions; };
+    std::weak_ptr<Session> activeSession() const { return m_activeSession; };
     Session *activeSessionObject() const;
     std::shared_ptr<Session> sessionForClient(WClient *client) const;
     bool isActiveWindow(SurfaceWrapper *window) const;
@@ -63,6 +57,8 @@ Q_SIGNALS:
 
 private:
     WallpaperManager::WallpaperLibrary wallpaperLibrary(wlr_output *excluded) const;
+
+private:
     std::weak_ptr<Session> m_activeSession;
     QList<std::shared_ptr<Session>> m_sessions;
     WallpaperLauncher *m_wallpaperLauncher { nullptr };

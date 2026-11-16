@@ -4,8 +4,10 @@
 #pragma once
 
 #include "sessioncomponent.h"
-#include <QPointer>
+
 #include <wglobal.h>
+
+#include <QPointer>
 
 class PersonalizationManagerInterfaceV1;
 class DecorationManagerInterfaceV1;
@@ -19,8 +21,6 @@ class WXdgDialogManagerV1;
 class WXdgToplevelTagManagerV1;
 WAYLIB_SERVER_END_NAMESPACE
 
-// A fixed protocol domain within the shared wl_display. Protocol instances
-// remain owned by this Session even when another Session becomes active.
 class SessionProtocols : public SessionComponent
 {
     Q_OBJECT
