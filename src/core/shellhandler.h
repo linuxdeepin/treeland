@@ -81,7 +81,6 @@ public:
     explicit ShellHandler(RootSurfaceContainer *rootContainer,
                           WAYLIB_SERVER_NAMESPACE::WServer *server);
     [[nodiscard]] Workspace *workspace() const;
-    Workspace *createSessionWorkspace(TreelandUserConfig *config);
     void setWorkspace(Workspace *workspace);
     Workspace *workspaceForSurface(SurfaceWrapper *wrapper) const;
     [[nodiscard]] LayerSurfaceContainer *backgroundContainer() const { return m_backgroundContainer; }

@@ -81,7 +81,7 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, [[maybe_unused]]
     : m_rootSurfaceContainer(rootContainer)
     , m_backgroundContainer(new LayerSurfaceContainer(rootContainer))
     , m_bottomContainer(new LayerSurfaceContainer(rootContainer))
-    , m_workspace(new Workspace(rootContainer))
+    , m_workspace(new Workspace(rootContainer, WaylandServer::instance()->config()))
     , m_topContainer(new LayerSurfaceContainer(rootContainer))
     , m_overlayContainer(new LayerSurfaceContainer(rootContainer))
     , m_popupContainer(new SurfaceContainer(rootContainer))
@@ -269,15 +269,6 @@ void ShellHandler::initializePrelaunchSurface(SurfaceWrapper *wrapper)
     registerSurfaceToForeignToplevel(wrapper);
 }
 
-Workspace *ShellHandler::createSessionWorkspace(TreelandUserConfig *config)
-{
-    auto *workspace = new Workspace(m_rootSurfaceContainer, config);
-    workspace->setZ(RootSurfaceContainer::NormalZOrder);
-    workspace->setSize(m_rootSurfaceContainer->size());
-    workspace->deactivate();
-    return workspace;
-}
-
 void ShellHandler::setWorkspace(Workspace *workspace)
 {
     Q_ASSERT(workspace);
@@ -285,11 +276,11 @@ void ShellHandler::setWorkspace(Workspace *workspace)
         return;
     workspace->setOpacity(m_workspace->opacity());
     workspace->setScale(m_workspace->scale());
-    m_workspace->deactivate();
+    m_workspace->setEnabled(false);
+    m_workspace->resetView();
+    m_workspace->setVisible(false);
     disconnect(m_workspace, nullptr, this, nullptr);
     m_workspace = workspace;
-    m_workspace->setEnabled(true);
-    m_workspace->setVisible(true);
 #ifndef DISABLE_XWAYLAND
     connect(m_workspace, &Workspace::currentIndexChanged,
             this, &ShellHandler::updateXWaylandDesktopProperties);
