@@ -366,8 +366,13 @@ public:
         const QPointF &global = cursor->position();
         const QPointF local = w ? global - QPointF(w->position()) : QPointF();
 
+        // During DnD the pointer is grabbed by wlr_drag: report no held buttons
+        // so Qt PointerHandlers (e.g. title bar DragHandler) don't start a drag
+        // gesture and steal the pointer grab from wlr_drag.
+        const Qt::MouseButtons buttons = handle()->drag ? Qt::NoButton : cursor->state();
+
         QMouseEvent e(QEvent::MouseMove, local, global, Qt::NoButton,
-                      cursor->state(), keyModifiers, device);
+                      buttons, keyModifiers, device);
         Q_ASSERT(e.isUpdateEvent());
         e.setTimestamp(timestamp);
 
