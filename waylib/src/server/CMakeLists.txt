@@ -215,6 +215,7 @@ set(SOURCES
     protocols/wpointergesturesv1.cpp
     protocols/wrelativepointermanagerv1.cpp
     protocols/woutputmanagerv1.cpp
+    protocols/wextworkspacemanagerv1.cpp
     protocols/wextforeigntoplevellistv1.cpp
     protocols/wxdgdialogmanagerv1.cpp
     protocols/wsecuritycontextmanager.cpp
@@ -331,6 +332,7 @@ set(HEADERS
     protocols/WOutputManagerV1
     protocols/wlayershell.h
     protocols/WLayerShell
+    protocols/wextworkspacemanagerv1.h
     protocols/wextforeigntoplevellistv1.h
     protocols/wxdgdialogmanagerv1.h
     protocols/wsecuritycontextmanager.h
