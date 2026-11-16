@@ -32,7 +32,6 @@ IMCandidatePanelManager::IMCandidatePanelManager(
     QObject *parent)
     : QObject(parent)
     , m_shellHandler(shellHandler)
-    , m_inputMethodHelper(inputMethodHelper)
 {
     connect(m_shellHandler,
             &ShellHandler::surfaceWrapperAboutToRemove,
@@ -40,6 +39,7 @@ IMCandidatePanelManager::IMCandidatePanelManager(
             [this](SurfaceWrapper *wrapper) {
                 m_imCandidatePanels.removeAll(wrapper);
             });
+    setInputMethodHelper(inputMethodHelper);
 }
 
 #ifndef DISABLE_XWAYLAND
@@ -71,7 +71,7 @@ void IMCandidatePanelManager::setupXWayland(WAYLIB_SERVER_NAMESPACE::WXWayland *
 
 bool IMCandidatePanelManager::isIMCandidatePanel(SurfaceWrapper *wrapper) const
 {
-    return wrapper->isIMCandidatePanel();
+    return wrapper && wrapper->isIMCandidatePanel();
 }
 
 #ifndef DISABLE_XWAYLAND
@@ -135,7 +135,9 @@ void IMCandidatePanelManager::applyIMCandidatePanel(SurfaceWrapper *wrapper)
     popupContainer->addSurface(wrapper);
     wrapper->setHasInitializeContainer(true);
     wrapper->setPositionAutomatic(false);
+#ifndef DISABLE_XWAYLAND
     wrapper->setXwaylandPositionFromSurface(false);
+#endif
 
     if (wrapper->surfaceItem())
         wrapper->surfaceItem()->setFocusPolicy(Qt::NoFocus);
@@ -152,6 +154,10 @@ void IMCandidatePanelManager::applyIMCandidatePanel(SurfaceWrapper *wrapper)
 
     m_imCandidatePanels.append(wrapper);
 
+    // The panel list is pruned on surfaceWrapperAboutToRemove(), but a wrapper
+    // can also die without that signal (session teardown, protocol manager
+    // destruction). A QPointer member keeps the list from ever holding a
+    // dangling entry, which would be dereferenced by the next arrange pass.
     connect(wrapper,
             &SurfaceWrapper::normalGeometryChanged,
             this,
@@ -162,29 +168,54 @@ void IMCandidatePanelManager::applyIMCandidatePanel(SurfaceWrapper *wrapper)
 
 void IMCandidatePanelManager::setInputMethodHelper(WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *helper)
 {
+    if (m_inputMethodHelper == helper)
+        return;
+    if (m_inputMethodFocusConnection)
+        disconnect(m_inputMethodFocusConnection);
     m_inputMethodHelper = helper;
+    if (helper) {
+        m_inputMethodFocusConnection = connect(
+            helper,
+            &WAYLIB_SERVER_NAMESPACE::WInputMethodHelper::textInputFocusSurfaceChanged,
+            this,
+            &IMCandidatePanelManager::onTextInputFocusSurfaceChanged);
+    }
+}
+
+void IMCandidatePanelManager::onTextInputFocusSurfaceChanged()
+{
+    // The panel is a normal client window, not a zwp_input_popup_surface_v2.
+    // Its position still has to follow the text-input anchor when one
+    // application moves focus between its own windows.
+    applyInitialPositionAtCursor();
 }
 
 void IMCandidatePanelManager::applyInitialPositionAtCursor()
 {
-    if (!m_inputMethodHelper)
-        return;
+    updateCandidatePanelPosition();
+}
+
+bool IMCandidatePanelManager::updateCandidatePanelPosition()
+{
+    if (!m_inputMethodHelper || m_imCandidatePanels.isEmpty())
+        return false;
+
     auto cursorRect = m_inputMethodHelper->textInputCursorRect();
-    if (cursorRect.isEmpty() || m_imCandidatePanels.isEmpty())
-        return;
+    if (cursorRect.isEmpty())
+        return false;
 
     auto *focusSurface = m_inputMethodHelper->textInputFocusSurface();
     if (!focusSurface)
-        return;
+        return false;
 
     auto *rootContainer = m_shellHandler->rootSurfaceContainer();
     auto *focusWrapper = rootContainer->getSurface(focusSurface);
     if (!focusWrapper)
-        return;
+        return false;
 
     auto *output = focusWrapper->ownsOutput();
     if (!output)
-        return;
+        return false;
 
     QPointF pos;
     auto wrapperPos = focusWrapper->mapToGlobal(QPointF(0, 0));
@@ -196,47 +227,33 @@ void IMCandidatePanelManager::applyInitialPositionAtCursor()
              + cursorRect.height() + focusWrapper->titlebarGeometry().height());
 
     arrangeIMCandidatePanels(output, pos);
+    return true;
 }
 
 void IMCandidatePanelManager::arrangeIMCandidatePanels(Output *output, const QPointF &basePos)
 {
-    for (auto *wrapper : m_imCandidatePanels) {
+    for (auto it = m_imCandidatePanels.cbegin(); it != m_imCandidatePanels.cend();) {
+        auto *wrapper = it->data();
+        if (!wrapper) {
+            it = m_imCandidatePanels.erase(it);
+            continue;
+        }
+
         auto normalGeo = wrapper->normalGeometry();
         // Wait for geometry to be valid before arranging
-        if (normalGeo.isEmpty())
-            continue;
+        if (!normalGeo.isEmpty()) {
+            auto pos = basePos;
+            output->adjustToOutputBounds(pos, normalGeo, output->geometry());
+            wrapper->moveNormalGeometryInOutput(pos);
+        }
 
-        auto pos = basePos;
-        output->adjustToOutputBounds(pos, normalGeo, output->geometry());
-        wrapper->moveNormalGeometryInOutput(pos);
+        ++it;
     }
 }
 
 void IMCandidatePanelManager::onIMCandidatePanelGeometryChanged()
 {
-    if (m_imCandidatePanels.isEmpty() || !m_inputMethodHelper)
-        return;
-
-    auto *focusSurface = m_inputMethodHelper->textInputFocusSurface();
-    auto *rootContainer = m_shellHandler->rootSurfaceContainer();
-    auto *focusWrapper = focusSurface ? rootContainer->getSurface(focusSurface) : nullptr;
-    if (!focusWrapper)
-        return;
-    auto *output = focusWrapper->ownsOutput();
-    if (!output)
-        return;
-
-    QPointF pos;
-    auto wrapperPos = focusWrapper->mapToGlobal(QPointF(0, 0));
-    auto cursorRect = m_inputMethodHelper->textInputCursorRect();
-    auto *shellSurface = focusWrapper->shellSurface();
-    const QPointF contentOffset = shellSurface
-        ? shellSurface->getContentGeometry().topLeft() : QPointF(0, 0);
-    pos.setX(wrapperPos.x() + cursorRect.x() - contentOffset.x());
-    pos.setY(wrapperPos.y() + cursorRect.y() - contentOffset.y()
-             + cursorRect.height() + focusWrapper->titlebarGeometry().height());
-
-    arrangeIMCandidatePanels(output, pos);
+    updateCandidatePanelPosition();
 }
 
 #ifndef DISABLE_XWAYLAND
