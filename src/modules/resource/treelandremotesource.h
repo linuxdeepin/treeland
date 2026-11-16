@@ -64,6 +64,12 @@ public:
     // captureResult signal. The compositor main thread is never blocked.
     void captureOutput(QString outputName) override;
     void captureWindow(qint64 id) override;
+    // Live damage diagnostics. Recording synchronously reads each committed
+    // output buffer only while explicitly enabled; the client writes frames.
+    bool startDamageRecording(QString outputName) override;
+    bool stopDamageRecording() override;
+    void keepDamageRecordingAlive() override;
+    bool setDamageHighlight(bool enabled) override;
 
     // ---- real-time monitoring ----
     QList<DebugEvent> getEvents(quint64 afterSeq) override;
@@ -140,6 +146,7 @@ private:
     bool bindHost(const QString &socketPath);
     // Called by every remote method: a call is what keeps no-auth mode alive.
     void noteActivity() const;
+    void clearDamageRecording();
 
     // Event ring buffer for real-time monitoring; populated only while a client
     // is actively polling getEvents().
@@ -166,5 +173,10 @@ private:
     // True while the socket is open to every local user, so the teardown knows
     // whether peers may be holding a connection that has to be revoked.
     bool m_noAuthWindowOpen = false;
+    bool m_damageRecording = false;
+    QString m_damageRecordingOutput;
+    quint64 m_damageRecordingSequence = 0;
+    QTimer *m_damageRecordingIdleTimer = nullptr;
+    QMetaObject::Connection m_damageRenderConnection;
     bool m_published = false;
 };
