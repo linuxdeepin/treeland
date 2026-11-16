@@ -72,6 +72,7 @@ add_subdirectory(wayland-cursor-shape-v1)
 add_subdirectory(wayland-data-device)
 add_subdirectory(wayland-ext-data-control-v1)
 add_subdirectory(wayland-ext-foreign-toplevel-list-v1)
+add_subdirectory(wayland-ext-workspace-v1)
 add_subdirectory(wayland-ext-idle-notify-v1)
 add_subdirectory(wayland-ext-image-copy-capture-v1)
 # The ext-session-lock global is only served when EXT_SESSION_LOCK_V1 is on
