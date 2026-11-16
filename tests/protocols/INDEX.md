@@ -222,3 +222,12 @@ payload 尚未逐项断言。新增或增强测试时，应同时更新该表和
 4. 写出尚未验证的下一项生产结果。
 
 这样新增协议时，规范本身就是后续测试增强的待办清单。
+
+## wayland-ext-workspace-v1
+
+- 生产入口：SessionProtocols → SessionWorkspace → 每会话 WExtWorkspaceManagerV1（精确 Session filter）。
+- P/I：初始 group/workspace、名称/ID、坐标与能力、active/done、commit 前后激活/创建、重名拒绝与数量上限、
+  removed 后待提交请求失效、重排 ID 稳定、stop/finished。
+- 隔离：两个真实 socket 各只见一个 manager，创建及激活只改变所属会话的生产 Workspace。
+- 待验证：本次环境未运行测试；输出热插拔、urgent 与 display 重启仍无测试覆盖。
+- 详情：[README](wayland-ext-workspace-v1/README.md)。
