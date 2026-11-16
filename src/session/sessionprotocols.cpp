@@ -8,21 +8,20 @@
 #include "surface/surfacewrapper.h"
 #include "output/output.h"
 #include "common/treelandlogging.h"
-#include <wextforeigntoplevellistv1.h>
-#include <wextimagecapturesourcev1impl.h>
-#include <wsurfaceitem.h>
-#include <wsocket.h>
-#include <wscoplistener.h>
 #include "modules/appearance/appearanceinterfacev1.h"
 #include "modules/appearance/appearancemanagerinterfacev1.h"
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
 #include "modules/decoration/decorationmanagerinterfacev1.h"
 #include "modules/window-transition/windowtransitionmanagerinterfacev1.h"
-#include <wxdgshell.h>
+
 #include <wlr_all.h>
-#include <type_traits>
-#include <memory>
-#include <utility>
+
+#include <wextforeigntoplevellistv1.h>
+#include <wextimagecapturesourcev1impl.h>
+#include <wsurfaceitem.h>
+#include <wsocket.h>
+#include <wscoplistener.h>
+#include <wxdgshell.h>
 #include <wlayershell.h>
 #include <wxdgdecorationmanager.h>
 #include <wxdgdialogmanagerv1.h>
@@ -103,6 +102,7 @@ void SessionToplevelCapture::capture(wlr_ext_foreign_toplevel_image_capture_sour
     // Rejected requests still need an inert source resource for the client's new ID.
     if (!request)
         return;
+
     auto *list = m_owner ? m_owner->toplevelList() : nullptr;
     auto *toplevel = list && request->toplevel_handle
         && m_owner->ownsClient(WClient::get(request->client))
@@ -164,6 +164,7 @@ struct SessionForeignRegistry
                 return nullptr;
             native = wlr_xdg_foreign_v2_create(server->handle(), registry);
         }
+
         return native;
     }
 
@@ -201,6 +202,7 @@ protected:
         auto *native = nativeInterface<wlr_xdg_foreign_v2>();
         if (!native)
             return nullptr;
+
         return m_endpoint == Exporter ? native->exporter.global : native->importer.global;
     }
 private:
@@ -223,32 +225,70 @@ SessionProtocols::SessionProtocols(Session *session)
     session->attachInterface(new NativeSessionProtocol<createImageCopyCapture>("ext_image_copy_capture_manager_v1"));
     session->attachInterface(new NativeSessionProtocol<createOutputCaptureSource>("ext_output_image_capture_source_manager_v1"));
     session->attachInterface(new SessionToplevelCapture(session));
+
     m_xdgShell = new WXdgShell(5);
     session->attachInterface(m_xdgShell);
+
     m_layerShell = new WLayerShell(m_xdgShell);
     session->attachInterface(m_layerShell);
+
     m_xdgDecoration = new WXdgDecorationManager;
     session->attachInterface(m_xdgDecoration);
+
     m_xdgDialog = new WXdgDialogManagerV1;
     session->attachInterface(m_xdgDialog);
+
     m_xdgTags = new WXdgToplevelTagManagerV1;
     session->attachInterface(m_xdgTags);
+
     m_personalization = new PersonalizationManagerInterfaceV1(session);
     session->attachInterface(m_personalization);
     session->attachInterface(new AppearanceInterfaceV1(session->config(), session));
     session->attachInterface(new AppearanceManagerInterfaceV1(session->config(), session));
+
     m_windowTransitions = new WindowTransitionManagerInterfaceV1;
     session->attachInterface(m_windowTransitions);
+
     m_decoration = new DecorationManagerInterfaceV1;
     session->attachInterface(m_decoration);
 }
 
-WXdgShell *SessionProtocols::xdgShell() const { return m_xdgShell; }
-WLayerShell *SessionProtocols::layerShell() const { return m_layerShell; }
-WXdgDecorationManager *SessionProtocols::xdgDecoration() const { return m_xdgDecoration; }
-WXdgDialogManagerV1 *SessionProtocols::xdgDialog() const { return m_xdgDialog; }
-WXdgToplevelTagManagerV1 *SessionProtocols::xdgTags() const { return m_xdgTags; }
-PersonalizationManagerInterfaceV1 *SessionProtocols::personalization() const { return m_personalization; }
-DecorationManagerInterfaceV1 *SessionProtocols::decoration() const { return m_decoration; }
+WXdgShell *SessionProtocols::xdgShell() const
+{
+    return m_xdgShell;
+}
 
-WindowTransitionManagerInterfaceV1 *SessionProtocols::windowTransitions() const { return m_windowTransitions; }
+WLayerShell *SessionProtocols::layerShell() const
+{
+    return m_layerShell;
+}
+
+WXdgDecorationManager *SessionProtocols::xdgDecoration() const
+{
+    return m_xdgDecoration;
+}
+
+WXdgDialogManagerV1 *SessionProtocols::xdgDialog() const
+{
+    return m_xdgDialog;
+}
+
+WXdgToplevelTagManagerV1 *SessionProtocols::xdgTags() const
+{
+    return m_xdgTags;
+}
+
+PersonalizationManagerInterfaceV1 *SessionProtocols::personalization() const
+{
+    return m_personalization;
+}
+
+DecorationManagerInterfaceV1 *SessionProtocols::decoration() const
+{
+    return m_decoration;
+}
+
+WindowTransitionManagerInterfaceV1 *SessionProtocols::windowTransitions() const
+{
+    return m_windowTransitions;
+}

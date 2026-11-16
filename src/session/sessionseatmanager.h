@@ -4,11 +4,13 @@
 #pragma once
 
 #include "sessioncomponent.h"
+
+#include <wglobal.h>
+#include <winputmethodhelper.h>
+
 #include <QList>
 #include <QMap>
 #include <QPointer>
-#include <wglobal.h>
-#include <winputmethodhelper.h>
 
 class IMCandidatePanelManager;
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -16,24 +18,25 @@ class WSeat;
 class WPointerGesturesV1;
 WAYLIB_SERVER_END_NAMESPACE
 
-// Logical seats, selections and IME state belong to a Session. The shared
-// SeatManager only projects the active domain onto physical input devices.
 class SessionSeatManager : public SessionComponent
 {
     Q_OBJECT
 public:
     explicit SessionSeatManager(Session *session);
     ~SessionSeatManager() override;
+
     QList<WAYLIB_SERVER_NAMESPACE::WSeat *> seats() const;
     WAYLIB_SERVER_NAMESPACE::WSeat *fallbackSeat() const;
     WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *inputMethodHelper(
         WAYLIB_SERVER_NAMESPACE::WSeat *seat) const;
-    IMCandidatePanelManager *candidatePanels() const;
+    IMCandidatePanelManager *candidatePanels() const { return m_candidatePanels; };
     void addSeat(WAYLIB_SERVER_NAMESPACE::WSeat *seat, bool fallback);
     void removeSeat(WAYLIB_SERVER_NAMESPACE::WSeat *seat);
 
 private:
     void createInputMethodProtocols();
+
+private:
     WAYLIB_SERVER_NAMESPACE::WPointerGesturesV1 *m_pointerGestures = nullptr;
     WAYLIB_SERVER_NAMESPACE::WInputMethodHelper::Protocols m_inputMethodProtocols;
     QList<QPointer<WAYLIB_SERVER_NAMESPACE::WSeat>> m_seats;

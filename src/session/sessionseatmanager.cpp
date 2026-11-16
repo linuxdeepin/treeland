@@ -10,6 +10,7 @@
 #include "core/shellhandler.h"
 #include "core/imcandidatepanelmanager.h"
 #include "seat/seatmanager.h"
+
 #include <wseat.h>
 #include <wpointergesturesv1.h>
 #include <winputmethodhelper.h>
@@ -40,7 +41,9 @@ SessionSeatManager::SessionSeatManager(Session *session)
 
 SessionSeatManager::~SessionSeatManager()
 {
-    delete m_candidatePanels;
+    if (m_candidatePanels)
+        delete m_candidatePanels;
+
     qDeleteAll(m_helpers);
     if (auto *server = WaylandServer::instance())
         server->seatManager()->releaseSessionSeats(this);
@@ -53,20 +56,20 @@ QList<WSeat *> SessionSeatManager::seats() const
         if (seat)
             result.append(seat);
     }
+
     return result;
 }
 
-WSeat *SessionSeatManager::fallbackSeat() const { return m_fallback; }
 WInputMethodHelper *SessionSeatManager::inputMethodHelper(WSeat *seat) const
 {
     return m_helpers.value(seat);
 }
-IMCandidatePanelManager *SessionSeatManager::candidatePanels() const { return m_candidatePanels; }
 
 void SessionSeatManager::addSeat(WSeat *seat, bool fallback)
 {
     if (m_seats.contains(seat))
         return;
+
     seat->setPointerGestures(m_pointerGestures);
     seat->setEventFilter(nullptr);
     seat->setEventFilter(session()->desktop()->inputChannel()->filter());
@@ -74,16 +77,18 @@ void SessionSeatManager::addSeat(WSeat *seat, bool fallback)
     m_seats.append(seat);
     if (fallback || !m_fallback)
         m_fallback = seat;
+
     auto *helper = new WInputMethodHelper(
         WaylandServer::instance()->server(), seat, m_inputMethodProtocols);
     helper->setParent(this);
     WaylandServer::instance()->shellHandler()->registerInputMethodHelper(helper);
     m_helpers.insert(seat, helper);
-    if (!m_candidatePanels)
+    if (!m_candidatePanels) {
         m_candidatePanels = new IMCandidatePanelManager(
             WaylandServer::instance()->shellHandler(), helper, this);
-    else if (fallback)
+    } else if (fallback) {
         m_candidatePanels->setInputMethodHelper(helper);
+    }
 }
 
 void SessionSeatManager::removeSeat(WSeat *seat)
@@ -91,9 +96,11 @@ void SessionSeatManager::removeSeat(WSeat *seat)
     delete m_helpers.take(seat);
     if (m_candidatePanels)
         m_candidatePanels->setInputMethodHelper(m_helpers.isEmpty() ? nullptr : m_helpers.first());
+
     m_seats.removeAll(seat);
     if (m_fallback == seat)
         m_fallback = m_seats.isEmpty() ? nullptr : m_seats.first();
+
     session()->detachInterface(seat);
 }
 
@@ -106,9 +113,15 @@ void SessionSeatManager::createInputMethodProtocols()
         new WTextInputManagerV3,
         new WVirtualKeyboardManagerV1,
     };
+
     session()->attachInterface(m_inputMethodProtocols.inputMethod);
     session()->attachInterface(m_inputMethodProtocols.textInputV1);
     session()->attachInterface(m_inputMethodProtocols.textInputV2);
     session()->attachInterface(m_inputMethodProtocols.textInputV3);
     session()->attachInterface(m_inputMethodProtocols.virtualKeyboard);
+}
+
+WSeat *SessionSeatManager::fallbackSeat() const
+{
+    return m_fallback;
 }
