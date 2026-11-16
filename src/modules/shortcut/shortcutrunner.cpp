@@ -4,6 +4,7 @@
 #include "shortcutrunner.h"
 #include "input/compositorinputfilter.h"
 #include "session/sessionswitcher.h"
+#include "session/sessionmultitaskview.h"
 
 #include "common/shellaction.h"
 #include "core/qmlengine.h"
@@ -118,11 +119,13 @@ static std::optional<ShellAction> mapShortcutAction(ShortcutAction action)
 }
 
 ShortcutRunner::ShortcutRunner(Workspace *workspace, SessionSwitcher *switcher,
-                               ShortcutController *controller, WaylandServer *runtime,
+                               ShortcutController *controller, SessionMultitaskView *multitaskView,
+                               WaylandServer *runtime,
                                CompositorInputFilter *inputFilter, ShortcutManagerV3 *protocol)
     : QObject(switcher)
     , m_workspace(workspace)
     , m_switcher(switcher)
+    , m_multitaskView(multitaskView)
     , m_runtime(runtime)
     , m_inputFilter(inputFilter)
     , m_controller(controller)
@@ -155,6 +158,9 @@ void ShortcutRunner::stop()
 
 void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name, bool isGesture, ShortcutController::KeyFlags keyFlags)
 {
+    if (!m_workspace->isEnabled())
+        return;
+
     Q_UNUSED(isGesture)
     auto *server = m_runtime;
 
@@ -195,6 +201,9 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
 
 void ShortcutRunner::onActionProgress(ShortcutAction action, qreal progress, const QString &name)
 {
+    if (!m_workspace->isEnabled())
+        return;
+
     Q_UNUSED(name);
     switch (action) {
     case ShortcutAction::PrevWorkspace:
@@ -206,27 +215,27 @@ void ShortcutRunner::onActionProgress(ShortcutAction action, qreal progress, con
     case ShortcutAction::OpenMultiTaskView:
     {
         auto server = m_runtime;
-        if (!server->m_multitaskView || !server->isNormalOrMultitaskview())
+        if (!m_multitaskView || !server->isNormalOrMultitaskview())
             break;
         if (server->currentMode() == WaylandServer::CurrentMode::Normal
-            && qFuzzyIsNull(server->m_multitaskView->partialFactor())) {
-            server->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::Gesture);
+            && qFuzzyIsNull(m_multitaskView->partialFactor())) {
+            m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::Gesture);
         }
         if (server->currentMode() == WaylandServer::CurrentMode::Multitaskview) {
             break;
         }
-        server->m_multitaskView->updatePartialFactor(progress);
+        m_multitaskView->updatePartialFactor(progress);
         break;
     }
     case ShortcutAction::CloseMultiTaskView:
     {
         auto server = m_runtime;
-        if (!server->m_multitaskView || !server->isNormalOrMultitaskview())
+        if (!m_multitaskView || !server->isNormalOrMultitaskview())
             break;
         if (server->currentMode() != WaylandServer::CurrentMode::Multitaskview) {
             break;
         }
-        server->m_multitaskView->updatePartialFactor(1 - progress);
+        m_multitaskView->updatePartialFactor(1 - progress);
         break;
     }
     default:
@@ -236,6 +245,9 @@ void ShortcutRunner::onActionProgress(ShortcutAction action, qreal progress, con
 
 void ShortcutRunner::onActionFinish(ShortcutAction action, const QString &name, bool isTriggered)
 {
+    if (!m_workspace->isEnabled())
+        return;
+
     Q_UNUSED(name);
     switch (action) {
     case ShortcutAction::PrevWorkspace:
@@ -245,28 +257,28 @@ void ShortcutRunner::onActionFinish(ShortcutAction action, const QString &name, 
     case ShortcutAction::OpenMultiTaskView:
     {
         auto server = m_runtime;
-        if (!server->m_multitaskView || !server->isNormalOrMultitaskview())
+        if (!m_multitaskView || !server->isNormalOrMultitaskview())
             break;
-        const bool triggered = server->m_multitaskView->partialFactor() > 0.5;
-        server->m_multitaskView->setStatus(triggered ? IMultitaskView::Active
-                                                     : IMultitaskView::Exited);
-        server->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::Gesture);
-        server->m_multitaskView->commitGesture(triggered);
+        const bool triggered = m_multitaskView->partialFactor() > 0.5;
+        m_multitaskView->setStatus(triggered ? IMultitaskView::Active
+                                       : IMultitaskView::Exited);
+        m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::Gesture);
+        m_multitaskView->commitGesture(triggered);
         break;
     }
     case ShortcutAction::CloseMultiTaskView:
     {
         auto server = m_runtime;
-        if (!server->m_multitaskView || !server->isNormalOrMultitaskview())
+        if (!m_multitaskView || !server->isNormalOrMultitaskview())
             break;
-        const bool triggered = (1.0 - server->m_multitaskView->partialFactor()) > 0.5;
-        if (qFuzzyCompare(server->m_multitaskView->partialFactor(), 0.0)
+        const bool triggered = (1.0 - m_multitaskView->partialFactor()) > 0.5;
+        if (qFuzzyCompare(m_multitaskView->partialFactor(), 0.0)
             && server->currentMode() != WaylandServer::CurrentMode::Multitaskview)
             break;
-        server->m_multitaskView->setStatus(triggered ? IMultitaskView::Exited
-                                                     : IMultitaskView::Active);
-        server->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::Gesture);
-        server->m_multitaskView->commitGesture(!triggered);
+        m_multitaskView->setStatus(triggered ? IMultitaskView::Exited
+                                       : IMultitaskView::Active);
+        m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::Gesture);
+        m_multitaskView->commitGesture(!triggered);
         break;
     }
     default:

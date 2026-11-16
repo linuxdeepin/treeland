@@ -5,6 +5,7 @@
 #include "sessionprelaunch.h"
 #include "sessionscene.h"
 #include "sessionworkspace.h"
+#include "sessionmultitaskview.h"
 #include "session.h"
 #include "desktop/desktopenvironment.h"
 #include "seatuserconfig.hpp"
@@ -414,6 +415,8 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
     if (!session->m_socket)
         return nullptr;
 
+    session->m_multitaskView = new SessionMultitaskView(session.get(), runtime);
+    session->desktop()->attachMultitaskView(session->m_multitaskView);
     session->m_scene = new SessionScene(session.get());
     session->desktop()->attachInputChannel(new SessionInputChannel(session.get(), runtime));
     session->m_seatManager = new SessionSeatManager(session.get());

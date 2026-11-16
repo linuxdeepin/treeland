@@ -16,11 +16,11 @@ Item {
     required property QtObject dragManager
     required property Multitaskview multitaskview
     readonly property real whRatio: output.outputItem.width / output.outputItem.height
-    readonly property real workspaceDelegateHeight: (WaylandServer.config.workspaceThumbHeight + 2 * WaylandServer.config.workspaceThumbMargin) / output.outputItem.devicePixelRatio
-    readonly property real workspaceThumbHeight: WaylandServer.config.workspaceThumbHeight / output.outputItem.devicePixelRatio
-    readonly property real workspaceThumbMargin: WaylandServer.config.workspaceThumbMargin / output.outputItem.devicePixelRatio
-    readonly property real highlightBorderWidth: WaylandServer.config.highlightBorderWidth / output.outputItem.devicePixelRatio
-    readonly property real workspaceThumbCornerRadius: WaylandServer.config.workspaceThumbCornerRadius / output.outputItem.devicePixelRatio
+    readonly property real workspaceDelegateHeight: (root.multitaskview.desktop.config.workspaceThumbHeight + 2 * root.multitaskview.desktop.config.workspaceThumbMargin) / output.outputItem.devicePixelRatio
+    readonly property real workspaceThumbHeight: root.multitaskview.desktop.config.workspaceThumbHeight / output.outputItem.devicePixelRatio
+    readonly property real workspaceThumbMargin: root.multitaskview.desktop.config.workspaceThumbMargin / output.outputItem.devicePixelRatio
+    readonly property real highlightBorderWidth: root.multitaskview.desktop.config.highlightBorderWidth / output.outputItem.devicePixelRatio
+    readonly property real workspaceThumbCornerRadius: root.multitaskview.desktop.config.workspaceThumbCornerRadius / output.outputItem.devicePixelRatio
 
 
     height: workspaceDelegateHeight
@@ -35,8 +35,8 @@ Item {
     Item {
         id: animationMask
         property real localAnimationFactor: (workspaceThumbHeight * root.whRatio+ 2 * workspaceThumbMargin)
-                                            / WaylandServer.workspace.animationController.refWrap
-        visible: WaylandServer.workspace.animationController.running
+                                            / root.multitaskview.desktop.workspace.animationController.refWrap
+        visible: root.multitaskview.desktop.workspace.animationController.running
         anchors.fill: workspaceList
         anchors.margins: workspaceThumbMargin - highlightBorderWidth
         Rectangle {
@@ -46,7 +46,7 @@ Item {
             border.color: "blue"
             color: "transparent"
             radius: workspaceThumbCornerRadius + highlightBorderWidth
-            x: WaylandServer.workspace.animationController.viewportPos * animationMask.localAnimationFactor
+            x: root.multitaskview.desktop.workspace.animationController.viewportPos * animationMask.localAnimationFactor
         }
     }
 
@@ -61,13 +61,13 @@ Item {
                 dragManager.accept = () => {
                     switchTimer.stop()
                     if (dragManager.item?.wrapper && switchTimer.switchToModel) {
-                        WaylandServer.workspace.moveSurfaceTo(dragManager.item.wrapper, switchTimer.switchToModel.id)
+                        root.multitaskview.desktop.workspace.moveSurfaceTo(dragManager.item.wrapper, switchTimer.switchToModel.id)
                     }
                 }
             } else {
                 dragManager.doNotRestoreAccept = true
             }
-            WaylandServer.workspace.switchTo(switchTimer.switchToIndex)
+            root.multitaskview.desktop.workspace.switchTo(switchTimer.switchToIndex)
         }
     }
 
@@ -79,7 +79,7 @@ Item {
 
     DelegateModel {
         id: visualModel
-        model: WaylandServer.workspace.models
+        model: root.multitaskview.desktop.workspace.models
         delegate: Item {
             required property WorkspaceModel workspace
             required property int index
@@ -120,7 +120,7 @@ Item {
                     fill: parent
                     margins: workspaceThumbMargin - highlightBorderWidth
                 }
-                border.width: (!WaylandServer.workspace.animationController.running && workspace.visible) ? highlightBorderWidth : 0
+                border.width: (!root.multitaskview.desktop.workspace.animationController.running && workspace.visible) ? highlightBorderWidth : 0
                 border.color: "blue"
                 color: "transparent"
                 radius: workspaceThumbCornerRadius + highlightBorderWidth
@@ -211,7 +211,7 @@ Item {
                                         dragManager.accept = () => {
                                             const fromIndex = dragManager.item.index
                                             const destIndex = workspaceThumbDelegate.index
-                                            WaylandServer.workspace.moveModelTo(dragManager.item.workspace.id, destIndex)
+                                            root.multitaskview.desktop.workspace.moveModelTo(dragManager.item.workspace.id, destIndex)
                                         }
                                     } else {    // is dragging surface
                                         restartSwitchTimer(workspaceThumbDelegate.index, workspaceThumbDelegate.workspace)
@@ -219,7 +219,7 @@ Item {
                                             dragManager.accept = () => {
                                                 switchTimer.stop()
                                                 if (dragManager.item?.wrapper) {
-                                                    WaylandServer.workspace.moveSurfaceTo(dragManager.item.wrapper, workspace.id)
+                                                    root.multitaskview.desktop.workspace.moveSurfaceTo(dragManager.item.wrapper, workspace.id)
                                                 }
                                             }
                                         }
@@ -239,10 +239,10 @@ Item {
                         enabled: !hdrg.active
                         gesturePolicy: TapHandler.WithinBounds
                         onTapped: {
-                            if (workspace === WaylandServer.workspace.current) {
+                            if (workspace === root.multitaskview.desktop.workspace.current) {
                                 multitaskview.exit()
                             } else {
-                                WaylandServer.workspace.switchTo(index)
+                                root.multitaskview.desktop.workspace.switchTo(index)
                             }
                         }
                     }
@@ -253,7 +253,7 @@ Item {
                         enabled: !hdrg.active
                         gesturePolicy: TapHandler.WithinBounds
                         onTapped: {
-                            WaylandServer.workspace.switchTo(index)
+                            root.multitaskview.desktop.workspace.switchTo(index)
                             multitaskview.exit()
                         }
                     }
@@ -267,7 +267,7 @@ Item {
 
                     DragHandler {
                         id: vdrg
-                        enabled: !hdrg.active && WaylandServer.workspace.count > 1
+                        enabled: !hdrg.active && root.multitaskview.desktop.workspace.count > 1
                         property bool commitDeletion: deleteHint.visible
                         target: container
                         xAxis.enabled: false
@@ -277,7 +277,7 @@ Item {
                         }
                         onActiveChanged: {
                             if (!active && commitDeletion) {
-                                WaylandServer.workspace.removeModel(workspaceThumbDelegate.index)
+                                root.multitaskview.desktop.workspace.removeModel(workspaceThumbDelegate.index)
                             }
                         }
                     }
@@ -290,7 +290,7 @@ Item {
                     icon.height: 26
                     height: 26
                     width: height
-                    visible: (WaylandServer.workspace.count > 1)
+                    visible: (root.multitaskview.desktop.workspace.count > 1)
                              && (hvrhdlr.hovered || hovered) && dragManager.item === null && !vdrg.active
                     anchors {
                         top: parent.top
@@ -308,7 +308,7 @@ Item {
                         color: "transparent"
                     }
                     onClicked: {
-                        WaylandServer.workspace.removeModel(workspaceThumbDelegate.index)
+                        root.multitaskview.desktop.workspace.removeModel(workspaceThumbDelegate.index)
                     }
                 }
             }
@@ -329,12 +329,12 @@ Item {
             enabled: multitaskview.enableAnimation
             NumberAnimation {
                 property: "x"
-                duration: WaylandServer.config.multitaskviewAnimationDuration
-                easing.type: WaylandServer.config.multitaskviewEasingCurveType
+                duration: root.multitaskview.desktop.config.multitaskviewAnimationDuration
+                easing.type: root.multitaskview.desktop.config.multitaskviewEasingCurveType
             }
         }
         width: Math.min(parent.width,
-                        WaylandServer.workspace.count * (workspaceThumbHeight * root.whRatio + 2 * workspaceThumbMargin))
+                        root.multitaskview.desktop.workspace.count * (workspaceThumbHeight * root.whRatio + 2 * workspaceThumbMargin))
         orientation: ListView.Horizontal
         height: workspaceDelegateHeight
         model: visualModel
@@ -343,9 +343,9 @@ Item {
             onWheel: function (event) {
                 const directionDelta = event.inverted ? -event.angleDelta.y: event.angleDelta.y
                 if (directionDelta < 0) {
-                    WaylandServer.workspace.switchToNext()
+                    root.multitaskview.desktop.workspace.switchToNext()
                 } else {
-                    WaylandServer.workspace.switchToPrev()
+                    root.multitaskview.desktop.workspace.switchToPrev()
                 }
             }
         }
@@ -353,7 +353,7 @@ Item {
 
     RoundButton {
         id: wsCreateBtn
-        visible: WaylandServer.workspace.count < WaylandServer.config.maxWorkspace
+        visible: root.multitaskview.desktop.workspace.count < root.multitaskview.desktop.config.maxWorkspace
         anchors {
             right: parent.right
             verticalCenter: parent.verticalCenter
@@ -382,8 +382,8 @@ Item {
             }
         }
         onClicked: {
-            WaylandServer.workspace.createModel()
-            WaylandServer.workspace.switchTo(WaylandServer.workspace.count - 1)
+            root.multitaskview.desktop.workspace.createModel()
+            root.multitaskview.desktop.workspace.switchTo(root.multitaskview.desktop.workspace.count - 1)
         }
     }
 
@@ -395,15 +395,15 @@ Item {
             top: root.top
             bottom: root.bottom
         }
-        visible: WaylandServer.workspace.count < WaylandServer.config.maxWorkspace
+        visible: root.multitaskview.desktop.workspace.count < root.multitaskview.desktop.config.maxWorkspace
         HoverHandler {
             onHoveredChanged: {
                 if (hovered) {
                     if (dragManager.item?.wrapper && !dragManager.doNotRestoreAccept) {
                         dragManager.accept = () => {
-                            const wid = WaylandServer.workspace.createModel()
-                            WaylandServer.workspace.switchTo(WaylandServer.workspace.count - 1)
-                            WaylandServer.workspace.moveSurfaceTo(dragManager.item.wrapper, wid)
+                            const wid = root.multitaskview.desktop.workspace.createModel()
+                            root.multitaskview.desktop.workspace.switchTo(root.multitaskview.desktop.workspace.count - 1)
+                            root.multitaskview.desktop.workspace.moveSurfaceTo(dragManager.item.wrapper, wid)
                         }
                     }
                 } else {

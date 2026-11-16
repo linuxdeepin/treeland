@@ -26,7 +26,7 @@ public:
         Exited
     };
 
-    virtual qreal partialFactor() = 0;
+    virtual qreal partialFactor() const = 0;
     virtual void setStatus(IMultitaskView::Status status) = 0;
     virtual void toggleMultitaskView(IMultitaskView::ActiveReason reason) = 0;
     virtual void updatePartialFactor(qreal progress) = 0;
@@ -35,3 +35,14 @@ public:
 };
 
 Q_DECLARE_INTERFACE(IMultitaskView, "org.deepin.treeland.v1.MultitaskViewInterface")
+
+class DesktopEnvironment;
+class QQuickItem;
+
+class IMultitaskViewFactory : public virtual BasePluginInterface
+{
+public:
+    virtual QQuickItem *createMultitaskView(DesktopEnvironment *desktop) = 0;
+};
+
+Q_DECLARE_INTERFACE(IMultitaskViewFactory, "org.deepin.treeland.v1.MultitaskViewFactoryInterface")

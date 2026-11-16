@@ -77,27 +77,27 @@ void ShellActionExecutor::execute(ShellAction action)
         }
         break;
     case ShellAction::OpenMultitaskView:
-        if (!server->m_multitaskView || !server->isNormalOrMultitaskview()
+        if (!server->multitaskView() || !server->isNormalOrMultitaskview()
             || server->currentMode() == WaylandServer::CurrentMode::Multitaskview) {
             break;
         }
-        server->m_multitaskView->setStatus(IMultitaskView::Exited);
-        server->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
+        server->multitaskView()->setStatus(IMultitaskView::Exited);
+        server->multitaskView()->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
         break;
     case ShellAction::CloseMultitaskView:
-        if (!server->m_multitaskView || !server->isNormalOrMultitaskview()
+        if (!server->multitaskView() || !server->isNormalOrMultitaskview()
             || server->currentMode() == WaylandServer::CurrentMode::Normal) {
             break;
         }
-        server->m_multitaskView->setStatus(IMultitaskView::Active);
-        server->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
+        server->multitaskView()->setStatus(IMultitaskView::Active);
+        server->multitaskView()->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
         break;
     case ShellAction::ToggleMultitaskView:
-        if (!server->m_multitaskView || !server->isNormalOrMultitaskview()) {
+        if (!server->multitaskView() || !server->isNormalOrMultitaskview()) {
             break;
         }
         server->restoreFromShowDesktop();
-        server->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
+        server->multitaskView()->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
         break;
     case ShellAction::ToggleFpsDisplay:
         server->toggleFpsDisplay();
