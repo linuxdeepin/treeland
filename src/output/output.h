@@ -6,8 +6,11 @@
 #include "backlight.h"
 
 #include <wglobal.h>
+#include <woutput.h>
+#include <woutputhelper.h>
 #include <woutputviewport.h>
 
+#include <QJSValue>
 #include <QMargins>
 #include <QObject>
 #include <QQmlComponent>
@@ -85,7 +88,10 @@ public:
     static QString getOutputId(wlr_output *output);
     QString getOutputId();
 
-    explicit Output(WOutputItem *output, QObject *parent = nullptr);
+    explicit Output(WOutput *output, QObject *parent = nullptr);
+    // Bind the QML item created for this output. Called once, right after the
+    // item exists and before anything else touches the output.
+    void setOutputItem(WOutputItem *item);
     ~Output() override;
 
     bool isSource() const;
@@ -113,6 +119,30 @@ public:
                                      double widthMm,
                                      double heightMm);
     qreal preferredScaleFactor(const QSize &pixelSize) const;
+    // Sync the QML item and viewport to this geometry. Does not touch
+    // wlr_output_state. Viewport size is the unrotated mode. Item size is the
+    // logical size after transform and scale.
+    void applyGeometry(const QSize &modePixels, WOutput::Transform transform, qreal scale);
+    // Request a rotation of this output. The output QML registers a handler
+    // (rotationOutputHandler) that animates the viewport and commits the
+    // transform at its halfway point; without a handler the rotation is
+    // applied immediately.
+    Q_INVOKABLE void rotationOutput(WOutput::Transform transform);
+    // QML only: called by the rotation animation at its halfway point. C++
+    // callers must use rotationOutput() instead, so the visual and the state
+    // stay in sync. (QML cannot invoke a private Q_INVOKABLE.)
+    Q_INVOKABLE bool setTransform(WOutput::Transform transform);
+    Q_PROPERTY(QJSValue rotationOutputHandler READ rotationOutputHandler
+                   WRITE setRotationOutputHandler NOTIFY rotationOutputHandlerChanged)
+    QJSValue rotationOutputHandler() const;
+    void setRotationOutputHandler(const QJSValue &handler);
+    // Resync item/viewport from the pending output state, falling back to the
+    // committed mode/orientation/scale for fields that are not staged.
+    // rotateViewport is false only for the animated rotation, which owns the
+    // viewport rotation itself and commits at its halfway point.
+    void applyPendingGeometry(bool rotateViewport = true);
+    bool setExtraState(WOutputHelper::ExtraState state);
+    WOutputHelper::ExtraState extraState() const;
 
     OutputConfig* config() const;
     QString uuid() const;
@@ -123,6 +153,7 @@ public:
                               const QRectF &outputRect) const;
 
 Q_SIGNALS:
+    void rotationOutputHandlerChanged();
     void configChanged();
     void exclusiveZoneChanged();
     void minimizedSurfacesChanged();
@@ -170,14 +201,18 @@ private:
     // window is expected to stay on this output.
     void moveSurfaceWithTitlebarClamp(SurfaceWrapper *surface, const QPointF &pos);
     qreal preferredScaleFactor() const;
+    // Rotate the QML viewport to match an output transform. The buffer is
+    // rotated at scanout, so the viewport carries the opposing rotation.
+    void setViewportRotation(WOutput::Transform transform);
 
     QPointF calculateBasePosition(SurfaceWrapper *surface, const QPointF &dPos) const;
     void handleLayerShellPopup(SurfaceWrapper *surface, const QRectF &normalGeo);
     void handleRegularPopup(SurfaceWrapper *surface, const QRectF &normalGeo, WOutputItem *targetOutput);
     void clearPopupCache(SurfaceWrapper *surface);
 
+    QJSValue m_rotationOutputHandler;
     Type m_type;
-    WOutputItem *m_item;
+    WOutputItem *m_item = nullptr;
     Output *m_proxy = nullptr;
     QPointer<QQuickItem> m_debugMenuBar;
     WOutputViewport *m_outputViewport = nullptr;

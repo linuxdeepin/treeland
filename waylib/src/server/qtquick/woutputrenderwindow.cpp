@@ -1915,25 +1915,6 @@ WOutputHelper *WOutputRenderWindow::getOutputHelper(WOutputViewport *output) con
     return d->getOutputHelper(output);
 }
 
-void WOutputRenderWindow::setOutputScale(WOutputViewport *output, float scale)
-{
-    Q_D(WOutputRenderWindow);
-
-    if (auto helper = d->getOutputHelper(output)) {
-        helper->setScale(scale);
-        update();
-    }
-}
-
-void WOutputRenderWindow::rotateOutput(WOutputViewport *output, WOutput::Transform t)
-{
-    Q_D(WOutputRenderWindow);
-
-    if (auto helper = d->getOutputHelper(output)) {
-        helper->setTransform(t);
-        update();
-    }
-}
 
 void WOutputRenderWindow::init(wlr_renderer *renderer, wlr_allocator *allocator)
 {
