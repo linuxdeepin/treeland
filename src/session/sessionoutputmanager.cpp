@@ -7,19 +7,19 @@
 #include "sessionoutputchannel.h"
 #include "surface/surfacewrapper.h"
 #include "common/treelandlogging.h"
-#include <wlayersurface.h>
-#include <wlr_all.h>
 #include "core/rootsurfacecontainer.h"
 #include "output/outputmanager.h"
 #include "output/output.h"
 #include "outputconfig.hpp"
 #include "treelandconfig.hpp"
+
+#include <wlayersurface.h>
+#include <wlr_all.h>
+
 #include <woutput.h>
 #include <wbackend.h>
-#include <utility>
+
 #include <QSet>
-#include <cmath>
-#include <algorithm>
 
 SessionOutputManager::SessionOutputManager(TreelandConfig *config, ConfigProvider outputConfiguration,
                                          DesktopSurfaceModel *surfaces, SessionOutputChannel *channel,
@@ -55,6 +55,7 @@ OutputConfig *SessionOutputManager::config(const QString &outputId)
 {
     if (auto *config = m_configs.value(outputId))
         return config;
+
     auto *config = m_outputConfiguration(outputId);
     connect(config, &OutputConfig::configInitializeSucceed,
             this, &SessionOutputManager::refresh);
@@ -75,11 +76,14 @@ void SessionOutputManager::refresh()
 {
     if (!configurationReady(m_config))
         return;
+
     bool ready = true;
     for (auto *output : m_hardware->outputs())
         ready &= configurationReady(config(output->getOutputId()));
+
     if (!ready)
         return;
+
     publishConfiguration();
 }
 
@@ -90,6 +94,7 @@ qreal SessionOutputManager::effectiveScale() const
         if (output->output()->isEnabled())
             scale = qMax(scale, qreal(output->output()->scale()));
     }
+
     return scale;
 }
 
@@ -99,6 +104,7 @@ qreal SessionOutputManager::scaleAt(const QPointF &position)
         if (outputState(output)->geometry().contains(position))
             return output->output()->scale();
     }
+
     return effectiveScale();
 }
 
@@ -108,9 +114,11 @@ QPointF SessionOutputManager::defaultPosition(Output *target)
     for (auto *output : m_hardware->outputs()) {
         if (output == target)
             break;
+
         const auto previous = outputState(output)->geometry();
         x = qMax(x, previous.right());
     }
+
     return QPointF(x, 0);
 }
 
@@ -121,7 +129,9 @@ QString SessionOutputManager::primaryOutputName() const
         if (output->getOutputId() == id)
             return output->output()->name();
     }
+
     const auto &outputs = m_hardware->outputs();
+
     return outputs.isEmpty() ? QString() : outputs.first()->output()->name();
 }
 
@@ -130,6 +140,7 @@ void SessionOutputManager::setPrimaryOutput(const QString &name)
     for (auto *output : m_hardware->outputs()) {
         if (output->output()->name() != name)
             continue;
+
         m_channel->setPrimary(output);
         return;
     }
@@ -151,6 +162,7 @@ void SessionOutputManager::publishConfiguration()
         auto *physical = output->output();
         if (seen.contains(physical))
             continue;
+
         seen.insert(physical);
         auto *native = physical->handle();
         const auto position = physical->position();
@@ -181,6 +193,7 @@ SessionOutput *SessionOutputManager::outputState(Output *output)
 {
     if (auto *state = m_outputs.value(output))
         return state;
+
     auto *state = new SessionOutput(this, output);
     m_outputs.insert(output, state);
     connect(state, &SessionOutput::validGeometryChanged,
@@ -188,6 +201,7 @@ SessionOutput *SessionOutputManager::outputState(Output *output)
     connect(output, &QObject::destroyed, this, [this, output] {
         delete m_outputs.take(output);
     });
+
     return state;
 }
 
@@ -201,11 +215,6 @@ SessionOutput::SessionOutput(SessionOutputManager *manager, Output *output)
     m_minimized->setFilter([](SurfaceWrapper *surface) { return surface->isMinimized(); });
     m_exclusiveZone = output->compositorExclusiveZone();
     m_lastValidGeometry = validGeometry();
-}
-
-QMargins SessionOutput::exclusiveZone() const
-{
-    return m_exclusiveZone;
 }
 
 QRectF SessionOutput::geometry() const
@@ -225,17 +234,8 @@ QList<SurfaceWrapper *> SessionOutput::layerSurfaces() const
         if (layer)
             layers.append(layer.data());
     }
+
     return layers;
-}
-
-SurfaceListModel *SessionOutput::windows() const
-{
-    return m_windows;
-}
-
-SurfaceListModel *SessionOutput::minimizedSurfaces() const
-{
-    return m_minimized;
 }
 
 void SessionOutput::addSurface(SurfaceWrapper *surface)
@@ -243,6 +243,7 @@ void SessionOutput::addSurface(SurfaceWrapper *surface)
     Q_ASSERT(m_surfaces->hasObject(surface));
     if (!m_windows->hasSurface(surface))
         m_windows->addSurface(surface);
+
     if (surface->type() == SurfaceWrapper::Type::Layer && !m_layers.contains(surface))
         m_layers.append(surface);
 }
@@ -344,6 +345,7 @@ void SessionOutput::arrangeLayerSurfaces()
 {
     if (!m_output)
         return;
+
     const auto previous = m_exclusiveZone;
     m_exclusiveZone = m_output->compositorExclusiveZone();
     const auto layers = layerSurfaces();
@@ -352,13 +354,16 @@ void SessionOutput::arrangeLayerSurfaces()
         if (layer && layer->exclusiveZone() > 0)
             arrangeLayerSurface(surface);
     }
+
     for (auto *surface : layers) {
         auto *layer = qobject_cast<WLayerSurface *>(surface->shellSurface());
         if (layer && layer->exclusiveZone() <= 0)
             arrangeLayerSurface(surface);
     }
+
     if (previous != m_exclusiveZone)
         Q_EMIT exclusiveZoneChanged();
+
     const auto available = validGeometry();
     if (m_lastValidGeometry != available) {
         m_lastValidGeometry = available;
@@ -366,5 +371,7 @@ void SessionOutput::arrangeLayerSurfaces()
     }
 }
 
-DesktopSurfaceModel *SessionOutputManager::surfaceRegistry() const { return m_surfaces; }
-bool SessionOutputManager::hardwareAttached() const { return m_channel->isActive(); }
+bool SessionOutputManager::hardwareAttached() const
+{
+    return m_channel->isActive();
+}

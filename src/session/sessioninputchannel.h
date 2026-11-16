@@ -4,11 +4,12 @@
 #pragma once
 
 #include "sessioncomponent.h"
+
+#include <wglobal.h>
+
 #include <QHash>
-#include <cstdint>
 #include <QSet>
 #include <QPointer>
-#include <wglobal.h>
 
 class WaylandServer;
 class InputManager;
@@ -23,28 +24,31 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WSeat;
 WAYLIB_SERVER_END_NAMESPACE
 
-// The only desktop-input activation boundary. The worker objects receive no
-// Session; each channel owns its own filter, recognizer and action controller.
 class SessionInputChannel : public SessionComponent
 {
     Q_OBJECT
 public:
     SessionInputChannel(Session *session, WaylandServer *runtime);
     ~SessionInputChannel() override;
-    CompositorInputFilter *filter() const;
-    GestureManager *gestures() const;
-    ShortcutController *shortcuts() const;
+
+    CompositorInputFilter *filter() const { return m_filter; };
+    GestureManager *gestures() const { return m_gestures; };
+    ShortcutController *shortcuts() const { return m_shortcuts; };
     ShortcutManagerV3 *shortcutProtocol() const;
+
 protected:
     void activate() override;
     void deactivate() override;
+
 private:
     bool admitEvent(WAYLIB_SERVER_NAMESPACE::WSeat *seat, QInputEvent *event);
-    WaylandServer *const m_runtime;
+
+private:
+    WaylandServer *const m_runtime = nullptr;
     QPointer<InputManager> m_input;
-    GestureManager *const m_gestures;
-    ShortcutController *const m_shortcuts;
-    CompositorInputFilter *const m_filter;
+    GestureManager *const m_gestures = nullptr;
+    ShortcutController *const m_shortcuts = nullptr;
+    CompositorInputFilter *const m_filter = nullptr;
     QHash<WAYLIB_SERVER_NAMESPACE::WSeat *, QSet<uint32_t>> m_suppressedKeys;
     Qt::MouseButtons m_suppressedButtons;
     QPointer<ShortcutManagerV3> m_shortcutProtocol;

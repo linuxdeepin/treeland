@@ -1,5 +1,6 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
 #include "sessionprelaunch.h"
 #include "session.h"
 #include "core/waylandserver.h"
@@ -10,11 +11,12 @@
 #include "treelandconfig.hpp"
 #include "treelanduserconfig.hpp"
 #include "workspace/workspace.h"
+
 #include <wlr_all.h>
+
 #include <wtoplevelsurface.h>
+
 #include <QTimer>
-#include <algorithm>
-#include <utility>
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -28,8 +30,6 @@ SessionPrelaunch::SessionPrelaunch(Session *owner, WaylandServer *runtime)
     connect(m_protocol, &PrelaunchSplash::splashRequested, this, &SessionPrelaunch::request);
     connect(m_protocol, &PrelaunchSplash::splashCloseRequested, this, &SessionPrelaunch::close);
 }
-
-PrelaunchSplash *SessionPrelaunch::protocol() const { return m_protocol; }
 
 bool SessionPrelaunch::resolvePidfd(int pidfd, std::function<void(const QString &)> callback)
 {
@@ -78,6 +78,7 @@ void SessionPrelaunch::create(const QString &appId, const QString &instanceId, q
     const auto pending = m_pending.constFind(appId);
     if (pending == m_pending.cend() || pending->generation != generation)
         return;
+
     m_pending.remove(appId);
     const bool dark = theme == 0 ? session()->config()->windowColorScheme() == 1 : theme == 2;
     auto *wrapper = new SurfaceWrapper(m_runtime->qmlEngine(), nullptr, size, appId,
@@ -106,10 +107,12 @@ void SessionPrelaunch::discard(SurfaceWrapper *wrapper, bool closeWindow)
     });
     if (it == m_splashes.end())
         return; // Already matched to a real window; its old timeout must do nothing.
+
     m_splashes.erase(it);
     const auto appId = wrapper->appId();
     if (closeWindow)
         m_closed.insert(appId);
+
     m_runtime->rootSurfaceContainer()->destroyForSurface(wrapper);
     m_store->recordSplashMismatch(appId);
 }
@@ -119,6 +122,7 @@ void SessionPrelaunch::close(const QString &appId, const QString &instanceId)
     const auto pending = m_pending.constFind(appId);
     if (pending != m_pending.cend() && pending->instanceId == instanceId)
         m_pending.remove(appId);
+
     for (const auto &splash : std::as_const(m_splashes)) {
         if (splash.wrapper && splash.wrapper->appId() == appId && splash.instanceId == instanceId) {
             discard(splash.wrapper, false);
@@ -132,15 +136,23 @@ SurfaceWrapper *SessionPrelaunch::takeSplash(const QString &appId, WToplevelSurf
 {
     if (appId.isEmpty() || !surface || !session()->ownsClient(surface->waylandClient()))
         return nullptr;
+
     m_pending.remove(appId);
     for (auto it = m_splashes.begin(); it != m_splashes.end(); ++it) {
         auto *wrapper = it->wrapper.data();
         if (!wrapper || wrapper->appId() != appId)
             continue;
+
         m_splashes.erase(it);
         wrapper->convertToNormalSurface(surface, type);
         m_store->resetSplashMismatchCount(appId);
         return wrapper;
     }
+
     return nullptr;
+}
+
+PrelaunchSplash *SessionPrelaunch::protocol() const
+{
+    return m_protocol;
 }

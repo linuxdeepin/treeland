@@ -12,8 +12,10 @@
 #include "input/compositorinputfilter.h"
 #include "modules/shortcut/shortcutcontroller.h"
 #include "modules/shortcut/shortcutmanager.h"
+
 #include <winputdevice.h>
 #include <wlr_all.h>
+
 #include <QGuiApplication>
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -39,17 +41,16 @@ SessionInputChannel::SessionInputChannel(Session *owner, WaylandServer *runtime)
 SessionInputChannel::~SessionInputChannel()
 {
     deactivate();
-    delete m_filter;
-    // Controllers unregister gestures during destruction, so the recognizer
-    // must outlive them independently of QObject child insertion order.
-    delete m_shortcuts;
-    delete m_gestures;
-}
 
-CompositorInputFilter *SessionInputChannel::filter() const { return m_filter; }
-GestureManager *SessionInputChannel::gestures() const { return m_gestures; }
-ShortcutController *SessionInputChannel::shortcuts() const { return m_shortcuts; }
-ShortcutManagerV3 *SessionInputChannel::shortcutProtocol() const { return m_shortcutProtocol; }
+    if (m_filter)
+        delete m_filter;
+
+    if (m_shortcuts)
+        delete m_shortcuts;
+
+    if (m_gestures)
+        delete m_gestures;
+}
 
 void SessionInputChannel::activate()
 {
@@ -85,8 +86,10 @@ void SessionInputChannel::deactivate()
     m_gestures->cancel();
     if (m_input)
         m_input->deactivate();
+
     if (m_shortcutProtocol)
         m_shortcutProtocol->cancelCapture();
+
     m_suppressedKeys.clear();
     m_suppressedButtons = Qt::NoButton;
     m_touchStarted = false;
@@ -115,8 +118,10 @@ bool SessionInputChannel::admitEvent(WSeat *seat, QInputEvent *event)
             return false;
         }
     }
+
     if (event->type() == QEvent::MouseButtonPress)
         m_suppressedButtons &= ~Qt::MouseButtons(static_cast<QMouseEvent *>(event)->button());
+
     if (event->type() == QEvent::MouseButtonRelease) {
         const auto button = static_cast<QMouseEvent *>(event)->button();
         if (m_suppressedButtons.testFlag(button)) {
@@ -124,16 +129,24 @@ bool SessionInputChannel::admitEvent(WSeat *seat, QInputEvent *event)
             return false;
         }
     }
+
     if (event->type() == QEvent::MouseMove && m_suppressedButtons != Qt::NoButton)
         return false;
-    if (event->type() == QEvent::TouchBegin)
+
+    if (event->type() == QEvent::TouchBegin) {
         m_touchStarted = true;
-    else if (event->type() == QEvent::TouchUpdate && !m_touchStarted)
+    } else if (event->type() == QEvent::TouchUpdate && !m_touchStarted) {
         return false;
-    else if (event->type() == QEvent::TouchEnd || event->type() == QEvent::TouchCancel) {
+    } else if (event->type() == QEvent::TouchEnd || event->type() == QEvent::TouchCancel) {
         const bool started = m_touchStarted;
         m_touchStarted = false;
         return started;
     }
+
     return true;
+}
+
+ShortcutManagerV3 *SessionInputChannel::shortcutProtocol() const
+{
+    return m_shortcutProtocol;
 }

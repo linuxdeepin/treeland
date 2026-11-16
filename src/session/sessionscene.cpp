@@ -1,9 +1,9 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
 #include "sessionscene.h"
 #include "session.h"
 #include "surface/surfacewrapper.h"
-#include <utility>
 
 SessionScene::SessionScene(Session *owner)
     : SessionComponent(owner), m_system(owner->username() == QStringLiteral("dde"))
@@ -33,6 +33,7 @@ void SessionScene::attach(SurfaceWrapper *surface)
 {
     if (m_surfaces.contains(surface))
         return;
+
     m_surfaces.append(surface);
     connect(surface, &SurfaceWrapper::surfaceRoleChanged, this, &SessionScene::refresh);
     connect(surface, &SurfaceWrapper::typeChanged, this, &SessionScene::refresh);
@@ -53,5 +54,12 @@ void SessionScene::refresh()
     }
 }
 
-void SessionScene::activate() { refresh(); }
-void SessionScene::deactivate() { refresh(); }
+void SessionScene::activate()
+{
+    refresh();
+}
+
+void SessionScene::deactivate()
+{
+    refresh();
+}

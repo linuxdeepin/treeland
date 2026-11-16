@@ -5,6 +5,8 @@
 
 #include "output/output.h"
 
+#include <woutputmanagerv1.h>
+
 #include <QObject>
 #include <QtQml/qqmlregistration.h>
 #include <QHash>
@@ -13,8 +15,6 @@
 #include <QRectF>
 #include <QString>
 #include <QPointer>
-#include <woutputmanagerv1.h>
-#include <functional>
 
 class Output;
 class OutputConfig;
@@ -33,7 +33,6 @@ WAYLIB_SERVER_END_NAMESPACE
 Q_MOC_INCLUDE("output/output.h")
 Q_MOC_INCLUDE(<woutput.h>)
 
-// Logical output owned by one user; it never includes another user's panels.
 class SessionOutput : public QObject
 {
     Q_OBJECT
@@ -44,12 +43,13 @@ class SessionOutput : public QObject
     Q_PROPERTY(QRectF validGeometry READ validGeometry NOTIFY validGeometryChanged FINAL)
 public:
     SessionOutput(SessionOutputManager *manager, Output *output);
-    QMargins exclusiveZone() const;
+
+    QMargins exclusiveZone() const { return m_exclusiveZone; };
     QRectF geometry() const;
     QRectF validGeometry() const;
     QList<SurfaceWrapper *> layerSurfaces() const;
-    SurfaceListModel *windows() const;
-    SurfaceListModel *minimizedSurfaces() const;
+    SurfaceListModel *windows() const { return m_windows; };
+    SurfaceListModel *minimizedSurfaces() const { return m_minimized; };
     void addSurface(SurfaceWrapper *surface);
     void removeSurface(SurfaceWrapper *surface);
     void arrangeLayerSurfaces();
@@ -61,16 +61,15 @@ Q_SIGNALS:
 private:
     void arrangeLayerSurface(SurfaceWrapper *surface);
     void addExclusiveZone(Qt::Edge edge, int value);
-    SurfaceListModel *m_windows;
-    SurfaceFilterModel *m_minimized;
+    SurfaceListModel *m_windows = nullptr;
+    SurfaceFilterModel *m_minimized = nullptr;
     QPointer<Output> m_output;
-    DesktopSurfaceModel *const m_surfaces;
+    DesktopSurfaceModel *const m_surfaces = nullptr;
     QList<QPointer<SurfaceWrapper>> m_layers;
     QMargins m_exclusiveZone;
     QRectF m_lastValidGeometry;
 };
 
-// Per-Session protocol and window layout; display settings are system-wide.
 class SessionOutputManager : public QObject
 {
     Q_OBJECT
@@ -82,8 +81,9 @@ public:
                          OutputManager *hardware, WAYLIB_SERVER_NAMESPACE::WBackend *backend,
                          WAYLIB_SERVER_NAMESPACE::WOutputManagerV1 *protocol,
                          QObject *parent);
-    DesktopSurfaceModel *surfaceRegistry() const;
-    bool hardwareAttached() const;
+
+    DesktopSurfaceModel *surfaceRegistry() const { return m_surfaces; };
+    bool hardwareAttached() const ;
     OutputConfig *config(const QString &outputId);
     SessionOutput *outputState(Output *output);
     WAYLIB_SERVER_NAMESPACE::WOutputManagerV1 *protocol() const { return m_protocol; }
@@ -103,12 +103,14 @@ Q_SIGNALS:
 private:
     void requestConfiguration(wlr_output_configuration_v1 *configuration, bool onlyTest);
     void publishConfiguration();
-    TreelandConfig *const m_config;
+
+private:
+    TreelandConfig *const m_config = nullptr;
     const ConfigProvider m_outputConfiguration;
-    DesktopSurfaceModel *const m_surfaces;
-    SessionOutputChannel *const m_channel;
-    OutputManager *const m_hardware;
-    WAYLIB_SERVER_NAMESPACE::WOutputManagerV1 *m_protocol;
+    DesktopSurfaceModel *const m_surfaces = nullptr;
+    SessionOutputChannel *const m_channel = nullptr;
+    OutputManager *const m_hardware = nullptr;
+    WAYLIB_SERVER_NAMESPACE::WOutputManagerV1 *m_protocol = nullptr;
     QHash<QString, OutputConfig *> m_configs;
     QHash<Output *, SessionOutput *> m_outputs;
 };
