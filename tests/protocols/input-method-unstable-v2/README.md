@@ -18,11 +18,13 @@
 | popup 角色和销毁顺序 | 为无角色 `wl_surface` 调用 `get_input_popup_surface`，先销毁 popup 再销毁 surface | 创建和销毁均无协议错误 | P |
 | focused text-input 的状态快照 | fake app 映射 xdg toplevel，并 enable text-input-v2，设置 surrounding text/content type/cursor rectangle | fake IM 收到 `activate`、`surrounding_text("abc",3,3)`、`text_change_cause(input_method)`、`content_type(auto_completion,email)` 和一个 `done` | E |
 | focused text-input 的 disable/再 enable | fake app 在仍 focused 时 `disable`，随后对同一 surface 再 `enable` | fake IM 先收到一次 `deactivate`，再收到第二次 `activate`；生产 helper 不残留旧 text-input | E |
+| 同 client 焦点移出/移回 text-input | fake app 映射第二个 xdg toplevel（无 text-input），切到它再切回 text-input 窗口 | 切出时 text-input 收到 `leave`、IM 收到 `deactivate`；切回时 text-input 重新 `enter`、IM 重新 `activate`，且不会把 enter 送给 client 未 enable 的 surface | E |
 | IM 编辑结果回传应用 | fake IM 设置 delete、commit string、preedit 后 `commit(0)` | fake app 收到正确的 `delete_surrounding_text(1,2)`、`commit_string("committed")`、preedit string/cursor/styling | E |
 | 清空 preedit | fake IM 在不发送 `set_preedit_string` 的情况下 `commit`（fcitx5 清空 preedit 时的行为） | fake app 再次收到 `preedit_string` 且文本为空，残留的组合文本被清除（此前只在非空时转发，导致应用永远保留旧 preedit） | E |
 | 丢焦点时清 preedit | fake IM 被销毁，focused text-input 因此收到 `leave`（与切窗口时走同一条 `sendLeave()` 路径） | fake app 在 `leave` 前再收到一次空的 `preedit_string`（断言同时校验事件先后顺序），组合文本被清除而不是留给客户端自行处理 | E |
 | active popup 定位 | fake IM 为 roleless surface 创建 popup | 收到生产 helper 按 text-input cursor rectangle 发出的 `text_input_rectangle(11,12,13,14)` | E |
 | keyboard grab 资源 | `grab_keyboard` 后 roundtrip，再 `release` | 子资源可创建并按 release 生命周期销毁 | P |
+| popup grab 抢占键盘 | 同 client 在 focused text-input 上弹出带 `xdg_popup.grab` 的 popup，再注入物理键，随后销毁 popup 再注入 | popup grab 生效期间 fake IM 收不到 `key` 且不会被 `deactivate`；popup 销毁后同一次注入重新送达 fake IM | E |
 | 每 seat 唯一 input method | 同一 `wl_seat` 再次 `get_input_method` | 第二对象只收到一次 `unavailable`，没有其他 event | P |
 | manager 与子对象生命周期分离 | `zwp_input_method_manager_v2.destroy` 后继续向第一个 IM 提交并 roundtrip | 已创建的 IM 未被 manager destroy 连带销毁，也没有协议错误 | P |
 
@@ -58,10 +60,12 @@ input method 7、popup 1、keyboard grab 1。
 `text_change_cause`、`content_type`、`done`、`text_input_rectangle`，并由 fake text-input 断言
 IM commit 的文本 event。client 在仍 focused 时 `disable` 会经生产
 `WTextInputV2::clearEnabledSurface()` 触发 `disabled()`，再由 `WInputMethodHelper` 向 IM 发
-`deactivate`；同一 text-input 再次 `enable` 会重新 `activate`。下列 event 仍未覆盖，不能以
-headless 空 seat 的“没有 event”冒充覆盖：
+`deactivate`；同一 text-input 再次 `enable` 会重新 `activate`。同 client 的第二个
+toplevel 也已覆盖：切出 text-input 时 `deactivate`，切回时重新 `enter`/`activate`，且不会把
+enter 送给 client 未 enable 的 surface。下列 event 仍未覆盖，不能以 headless 空 seat 的
+“没有 event”冒充覆盖：
 
-- focus 转移导致的 `deactivate`，以及连续 text-input state update 是否只传递最新快照。
+- 连续 text-input state update 是否只传递最新快照。
 
 自包含测试已经由另一个 client 的 virtual keyboard 驱动并断言 keyboard-grab 的
 `keymap`、`key`、`modifiers`、`repeat_info`；使用另一 client 避免 IM 自己注入的 virtual keyboard
