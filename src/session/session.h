@@ -41,6 +41,7 @@ class SessionSeatManager;
 class SessionProtocols;
 class SessionPrelaunch;
 class SessionScene;
+class SessionWorkspace;
 class SessionOutputManager;
 class SessionSwitcher;
 class InputManager;
@@ -67,7 +68,8 @@ public:
     WXWayland *xwayland() const { return m_xwayland; };
     quint32 noTitlebarAtom() const { return m_noTitlebarAtom; };
 #endif
-    Workspace *workspace() const { return m_desktop->workspace(); };
+    Workspace *workspace() const;
+    SessionWorkspace *sessionWorkspace() const { return m_workspace; }
     DesktopSurfaceModel *windows() const { return m_desktop->windows(); };
     TreelandUserConfig *config() const { return m_config; };
     SessionSeatManager *seatManager() const { return m_seatManager; };
@@ -107,6 +109,7 @@ private:
     SessionProtocols *m_protocols = nullptr;
     SessionPrelaunch *m_prelaunch = nullptr;
     SessionScene *m_scene = nullptr;
+    SessionWorkspace *m_workspace = nullptr;
     SessionOutputManager *m_outputManager = nullptr;
     QList<WServerInterface *> m_interfaces;
     QPointer<ForeignToplevelManagerInterfaceV3> m_windowManagement;

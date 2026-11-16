@@ -246,6 +246,8 @@ qt_add_qml_module(libtreeland
         session/sessionprotocols.h
         session/sessioncomponent.cpp
         session/sessioncomponent.h
+        session/sessionworkspace.cpp
+        session/sessionworkspace.h
         session/sessionscene.cpp
         session/sessionscene.h
         session/sessionswitcher.cpp

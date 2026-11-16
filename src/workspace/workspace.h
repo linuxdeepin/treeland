@@ -14,6 +14,7 @@ class SurfaceWrapper;
 class Workspace;
 class WorkspaceAnimationController;
 Q_MOC_INCLUDE("workspace/workspaceanimationcontroller.h")
+Q_MOC_INCLUDE("treelanduserconfig.hpp")
 
 class WorkspaceListModel : public ObjectListModel<WorkspaceModel>
 {
@@ -31,6 +32,7 @@ public:
 class Workspace : public SurfaceContainer
 {
     Q_OBJECT
+    Q_PROPERTY(TreelandUserConfig *config READ config CONSTANT FINAL)
     Q_PROPERTY(int currentIndex READ currentIndex WRITE setCurrentIndex NOTIFY currentIndexChanged FINAL)
     Q_PROPERTY(WorkspaceModel *current READ current NOTIFY currentChanged FINAL)
     Q_PROPERTY(SurfaceFilterProxyModel* currentFilter READ currentFilter NOTIFY currentFilterChanged FINAL)
@@ -42,8 +44,9 @@ class Workspace : public SurfaceContainer
     QML_UNCREATABLE("Created only in C++")
 
 public:
-    explicit Workspace(SurfaceContainer *parent, TreelandUserConfig *config = nullptr);
-    void deactivate();
+    explicit Workspace(SurfaceContainer *parent, TreelandUserConfig *config);
+    TreelandUserConfig *config() const;
+    void resetView();
     WallpaperManager *wallpaperManager() const;
     void setWallpaperManager(WallpaperManager *manager);
 
@@ -108,7 +111,9 @@ private:
     void doRemoveModel(int index);
     void doSetCurrentIndex(int newCurrentIndex);
 
-    TreelandUserConfig *m_config = nullptr;
+    bool ownsSurface(SurfaceWrapper *surface) const;
+
+    TreelandUserConfig *const m_config;
     uint m_currentIndex;
     QPointer<WallpaperManager> m_wallpaperManager;
     WorkspaceListModel *m_models;
