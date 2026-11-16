@@ -16,12 +16,13 @@
 
 Workspace::Workspace(SurfaceContainer *parent, TreelandUserConfig *config)
     : SurfaceContainer(parent)
-    , m_config(config ? config : WaylandServer::instance()->config())
+    , m_config(config)
     , m_currentIndex(0)
     , m_models(new WorkspaceListModel(this))
     , m_currentFilter(new SurfaceFilterProxyModel(this))
     , m_animationController(new WorkspaceAnimationController(this))
 {
+    Q_ASSERT(m_config);
     m_animationController->setConfig(m_config);
     m_showOnAllWorkspaceModel = new WorkspaceModel(this, ShowOnAllWorkspaceId, {});
     m_showOnAllWorkspaceModel->setName("show-on-all-workspace");
@@ -36,7 +37,12 @@ Workspace::Workspace(SurfaceContainer *parent, TreelandUserConfig *config)
             this, &Workspace::reloadFromConfig);
 }
 
-void Workspace::deactivate()
+TreelandUserConfig *Workspace::config() const
+{
+    return m_config;
+}
+
+void Workspace::resetView()
 {
     stopPreviewing();
     m_animationController->cancel();
@@ -46,13 +52,11 @@ void Workspace::deactivate()
         m_switcher->deleteLater();
         m_switcher = nullptr;
     }
-    setVisible(false);
-    setEnabled(false);
 }
 
 void Workspace::moveSurfaceTo(SurfaceWrapper *surface, int workspaceId)
 {
-    if (!surface || (surface->desktop() && surface->desktop()->workspace() != this))
+    if (!ownsSurface(surface))
         return;
     if (workspaceId == -1)
         workspaceId = current()->id();
@@ -69,7 +73,8 @@ void Workspace::moveSurfaceTo(SurfaceWrapper *surface, int workspaceId)
         from = modelFromId(surface->workspaceId());
 
     WorkspaceModel *to = modelFromId(workspaceId);
-    Q_ASSERT(to);
+    if (!from || !to)
+        return;
 
     from->removeSurface(surface);
     to->addSurface(surface);
@@ -120,7 +125,7 @@ int Workspace::getRightWorkspaceId(int workspaceId)
 
 void Workspace::addSurface(SurfaceWrapper *surface, int workspaceId)
 {
-    if (!surface || (surface->desktop() && surface->desktop()->workspace() != this))
+    if (!ownsSurface(surface))
         return;
     Q_ASSERT(surface && !surface->container() && surface->workspaceId() == -1);
 
@@ -158,6 +163,8 @@ void Workspace::moveModelTo(int workspaceId, int destinationIndex)
 
 void Workspace::removeSurface(SurfaceWrapper *surface)
 {
+    if (!ownsSurface(surface))
+        return;
     surface->setHasInitializeContainer(false);
 
     WorkspaceModel *from = nullptr;
@@ -249,7 +256,7 @@ void Workspace::switchToNext()
 {
     if (currentIndex() < m_models->rowCount() - 1) {
         switchTo(currentIndex() + 1);
-    } else if (m_animationController->bounceEnabled()) {
+    } else if (isEnabled() && m_animationController->bounceEnabled()) {
         createSwitcher();
         m_animationController->bounce(currentIndex(), WorkspaceAnimationController::Right);
     }
@@ -259,7 +266,7 @@ void Workspace::switchToPrev()
 {
     if (currentIndex() > 0) {
         switchTo(currentIndex() - 1);
-    } else if (m_animationController->bounceEnabled()) {
+    } else if (isEnabled() && m_animationController->bounceEnabled()) {
         createSwitcher();
         m_animationController->bounce(currentIndex(), WorkspaceAnimationController::Left);
     }
@@ -270,11 +277,15 @@ void Workspace::switchTo(int index, bool animated)
     if (index < 0 || index >= m_models->rowCount() || index == currentIndex())
         return;
 
-    // Close all popup grabs when switching workspaces.
-    WaylandServer::instance()->rootSurfaceContainer()->dismissAllPopups();
+    // Inactive desktops may update their selection without affecting input or focus.
+    if (isEnabled())
+        WaylandServer::instance()->rootSurfaceContainer()->dismissAllPopups();
 
     auto oldCurrentIndex = currentIndex();
     setCurrentIndex(index);
+    if (!isEnabled())
+        return;
+
     // Browsing workspaces must keep keyboard focus in the multitask view.
     if (WaylandServer::instance()->currentMode() != WaylandServer::CurrentMode::Multitaskview)
         WaylandServer::instance()->activateSurface(current()->latestActiveSurface());
@@ -354,7 +365,7 @@ void Workspace::updateSurfacesOwnsOutput()
 
 void Workspace::createSwitcher()
 {
-    if (m_switcherEnabled && !m_switcher) {
+    if (isEnabled() && m_switcherEnabled && !m_switcher) {
         auto engine = WaylandServer::instance()->qmlEngine();
         m_switcher = engine->createWorkspaceSwitcher(this);
         connect(m_switcher, &QQuickItem::visibleChanged, m_switcher, [this] {
@@ -406,6 +417,8 @@ void Workspace::doSetCurrentIndex(int newCurrentIndex)
 
 void Workspace::startPreviewing(SurfaceWrapper *previewingItem)
 {
+    if (!isEnabled() || !ownsSurface(previewingItem))
+        return;
     if (m_previewingItem && m_previewingItem->shellSurface()) {
         // Check shellSurface() since SurfaceWrapper::aboutToBeInvalidated can't make QPointer null
         // in time
@@ -432,6 +445,8 @@ void Workspace::stopPreviewing()
 
 void Workspace::pushActivedSurface(SurfaceWrapper *surface)
 {
+    if (!ownsSurface(surface))
+        return;
     if (surface->type() == SurfaceWrapper::Type::XdgPopup) {
         qCWarning(lcTlWorkspace) << "XdgPopup can't participate in focus fallback!";
         return;
@@ -449,6 +464,8 @@ void Workspace::pushActivedSurface(SurfaceWrapper *surface)
 
 void Workspace::removeActivedSurface(SurfaceWrapper *surface)
 {
+    if (!ownsSurface(surface))
+        return;
     if (surface->showOnAllWorkspace()) [[unlikely]] {
         for (auto wpModel : std::as_const(m_models->objects()))
             wpModel->removeActivedSurface(surface);
@@ -522,7 +539,7 @@ void Workspace::doRemoveModel(int index)
         if (s->hasActiveCapability() && !s->showOnAllWorkspace())
             target->pushActivedSurface(s);
     }
-    if (this == WaylandServer::instance()->workspace()
+    if (isEnabled()
         && WaylandServer::instance()->currentMode() != WaylandServer::CurrentMode::Multitaskview)
         WaylandServer::instance()->activateSurface(current->latestActiveSurface());
 
@@ -582,4 +599,9 @@ WallpaperManager *Workspace::wallpaperManager() const
 void Workspace::setWallpaperManager(WallpaperManager *manager)
 {
     m_wallpaperManager = manager;
+}
+
+bool Workspace::ownsSurface(SurfaceWrapper *surface) const
+{
+    return surface && (!surface->desktop() || surface->desktop()->workspace() == this);
 }

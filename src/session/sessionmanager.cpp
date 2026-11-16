@@ -4,6 +4,7 @@
 #include "sessionmanager.h"
 #include "sessionprelaunch.h"
 #include "sessionscene.h"
+#include "sessionworkspace.h"
 #include "session.h"
 #include "desktop/desktopenvironment.h"
 #include "seatuserconfig.hpp"
@@ -400,7 +401,8 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
     session->m_uid = passwd->pw_uid;
     session->m_config = DConfigManager::instance()->userConfig(username);
     auto *runtime = WaylandServer::instance();
-    auto *workspace = runtime->shellHandler()->createSessionWorkspace(session->m_config);
+    session->m_workspace = new SessionWorkspace(session.get(), runtime);
+    auto *workspace = session->workspace();
     session->m_desktop = new DesktopEnvironment(session->m_config, workspace, runtime,
         [username](const QString &seatName) {
             return DConfigManager::instance()->userSeatConfig(username, seatName);

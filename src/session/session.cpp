@@ -6,6 +6,7 @@
 #include "desktop/desktopenvironment.h"
 #include "surface/surfacecontainer.h"
 #include "sessionseatmanager.h"
+#include "sessionworkspace.h"
 
 #include "common/treelandlogging.h"
 #include "core/shellhandler.h"
@@ -80,20 +81,11 @@ Session::~Session()
 
     delete m_socket;
     m_socket = nullptr;
-    auto *ownedWorkspace = workspace();
-    if (ownedWorkspace && WaylandServer::instance()
-        && WaylandServer::instance()->workspace() != ownedWorkspace) {
-        auto *workspace = ownedWorkspace;
-        workspace->deactivate();
-        if (workspace->surfaces().isEmpty()) {
-            workspace->deleteLater();
-        } else {
-            connect(workspace, &SurfaceContainer::surfaceRemoved, workspace, [workspace] {
-                if (workspace->surfaces().isEmpty())
-                    workspace->deleteLater();
-            });
-        }
-    }
+}
+
+Workspace *Session::workspace() const
+{
+    return m_workspace ? m_workspace->workspace() : nullptr;
 }
 
 void Session::setActive(bool active)
