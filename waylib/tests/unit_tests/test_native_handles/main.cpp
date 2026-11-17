@@ -237,10 +237,20 @@ class NativeHandlesTest : public QObject
         server.start();
         auto *native = interface->template nativeInterface<Native>();
         QVERIFY(native);
+        if constexpr (std::is_same_v<Native, wlr_ext_workspace_manager_v1>) {
+            QVERIFY(wlr_ext_workspace_group_handle_v1_create(native, 0));
+            QVERIFY(wlr_ext_workspace_handle_v1_create(native, "test-workspace", 0));
+        }
         ManagerDestroyProbe probe(&native->events.destroy);
         QVERIFY(server.detach(interface));
         QVERIFY(!interface->isValid());
         QCOMPARE(probe.destroyed, socket != nullptr);
+        if constexpr (std::is_same_v<Native, wlr_ext_workspace_manager_v1>) {
+            if (!socket) {
+                QCOMPARE(wl_list_length(&native->groups), 1);
+                QCOMPARE(wl_list_length(&native->workspaces), 1);
+            }
+        }
 
         server.attach(interface);
         QVERIFY(interface->isValid());
