@@ -267,6 +267,7 @@ static int has_own_shell_globals(const struct client_connection *connection)
         && has_one_scoped_global(connection, "xdg_wm_base")
         && has_one_scoped_global(connection, "zwlr_layer_shell_v1")
         && has_one_scoped_global(connection, "zxdg_decoration_manager_v1")
+        // personalization v1 实现删除时，本断言与全局注册一并移除或改写
         && has_one_scoped_global(connection, "treeland_personalization_manager_v1")
         && has_one_scoped_global(connection, "treeland_appearance_v1")
         && has_one_scoped_global(connection, "treeland_appearance_manager_v1")
