@@ -25,6 +25,7 @@ RowLayout {
     property bool powerVisible: powerList.visible
 
     signal otherUserRequested()
+    signal inputFocusRequested()
 
     /***************/
     /* Components */
@@ -67,7 +68,11 @@ RowLayout {
             id: userList
             x: (userItem.width - userList.width) / 2 - 10
             y: -userList.height - 10
-            onClosed: userItem.expand = false
+            onClosed: {
+                userItem.expand = false
+                // The popup held the keyboard focus; hand it back to the input.
+                bottomGroup.inputFocusRequested()
+            }
             onOtherUserRequested: bottomGroup.otherUserRequested()
         }
 
