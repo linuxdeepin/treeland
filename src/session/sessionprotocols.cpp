@@ -33,9 +33,8 @@ WAYLIB_SERVER_USE_NAMESPACE
 namespace {
 constexpr uint32_t ExtDataControlManagerVersion = 1;
 
-// Native managers are display-owned. Session withdraws every advertised global
-// before releasing the wrapper; client resources are destroyed before detach.
-template<auto Create>
+// Session closes client resources before detaching its socket-owned managers.
+template<auto Create, auto Destroy>
 class NativeSessionProtocol : public QObject, public WServerInterface
 {
     using Native = std::remove_pointer_t<std::invoke_result_t<decltype(Create), wl_display *>>;
@@ -44,7 +43,13 @@ public:
     QByteArrayView interfaceName() const override { return m_name; }
 protected:
     void create(WServer *server) override { m_handle = Create(server->handle()); }
-    void destroy(WServer *) override { m_handle = nullptr; }
+    void destroy(WServer *) override
+    {
+        if (ownsSocket() && m_handle)
+            Destroy(nativeInterface<Native>());
+
+        m_handle = nullptr;
+    }
     wl_global *global() const override
     {
         auto *native = nativeInterface<Native>();
@@ -75,7 +80,7 @@ wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *createToplevelCaptureS
 }
 
 class SessionToplevelCapture final
-    : public NativeSessionProtocol<createToplevelCaptureSource>, public WObject
+    : public NativeSessionProtocol<createToplevelCaptureSource, wlr_ext_foreign_toplevel_image_capture_source_manager_v1_destroy>, public WObject
 {
 public:
     explicit SessionToplevelCapture(Session *owner)
@@ -159,23 +164,39 @@ struct SessionForeignRegistry
 {
     wlr_xdg_foreign_v2 *acquire(WServer *server)
     {
-        if (users++ == 0) {
-            auto *registry = wlr_xdg_foreign_registry_create(server->handle());
+        if (!native) {
+            registry = wlr_xdg_foreign_registry_create(server->handle());
             if (!registry)
                 return nullptr;
             native = wlr_xdg_foreign_v2_create(server->handle(), registry);
+            if (!native) {
+                wlr_xdg_foreign_registry_destroy(registry);
+                registry = nullptr;
+                return nullptr;
+            }
         }
 
+        ++users;
         return native;
     }
 
-    void release()
+    void release(bool destroyNative)
     {
-        if (--users == 0)
-            native = nullptr; // Native state is reclaimed by wl_display teardown.
+        Q_ASSERT(users > 0);
+        if (--users != 0)
+            return;
+
+        if (destroyNative) {
+            wlr_xdg_foreign_v2_destroy(native);
+            wlr_xdg_foreign_registry_destroy(registry);
+        }
+
+        native = nullptr;
+        registry = nullptr;
     }
 
     wlr_xdg_foreign_v2 *native = nullptr;
+    wlr_xdg_foreign_registry *registry = nullptr;
     int users = 0;
 };
 
@@ -195,7 +216,12 @@ protected:
     void create(WServer *server) override { m_handle = m_registry->acquire(server); }
     void destroy(WServer *) override
     {
-        m_registry->release();
+        if (m_handle) {
+            if (ownsSocket())
+                wl_global_remove(global());
+            m_registry->release(ownsSocket() != nullptr);
+        }
+
         m_handle = nullptr;
     }
     wl_global *global() const override
@@ -216,16 +242,16 @@ SessionProtocols::SessionProtocols(Session *session)
     : SessionComponent(session)
 {
     session->sessionWorkspace()->installProtocol();
-    session->attachInterface(new NativeSessionProtocol<wlr_data_device_manager_create>("wl_data_device_manager"));
-    session->attachInterface(new NativeSessionProtocol<wlr_primary_selection_v1_device_manager_create>("zwp_primary_selection_device_manager_v1"));
-    session->attachInterface(new NativeSessionProtocol<wlr_data_control_manager_v1_create>("zwlr_data_control_manager_v1"));
-    session->attachInterface(new NativeSessionProtocol<createExtDataControl>("ext_data_control_manager_v1"));
+    session->attachInterface(new NativeSessionProtocol<wlr_data_device_manager_create, wlr_data_device_manager_destroy>("wl_data_device_manager"));
+    session->attachInterface(new NativeSessionProtocol<wlr_primary_selection_v1_device_manager_create, wlr_primary_selection_v1_device_manager_destroy>("zwp_primary_selection_device_manager_v1"));
+    session->attachInterface(new NativeSessionProtocol<wlr_data_control_manager_v1_create, wlr_data_control_manager_v1_destroy>("zwlr_data_control_manager_v1"));
+    session->attachInterface(new NativeSessionProtocol<createExtDataControl, wlr_ext_data_control_manager_v1_destroy>("ext_data_control_manager_v1"));
     auto foreignRegistry = std::make_shared<SessionForeignRegistry>();
     session->attachInterface(new SessionForeignInterface(foreignRegistry, SessionForeignInterface::Exporter));
     session->attachInterface(new SessionForeignInterface(foreignRegistry, SessionForeignInterface::Importer));
-    session->attachInterface(new NativeSessionProtocol<wlr_screencopy_manager_v1_create>("zwlr_screencopy_manager_v1"));
-    session->attachInterface(new NativeSessionProtocol<createImageCopyCapture>("ext_image_copy_capture_manager_v1"));
-    session->attachInterface(new NativeSessionProtocol<createOutputCaptureSource>("ext_output_image_capture_source_manager_v1"));
+    session->attachInterface(new NativeSessionProtocol<wlr_screencopy_manager_v1_create, wlr_screencopy_manager_v1_destroy>("zwlr_screencopy_manager_v1"));
+    session->attachInterface(new NativeSessionProtocol<createImageCopyCapture, wlr_ext_image_copy_capture_manager_v1_destroy>("ext_image_copy_capture_manager_v1"));
+    session->attachInterface(new NativeSessionProtocol<createOutputCaptureSource, wlr_ext_output_image_capture_source_manager_v1_destroy>("ext_output_image_capture_source_manager_v1"));
     session->attachInterface(new SessionToplevelCapture(session));
 
     m_xdgShell = new WXdgShell(5);
