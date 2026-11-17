@@ -53,10 +53,9 @@ void WInputMethodManagerV2::create(WServer *server)
 
 void WInputMethodManagerV2::destroy([[maybe_unused]] WServer *server)
 {
-    // The wlr_input_method_manager_v2 is reclaimed by display.reset() in
-    // WServer::stop(); null m_handle so handle()/global() return null instead
-    // of a dangling pointer. Manager-owned listeners were already dropped by
-    // WServer teardown().
+    if (ownsSocket() && m_handle)
+        wlr_input_method_manager_v2_destroy(nativeInterface<wlr_input_method_manager_v2>());
+
     m_handle = nullptr;
 }
 
