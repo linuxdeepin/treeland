@@ -227,13 +227,6 @@ extern "C" void isolation_read(void *data)
         && aDesktop->outputs()->parent() == aDesktop
         && bDesktop->outputs()->parent() == bDesktop
         && aDesktop->surfaces() != bDesktop->surfaces();
-    for (auto *desktop : {aDesktop, bDesktop}) {
-        const auto views = desktop->viewRoot()->childItems();
-        state->independent_desktops = state->independent_desktops && !views.isEmpty();
-        for (auto *view : views)
-            state->independent_desktops = state->independent_desktops
-                && view->property("desktop").value<DesktopEnvironment *>() == desktop;
-    }
     auto *aInput = aDesktop->inputChannel();
     auto *bInput = bDesktop->inputChannel();
     state->independent_desktops = state->independent_desktops
