@@ -24,6 +24,7 @@ struct xdg_toplevel_client {
     int32_t configure_width;
     int32_t configure_height;
     int configured;
+    int configure_maximized;
     int close_received;
 };
 
