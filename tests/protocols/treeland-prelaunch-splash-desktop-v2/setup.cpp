@@ -73,7 +73,9 @@ QQuickItem *findDockPreview(QQuickItem *item)
 {
     if (!item)
         return nullptr;
-    if (item->property("desiredSurfaces").isValid() && item->property("previewReveal").isValid())
+    // The preview root owns one reveal per presentation and the tooltip has
+    // none, so the thumbnail reveal identifies the title row's presentation.
+    if (item->property("desiredSurfaces").isValid() && item->property("thumbnailReveal").isValid())
         return item;
     for (auto *child : item->childItems()) {
         if (auto *found = findDockPreview(child))
@@ -278,7 +280,8 @@ extern "C" void prelaunch_splash_desktop_probe_icon(void *data)
     for (int frame = 0; frame < MaxSettleFrames; ++frame) {
         server->window()->render();
         auto *item = findIcon();
-        const bool revealDone = preview->property("previewReveal").toReal() >= 1.0;
+        const bool revealDone = preview->property("thumbnailReveal").toReal() >= 1.0
+            || preview->property("listReveal").toReal() >= 1.0;
         const bool settled = probe->expect_icon ? (item && item->buffer() != nullptr)
                                                 : (!item || item->buffer() == nullptr);
         if (revealDone && settled)
