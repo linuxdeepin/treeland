@@ -104,4 +104,18 @@ ctest --test-dir build --output-on-failure -L protocols
 
 优先用 CTest 而不是直接启动测试可执行文件，因为 CTest 会提供 headless 后端、渲染器、超时与 skip 环境。
 
-在 DDE 桌面环境中，如果 QTest 已输出全部 PASS 且测试进程已退出，但 CTest 仍超时，检查是否有隔离 D-Bus 激活的 `xdg-desktop-portal-dde` 子进程持有测试的 stderr 管道。与 portal 无关的协议用例可用 `QT_NO_XDG_DESKTOP_PORTAL=1 ctest --test-dir build -V -R '^test_<name>$'` 隔离 Qt 的 portal 集成；不要把这种超时当作协议失败，也不要提高 timeout 或将用例标为 skip。
+`ProtocolTest.cmake` 通过 `ENVIRONMENT_MODIFICATION` 设置 `QT_NO_XDG_DESKTOP_PORTAL=1`，禁用 Qt 的 portal 集成；fixture 覆盖 `ENVIRONMENT` 不影响该设置。修改后需重新 configure，更新 CTest 配置。
+
+保留 `test-dconfig-service` 的独立进程组和 `stop()` 整组终止逻辑，不要改回只终止单个 PID 或只按 PPID 回收；机制见 `tests/protocols/framework/README.md`。
+
+排查残留：
+
+```bash
+# 1. 隔离总线与 DConfig 进程
+ps -eo pid,ppid,pgid,etimes,args | grep -E 'unix:abstract=treeland-protocol-test|dde-dconfig-daemon -p /tmp/treeland-protocol-dconfig'
+
+# 2. DConfig 临时目录（调用 stop() 后应被清理）
+find /tmp -maxdepth 1 -name 'treeland-protocol-dconfig-*'
+```
+
+若 QTest 全部 PASS、测试进程已退出，但 CTest 仍超时，先确认生成的 CTest 配置包含上述设置，再检查是否有后台服务持有输出管道。不要将这种后台进程残留误判为协议失败，或用增加 timeout、标记 skip 掩盖问题。

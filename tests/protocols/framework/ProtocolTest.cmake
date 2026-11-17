@@ -156,6 +156,8 @@ function(treeland_add_protocol_test)
     add_test(NAME ${target} COMMAND ${target})
     set_tests_properties(${target} PROPERTIES
         ENVIRONMENT "WLR_BACKENDS=headless;WLR_RENDERER=pixman;${TREELAND_PROTOCOL_TEST_XWAYLAND_ENV}DSG_DATA_DIRS=${TREELAND_PROTOCOL_TEST_DSG_DATA_DIRS};TREELAND_PROTOCOL_TEST_DSG_DIR=${TREELAND_PROTOCOL_TEST_DSG_DATA_DIR}"
+        # D-Bus-activated portals can outlive the test and keep its output pipe open.
+        ENVIRONMENT_MODIFICATION "QT_NO_XDG_DESKTOP_PORTAL=set:1"
         LABELS "protocols"
         SKIP_REGULAR_EXPRESSION "SKIP   :"
         SKIP_RETURN_CODE 77
