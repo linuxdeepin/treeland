@@ -11,7 +11,8 @@ Item {
 
     required property SurfaceItem surface
     // surface?.parent maybe is a `SubsurfaceContainer`
-    readonly property SurfaceWrapper wrapper: surface?.parent as SurfaceWrapper
+    property SurfaceWrapper wrapper: surface?.parent as SurfaceWrapper
+    property bool syncSurfaceSizeRatio: true
     readonly property XWaylandSurface xwaylandSurface: wrapper?.shellSurface as XWaylandSurface
     readonly property bool hasClipShape: xwaylandSurface?.hasClipShape ?? false
     readonly property real cornerRadius: wrapper?.frameGeometry.radius ?? 0
@@ -87,7 +88,7 @@ Item {
         onDevicePixelRatioChanged: {
             // The wrapper outlives a destroyed shell surface during its close
             // animation, so there is nothing to keep in sync in that case.
-            if (wrapper && wrapper.shellSurface) {
+            if (root.syncSurfaceSizeRatio && wrapper && wrapper.shellSurface) {
                 wrapper.updateSurfaceSizeRatio()
             }
         }

@@ -70,6 +70,13 @@ static void applyTransform(QSGSoftwareRenderer *renderer, const QTransform &t)
 
     auto nodeIter = W_PRIVATE_MEMBER(*renderer, QSGAbsSoftRenderer_m_nodes_tag{}).begin();
     while (nodeIter != W_PRIVATE_MEMBER(*renderer, QSGAbsSoftRenderer_m_nodes_tag{}).end()) {
+        // The clear node covers the render target, not the source item. Moving
+        // it with a negative sourceRect leaves the top/left border uncleared
+        // and repeatedly blends translucent SSD pixels over the old buffer.
+        if (nodeIter.key() == W_PRIVATE_MEMBER(*renderer, QSGAbsSoftRenderer_m_background_tag{})) {
+            ++nodeIter;
+            continue;
+        }
         auto node = *nodeIter;
         node->setTransform(node->transform() * t);
 
@@ -512,6 +519,9 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             state.worldTransform.optimize();
             auto image = getImageFrom(state.renderTarget.rt());
             image->setDevicePixelRatio(devicePixelRatio);
+            if (state.colorContentsMode == WGlobal::ColorContentsMode::Clear) {
+                softwareRenderer->markDirty();
+            }
 
             // TODO: Should set to QSGSoftwareRenderer, but it's not support specify matrix.
             // If transform is changed, it will full repaint.

@@ -244,6 +244,10 @@ qt_add_qml_module(libtreeland
         session/sessionprelaunch.cpp
         session/sessionprelaunch.h
         session/sessionprotocols.h
+        session/toplevelcapturesource.cpp
+        session/toplevelcapturesource.h
+        session/toplevelcaptureviewport.cpp
+        session/toplevelcaptureviewport.h
         session/sessioncomponent.cpp
         session/sessioncomponent.h
         session/sessionworkspace.cpp
@@ -326,6 +330,7 @@ qt_add_qml_module(libtreeland
         core/qml/WindowMenu.qml
         core/qml/TaskBar.qml
         core/qml/SurfaceContent.qml
+        core/qml/CaptureSurfaceContent.qml
         core/qml/XdgShadow.qml
         core/qml/Border.qml
         core/qml/OutputMenuBar.qml

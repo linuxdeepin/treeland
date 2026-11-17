@@ -1494,7 +1494,8 @@ WOutputRenderWindowPrivate::doRenderOutputs(wlr_output *needsFrameOutput, const 
             // Render if output will be enabled OR has extraState to commit
             // Note: Even when disabling, we need to render once to commit the disabled state
             // (extraState will contain the ENABLED=false change)
-            bool shouldRender = helper->willBeEnabled() || helper->extraState();
+            bool shouldRender = helper->outputViewport()->offscreen()
+                || helper->willBeEnabled() || helper->extraState();
             if (Q_UNLIKELY(!WOutputViewportPrivate::get(helper->outputViewport())->renderable())
                 || !shouldRender)
                 continue;
@@ -1512,18 +1513,25 @@ WOutputRenderWindowPrivate::doRenderOutputs(wlr_output *needsFrameOutput, const 
             }
         }
 
-        Q_ASSERT(helper->outputViewport()->output()->scale() <= helper->outputViewport()->devicePixelRatio());
+        auto *viewport = helper->outputViewport();
+        if (!viewport->offscreen())
+            Q_ASSERT(viewport->output()->scale() <= viewport->devicePixelRatio());
 
-        const auto &format = helper->output()->render_format;
-        const auto renderMatrix = helper->outputViewport()->renderMatrix();
+        // An offscreen viewport borrows only the renderer/allocator and frame
+        // clock, not the output's size, opaque format or scanout constraints.
+        const auto format = viewport->offscreen() ? DRM_FORMAT_ARGB8888
+                                                 : helper->output()->render_format;
+        WBufferRenderer::RenderFlags flags = WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject;
+        if (viewport->offscreen())
+            flags |= WBufferRenderer::DontConfigureSwapchain;
+        const auto renderMatrix = viewport->renderMatrix();
 
         // maybe using the other WOutputViewport's QSGTextureProvider
         if (!helper->outputViewport()->depends().isEmpty())
             updateDirtyNodes();
 
-        wlr_buffer *buffer = helper->beginRender(helper->bufferRenderer(), helper->outputViewport()->output()->size(), format,
-                                                WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject,
-                                                helper->outputViewport()->colorContentsMode());
+        wlr_buffer *buffer = helper->beginRender(helper->bufferRenderer(), viewport->effectiveBufferSize(), format,
+                                                flags, viewport->colorContentsMode());
         Q_ASSERT(buffer == helper->bufferRenderer()->currentBuffer());
         if (buffer) {
             helper->render(helper->bufferRenderer(), 0, renderMatrix,
@@ -1615,13 +1623,15 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
     resetGlState();
 
     QList<QPointer<WOutput>> committedOutputs;
-    if (doCommit) {
+    QList<QPointer<WOutputViewport>> renderedViewports;
+    {
         committedOutputs.reserve(needsCommit.size());
         for (auto i : std::as_const(needsCommit)) {
             // Explicit render(viewport, true) is used for state-only output
             // transactions. It must not be suppressed merely because the
             // transaction itself scheduled the next frame.
-            if (forceRender || Q_UNLIKELY(!i.first->framePending())) {
+            if (doCommit && !i.first->outputViewport()->offscreen()
+                && (forceRender || Q_UNLIKELY(!i.first->framePending()))) {
                 if (Q_LIKELY(i.first->commit(i.second))) {
                     // Make sure the output is still valid after commit
                     auto output = i.first->outputViewport()->output();
@@ -1635,8 +1645,12 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
                 }
             }
 
-            if (i.second->currentBuffer()) {
+            // End the buffer lifetime even for render(viewport, false). A
+            // capture must neither leave an open render nor pretend that its
+            // buffer was committed to the real output (frame callbacks).
+            if (i.second && i.second->currentBuffer()) {
                 i.second->endRender();
+                renderedViewports.append(i.first->outputViewport());
             }
 
             i.first->resetState();
@@ -1663,6 +1677,10 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
     if (animationDriver->isRunning())
         q->update();
 
+    for (const auto &viewport : std::as_const(renderedViewports)) {
+        if (viewport)
+            Q_EMIT viewport->frameRendered();
+    }
     Q_EMIT q->renderEnd(committedOutputs);
 }
 
