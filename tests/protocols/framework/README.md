@@ -84,6 +84,11 @@ sequenceDiagram
 daemon，并以 `test-accounts-service.*` 注册最小 AccountsService/user 对象。这两者仅用于让
 完整 Treeland fixture 启动，不是被测协议的 mock，也不应成为长期测试基础设施。
 
+后台服务可能持有测试输出管道，导致 CTest 超时。`test-dconfig-service` 使用
+`unix:abstract` 总线地址避免残留 socket 文件，并通过 `PR_SET_PDEATHSIG` 和父 PID 校验
+让 helper 随父进程退出。`stop()` 对 helper 的独立进程组先发 `SIGTERM`、再发 `SIGKILL`，
+并删除 DConfig 临时目录。重新收养不改变进程组，仍在组内的服务也会被终止。
+
 CI 能提供真实 D-Bus、DConfig 与 AccountsService 后，应删除这两个 helper，并让入口直接连接
 CI 提供的服务。
 
@@ -138,7 +143,7 @@ tests/protocols/
 │   ├── test-accounts-service.*         # 临时 AccountsService 模拟
 │   ├── client-connection.*          # C ABI、registry/bind、disconnect
 │   ├── server-bridge-api.h          # C client 调用 compositor 线程的接口
-│   ├── test-dconfig-service.*          # 临时 D-Bus 与 DConfig 模拟
+│   ├── test-dconfig-service.*          # 临时 D-Bus 与 DConfig 模拟（含子进程回收）
 │   └── server-bridge.*          # headless output、wl_shm 等 server helpers
 ├── INDEX.md                            # 可观察契约、覆盖边界与审计
 ├── protocol-specification-template.md  # 新协议说明模板
