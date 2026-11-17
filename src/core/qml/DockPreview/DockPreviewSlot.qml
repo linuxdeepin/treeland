@@ -396,8 +396,8 @@ Item {
         anchors {
             top: parent.top
             right: parent.right
-            topMargin: 10
-            rightMargin: 10
+            topMargin: PopoverStyle.popupPadding
+            rightMargin: PopoverStyle.popupPadding
         }
         visible: slotHover.hovered && !slot.collapsing
         onClicked: {

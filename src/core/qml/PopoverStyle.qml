@@ -12,7 +12,10 @@ QtObject {
     id: style
 
     readonly property bool isDark: D.DTK.themeType === D.ApplicationHelper.DarkType
-    readonly property int radius: DS.Style.control.radius
+    readonly property int radius: DS.Style.menu.radius
+    readonly property int itemRadius: DS.Style.menu.item.radius
+    readonly property int tooltipRadius: DS.Style.control.radius
+    readonly property int popupPadding: DS.Style.popup.padding
 
     readonly property color tint: isDark ? DS.Style.behindWindowBlur.darkColor
                                          : DS.Style.behindWindowBlur.lightColor
