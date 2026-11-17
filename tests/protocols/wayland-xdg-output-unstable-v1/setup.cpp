@@ -13,21 +13,25 @@
 
 static QPointer<WOutput> g_woutput;
 
-void protocol_test_setup(WaylandServer *server)
+void protocol_test_setup(WaylandServer *)
 {
-    // The protocol test backend already provides HEADLESS-1. Reuse that
-    // stable production output instead of changing display-topology config
-    // merely to create another output for this test.
-    auto *output = server->rootSurfaceContainer()->primaryOutput();
-    Q_ASSERT(output);
-    g_woutput = output->output();
-    Q_ASSERT(g_woutput);
+    // This fixture relies on exactly one output: HEADLESS-1, which the headless
+    // backend creates automatically (WLR_HEADLESS_OUTPUTS defaults to 1) and
+    // OutputManager registers in RootSurfaceContainer once its per-output
+    // DConfig finishes initializing. The wl_output global only appears after
+    // that output is enabled and auto-added to the layout, so protocol_test_ready
+    // waits for that async chain. Do not resolve the output here: at
+    // protocol_test_setup time it has not necessarily been registered yet.
 }
 
 extern "C" bool protocol_test_ready(WaylandServer *server)
 {
-    return g_woutput
-        && server->rootSurfaceContainer()->outputLayout()->outputs().contains(g_woutput);
+    auto *output = server->rootSurfaceContainer()->primaryOutput();
+    if (!output || !output->output())
+        return false;
+
+    g_woutput = output->output();
+    return server->rootSurfaceContainer()->outputLayout()->outputs().contains(g_woutput);
 }
 
 // E-level read: resolve the real WOutput that backs the headless output and

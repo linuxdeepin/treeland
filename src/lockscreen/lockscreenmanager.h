@@ -39,6 +39,12 @@ public:
     void showShutdownMenu();
     void showSwitchUser();
 
+Q_SIGNALS:
+    // Emitted whenever the LockScreen implementation becomes available
+    // (setLockScreenImpl with a non-null impl) or unavailable (impl destroyed
+    // or reset to null), so subscribers never keep stale availability state.
+    void lockScreenAvailableChanged();
+
 private Q_SLOTS:
     void onSessionNew(const QString &sessionId, const QDBusObjectPath &objectPath);
     void onSessionLock();
