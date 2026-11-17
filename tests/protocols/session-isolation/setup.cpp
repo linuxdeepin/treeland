@@ -191,8 +191,7 @@ extern "C" void isolation_read(void *data)
             != sessionB->seatManager()->inputMethodHelper(bSeat);
     state->protocol_socket_ownership = aSeat && bSeat
         && aSeat->ownsSocket() == sessionA->socket()
-        && bSeat->ownsSocket() == sessionB->socket()
-        && !aSeat->ownsClient(nullptr) && !bSeat->ownsClient(nullptr);
+        && bSeat->ownsSocket() == sessionB->socket();
     if (aSeat && bSeat) {
         for (auto *client : sessionA->socket()->clients())
             state->protocol_socket_ownership &= aSeat->ownsClient(client) && !bSeat->ownsClient(client);
