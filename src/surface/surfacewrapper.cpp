@@ -34,6 +34,7 @@
 
 #include <QColor>
 #include <QQuickWindow>
+#include <QScopedValueRollback>
 #include <QVariant>
 
 #define OPEN_ANIMATION 1
@@ -828,7 +829,8 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
                                     << "targetImplicit=" << targetImplicitSize;
     }
 
-    const bool needImplicitSizeTransition = m_renderingEnabled && hasValidTargetImplicitSize && (container() != nullptr)
+    const bool needImplicitSizeTransition = m_renderingEnabled && !m_sessionVisibilityChanging
+        && hasValidTargetImplicitSize && (container() != nullptr)
         && (!qFuzzyCompare(implicitWidth() + 1.0, targetImplicitSize.width() + 1.0)
             || !qFuzzyCompare(implicitHeight() + 1.0, targetImplicitSize.height() + 1.0));
 
@@ -1326,7 +1328,7 @@ void SurfaceWrapper::setSurfaceState(State newSurfaceState)
     setSurfaceStateValue(newSurfaceState);
 
     const QRectF targetGeometry = targetGeometryForState(newSurfaceState);
-    if (targetGeometry.isValid() && isVisible()
+    if (targetGeometry.isValid() && isVisible() && !m_sessionVisibilityChanging
         && geometryAnimationEnabled(newSurfaceState))
         startStateChangeAnimation(targetGeometry);
     else
@@ -1719,13 +1721,14 @@ void SurfaceWrapper::suspendAnimations()
 
 void SurfaceWrapper::setRenderingEnabled(bool enabled)
 {
+    QScopedValueRollback<bool> visibilityChanging(m_sessionVisibilityChanging, true);
     const bool changed = m_renderingEnabled != enabled;
     m_renderingEnabled = enabled;
     setEnabled(enabled);
     if (!enabled)
         setVisible(false);
     syncRenderingState();
-    if (!enabled)
+    if (changed || !enabled)
         suspendAnimations();
     if (changed)
         Q_EMIT renderingEnabledChanged();
@@ -1835,7 +1838,7 @@ void SurfaceWrapper::tryFlushPendingActivation()
 
 void SurfaceWrapper::startWindowTransition()
 {
-    if (!m_renderingEnabled)
+    if (!m_renderingEnabled || m_sessionVisibilityChanging)
         return;
     if (!m_windowTransition->active()) {
         m_windowTransitionPending = false;
@@ -1886,6 +1889,8 @@ void SurfaceWrapper::startWindowTransition()
 void SurfaceWrapper::finishWindowTransitionOpen()
 {
     m_windowTransitionPending = false;
+    if (!m_windowAnimation)
+        return;
     // The surface may have unmapped while we were waiting. Drop the
     // component we created above so it does not block a later close path.
     if (!m_renderingEnabled || m_wrapperAboutToRemove || !surface() || !surface()->mapped()) {
@@ -1920,7 +1925,7 @@ void SurfaceWrapper::finishWindowTransitionOpen()
 
 void SurfaceWrapper::startWindowCloseTransition()
 {
-    if (!m_renderingEnabled)
+    if (!m_renderingEnabled || m_sessionVisibilityChanging)
         return;
     Q_ASSERT(m_windowTransition->active());
 
@@ -1966,7 +1971,7 @@ void SurfaceWrapper::beginWindowTransition(int direction,
 
 void SurfaceWrapper::createNewOrClose(uint direction)
 {
-    if (!m_renderingEnabled)
+    if (!m_renderingEnabled || m_sessionVisibilityChanging)
         return;
     if (!m_windowAnimationEnabled)
         return;
@@ -2148,7 +2153,7 @@ void SurfaceWrapper::onAnimationFinished()
 
 bool SurfaceWrapper::startStateChangeAnimation(const QRectF &targetGeometry)
 {
-    if (!m_renderingEnabled)
+    if (!m_renderingEnabled || m_sessionVisibilityChanging)
         return false;
     if (m_geometryAnimation) // animation running
         return false;
@@ -2275,7 +2280,7 @@ void SurfaceWrapper::onMinimizeAnimationFinished()
 
 void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint direction)
 {
-    if (!m_renderingEnabled)
+    if (!m_renderingEnabled || m_sessionVisibilityChanging)
         return;
 
     // The minimize/restore state and visibility are already committed by the
@@ -2324,9 +2329,10 @@ void SurfaceWrapper::setHideByLockScreen(bool hide)
         return;
     }
 
+    QScopedValueRollback<bool> visibilityChanging(m_sessionVisibilityChanging, true);
     m_hideByLockScreen = hide;
-    m_confirmHideByLockScreen = false; // reset
-
+    m_confirmHideByLockScreen = hide;
+    suspendAnimations();
     onMappedChanged();
 }
 
@@ -2341,7 +2347,7 @@ void SurfaceWrapper::onShowDesktopAnimationFinished()
 
 void SurfaceWrapper::startShowDesktopAnimation(bool show)
 {
-    if (!m_renderingEnabled) {
+    if (!m_renderingEnabled || m_sessionVisibilityChanging) {
         setHideByShowDesk(show);
         updateVisible();
         return;
