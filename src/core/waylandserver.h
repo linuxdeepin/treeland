@@ -369,6 +369,7 @@ Q_SIGNALS:
     void showDesktopStateChanged();
     void startLockscreened(WOutput *output, bool showAnimation);
     void modifierKeyReleased(QKeyEvent *event);
+    void lockScreenAvailableChanged();
 
 private Q_SLOTS:
     void deleteTaskSwitch();

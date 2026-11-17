@@ -186,6 +186,15 @@ private:
                 &TreelandUserConfig::configInitializeSucceed,
                 &loop,
                 [quitWhenReady](auto *) { quitWhenReady(); });
+        // The LockScreen plugin is loaded after the blocking prestart hooks
+        // finish, which none of the signals above announce. Wait for the lock
+        // screen availability signal so protocol_test_ready() gates that depend
+        // on it (e.g. ext-session-lock) wake up instead of hanging.
+        connect(m_server,
+                &WaylandServer::lockScreenAvailableChanged,
+                &loop,
+                [quitWhenReady] { quitWhenReady(); });
+
         loop.exec();
         return fixtureReady();
     }

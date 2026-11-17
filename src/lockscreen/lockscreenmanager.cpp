@@ -126,6 +126,7 @@ void LockScreenManager::setLockScreenImpl(ILockScreen *impl)
         if (m_lockScreen) {
             delete m_lockScreen;
             m_lockScreen = nullptr;
+            Q_EMIT lockScreenAvailableChanged();
         }
         return;
     }
@@ -143,9 +144,7 @@ void LockScreenManager::setLockScreenImpl(ILockScreen *impl)
 
     connect(m_lockScreen, &LockScreen::unlock,
             m_server, &WaylandServer::finishLockScreenTransition);
-    if (!impl) {
-        return;
-    }
+    Q_EMIT lockScreenAvailableChanged();
     if (CmdLine::ref().useLockScreen()) {
         // Start in the undecided state: make the lock screen surface (wallpaper)
         // visible but keep the login UI hidden until DDM decides (ShowGreeter /
