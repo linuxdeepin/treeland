@@ -45,7 +45,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [prelaunch splash 桌面集成](treeland-prelaunch-splash-desktop-v2/README.md) | E / V | splash wrapper 创建/销毁；AM 图标在 splash item 与客户端 `wl_buffer` 都销毁后仍由 wrapper 持有；dock preview 标题行图标 item 的 buffer 指针、尺寸与纹理像素；无图标窗口与悬停切换不产生 `WBufferItem` / QML 警告 |
 | [screensaver-v2](treeland-screensaver-v2/README.md) | E / P | 真实 ext-idle 抑制生命周期 |
 | [shortcut-manager-v3](treeland-shortcut-manager-v3/README.md) | E / P | 聚焦窗口捕获与快捷键激活 |
-| [output-group-manager-v1](treeland-output-group-manager-v1/README.md) | P / E | 输出分组创建/镜像/解散；set_source 与 add/remove_output 的 uuid 校验 |
+| [output-group-manager-v1](treeland-output-group-manager-v1/README.md) | P / E | 输出分组创建/镜像/解散；set_source 与 add/remove_output 的 uuid 校验；组成员关系由合成器自己的会话副本兜底，不受 DConfig 异步回写影响 |
 | [wallpaper-color-v1](treeland-wallpaper-color-v1/README.md) | I | 订阅、去重与颜色通知 |
 | [wallpaper-manager-unstable-v1](treeland-wallpaper-manager-unstable-v1/README.md) | I / P | 真实输出上的壁纸资源生命周期 |
 | [wallpaper-shell-unstable-v1](treeland-wallpaper-shell-unstable-v1/README.md) | I / P | wallpaper shell 与 notifier 生命周期 |
@@ -62,7 +62,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [wlr-foreign-toplevel-management-unstable-v1](wlr-foreign-toplevel-management-unstable-v1/README.md) | P / E | 标准 foreign manager 的 toplevel 枚举、状态与焦点 |
 | [wlr-gamma-control-unstable-v1](wlr-gamma-control-unstable-v1/README.md) | P / I（DRM 条件） | headless failed 边界及可选 hardware LUT 路径 |
 | [wlr-layer-shell-unstable-v1](wlr-layer-shell-unstable-v1/README.md) | P / E | layer surface 的状态、container 与焦点；output 移除时的迁移/closed 与主屏清空 |
-| [wlr-output-management-unstable-v1](wlr-output-management-unstable-v1/README.md) | P / E | 真实 output configuration、位置、transform、scale |
+| [wlr-output-management-unstable-v1](wlr-output-management-unstable-v1/README.md) | P / E | 真实 output configuration、位置、transform、scale；双 head 一次 apply 的全成功与"一个 head 提交失败必须整份 failed"（两种 head 顺序各跑一遍） |
 | [wlr-output-power-management-unstable-v1](wlr-output-power-management-unstable-v1/README.md) | P / E | output enable/disable 的生产状态回读 |
 | [wlr-virtual-pointer-unstable-v1](wlr-virtual-pointer-unstable-v1/README.md) | 接入完成；client 待补 | native virtual pointer 的生产 seat 接入 |
 
