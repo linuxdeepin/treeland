@@ -272,10 +272,14 @@ private Q_SLOTS:
     /** @brief Listener for org.freederktop.login1.Session.Unlock */
     void onSessionUnlock();
 
+    /** @brief Listener for org.freedesktop.login1.Manager.PrepareForSleep */
+    void onPrepareForSleep(bool preparing);
+
 Q_SIGNALS:
     void informationMessage(const QString &message);
 
     void switchUser();
+    void prepareForSleep();
 
     void socketDisconnected();
     void initialUserSelected();
