@@ -73,7 +73,8 @@ Session::~Session()
     }
 
     if (auto *server = WaylandServer::instance()) {
-        for (auto *interface : std::as_const(m_interfaces)) {
+        const auto interfaces = m_interfaces;
+        for (auto *interface : interfaces) {
             server->server()->detach(interface);
             delete interface;
         }
@@ -122,8 +123,12 @@ void Session::attachInterface(WServerInterface *interface)
     if (!interface->server())
         WaylandServer::instance()->server()->attach(interface);
 
-    if (auto *object = dynamic_cast<QObject *>(interface))
+    if (auto *object = dynamic_cast<QObject *>(interface)) {
         object->setParent(WaylandServer::instance()->server());
+        connect(object, &QObject::destroyed, this, [this, interface] {
+            m_interfaces.removeOne(interface);
+        });
+    }
 
     m_interfaces.append(interface);
 }
