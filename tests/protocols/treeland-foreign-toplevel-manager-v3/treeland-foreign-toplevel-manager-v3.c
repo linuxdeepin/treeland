@@ -236,7 +236,15 @@ static int read_server_state(struct test_ctx *ctx, struct ftm_server_state *stat
 {
     (void)ctx;
     memset(state, 0, sizeof(*state));
-    return invoke_on_server_thread(ftm_read_server_state, state);
+    if (!invoke_on_server_thread(ftm_read_server_state, state))
+        return 0;
+    if (state->transition_unsettled) {
+        /* The fixture waited for a geometry transition that never settled, so
+         * every state read below would compare against a moving window. */
+        TEST_ERROR("treeland-foreign-toplevel: geometry transition did not settle\n");
+        return 0;
+    }
+    return 1;
 }
 
 static int settle_geometry_animation(struct test_ctx *ctx)

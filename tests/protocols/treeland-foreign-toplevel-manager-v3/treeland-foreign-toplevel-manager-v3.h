@@ -62,6 +62,9 @@ struct ftm_server_state {
     int      tooltip_y;
     uint32_t tooltip_direction;
     int      close_fired;
+    // Set when a geometry transition was still running after the fixture's
+    // frame budget: the test cannot trust the state it is about to read.
+    int      transition_unsettled;
 };
 
 struct test_ctx {
