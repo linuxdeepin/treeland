@@ -162,9 +162,9 @@ void WXdgShell::destroy([[maybe_unused]] WServer *server)
         delete surface;
     }
 
-    // Clear the dangling handle now: the wlr_xdg_shell is reclaimed by
-    // display.reset() in WServer::stop(), but nulling m_handle immediately
-    // makes handle()/global() return null instead of a dangling pointer.
+    if (ownsSocket() && m_handle)
+        wlr_xdg_shell_destroy(nativeInterface<wlr_xdg_shell>());
+
     m_handle = nullptr;
 }
 
