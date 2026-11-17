@@ -149,6 +149,12 @@ GreeterProxy::GreeterProxy(QObject *parent)
                  "SessionRemoved",
                  this,
                  SLOT(onSessionRemoved(QString, QDBusObjectPath)));
+    conn.connect(Logind::serviceName(),
+                 Logind::managerPath(),
+                 Logind::managerIfaceName(),
+                 "PrepareForSleep",
+                 this,
+                 SLOT(onPrepareForSleep(bool)));
     conn.connect("org.deepin.DisplayManager",
                  "/org/deepin/DisplayManager",
                  "org.deepin.DisplayManager",
@@ -392,6 +398,12 @@ void GreeterProxy::onSessionRemoved(const QString &id, [[maybe_unused]] const QD
         if (wasActive)
             setLock(true);
     }
+}
+
+void GreeterProxy::onPrepareForSleep(bool preparing)
+{
+    if (preparing)
+        Q_EMIT prepareForSleep();
 }
 
 bool GreeterProxy::currentUserHasSession() const

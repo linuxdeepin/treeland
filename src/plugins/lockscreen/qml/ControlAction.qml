@@ -13,6 +13,13 @@ RowLayout {
     readonly property bool enableAnimation: WaylandServer.animationConfig.lockscreen
     spacing: 15
 
+    Connections {
+        target: GreeterProxy
+        function onPrepareForSleep() {
+            powerItem.expand = false
+        }
+    }
+
     required property Item rootItem
     property int buttonSize: 30
     property bool powerVisible: powerList.visible
