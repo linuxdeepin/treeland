@@ -115,9 +115,9 @@ void WLayerShell::destroy([[maybe_unused]] WServer *server)
         Q_EMIT surfaceRemoved(surface);
         delete surface;
     }
-    // Clear the dangling handle now: the wlr_layer_shell_v1 is reclaimed by
-    // display.reset() in WServer::stop(), but nulling m_handle immediately
-    // makes handle()/global() return null instead of a dangling pointer.
+    if (ownsSocket() && m_handle)
+        wlr_layer_shell_v1_destroy(nativeInterface<wlr_layer_shell_v1>());
+
     m_handle = nullptr;
 }
 
