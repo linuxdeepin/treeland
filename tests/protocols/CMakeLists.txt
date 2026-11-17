@@ -74,7 +74,13 @@ add_subdirectory(wayland-ext-data-control-v1)
 add_subdirectory(wayland-ext-foreign-toplevel-list-v1)
 add_subdirectory(wayland-ext-idle-notify-v1)
 add_subdirectory(wayland-ext-image-copy-capture-v1)
-add_subdirectory(wayland-ext-session-lock-v1)
+# The ext-session-lock global is only served when EXT_SESSION_LOCK_V1 is on
+# (LockScreenManager::installSessionLock attaches WSessionLockManager under
+# that macro). Without it the client cannot bind the global and the ready gate
+# (lockScreenAvailableChanged) is never emitted, so the test would hang.
+if(EXT_SESSION_LOCK_V1)
+    add_subdirectory(wayland-ext-session-lock-v1)
+endif()
 add_subdirectory(wayland-fractional-scale-v1)
 add_subdirectory(wayland-idle-inhibit-unstable-v1)
 add_subdirectory(wayland-keyboard-shortcuts-inhibit-unstable-v1)

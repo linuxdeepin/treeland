@@ -143,6 +143,8 @@ WaylandServer::WaylandServer(QObject *parent)
     connect(DConfigManager::instance(), &DConfigManager::configReady,
             this, &WaylandServer::applyCurrentUserConfig);
     m_lockScreenManager = new LockScreenManager(this);
+    connect(m_lockScreenManager, &LockScreenManager::lockScreenAvailableChanged,
+            this, &WaylandServer::lockScreenAvailableChanged);
     m_surfaceProtocols = new SurfaceProtocolController(this);
     connect(m_shellHandler, &ShellHandler::workspaceChanged, this, &WaylandServer::onWorkspaceChanged);
     connect(m_shellHandler, &ShellHandler::workspaceAdded, this, &WaylandServer::workspaceAdded);

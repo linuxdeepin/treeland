@@ -75,6 +75,19 @@ void protocol_test_setup(WaylandServer *server)
                      });
 }
 
+extern "C" bool protocol_test_ready(WaylandServer *server)
+{
+    // The LockScreen plugin is loaded (and LockScreenManager::setLockScreenImpl
+    // creates the real LockScreen container) only after the blocking prestart
+    // hooks finish, which happens on the event loop after initTestCase.  Until
+    // then WaylandServer has no lock screen implementation and
+    // onExtSessionLock() rejects every lock() with `finished`.  Defer the
+    // client until the lock screen actually exists, exactly like waitForFixture
+    // defers fixture-dependent tests; without this the client would race the
+    // plugin load and observe a spurious "compositor rejected the lock".
+    return server->isLockScreenAvailable();
+}
+
 // E-level read: the production WSessionLock state plus the geometry the lock
 // surface wrapper ended up with, so the client can assert a lock surface covers
 // the whole output instead of the exclusive-zone-free work area.
