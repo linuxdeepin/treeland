@@ -62,7 +62,9 @@ void WRelativePointerManagerV1::create(WServer *server)
 
 void WRelativePointerManagerV1::destroy([[maybe_unused]] WServer *server)
 {
-    // wlroots owns the manager until wl_display is destroyed.
+    if (ownsSocket() && m_handle)
+        wlr_relative_pointer_manager_v1_destroy(nativeInterface<wlr_relative_pointer_manager_v1>());
+
     m_handle = nullptr;
 }
 
