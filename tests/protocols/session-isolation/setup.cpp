@@ -178,6 +178,7 @@ extern "C" void isolation_read(void *data)
         && aProtocols->xdgDecoration() != bProtocols->xdgDecoration()
         && aProtocols->xdgDialog() != bProtocols->xdgDialog()
         && aProtocols->xdgTags() != bProtocols->xdgTags()
+        // personalization v1 实现删除时，本访问器与断言一并移除
         && aProtocols->personalization() != bProtocols->personalization()
         && aProtocols->decoration() != bProtocols->decoration()
         && hasIndependentForeignInterfaces(sessionA.get())
