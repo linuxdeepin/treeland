@@ -177,6 +177,9 @@ FocusScope {
         function onOtherUserRequested() {
             userInput.startOtherUserMode()
         }
+        function onInputFocusRequested() {
+            userInput.focusInput()
+        }
     }
 
     Connections {
