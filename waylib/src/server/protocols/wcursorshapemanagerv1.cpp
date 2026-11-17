@@ -137,10 +137,9 @@ void WCursorShapeManagerV1::create(WServer *server)
 
 void WCursorShapeManagerV1::destroy(WServer *)
 {
-    // create() is guarded by `if (!m_handle)`, so the handle must be cleared
-    // here — otherwise restart would skip recreating the global. The native
-    // object itself has no public destroy() function and is reclaimed when
-    // the display is destroyed in WServer::stop().
+    if (ownsSocket() && m_handle)
+        wlr_cursor_shape_manager_v1_destroy(nativeInterface<wlr_cursor_shape_manager_v1>());
+
     m_handle = nullptr;
 }
 
