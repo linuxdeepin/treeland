@@ -41,7 +41,7 @@
   其 `ready()` 依赖 `ShaderEffectSource::onScheduledUpdateCompleted`，headless 的 software
   renderer 不调度该更新，splash item 永远不会销毁；同尺寸提交直接走 `completeSplashTransition`。
 - 等待都基于生产状态或信号：wrapper 用 `SurfaceContainer::surfaceAdded`，转换用
-  `type()` + `prelaunchSplash()` 轮询，预览用 `previewReveal` 与 QML binding 结果轮询，
+  `type()` + `prelaunchSplash()` 轮询，预览用 `thumbnailReveal`/`listReveal` 与 QML binding 结果轮询，
   纹理用 `QFutureWatcher::finished`；轮询均有帧数上限。
 
 ## 已知边界
@@ -52,4 +52,4 @@
   已在 `DockPreview.qml` 用 `shortcut:` 标注。
 - 图标 item 每次悬停重建，未覆盖 `WBufferItem::setBuffer()` 运行时替换既有 buffer 的路径
   （连续悬停两个带图标的窗口），生产里仍存在。
-- `previewReveal` 动画在 headless 下会跑完，但未断言动画曲线。
+- `thumbnailReveal`/`listReveal` 动画在 headless 下会跑完，但未断言动画曲线。
