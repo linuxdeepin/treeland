@@ -76,7 +76,9 @@ static bool globalFilter(const wl_client *client,
             interface = d->pendingInterface;
         if (interface) {
             auto wclient = WClient::get(client);
-            if (!interface->ownsClient(wclient))
+            // A client that has no WClient wrapper yet has no socket to match,
+            // so it falls through to the process check below.
+            if (wclient && !interface->ownsClient(wclient))
                 return false;
 
             if (!wclient) {

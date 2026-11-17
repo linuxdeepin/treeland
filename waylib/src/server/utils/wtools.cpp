@@ -231,6 +231,11 @@ wl_shm_format_t WTools::drmToShmFormat(uint32_t drmFmt)
 
 QRegion WTools::fromPixmanRegion(const pixman_region32 *region)
 {
+    // pixman stores a single-rectangle region inline in extents and leaves
+    // data NULL (PIXREGION_NUMRECTS(reg) is `data ? data->numRects : 1`), so a
+    // NULL data pointer is a normal region, not an uninitialised one. A region
+    // that was never initialised reports one zero-area box here; the filter
+    // below is what keeps that box out of the QRegion.
     int rectCount = 0;
     auto rects = pixman_region32_rectangles(region, &rectCount);
 
@@ -238,10 +243,16 @@ QRegion WTools::fromPixmanRegion(const pixman_region32 *region)
         return {};
 
     QVector<QRect> rectList;
-    rectList.resize(rectCount);
+    rectList.reserve(rectCount);
 
-    for (int i = 0; i < rectCount; ++i)
-        rectList[i].setCoords(rects[i].x1, rects[i].y1, rects[i].x2 - 1, rects[i].y2 - 1);
+    for (int i = 0; i < rectCount; ++i) {
+        // Qt drops a zero-area rectangle from the region, which would make the
+        // assertion below fire on a rect list that kept it.
+        const QRect rect(rects[i].x1, rects[i].y1,
+                         rects[i].x2 - rects[i].x1, rects[i].y2 - rects[i].y1);
+        if (!rect.isEmpty())
+            rectList.append(rect);
+    }
 
     QRegion qregion;
     qregion.setRects(rectList.constData(), rectList.count());
