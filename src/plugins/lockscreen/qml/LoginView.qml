@@ -71,6 +71,10 @@ FocusScope {
             }
         }
 
+        function onPrepareForSleep() {
+            GreeterProxy.showShutdownView = false
+        }
+
         function onSwitchUser() {
             root.switchUser()
         }
