@@ -157,6 +157,11 @@ class NativeHandlesTest : public QObject
 #ifndef DISABLE_XWAYLAND
     static void initXWaylandSurface(wlr_xwayland_surface *surface)
     {
+        // Mirror wlroots' xwayland_surface_create(): the input/clip shape
+        // regions must be initialised before any listener reads them
+        // (WXWaylandSurface::init -> updateClipShape).
+        pixman_region32_init(&surface->input_shape);
+        pixman_region32_init(&surface->clip_shape);
         wl_list_init(&surface->children);
         for (auto *signal : {
                  &surface->events.destroy,
