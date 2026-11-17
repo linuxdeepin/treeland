@@ -61,10 +61,9 @@ void WPointerConstraintsV1::create(WServer *server)
 
 void WPointerConstraintsV1::destroy(WServer *)
 {
-    // create() is guarded by `if (!m_handle)`, so the handle must be cleared
-    // here — otherwise restart would skip recreating the global. The native
-    // object itself has no public destroy() function and is reclaimed when
-    // the display is destroyed in WServer::stop().
+    if (ownsSocket() && m_handle)
+        wlr_pointer_constraints_v1_destroy(nativeInterface<wlr_pointer_constraints_v1>());
+
     m_handle = nullptr;
 }
 
