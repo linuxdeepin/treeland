@@ -136,6 +136,8 @@ Q_SIGNALS:
 
 private:
 
+    void unregisterKey(int combined, ShortcutAction action);
+
     GestureManager *const m_gestureManager;
     QMap<int, QMap<ShortcutAction, std::pair<QString, KeyFlags>>> m_keyMap;
     QMap<std::pair<uint, SwipeGesture::Direction>, QMap<ShortcutAction, QString>> m_gesturemap;
