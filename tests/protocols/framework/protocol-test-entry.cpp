@@ -10,6 +10,7 @@
 #include "test-dconfig-service.h"
 #include "core/waylandserver.h"
 #include "session/session.h"
+#include "session/sessionoutputmanager.h"
 #include "treelandconfig.hpp"
 #include "treelanduserconfig.hpp"
 
@@ -17,6 +18,7 @@
 #include <QAbstractItemModel>
 #include <QEventLoop>
 #include <QMetaObject>
+#include <QSet>
 #include <QTimer>
 #include <QSemaphore>
 #include <QtTest>
@@ -31,6 +33,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <functional>
 #include <pthread.h>
 
 void protocol_test_setup(WaylandServer *server);
@@ -40,6 +43,10 @@ extern "C" bool protocol_test_preflight() __attribute__((weak));
 extern "C" bool protocol_test_skip() __attribute__((weak));
 
 namespace {
+// Upper bound for a fixture to report ready; the protocol tests themselves may
+// not add fixed delays, this only turns a missing signal into a failure.
+constexpr int FixtureWatchdogMs = 15000;
+
 class ProtocolTestRunner : public QObject
 {
 public:
@@ -158,6 +165,24 @@ private:
         return nullptr;
     }
 
+    // A session that is already watched must not be connected again, and a
+    // session created while the fixture is waiting must not be missed:
+    // SessionManager::sessionAdded() announces the latter.
+    void watchSessionOutputs(QEventLoop *loop,
+                             const std::function<void()> &quitWhenReady)
+    {
+        for (const auto &session : m_server->sessionManager()->sessions()) {
+            auto *outputs = session->outputManager();
+            if (!outputs || m_watchedSessionOutputs.contains(outputs))
+                continue;
+            m_watchedSessionOutputs.insert(outputs);
+            connect(outputs,
+                    &SessionOutputManager::desktopGeometryChanged,
+                    loop,
+                    quitWhenReady);
+        }
+    }
+
     bool fixtureReady() const
     {
         return !m_server->rootSurfaceContainer()->outputs().isEmpty()
@@ -170,14 +195,31 @@ private:
             return true;
 
         QEventLoop loop;
+        // The subscriptions below belong to this loop; a later wait starts from
+        // an empty set so it can subscribe everything again.
+        m_watchedSessionOutputs.clear();
         const auto quitWhenReady = [this, &loop] {
             if (fixtureReady())
                 loop.quit();
         };
+        // Every production signal that can make fixtureReady() true belongs
+        // here: the output model gains the fixture's output, the output layout
+        // receives it, a session's output manager publishes new protocol
+        // heads, or a configuration finishes loading. A readiness condition
+        // without a signal here would stall until the watchdog below.
         connect(m_server->rootSurfaceContainer()->outputModel(),
                 &QAbstractItemModel::rowsInserted,
                 &loop,
                 [quitWhenReady](const QModelIndex &, int, int) { quitWhenReady(); });
+        connect(m_server->rootSurfaceContainer()->outputLayout(),
+                &WOutputLayout::outputsChanged,
+                &loop,
+                quitWhenReady);
+        watchSessionOutputs(&loop, quitWhenReady);
+        connect(m_server->sessionManager(),
+                &SessionManager::sessionAdded,
+                &loop,
+                [this, &loop, quitWhenReady] { watchSessionOutputs(&loop, quitWhenReady); });
         connect(m_server->globalConfig(),
                 &TreelandConfig::configInitializeSucceed,
                 &loop,
@@ -194,12 +236,28 @@ private:
                 &WaylandServer::lockScreenAvailableChanged,
                 &loop,
                 [quitWhenReady] { quitWhenReady(); });
+        // addOutput() auto-adds to the layout (emits outputsChanged) before it
+        // sets the primary output, so a primaryOutput() predicate also needs
+        // this signal to be observable.
+        connect(m_server->rootSurfaceContainer(),
+                &RootSurfaceContainer::primaryOutputChanged,
+                &loop,
+                quitWhenReady);
+
+        // Watchdog only: it keeps a fixture that never signals from consuming
+        // the whole CTest timeout, and it fails the test through the caller's
+        // QVERIFY2 instead of letting it hang.
+        QTimer watchdog;
+        watchdog.setSingleShot(true);
+        connect(&watchdog, &QTimer::timeout, &loop, &QEventLoop::quit);
+        watchdog.start(FixtureWatchdogMs);
 
         loop.exec();
         return fixtureReady();
     }
 
     WaylandServer *m_server = nullptr;
+    QSet<SessionOutputManager *> m_watchedSessionOutputs;
     QByteArray m_socketName;
     ClientThreadContext m_context;
     pthread_t m_thread {};
