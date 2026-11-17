@@ -34,6 +34,20 @@
 #include <private/wtextinputv3_p.h>
 #include <private/wvirtualkeyboardv1_p.h>
 
+#include <wsocket.h>
+#include <wcursorshapemanagerv1.h>
+#include <wforeigntoplevelv1.h>
+#include <wlayershell.h>
+#include <woutputmanagerv1.h>
+#include <wpointerconstraintsv1.h>
+#include <wpointergesturesv1.h>
+#include <wrelativepointermanagerv1.h>
+#include <wsessionlockmanager.h>
+#include <wxdgdecorationmanager.h>
+#include <wxdgshell.h>
+#include <wxdgtopleveltagmanager.h>
+#include <wextworkspacemanagerv1.h>
+
 #include <QTest>
 #include <QPointer>
 #include <QSignalSpy>
@@ -192,7 +206,163 @@ class NativeHandlesTest : public QObject
     }
 #endif
 
+    struct ManagerDestroyProbe {
+        wl_listener listener {};
+        bool destroyed = false;
+
+        explicit ManagerDestroyProbe(wl_signal *signal)
+        {
+            listener.notify = notify;
+            wl_signal_add(signal, &listener);
+        }
+
+        ~ManagerDestroyProbe()
+        {
+            if (!destroyed)
+                wl_list_remove(&listener.link);
+        }
+
+        static void notify(wl_listener *listener, void *)
+        {
+            ManagerDestroyProbe *probe = wl_container_of(listener, probe, listener);
+            probe->destroyed = true;
+            wl_list_remove(&listener->link);
+        }
+    };
+
+    template<typename Native, typename Interface>
+    void checkManagerRemoval(WServer &server, Interface *interface, WSocket *socket)
+    {
+        interface->setOwnsSocket(socket);
+        server.start();
+        auto *native = interface->template nativeInterface<Native>();
+        QVERIFY(native);
+        ManagerDestroyProbe probe(&native->events.destroy);
+        QVERIFY(server.detach(interface));
+        QVERIFY(!interface->isValid());
+        QCOMPARE(probe.destroyed, socket != nullptr);
+
+        server.attach(interface);
+        QVERIFY(interface->isValid());
+        server.stop();
+        QVERIFY(probe.destroyed);
+        QVERIFY(!interface->isValid());
+        server.start();
+        QVERIFY(interface->isValid());
+        server.stop();
+        QVERIFY(!interface->isValid());
+    }
+
 private Q_SLOTS:
+    void socketOwnedManagersAreDestroyedOnDetach_data()
+    {
+        QTest::addColumn<int>("protocol");
+        QTest::addColumn<bool>("socketOwned");
+        const char *names[] = {
+            "WCursorShapeManagerV1",
+            "WExtForeignToplevelListV1",
+            "WForeignToplevel",
+            "WLayerShell",
+            "WOutputManagerV1",
+            "WPointerConstraintsV1",
+            "WPointerGesturesV1",
+            "WRelativePointerManagerV1",
+            "WSessionLockManager",
+            "WXdgDecorationManager",
+            "WXdgDialogManagerV1",
+            "WXdgShell",
+            "WXdgToplevelTagManagerV1",
+            "WInputMethodManagerV2",
+            "WTextInputManagerV3",
+            "WVirtualKeyboardManagerV1",
+            "WExtWorkspaceManagerV1",
+        };
+        for (int i = 0; i < int(std::size(names)); ++i) {
+            QTest::newRow(qPrintable(QString::fromLatin1(names[i]) + "-socket")) << i << true;
+            QTest::newRow(qPrintable(QString::fromLatin1(names[i]) + "-display")) << i << false;
+        }
+    }
+
+    void socketOwnedManagersAreDestroyedOnDetach()
+    {
+        QFETCH(int, protocol);
+        QFETCH(bool, socketOwned);
+        WSocket socket(false);
+        WServer server;
+        switch (protocol) {
+        case 0:
+            checkManagerRemoval<wlr_cursor_shape_manager_v1>(
+                server, server.attach<WCursorShapeManagerV1>(), socketOwned ? &socket : nullptr);
+            break;
+        case 1:
+            checkManagerRemoval<wlr_ext_foreign_toplevel_list_v1>(
+                server, server.attach<WExtForeignToplevelListV1>(), socketOwned ? &socket : nullptr);
+            break;
+        case 2:
+            checkManagerRemoval<wlr_foreign_toplevel_manager_v1>(
+                server, server.attach<WForeignToplevel>(), socketOwned ? &socket : nullptr);
+            break;
+        case 3:
+            checkManagerRemoval<wlr_layer_shell_v1>(
+                server, server.attach<WLayerShell>(server.attach<WXdgShell>(6)), socketOwned ? &socket : nullptr);
+            break;
+        case 4:
+            checkManagerRemoval<wlr_output_manager_v1>(
+                server, server.attach<WOutputManagerV1>(), socketOwned ? &socket : nullptr);
+            break;
+        case 5:
+            checkManagerRemoval<wlr_pointer_constraints_v1>(
+                server, server.attach<WPointerConstraintsV1>(), socketOwned ? &socket : nullptr);
+            break;
+        case 6:
+            checkManagerRemoval<wlr_pointer_gestures_v1>(
+                server, server.attach<WPointerGesturesV1>(), socketOwned ? &socket : nullptr);
+            break;
+        case 7:
+            checkManagerRemoval<wlr_relative_pointer_manager_v1>(
+                server, server.attach<WRelativePointerManagerV1>(), socketOwned ? &socket : nullptr);
+            break;
+        case 8:
+            checkManagerRemoval<wlr_session_lock_manager_v1>(
+                server, server.attach<WSessionLockManager>(), socketOwned ? &socket : nullptr);
+            break;
+        case 9:
+            checkManagerRemoval<wlr_xdg_decoration_manager_v1>(
+                server, server.attach<WXdgDecorationManager>(), socketOwned ? &socket : nullptr);
+            break;
+        case 10:
+            checkManagerRemoval<wlr_xdg_wm_dialog_v1>(
+                server, server.attach<WXdgDialogManagerV1>(), socketOwned ? &socket : nullptr);
+            break;
+        case 11:
+            checkManagerRemoval<wlr_xdg_shell>(
+                server, server.attach<WXdgShell>(6), socketOwned ? &socket : nullptr);
+            break;
+        case 12:
+            checkManagerRemoval<wlr_xdg_toplevel_tag_manager_v1>(
+                server, server.attach<WXdgToplevelTagManagerV1>(), socketOwned ? &socket : nullptr);
+            break;
+        case 13:
+            checkManagerRemoval<wlr_input_method_manager_v2>(
+                server, server.attach<WInputMethodManagerV2>(), socketOwned ? &socket : nullptr);
+            break;
+        case 14:
+            checkManagerRemoval<wlr_text_input_manager_v3>(
+                server, server.attach<WTextInputManagerV3>(), socketOwned ? &socket : nullptr);
+            break;
+        case 15:
+            checkManagerRemoval<wlr_virtual_keyboard_manager_v1>(
+                server, server.attach<WVirtualKeyboardManagerV1>(), socketOwned ? &socket : nullptr);
+            break;
+        case 16:
+            checkManagerRemoval<wlr_ext_workspace_manager_v1>(
+                server, server.attach<WExtWorkspaceManagerV1>(), socketOwned ? &socket : nullptr);
+            break;
+        default:
+            QFAIL("Unknown protocol");
+        }
+    }
+
     void serverExposesNativeDisplay()
     {
         WServer server;
