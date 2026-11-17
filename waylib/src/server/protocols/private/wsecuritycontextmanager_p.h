@@ -59,6 +59,7 @@ struct wlr_security_context_v1_client {
 
 struct wlr_security_context_manager_v1 *wlr_security_context_manager_v1_create(
     struct wl_display *display);
+void wlr_security_context_manager_v1_destroy(struct wlr_security_context_manager_v1 *manager);
 const struct wlr_security_context_v1_state *wlr_security_context_manager_v1_lookup_client(
     struct wlr_security_context_manager_v1 *manager, const struct wl_client *client);
 
