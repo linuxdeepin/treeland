@@ -31,6 +31,7 @@
 #include <winputpopupsurface.h>
 #include <woutputlayout.h>
 #include <wxdgoutput.h>
+#include <wsecuritycontextmanager.h>
 #include <private/winputmethodv2_p.h>
 #include <private/wtextinputv3_p.h>
 #include <private/wvirtualkeyboardv1_p.h>
@@ -412,6 +413,41 @@ private Q_SLOTS:
                  listeners - int(socketOwned));
 
         server.attach(manager);
+        QVERIFY(manager->isValid());
+        server.stop();
+        QVERIFY(!manager->isValid());
+    }
+
+    void localSecurityContextManagerLifetime_data()
+    {
+        QTest::addColumn<bool>("socketOwned");
+        QTest::newRow("socket") << true;
+        QTest::newRow("display") << false;
+    }
+
+    void localSecurityContextManagerLifetime()
+    {
+        QFETCH(bool, socketOwned);
+        WSocket socket(false);
+        WServer server;
+        auto *manager = server.attach<ExposedGlobalManager<WSecurityContextManager>>();
+        manager->setOwnsSocket(socketOwned ? &socket : nullptr);
+        server.start();
+        auto *global = manager->global();
+        QVERIFY(global);
+        auto *native = wl_global_get_user_data(global);
+        QVERIFY(native);
+
+        QVERIFY(server.detach(manager));
+        QVERIFY(!manager->isValid());
+        QVERIFY(!manager->global());
+        QCOMPARE(wl_global_get_user_data(global), socketOwned ? nullptr : native);
+
+        server.attach(manager);
+        QVERIFY(manager->isValid());
+        server.stop();
+        QVERIFY(!manager->isValid());
+        server.start();
         QVERIFY(manager->isValid());
         server.stop();
         QVERIFY(!manager->isValid());

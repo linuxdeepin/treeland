@@ -124,7 +124,7 @@ native handle 是存在 `m_handle`（`void*`）里的 wlroots 原始 C 指针。
 - 如果该 wlroots 类型提供显式 `wlr_*_destroy(...)`，对按 socket 创建的协议 manager，在 `destroy()` 中以 `ownsSocket() && m_handle` 为条件调用 native destroy，再清空 `m_handle`；没有 owning socket 时只清空 wrapper 的 `m_handle`，native manager、global 和子对象均留给 display 回收，不调用 `wl_global_remove()` 或 native 子对象 destroy。wrapper 自身的状态与监听仍按原有生命周期清理。不要把这个条件套到本来就独立拥有 native handle 的 backend、seat、XWayland 上。
 - native manager 的显式 destroy 通常要求先销毁使用它的客户端对象；`ownsSocket()` 标记生命周期所属域，不会自动断开客户端。会话 teardown 必须先清理该域客户端再 detach manager。
 - 当前 vendored wlroots 已为 cursor-shape、pointer constraints/gestures、relative-pointer、foreign-toplevel、ext-workspace、output-management、xdg-shell/decoration/dialog/tag、session-lock、input-method、text-input-v3、virtual-keyboard 等 manager 提供显式 destroy API。以当前头文件为准，不要沿用 wrapper 中旧的“没有 destroy API”注释。
-- `WSecurityContextManager` 和 `WXdgOutputManager` 使用 waylib 本地实现（前者结构还带额外状态），不能将它们的 handle 交给 wlroots 同名类型的 destroy 函数。
+- `WSecurityContextManager` 和 `WXdgOutputManager` 使用 waylib 本地实现（前者结构还带额外状态），应调用各自本地实现的 handle destroy 函数，再按相同的 `ownsSocket() && m_handle` 条件接入 wrapper 的 `destroy()`；不能将它们的 handle 交给 wlroots 同名类型的 destroy 函数。本地显式销毁同样需要安全撤销 global，display 回收则使用非延迟路径。
 - waylib 的 `WObject` 作用域监听列表（`listeners()->add(...)`）会在 `destroy()` 之前自动摘除：`WServer::stop()` 和 `WServer::detach()` 会对属于 `WObject` 的接口调用 `WObject::teardown()`。不要释放 display teardown 已经负责的 native 状态。`~WObject` 在还有监听组残留时会 abort，所以注册了监听的封装必须同时在自己的析构函数里调用 `teardown()`（见 `waylib/src/server/kernel/wglobal.h` 中 `WObject::teardown()` 的注释）。
 
 判断方法：
