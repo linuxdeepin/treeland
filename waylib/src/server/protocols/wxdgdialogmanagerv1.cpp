@@ -145,10 +145,9 @@ void WXdgDialogManagerV1::destroy([[maybe_unused]] WServer *server)
     // Manager-owned listeners were already dropped by WServer teardown.
     // Clearing dialogListeners destroys per-dialog WListenerOwner tokens.
     d->dialogListeners.clear();
-    // Clear the dangling handle now: the wlr_xdg_wm_dialog_v1 is reclaimed
-    // by display.reset() in WServer::stop(), but nulling m_handle immediately
-    // makes handle()/global() return null instead of dangling (global() already
-    // guards on handle()).
+    if (ownsSocket() && m_handle)
+        wlr_xdg_wm_dialog_v1_destroy(nativeInterface<wlr_xdg_wm_dialog_v1>());
+
     m_handle = nullptr;
 }
 
