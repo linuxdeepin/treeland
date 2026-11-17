@@ -85,6 +85,9 @@ void WXdgToplevelTagManagerV1::destroy([[maybe_unused]] WServer *server)
         wl_list_remove(&d->set_description_listener.link);
     }
     d->manager = nullptr;
+    if (ownsSocket() && m_handle)
+        wlr_xdg_toplevel_tag_manager_v1_destroy(nativeInterface<wlr_xdg_toplevel_tag_manager_v1>());
+
     m_handle = nullptr;
 }
 
