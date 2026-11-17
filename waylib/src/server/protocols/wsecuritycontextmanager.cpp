@@ -15,6 +15,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+// wlroots keeps this helper in an internal header.
+extern "C" void wlr_global_destroy_safe(struct wl_global *global);
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 QT_WARNING_PUSH
@@ -56,7 +59,6 @@ static struct wlr_security_context_manager_v1 *manager_from_resource(
                                    &wp_security_context_manager_v1_interface, &manager_impl));
     struct wlr_security_context_manager_v1 *manager =
         reinterpret_cast<wlr_security_context_manager_v1*>(wl_resource_get_user_data(resource));
-    assert(manager != NULL);
     return manager;
 }
 
@@ -338,6 +340,19 @@ static void manager_handle_create_listener(struct wl_client *client,
                                            int listen_fd, int close_fd) {
     struct wlr_security_context_manager_v1 *manager =
         manager_from_resource(manager_resource);
+    if (manager == NULL) {
+        close(listen_fd);
+        close(close_fd);
+        struct wl_resource *resource = wl_resource_create(client,
+            &wp_security_context_v1_interface, wl_resource_get_version(manager_resource), id);
+        if (resource == NULL) {
+            wl_client_post_no_memory(client);
+            return;
+        }
+        wl_resource_set_implementation(resource, &security_context_impl, NULL,
+                                       security_context_resource_destroy);
+        return;
+    }
 
     struct stat stat_buf = {0};
     if (fstat(listen_fd, &stat_buf) != 0) {
@@ -407,9 +422,8 @@ static void manager_bind(struct wl_client *client, void *data,
     wl_resource_set_implementation(resource, &manager_impl, manager, NULL);
 }
 
-static void handle_display_destroy(struct wl_listener *listener, void *data) {
-    struct wlr_security_context_manager_v1 *manager =
-        W_CONTAINER_OF(listener, wlr_security_context_manager_v1, display_destroy);
+static void security_context_manager_v1_destroy(struct wlr_security_context_manager_v1 *manager,
+                                                bool destroy_global_safe) {
     wl_signal_emit_mutable(&manager->events.destroy, manager);
 
     assert(wl_list_empty(&manager->events.destroy.listener_list));
@@ -420,9 +434,23 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
         security_context_destroy(security_context);
     }
 
-    wl_global_destroy(manager->global);
+    if (destroy_global_safe) {
+        wlr_global_destroy_safe(manager->global);
+    } else {
+        wl_global_destroy(manager->global);
+    }
     wl_list_remove(&manager->display_destroy.link);
     free(manager);
+}
+
+void wlr_security_context_manager_v1_destroy(struct wlr_security_context_manager_v1 *manager) {
+    security_context_manager_v1_destroy(manager, true);
+}
+
+static void handle_display_destroy(struct wl_listener *listener, void *data) {
+    struct wlr_security_context_manager_v1 *manager =
+        W_CONTAINER_OF(listener, wlr_security_context_manager_v1, display_destroy);
+    security_context_manager_v1_destroy(manager, false);
 }
 
 struct wlr_security_context_manager_v1 *wlr_security_context_manager_v1_create(
@@ -506,9 +534,9 @@ void WSecurityContextManager::create(WServer *server)
 
 void WSecurityContextManager::destroy([[maybe_unused]] WServer *server)
 {
-    // The wlr_security_context_manager_v1 is reclaimed by display.reset() in
-    // WServer::stop(); null m_handle so handle()/global() return null instead
-    // of a dangling pointer (global() already guards on handle()).
+    if (ownsSocket() && m_handle)
+        wlr_security_context_manager_v1_destroy(nativeInterface<wlr_security_context_manager_v1>());
+
     m_handle = nullptr;
 }
 
