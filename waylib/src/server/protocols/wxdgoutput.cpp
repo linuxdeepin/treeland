@@ -21,6 +21,9 @@
 #include <wlr_all.h>
 #include <QQmlInfo>
 
+// wlroots keeps this helper in an internal header.
+extern "C" void wlr_global_destroy_safe(struct wl_global *global);
+
 // Copy from wlroots
 #define OUTPUT_MANAGER_VERSION 3
 #define OUTPUT_DONE_DEPRECATED_SINCE_VERSION 3
@@ -149,7 +152,6 @@ static void output_manager_handle_get_xdg_output(struct wl_client *client,
                                                  struct wl_resource *output_resource) {
     struct way_xdg_output_manager_v1 *manager =
         static_cast<way_xdg_output_manager_v1 *>(wl_resource_get_user_data(resource));
-    struct wlr_output_layout *layout = manager->layout;
     struct wlr_output *output = wlr_output_from_resource(output_resource);
 
     struct wl_resource *xdg_output_resource = wl_resource_create(client,
@@ -161,13 +163,13 @@ static void output_manager_handle_get_xdg_output(struct wl_client *client,
     wl_resource_set_implementation(xdg_output_resource, &output_implementation,
                                    NULL, output_handle_resource_destroy);
 
-    if (output == NULL) {
+    if (manager == NULL || output == NULL) {
         wl_list_init(wl_resource_get_link(xdg_output_resource));
         return;
     }
 
     struct wlr_output_layout_output *layout_output =
-        wlr_output_layout_get(layout, output);
+        wlr_output_layout_get(manager->layout, output);
     assert(layout_output);
 
     struct way_xdg_output_v1 *_xdg_output, *xdg_output = NULL;
@@ -291,7 +293,8 @@ static void handle_layout_change(struct wl_listener *listener, void *data) {
     output_manager_send_details(manager);
 }
 
-static void manager_destroy(struct way_xdg_output_manager_v1 *manager) {
+static void manager_destroy(struct way_xdg_output_manager_v1 *manager,
+                            bool destroy_global_safe) {
     struct way_xdg_output_v1 *output, *tmp;
     wl_list_for_each_safe(output, tmp, &manager->outputs, link) {
         output_destroy(output);
@@ -301,21 +304,30 @@ static void manager_destroy(struct way_xdg_output_manager_v1 *manager) {
     wl_list_remove(&manager->layout_add.link);
     wl_list_remove(&manager->layout_change.link);
     wl_list_remove(&manager->layout_destroy.link);
+    if (destroy_global_safe) {
+        wlr_global_destroy_safe(manager->global);
+    } else {
+        wl_global_destroy(manager->global);
+    }
     free(manager);
+}
+
+static void way_xdg_output_manager_v1_destroy(struct way_xdg_output_manager_v1 *manager) {
+    manager_destroy(manager, true);
 }
 
 static void handle_layout_destroy(struct wl_listener *listener, void *data) {
     UNUSED(data);
     struct way_xdg_output_manager_v1 *manager =
         W_CONTAINER_OF(listener, way_xdg_output_manager_v1, layout_destroy);
-    manager_destroy(manager);
+    way_xdg_output_manager_v1_destroy(manager);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
     UNUSED(data);
     struct way_xdg_output_manager_v1 *manager =
         W_CONTAINER_OF(listener, way_xdg_output_manager_v1, display_destroy);
-    manager_destroy(manager);
+    manager_destroy(manager, false);
 }
 
 static struct way_xdg_output_manager_v1 *way_xdg_output_manager_v1_create(
@@ -443,6 +455,9 @@ WOutputLayout *WXdgOutputManager::layout() const
 void WXdgOutputManager::destroy([[maybe_unused]] WServer *server)
 {
     W_D(WXdgOutputManager);
+    if (ownsSocket() && m_handle)
+        way_xdg_output_manager_v1_destroy(nativeInterface<way_xdg_output_manager_v1>());
+
     d->manager = nullptr;
     m_handle = nullptr;
 }
@@ -450,7 +465,7 @@ void WXdgOutputManager::destroy([[maybe_unused]] WServer *server)
 wl_global *WXdgOutputManager::global() const
 {
     auto handle = nativeInterface<way_xdg_output_manager_v1>();
-    return handle->global;
+    return handle ? handle->global : nullptr;
 }
 
 void WXdgOutputManager::create([[maybe_unused]] WServer *wserver)

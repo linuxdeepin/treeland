@@ -30,6 +30,7 @@
 #include <wxdgtoplevelsurface.h>
 #include <winputpopupsurface.h>
 #include <woutputlayout.h>
+#include <wxdgoutput.h>
 #include <private/winputmethodv2_p.h>
 #include <private/wtextinputv3_p.h>
 #include <private/wvirtualkeyboardv1_p.h>
@@ -162,6 +163,14 @@ static const wlr_buffer_impl testBufferImpl = {
     .get_shm = nullptr,
     .begin_data_ptr_access = nullptr,
     .end_data_ptr_access = nullptr,
+};
+
+template<typename Interface>
+class ExposedGlobalManager : public Interface
+{
+public:
+    using Interface::Interface;
+    using Interface::global;
 };
 
 class NativeHandlesTest : public QObject
@@ -371,6 +380,41 @@ private Q_SLOTS:
         default:
             QFAIL("Unknown protocol");
         }
+    }
+
+    void localXdgOutputManagerLifetime_data()
+    {
+        QTest::addColumn<bool>("socketOwned");
+        QTest::newRow("socket") << true;
+        QTest::newRow("display") << false;
+    }
+
+    void localXdgOutputManagerLifetime()
+    {
+        QFETCH(bool, socketOwned);
+        WSocket socket(false);
+        WServer server;
+        WOutputLayout layout(&server);
+        auto *manager = server.attach<ExposedGlobalManager<WXdgOutputManager>>(&layout);
+        manager->setOwnsSocket(socketOwned ? &socket : nullptr);
+        server.start();
+        auto *global = manager->global();
+        QVERIFY(global);
+        auto *native = wl_global_get_user_data(global);
+        QVERIFY(native);
+        const int listeners = wl_list_length(&layout.handle()->events.add.listener_list);
+
+        QVERIFY(server.detach(manager));
+        QVERIFY(!manager->isValid());
+        QVERIFY(!manager->global());
+        QCOMPARE(wl_global_get_user_data(global), socketOwned ? nullptr : native);
+        QCOMPARE(wl_list_length(&layout.handle()->events.add.listener_list),
+                 listeners - int(socketOwned));
+
+        server.attach(manager);
+        QVERIFY(manager->isValid());
+        server.stop();
+        QVERIFY(!manager->isValid());
     }
 
     void serverExposesNativeDisplay()
