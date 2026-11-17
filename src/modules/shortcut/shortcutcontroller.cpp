@@ -47,6 +47,20 @@ const char *ShortcutController::actionName(ShortcutAction action)
     return key ? key : "Unknown";
 }
 
+void ShortcutController::unregisterKey(int combined, ShortcutAction action)
+{
+    auto entry = m_keyMap.find(combined);
+    if (entry == m_keyMap.end())
+        return;
+
+    entry->remove(action);
+    // An emptied key combination must not stay in the map: matchesShortcut()
+    // reads the map keys, so a stale entry would still match the event.
+    if (entry->isEmpty())
+        m_keyMap.erase(entry);
+    m_actionCombinedMap.remove(action);
+}
+
 uint ShortcutController::registerKey(const QString &name, const QString& key, ShortcutController::KeyFlags keybindFlags, ShortcutAction action)
 {
     const int combined = normalizedKeyCombinedFor(key);
@@ -84,10 +98,7 @@ uint ShortcutController::registerKey(const QString &name, const QString& key, Sh
     }
     m_keyMap[combined][action] = std::make_pair(name, keybindFlags);
     m_actionCombinedMap[action] = combined;
-    m_deleters[name] = [this, combined, action]() {
-        m_keyMap[combined].remove(action);
-        m_actionCombinedMap.remove(action);
-    };
+    m_deleters[name] = [this, combined, action]() { unregisterKey(combined, action); };
     if (lcTlShortcut().isInfoEnabled()) {
         QStringList flagNames;
         if (keybindFlags.testFlag(ShortcutController::KeyPress)) flagNames << "KeyPress";
