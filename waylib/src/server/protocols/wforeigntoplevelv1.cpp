@@ -243,10 +243,9 @@ void WForeignToplevel::create(WServer *server)
 
 void WForeignToplevel::destroy([[maybe_unused]] WServer *server)
 {
-    // The wlr_foreign_toplevel_manager_v1 is reclaimed by display.reset() in
-    // WServer::stop(); null m_handle so handle()/global() return null instead
-    // of a dangling pointer (kept as an explicit override rather than the
-    // inherited empty base for this hardening).
+    if (ownsSocket() && m_handle)
+        wlr_foreign_toplevel_manager_v1_destroy(nativeInterface<wlr_foreign_toplevel_manager_v1>());
+
     m_handle = nullptr;
 }
 
