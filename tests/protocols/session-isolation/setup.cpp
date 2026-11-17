@@ -111,6 +111,22 @@ extern "C" bool protocol_test_ready(WaylandServer *server)
     return a && b && a != b && wl_list_length(&a->heads) == 3 && wl_list_length(&b->heads) == 3;
 }
 
+namespace {
+// A window of the fixture carries an app id (XDG toplevels and prelaunch splash
+// wrappers alike); the Xwayland the compositor starts on its own registers
+// wrappers without one, and those are not client windows.
+int countClientWindows(Session *session, bool visibleOnly)
+{
+    int count = 0;
+    for (auto *window : session->windows()->objects()) {
+        if (window->appId().isEmpty())
+            continue;
+        count += visibleOnly ? window->isVisible() : 1;
+    }
+    return count;
+}
+}
+
 extern "C" void isolation_read(void *data)
 {
     auto *state = static_cast<isolation_state *>(data);
@@ -154,14 +170,10 @@ extern "C" void isolation_read(void *data)
                     || surface->surfaceItem()->flags().testFlag(WSurfaceItem::NonLive));
         }
     }
-    state->a_visible_windows = 0;
-    state->b_visible_windows = 0;
-    for (auto *window : sessionA->windows()->objects())
-        state->a_visible_windows += window->isVisible();
-    for (auto *window : sessionB->windows()->objects())
-        state->b_visible_windows += window->isVisible();
-    state->a_windows = sessionA->windows()->rowCount();
-    state->b_windows = sessionB->windows()->rowCount();
+    state->a_visible_windows = countClientWindows(sessionA.get(), true);
+    state->b_visible_windows = countClientWindows(sessionB.get(), true);
+    state->a_windows = countClientWindows(sessionA.get(), false);
+    state->b_windows = countClientWindows(sessionB.get(), false);
     state->independent_workspaces = sessionA->workspace() != sessionB->workspace();
     state->a_current_workspace = sessionA->workspace()->currentIndex();
     state->b_current_workspace = sessionB->workspace()->currentIndex();
