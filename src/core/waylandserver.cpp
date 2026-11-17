@@ -338,36 +338,11 @@ void WaylandServer::setWorkspaceVisible(bool visible)
         }
     }
 
-    const bool animationDisabled = m_animationConfig && !m_animationConfig->workspaceVisibility();
-    if (m_noAnimation || animationDisabled) {
-        m_workspaceScaleAnimation->stop();
-        m_workspaceOpacityAnimation->stop();
-        m_shellHandler->workspace()->setOpacity(visible ? 1.0 : 0.0);
-        m_shellHandler->workspace()->setScale(visible ? 1.0 : 1.4);
-        return;
-    }
-
-    if (visible) {
-        m_workspaceScaleAnimation->stop();
-        m_workspaceScaleAnimation->setStartValue(m_shellHandler->workspace()->scale());
-        m_workspaceScaleAnimation->setEndValue(1.0);
-        m_workspaceScaleAnimation->start();
-
-        m_workspaceOpacityAnimation->stop();
-        m_workspaceOpacityAnimation->setStartValue(m_shellHandler->workspace()->opacity());
-        m_workspaceOpacityAnimation->setEndValue(1.0);
-        m_workspaceOpacityAnimation->start();
-    } else {
-        m_workspaceScaleAnimation->stop();
-        m_workspaceScaleAnimation->setStartValue(m_shellHandler->workspace()->scale());
-        m_workspaceScaleAnimation->setEndValue(1.4);
-        m_workspaceScaleAnimation->start();
-
-        m_workspaceOpacityAnimation->stop();
-        m_workspaceOpacityAnimation->setStartValue(m_shellHandler->workspace()->opacity());
-        m_workspaceOpacityAnimation->setEndValue(0.0);
-        m_workspaceOpacityAnimation->start();
-    }
+    // Client workspace visibility is immediate; wallpaper rendering is separate.
+    m_workspaceScaleAnimation->stop();
+    m_workspaceOpacityAnimation->stop();
+    m_shellHandler->workspace()->setScale(1.0);
+    m_shellHandler->workspace()->setOpacity(visible ? 1.0 : 0.0);
 }
 
 QmlEngine *WaylandServer::qmlEngine() const
@@ -469,6 +444,10 @@ void WaylandServer::onWorkspaceChanged()
     deleteTaskSwitch();
     m_workspaceScaleAnimation->stop();
     m_workspaceOpacityAnimation->stop();
+    if (m_currentMode != CurrentMode::LockScreen) {
+        workspace()->setOpacity(1.0);
+        workspace()->setScale(1.0);
+    }
     m_workspaceScaleAnimation->setTargetObject(workspace());
     m_workspaceOpacityAnimation->setTargetObject(workspace());
     Q_EMIT workspaceChanged();

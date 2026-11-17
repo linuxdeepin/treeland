@@ -727,6 +727,7 @@ private:
 
     bool m_socketEnabled{ false };
     bool m_renderingEnabled{ false };
+    bool m_sessionVisibilityChanging{ false };
     bool m_liveSuppressed{ false };
     bool m_windowAnimationEnabled{ true };
 
