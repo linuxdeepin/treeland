@@ -275,9 +275,9 @@ void WOutputManagerV1::create(WServer *server)
 
 void WOutputManagerV1::destroy([[maybe_unused]] WServer *server)
 {
-    // apply/test listeners are detached by WServer::stop()/detach() via
-    // WObject::teardown() before this runs (wlr_output_manager_v1 asserts
-    // those lists are empty when the display destroys the manager).
+    if (ownsSocket() && m_handle)
+        wlr_output_manager_v1_destroy(nativeInterface<wlr_output_manager_v1>());
+
     m_handle = nullptr;
 }
 
