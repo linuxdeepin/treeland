@@ -177,8 +177,15 @@ ParseResult parseCommand(const QString &command, const QStringList &args)
         return r;
     }
     if (command == QLatin1String("windows")) {
+        // Optional target: `windows <id|appId>` describes one window instead of
+        // listing them all, which is what --detail is meant to be used with.
+        if (args.size() > 1) {
+            r.error = QStringLiteral("windows: expected at most one window target (id or appId)");
+            return r;
+        }
         r.ok = true;
         r.command = DebugCommand::Windows;
+        r.target = args.value(0);
         return r;
     }
     if (command == QLatin1String("clients")) {

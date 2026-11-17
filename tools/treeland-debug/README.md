@@ -146,6 +146,9 @@ receive an error explaining how to proceed.
 --name <name>        Remote object name (default: WindowTree)
 --timeout-ms <n>     Request timeout in milliseconds (default: 30000)
 --json               Emit machine-readable JSON for `windows`/`clients`
+--detail             More per-window info for `tree`/`windows`/`clients`
+                     (default: basic fields). With `windows <id>` it also
+                     adds the input/opaque regions.
 --no-escalate        Do not attempt polkit privilege escalation; report the
                      requirement instead (scripts, CI)
 -h, --help           Show help
@@ -195,7 +198,7 @@ Run `treeland-debug <command>` for any of the following.
 | --- | --- |
 | `tree` | Print the complete layout tree as JSON (default). |
 | `cursor` | Print the cursor position as JSON. |
-| `windows` | List all toplevel windows (table, or JSON with `--json`), including every output each window is on and its frame-pacing output. |
+| `windows [id\|appId]` | List all toplevel windows (table, or JSON with `--json`) with the basic field set, or describe the one window matching the target. `--detail` adds decorations, `damage` and output diagnostics; on a single window it also adds the input/opaque regions (see [JSON output](#json-output)). |
 | `clients` | List connected Wayland clients and the windows each owns. |
 | `idle` | Show the idle state (time since the last input activity), whether idle is inhibited, and every idle-inhibit source (window/idle-inhibitor or screensaver) holding it off. |
 | `shortcuts` | List the registered shortcuts (key bindings and touchpad gestures). |
@@ -355,10 +358,11 @@ OPTIONS preflight is handled, so a browser frontend can call the API directly.
 
 | Method | Path | Body / Query | Description |
 | --- | --- | --- | --- |
-| GET | `/api/tree` | — | Layout tree JSON |
+| GET | `/api/tree` | `?detail=0\|1` | Layout tree JSON |
 | GET | `/api/cursor` | — | Cursor position JSON |
-| GET | `/api/windows` | — | All windows JSON |
-| GET | `/api/clients` | — | All clients JSON |
+| GET | `/api/windows` | `?detail=0\|1` | All windows JSON |
+| GET | `/api/window` | `?target=...&detail=0\|1\|2` | One window JSON (id or appId); default level 1, level 2 includes the regions |
+| GET | `/api/clients` | `?detail=0\|1` | All clients JSON |
 | GET | `/api/idle` | — | Idle state and idle-inhibit sources JSON |
 | GET | `/api/no-auth` | — | Ask the compositor to open this debug socket to every local user for 30 minutes. This API has no authentication of its own, so bind it to a trusted address (see Access control). |
 | GET | `/api/shortcuts` | — | Registered shortcuts JSON |
@@ -388,7 +392,7 @@ Responses are JSON: `{"ok":true,"data":...}` or `{"ok":false,"error":"..."}`.
 
 Connect to `ws://<host>:<port>/ws` and send JSON messages. One-shot commands
 mirror the HTTP API (`{"command":"tree"}`, `{"command":"activate","target":"..."}`
-etc.). Screenshots are returned as a binary frame followed by a JSON ack.
+etc.); `tree`/`windows`/`clients` take an optional `"detail"` (0 or 1). Screenshots are returned as a binary frame followed by a JSON ack.
 
 Live subscriptions:
 
@@ -425,14 +429,15 @@ Supported JSON-RPC methods:
 | `tools/call` | Invokes a tool by name with arguments |
 | `ping` | Health check |
 
-The 24 available tools mirror the HTTP REST API and CLI commands:
+The 25 available tools mirror the HTTP REST API and CLI commands:
 
 | Tool | Args | Description |
 | --- | --- | --- |
-| `tree` | — | Layout tree JSON |
+| `tree` | `detail?` | Layout tree JSON |
 | `cursor` | — | Cursor position |
-| `windows` | — | All windows |
-| `clients` | — | All clients |
+| `windows` | `detail?` | All windows |
+| `window` | `target, detail?` | One window (levels as in [JSON output](#json-output); default 1) |
+| `clients` | `detail?` | All clients |
 | `idle` | — | Idle state and idle-inhibit sources |
 | `no-auth` | — | Open this debug socket to every local user for 30 minutes |
 | `shortcuts` | — | Registered shortcuts |
@@ -482,15 +487,41 @@ output the window is on), `framePacingOutput` (the output driving its frame
 callbacks: the entered output with the highest refresh rate) and (for
 `clients`) the owning client
 `pid`/`executable`/`command` (the full command line, read from
-`/proc/<pid>/cmdline`). The `output` field is the output the compositor treats
+`/proc/<pid>/cmdline`). That is the complete default: `windows`, `clients` and
+`tree` are graded, and the expensive per-window fields are only sent when
+`--detail` asks for them, so listing hundreds of windows stays short.
+
+The graded levels are:
+
+- **0 -- basic** (default): the fields above.
+- **1 -- `--detail`**, or `?detail=1` / MCP `"detail": 1`: adds the output
+  diagnostics (`lastLeave*`, `lastOutputsUpdate*`), the decoration geometry
+  (`titlebarGeometry`, `boundingRect`), `iconGeometry`, `position`, `frames` and
+  `damage`.
+- **2 -- `windows <id> --detail`**, `/api/window?detail=2`: adds
+  `inputRegion` and `opaqueRegion`, the two box sets that make a payload large.
+  Only a single window can ask for them: the compositor clamps every collection
+  getter to level 1, so no `windows`/`clients`/`tree` call can pull them back for
+  every window at once.
+
+`windows <id\|appId> [--detail]` is the cheap way to get one window in full: the
+compositor describes only that window (`getWindow`), and only toplevel windows
+are addressable -- a subsurface listed by `tree` reports "no such window". The
+`output` field is the output the compositor treats
 as the window's owner -- a window spanning several outputs reports all of them
 in `outputs` (taken from the compositor's window wrapper, so a pre-launch
 splash window reports its outputs too). The `windows`/`clients`/`tree` views
 list every output and prefix the frame-pacing one with `+` (`*` keeps its
-existing meaning there: the active window). The `windows`/`clients` tables
+existing meaning there: the active window). With `--detail` the `windows`/`clients` tables
 additionally show the server-side decoration (`content`/`titlebar`/`frame`)
-geometry when the window is an SSD toplevel, plus the window's input region
-and opaque region.
+geometry when the window is an SSD toplevel. Regions are never printed by a
+table -- they are only fetched by `windows <id> --detail`, which prints them as
+`input-region=`/`opaque-region=` lines.
+
+`z` is the window's position within its layer, and `windows`/`windows <id>`
+report the same value; the text `tree` numbers windows by list index instead.
+`tree`'s text output ignores `--detail` -- the extra fields only appear in
+`tree --json`.
 Those two are sets of surface-local boxes (`inputRegion`/`opaqueRegion` in
 JSON, a list of `{x,y,width,height}` rects; the table prints the first few
 boxes and summarises the rest).
@@ -504,9 +535,11 @@ The same applies to `opaqueRegion`: empty means no opaque area was declared
 (also its value before the first commit), not that the window is actually
 transparent.
 
-`damage`/region data is serialised on every `windows`/`clients` call, so a
-client committing a region with thousands of boxes inflates the polls of `top`
-as well, which does not display them.
+`damage`/region data is no longer serialised by a plain listing: `windows` and
+`clients` ask for level 0, `top`/`watch` for level 1 (they display `frames` and
+`damage` but never the regions), and only a single-window query asks for the
+regions. A client committing a region with thousands of boxes therefore cannot
+inflate the once-a-second `top` poll.
 
 `WindowInfo` is a `WindowTreeRemote` POD, and Qt Remote Objects serialises a POD
 by field order with no version negotiation: a `treeland-debug` built from a

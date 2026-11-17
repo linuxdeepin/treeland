@@ -39,10 +39,13 @@ private:
         const std::function<QJsonObject(Session &)> &work);
 
     // --- HTTP route handlers (inspection) ---
-    QJsonObject handleTree();
+    // @p detail selects the per-window field set (see the rep): 0 basic, 1 adds
+    // decorations/damage/diagnostics, 2 adds the regions.
+    QJsonObject handleTree(int detail);
     QJsonObject handleCursor();
-    QJsonObject handleWindows();
-    QJsonObject handleClients();
+    QJsonObject handleWindows(int detail);
+    QJsonObject handleWindow(const QHttpServerRequest &request);
+    QJsonObject handleClients(int detail);
     QJsonObject handleIdle();
     QJsonObject handleShortcuts();
     QJsonObject handleFocused();
@@ -74,6 +77,7 @@ private:
     // --- Internal handler overloads (JSON-body / param-based) ---
     // Used by both the HTTP POST routes and the MCP tools/call dispatcher so
     // that parameter extraction is not tied to QHttpServerRequest.
+    QJsonObject handleWindow(const QJsonValue &target, int detail);
     QJsonObject handleScene(const QString &target);
     QJsonObject handleActivate(const QJsonObject &body);
     QJsonObject handleClose(const QJsonObject &body);

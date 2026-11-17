@@ -80,6 +80,22 @@ static QHttpServerResponse jsonCorsResponse(const QJsonObject &obj,
     return addCorsHeaders(QHttpServerResponse(obj, status));
 }
 
+// `?detail=<0|1|2>` selects the per-window field set; `true`/`full` are the
+// level-2 spellings. Anything else keeps the basic (level 0) set.
+static int detailRequested(const QHttpServerRequest &request)
+{
+    const QString value = request.query().queryItemValue(QStringLiteral("detail")).toLower();
+    if (value == QLatin1String("true") || value == QLatin1String("full"))
+        return 2;
+    return qBound(0, value.toInt(), 2);
+}
+
+// Same for a MCP tool argument.
+static int detailArg(const QJsonObject &args)
+{
+    return qBound(0, args.value(QStringLiteral("detail")).toInt(), 2);
+}
+
 bool DebugServer::listen(const QString &host, int port)
 {
     auto *tcpServer = new QTcpServer(this);
@@ -98,17 +114,22 @@ bool DebugServer::listen(const QString &host, int port)
     });
 
     // --- Inspection routes ---
-    m_httpServer.route("/api/tree", [this]() {
-        return jsonCorsResponse(handleTree());
+    m_httpServer.route("/api/tree", [this](const QHttpServerRequest &request) {
+        return jsonCorsResponse(handleTree(detailRequested(request)));
     });
     m_httpServer.route("/api/cursor", [this]() {
         return jsonCorsResponse(handleCursor());
     });
-    m_httpServer.route("/api/windows", [this]() {
-        return jsonCorsResponse(handleWindows());
+    m_httpServer.route("/api/windows", [this](const QHttpServerRequest &request) {
+        return jsonCorsResponse(handleWindows(detailRequested(request)));
     });
-    m_httpServer.route("/api/clients", [this]() {
-        return jsonCorsResponse(handleClients());
+    // One window by id or appId: `?target=` picks it, `?detail=2` adds the
+    // regions. Cheaper than pulling every window's detail.
+    m_httpServer.route("/api/window", [this](const QHttpServerRequest &request) {
+        return jsonCorsResponse(handleWindow(request));
+    });
+    m_httpServer.route("/api/clients", [this](const QHttpServerRequest &request) {
+        return jsonCorsResponse(handleClients(detailRequested(request)));
     });
     m_httpServer.route("/api/idle", [this]() {
         return jsonCorsResponse(handleIdle());
@@ -219,13 +240,13 @@ bool DebugServer::listen(const QString &host, int port)
 
 // --- Inspection handlers ---
 
-QJsonObject DebugServer::handleTree()
+QJsonObject DebugServer::handleTree(int detail)
 {
-    return sessionRequest([this](Session &session) {
+    return sessionRequest([this, detail](Session &session) {
         TreelandInfo info;
-        if (!waitSlot(session.replica->getTreelandInfo(), m_timeoutMs, &info))
+        if (!waitSlot(session.replica->getTreelandInfo(detail), m_timeoutMs, &info))
             return QJsonObject{{"ok", false}, {"error", "getTreelandInfo() failed"}};
-        return QJsonObject{{"ok", true}, {"data", treelandInfoToJson(info)}};
+        return QJsonObject{{"ok", true}, {"data", treelandInfoToJson(info, detail)}};
     });
 }
 
@@ -237,23 +258,53 @@ QJsonObject DebugServer::handleCursor()
     });
 }
 
-QJsonObject DebugServer::handleWindows()
+QJsonObject DebugServer::handleWindows(int detail)
 {
-    return sessionRequest([this](Session &session) {
+    return sessionRequest([this, detail](Session &session) {
         QList<WindowInfo> windows;
-        if (!waitSlot(session.replica->getWindows(), m_timeoutMs, &windows))
+        if (!waitSlot(session.replica->getWindows(detail), m_timeoutMs, &windows))
             return QJsonObject{{"ok", false}, {"error", "getWindows() failed"}};
-        return QJsonObject{{"ok", true}, {"data", windowsToJson(windows)}};
+        return QJsonObject{{"ok", true}, {"data", windowsToJson(windows, detail)}};
     });
 }
 
-QJsonObject DebugServer::handleClients()
+QJsonObject DebugServer::handleWindow(const QJsonValue &target, int detail)
 {
-    return sessionRequest([this](Session &session) {
+    const QString [REDACTED CREDENTIAL]
+    if (token.isEmpty())
+        return QJsonObject{{"ok", false}, {"error", "missing window target (id or appId)"}};
+    return sessionRequest([this, token, detail](Session &session) {
+        bool ok = false;
+        const qint64 id = resolveTarget(session, m_timeoutMs, token, &ok);
+        if (!ok)
+            return QJsonObject{{"ok", false},
+                               {"error", QStringLiteral("no window matches '%1'").arg(token)}};
+        WindowInfo window;
+        if (!waitSlot(session.replica->getWindow(id, detail), m_timeoutMs, &window))
+            return QJsonObject{{"ok", false}, {"error", "getWindow() failed"}};
+        // The compositor answers with id 0 when the window is gone.
+        if (window.id() != id)
+            return QJsonObject{{"ok", false}, {"error", "window no longer exists"}};
+        return QJsonObject{{"ok", true}, {"data", windowToJson(window, detail)}};
+    });
+}
+
+QJsonObject DebugServer::handleWindow(const QHttpServerRequest &request)
+{
+    const auto query = request.query();
+    // One window is the detailed view by default (level 1), matching
+    // `windows <id>` and the MCP `window` tool; ?detail=0 still asks for basic.
+    const int detail = query.hasQueryItem(QStringLiteral("detail")) ? detailRequested(request) : 1;
+    return handleWindow(QJsonValue(query.queryItemValue(QStringLiteral("target"))), detail);
+}
+
+QJsonObject DebugServer::handleClients(int detail)
+{
+    return sessionRequest([this, detail](Session &session) {
         QList<ClientInfo> clients;
-        if (!waitSlot(session.replica->getClients(), m_timeoutMs, &clients))
+        if (!waitSlot(session.replica->getClients(detail), m_timeoutMs, &clients))
             return QJsonObject{{"ok", false}, {"error", "getClients() failed"}};
-        return QJsonObject{{"ok", true}, {"data", clientsToJson(clients)}};
+        return QJsonObject{{"ok", true}, {"data", clientsToJson(clients, detail)}};
     });
 }
 
@@ -831,6 +882,23 @@ QJsonObject DebugServer::mcpToolsList() const
         {"properties", QJsonObject{}},
         {"additionalProperties", false}
     };
+    // Optional `detail` for the window listings, so a client that wants the
+    // heavy fields can still ask for them: 0 basic, 1 decorations/damage/output
+    // diagnostics, 2 also the input and opaque regions.
+    const QJsonObject detailSchema = QJsonObject{
+        {"type", "object"},
+        {"properties", QJsonObject{
+            {"detail", QJsonObject{
+                {"type", "integer"},
+                {"minimum", 0},
+                {"maximum", 1},
+                {"description", "0 = basic fields (default), 1 = plus decorations, "
+                                 "damage and output diagnostics. Regions are only "
+                                 "available from the `window` tool."}
+            }}
+        }},
+        {"additionalProperties", false}
+    };
 
     return QJsonObject{
         {"tools", QJsonArray{
@@ -838,7 +906,7 @@ QJsonObject DebugServer::mcpToolsList() const
             QJsonObject{
                 {"name", "tree"},
                 {"description", "Get the complete Treeland window layout tree: layers, workspaces, and all windows with their geometry, state, and the outputs they are on (plus the output driving their frame callbacks)."},
-                {"inputSchema", noArgs}
+                {"inputSchema", detailSchema}
             },
             QJsonObject{
                 {"name", "cursor"},
@@ -848,7 +916,25 @@ QJsonObject DebugServer::mcpToolsList() const
             QJsonObject{
                 {"name", "windows"},
                 {"description", "List all toplevel windows with their id, appId, title, geometry, state, the outputs each window is on, and its framePacingOutput."},
-                {"inputSchema", noArgs}
+                {"inputSchema", detailSchema}
+            },
+            QJsonObject{
+                {"name", "window"},
+                {"description", "Describe a single toplevel window (by id or appId) instead of the whole list: the same fields as `windows`, plus frames, damage, decorations and (with detail 2) the input/opaque regions. Returns an error when the window is gone."},
+                {"inputSchema", QJsonObject{
+                    {"type", "object"},
+                    {"properties", QJsonObject{
+                        {"target", targetSchema("Window id (number) or appId (string).")},
+                        {"detail", QJsonObject{
+                            {"type", "integer"},
+                            {"minimum", 0},
+                            {"maximum", 2},
+                            {"description", "0 = basic, 1 = plus decorations, damage and output diagnostics (default 1), 2 = also inputRegion/opaqueRegion."}
+                        }}
+                    }},
+                    {"required", QJsonArray{"target"}},
+                    {"additionalProperties", false}
+                }}
             },
             QJsonObject{
                 {"name", "no-auth"},
@@ -858,7 +944,7 @@ QJsonObject DebugServer::mcpToolsList() const
             QJsonObject{
                 {"name", "clients"},
                 {"description", "List all connected Wayland clients and the windows each owns (pid, executable, command line), with each window's outputs and framePacingOutput."},
-                {"inputSchema", noArgs}
+                {"inputSchema", detailSchema}
             },
             QJsonObject{
                 {"name", "idle"},
@@ -1104,13 +1190,16 @@ QJsonArray DebugServer::mcpDispatchTool(const QString &name, const QJsonObject &
 
     // --- Inspection ---
     if (name == "tree")
-        return formatJson(handleTree());
+        return formatJson(handleTree(detailArg(args)));
     if (name == "cursor")
         return formatJson(handleCursor());
     if (name == "windows")
-        return formatJson(handleWindows());
+        return formatJson(handleWindows(detailArg(args)));
+    if (name == "window")
+        return formatJson(handleWindow(args.value("target"),
+                                      args.contains("detail") ? detailArg(args) : 1));
     if (name == "clients")
-        return formatJson(handleClients());
+        return formatJson(handleClients(detailArg(args)));
     if (name == "idle")
         return formatJson(handleIdle());
     if (name == "no-auth")
@@ -1272,14 +1361,16 @@ void DebugServer::handleWebSocketMessage(QWebSocket *socket, const QString &mess
 
     // One-shot commands via WebSocket — reuse the same sessionRequest logic.
     QJsonObject result;
+    // The listing commands take an optional "detail" like the HTTP query and
+    // the MCP tools, so a WebSocket client is not stuck on the basic fields.
     if (command == "tree") {
-        result = handleTree();
+        result = handleTree(detailArg(obj));
     } else if (command == "cursor") {
         result = handleCursor();
     } else if (command == "windows") {
-        result = handleWindows();
+        result = handleWindows(detailArg(obj));
     } else if (command == "clients") {
-        result = handleClients();
+        result = handleClients(detailArg(obj));
     } else if (command == "idle") {
         result = handleIdle();
     } else if (command == "no-auth") {
@@ -1483,7 +1574,7 @@ void DebugServer::startLiveSubscription(QWebSocket *socket, const QString &id,
         if (command == DebugCommand::Top) {
             result = sessionRequest([this](Session &session) {
                 QList<ClientInfo> clients;
-                if (!waitSlot(session.replica->getClients(), m_timeoutMs, &clients))
+                if (!waitSlot(session.replica->getClients(1), m_timeoutMs, &clients))
                     return QJsonObject{{"ok", false}, {"error", "getClients() failed"}};
                 qint64 focusId = 0, cursorId = 0;
                 waitSlot(session.replica->focusedWindowId(), m_timeoutMs, &focusId);
@@ -1491,7 +1582,7 @@ void DebugServer::startLiveSubscription(QWebSocket *socket, const QString &id,
                 return QJsonObject{
                     {"ok", true},
                     {"data", QJsonObject{
-                        {"clients", clientsToJson(clients)},
+                        {"clients", clientsToJson(clients, 1)},
                         {"focusedWindowId", focusId},
                         {"cursorWindowId", cursorId}
                     }}
@@ -1512,14 +1603,15 @@ void DebugServer::startLiveSubscription(QWebSocket *socket, const QString &id,
         } else if (command == DebugCommand::Watch) {
             const qint64 windowId = socket->property("watchId").toLongLong();
             result = sessionRequest([this, windowId](Session &session) {
-                QList<WindowInfo> windows;
-                if (!waitSlot(session.replica->getWindows(), m_timeoutMs, &windows))
-                    return QJsonObject{{"ok", false}, {"error", "getWindows() failed"}};
-                for (const auto &w : windows) {
-                    if (w.id() == windowId)
-                        return QJsonObject{{"ok", true}, {"data", windowToJson(w)}};
-                }
-                return QJsonObject{{"ok", false}, {"error", "window no longer exists"}};
+                // Level 1 is what this view displays (frames and damage). The
+                // identity check is getWindow()'s contract: a window it cannot
+                // describe comes back with id 0.
+                WindowInfo window;
+                if (!waitSlot(session.replica->getWindow(windowId, 1), m_timeoutMs, &window))
+                    return QJsonObject{{"ok", false}, {"error", "getWindow() failed"}};
+                if (window.id() != windowId)
+                    return QJsonObject{{"ok", false}, {"error", "window no longer exists"}};
+                return QJsonObject{{"ok", true}, {"data", windowToJson(window, 1)}};
             });
         }
 

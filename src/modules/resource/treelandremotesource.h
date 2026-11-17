@@ -30,7 +30,7 @@ public:
     bool isPublished() const { return m_published; }
 
     QPointF cursorPosition() const override;
-    TreelandInfo getTreelandInfo() override;
+    TreelandInfo getTreelandInfo(int detail) override;
 
     // ---- access ----
     // The Release no-auth window opens the debug socket to every local user for
@@ -40,8 +40,9 @@ public:
     bool requestNoAuth() override;
 
     // ---- inspection ----
-    QList<WindowInfo> getWindows() override;
-    QList<ClientInfo> getClients() override;
+    QList<WindowInfo> getWindows(int detail) override;
+    WindowInfo getWindow(qint64 id, int detail) override;
+    QList<ClientInfo> getClients(int detail) override;
     IdleInfo getIdleInfo() override;
 
     // ---- window control ----
@@ -94,24 +95,32 @@ private Q_SLOTS:
     void onShortcutFinished(ShortcutAction action, const QString &name, bool isTriggered);
 
 private:
+    // detail: 0 = basic, 1 = full; threaded down so a basic call never touches
+    // the expensive per-window fields.
     void collectSurfaceInfos(QList<WindowInfo> &infos,
                              SurfaceWrapper *surface,
                              int layer,
                              const QString &containerName,
-                             int z) const;
+                             int z,
+                             int detail) const;
     void collectWorkspaceModelWindows(QList<WindowInfo> &infos,
                                       WorkspaceModel *workspaceModel,
                                       int layer,
-                                      const QString &containerName) const;
+                                      const QString &containerName,
+                                      int detail) const;
     void collectCurrentWorkspaceModelWindows(QList<WindowInfo> &infos,
                                              WorkspaceModel *workspaceModel,
                                              int layer,
-                                             const QString &containerName) const;
+                                             const QString &containerName,
+                                             int detail) const;
     WindowInfo buildWindowInfo(SurfaceWrapper *surface,
                                int layer,
                                const QString &containerName,
-                               int z) const;
-    LayerInfo buildLayerInfo(SurfaceContainer *container) const;
+                               int z,
+                               int detail) const;
+    // buildWindowInfo() with the container/layer/z looked up from the surface.
+    WindowInfo buildWindowInfoFor(SurfaceWrapper *surface, int detail) const;
+    LayerInfo buildLayerInfo(SurfaceContainer *container, int detail) const;
 
     // Collects every toplevel SurfaceWrapper (no parent surface) reachable from
     // the root container, in a stable display order. Used by the flat window

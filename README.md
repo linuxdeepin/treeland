@@ -184,6 +184,7 @@ lives at the pre-migration `/tmp/<name>` path:
 | `--name <name>` | `WindowTree` | Remote object name. |
 | `--timeout-ms <n>` | `30000` | Request timeout in ms (non-negative integer). |
 | `--json` | off | Emit machine-readable JSON for `tree`/`cursor`/`windows`/`clients`. |
+| `--detail` | off | Add the heavy per-window fields to `tree`/`windows`/`clients` (decorations, damage, output diagnostics). With `windows <id>` it also adds the input/opaque regions. See [Output formats](#output-formats). |
 | `--preview` | auto | Force inline image preview in terminal (auto-detected by default). |
 | `--no-preview` | off | Disable inline image preview. |
 | `-h, --help` | — | Show help. |
@@ -202,7 +203,7 @@ used).
 | --- | --- | --- |
 | `tree` | _(none, default)_ | Layout tree (human-readable; `--json` for JSON). |
 | `cursor` | _(none)_ | Cursor position `x=… y=…` (`--json` for `{"x","y"}`). |
-| `windows` | _(none)_ | Window table; `--json` for a JSON array. |
+| `windows` | `[id\|appId]` | Window table; `--json` for a JSON array. With a target, describe that one window field by field instead of listing them all. |
 | `clients` | _(none)_ | Client + window table; `--json` for a JSON array. |
 | `shortcuts` | _(none)_ | Registered shortcuts (keys and gestures); `--json` for a JSON array. |
 | `top` | `[interval-ms]` (default 1000) | Live, `top`-like refreshing client view (Ctrl+C to quit). |
@@ -261,6 +262,31 @@ path under `/tmp` is generated.
 `tree` and `cursor` print a human-readable format by default; pass `--json` for
 machine-readable JSON. `windows` and `clients` also default to human-readable
 tables and use `--json` for JSON.
+
+Window output is graded, so listing many windows stays short. A field outside
+the requested level is never serialised, only left at its default:
+
+- **basic** (default, and what the tables show): the identity, geometry and
+  state fields listed below up to `geometry`, plus `outputs` and
+  `framePacingOutput`.
+- **`--detail`** (level 1): adds `titlebarGeometry`, `boundingRect`,
+  `iconGeometry`, `position`, `frames`, `damage` and the output diagnostics
+  (`lastLeave*`, `lastOutputsUpdate*`). The `windows`/`clients` tables also print
+  the decoration geometry for SSD toplevels.
+- **`--detail` on `windows <id>`** (level 2): adds `inputRegion` and
+  `opaqueRegion` -- a set of boxes per window and by far the largest part of the
+  payload. Only a single window can ask for them; the compositor clamps every
+  list getter to level 1, so no list view can pull them back for every window.
+
+`windows <id|appId>` describes a single window, so the compositor serialises
+only that one; `windows <id> --detail` is how you get the regions. Only toplevel
+windows are addressable that way: a subsurface listed by `tree` has no entry
+here and reports "no such window". `tree`'s text output is unaffected by
+`--detail` (it prints the same columns either way); use `--json` to see the
+extra fields there. The `z` a window reports is its position in the layer
+(`getWindows`/`getWindow` agree); the text `tree` numbers windows by list index
+instead.
+
 Window JSON object (`WindowInfo`):
 
 | Field | Type | Notes |
@@ -278,7 +304,7 @@ Window JSON object (`WindowInfo`):
 | `visible` | boolean | Visibility. |
 | `active` | boolean | Active / focused flag. |
 | `geometry` | object | `{"x","y","width","height"}`. |
-| `titlebarGeometry` | object | Same shape. |
+| `titlebarGeometry` | object | Same shape. The rows below need `--detail`. |
 | `boundingRect` | object | Same shape. |
 | `iconGeometry` | object | Same shape. |
 | `position` | object | `{"x","y"}`. |

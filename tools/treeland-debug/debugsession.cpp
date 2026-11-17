@@ -121,11 +121,19 @@ qint64 resolveTarget(Session &session, int timeoutMs, const QString &token, bool
     *ok = true;
     bool parsed = false;
     const qint64 id = token.toLongLong(&parsed);
-    if (parsed)
+    if (parsed) {
+        // 0 and negatives are not window ids: the compositor returns 0 for
+        // "no such window", and a surface without a wl_resource is listed with
+        // id 0 but cannot be addressed.
+        if (id <= 0) {
+            *ok = false;
+            return 0;
+        }
         return id;
+    }
 
     QList<WindowInfo> windows;
-    if (!waitSlot(session.replica->getWindows(), timeoutMs, &windows)) {
+    if (!waitSlot(session.replica->getWindows(0), timeoutMs, &windows)) {
         *ok = false;
         return 0;
     }
@@ -154,23 +162,15 @@ void registerNamedMetatypes()
     qRegisterMetaType<IdleInfo>("IdleInfo");
 }
 
-QJsonObject windowToJson(const WindowInfo &window)
+QJsonObject windowToJson(const WindowInfo &window, int detail)
 {
-    return {
+    QJsonObject json{
         {"id", window.id()},
         {"appId", window.appId()},
         {"title", window.title()},
         {"output", window.output()},
         {"outputs", QJsonArray::fromStringList(window.outputs())},
         {"framePacingOutput", window.framePacingOutput()},
-        {"lastLeaveOutput", window.lastLeaveOutput()},
-        {"lastLeaveOutputEnabled", window.lastLeaveOutputEnabled()},
-        {"lastLeaveEmptiedOutputs", window.lastLeaveEmptiedOutputs()},
-        {"lastOutputsUpdateReason", window.lastOutputsUpdateReason()},
-        {"lastOutputsUpdateEnabled", window.lastOutputsUpdateEnabled()},
-        {"lastOutputsUpdateTotal", window.lastOutputsUpdateTotal()},
-        {"lastOutputsUpdateComputed", window.lastOutputsUpdateComputed()},
-        {"lastOutputsUpdateAutomatic", window.lastOutputsUpdateAutomatic()},
         {"container", window.container()},
         {"workspace", window.workspace()},
         {"layer", window.layer()},
@@ -181,69 +181,83 @@ QJsonObject windowToJson(const WindowInfo &window)
         {"active", window.active()},
         {"minimized", window.minimized()},
         {"geometry", rectToJson(window.geometry())},
-        {"titlebarGeometry", rectToJson(window.titlebarGeometry())},
-        {"boundingRect", rectToJson(window.boundingRect())},
-        {"iconGeometry", rectToJson(window.iconGeometry())},
-        {"position", pointToJson(window.position())},
-        {"frames", window.frames()},
-        {"damage", rectToJson(window.damage())},
-        {"inputRegion", rectsToJson(window.inputRegion())},
-        {"opaqueRegion", rectsToJson(window.opaqueRegion())},
     };
+    if (detail <= 0)
+        return json;
+
+    json["lastLeaveOutput"] = window.lastLeaveOutput();
+    json["lastLeaveOutputEnabled"] = window.lastLeaveOutputEnabled();
+    json["lastLeaveEmptiedOutputs"] = window.lastLeaveEmptiedOutputs();
+    json["lastOutputsUpdateReason"] = window.lastOutputsUpdateReason();
+    json["lastOutputsUpdateEnabled"] = window.lastOutputsUpdateEnabled();
+    json["lastOutputsUpdateTotal"] = window.lastOutputsUpdateTotal();
+    json["lastOutputsUpdateComputed"] = window.lastOutputsUpdateComputed();
+    json["lastOutputsUpdateAutomatic"] = window.lastOutputsUpdateAutomatic();
+    json["titlebarGeometry"] = rectToJson(window.titlebarGeometry());
+    json["boundingRect"] = rectToJson(window.boundingRect());
+    json["iconGeometry"] = rectToJson(window.iconGeometry());
+    json["position"] = pointToJson(window.position());
+    json["frames"] = window.frames();
+    json["damage"] = rectToJson(window.damage());
+    if (detail >= 2) {
+        json["inputRegion"] = rectsToJson(window.inputRegion());
+        json["opaqueRegion"] = rectsToJson(window.opaqueRegion());
+    }
+    return json;
 }
 
-QJsonArray windowsToJson(const QList<WindowInfo> &windows)
+QJsonArray windowsToJson(const QList<WindowInfo> &windows, int detail)
 {
     QJsonArray result;
     for (const auto &window : windows)
-        result.append(windowToJson(window));
+        result.append(windowToJson(window, detail));
     return result;
 }
 
-QJsonObject workspaceToJson(const WorkspaceInfo &workspace)
+QJsonObject workspaceToJson(const WorkspaceInfo &workspace, int detail)
 {
     return {
         {"id", workspace.id()},
         {"isActive", workspace.isActive()},
-        {"windows", windowsToJson(workspace.windows())},
+        {"windows", windowsToJson(workspace.windows(), detail)},
     };
 }
 
-QJsonArray workspacesToJson(const QList<WorkspaceInfo> &workspaces)
+QJsonArray workspacesToJson(const QList<WorkspaceInfo> &workspaces, int detail)
 {
     QJsonArray result;
     for (const auto &workspace : workspaces)
-        result.append(workspaceToJson(workspace));
+        result.append(workspaceToJson(workspace, detail));
     return result;
 }
 
-QJsonObject layerToJson(const LayerInfo &layer)
+QJsonObject layerToJson(const LayerInfo &layer, int detail)
 {
     return {
         {"name", layer.name()},
         {"layer", layer.layer()},
-        {"windows", windowsToJson(layer.windows())},
-        {"workspaces", workspacesToJson(layer.workspaces())},
+        {"windows", windowsToJson(layer.windows(), detail)},
+        {"workspaces", workspacesToJson(layer.workspaces(), detail)},
     };
 }
 
-QJsonArray layersToJson(const QList<LayerInfo> &layers)
+QJsonArray layersToJson(const QList<LayerInfo> &layers, int detail)
 {
     QJsonArray result;
     for (const auto &layer : layers)
-        result.append(layerToJson(layer));
+        result.append(layerToJson(layer, detail));
     return result;
 }
 
-QJsonObject treelandInfoToJson(const TreelandInfo &info)
+QJsonObject treelandInfoToJson(const TreelandInfo &info, int detail)
 {
     return {
         {"currentMode", info.currentMode()},
-        {"layers", layersToJson(info.layers())},
+        {"layers", layersToJson(info.layers(), detail)},
     };
 }
 
-QJsonObject clientToJson(const ClientInfo &client)
+QJsonObject clientToJson(const ClientInfo &client, int detail)
 {
     return {
         {"id", client.id()},
@@ -251,15 +265,15 @@ QJsonObject clientToJson(const ClientInfo &client)
         {"pid", client.pid()},
         {"executable", client.executable()},
         {"command", client.command()},
-        {"windows", windowsToJson(client.windows())},
+        {"windows", windowsToJson(client.windows(), detail)},
     };
 }
 
-QJsonArray clientsToJson(const QList<ClientInfo> &clients)
+QJsonArray clientsToJson(const QList<ClientInfo> &clients, int detail)
 {
     QJsonArray result;
     for (const auto &client : clients)
-        result.append(clientToJson(client));
+        result.append(clientToJson(client, detail));
     return result;
 }
 

@@ -80,16 +80,19 @@ qint64 resolveTarget(Session &session, int timeoutMs, const QString &token, bool
 // the Qt RemoteObjects wire.
 void registerNamedMetatypes();
 
-// JSON helpers for the replica POD structs.
-QJsonObject windowToJson(const WindowInfo &window);
-QJsonArray windowsToJson(const QList<WindowInfo> &windows);
-QJsonObject workspaceToJson(const WorkspaceInfo &workspace);
-QJsonArray workspacesToJson(const QList<WorkspaceInfo> &workspaces);
-QJsonObject layerToJson(const LayerInfo &layer);
-QJsonArray layersToJson(const QList<LayerInfo> &layers);
-QJsonObject treelandInfoToJson(const TreelandInfo &info);
-QJsonObject clientToJson(const ClientInfo &client);
-QJsonArray clientsToJson(const QList<ClientInfo> &clients);
+// JSON helpers for the replica POD structs. @p detail selects the window
+// fields, mirroring the rep levels: 0 emits only the basic ones (id, appId,
+// title, geometry, state, outputs), 1 adds the decorations, damage and output
+// diagnostics, 2 adds inputRegion/opaqueRegion.
+QJsonObject windowToJson(const WindowInfo &window, int detail);
+QJsonArray windowsToJson(const QList<WindowInfo> &windows, int detail);
+QJsonObject workspaceToJson(const WorkspaceInfo &workspace, int detail);
+QJsonArray workspacesToJson(const QList<WorkspaceInfo> &workspaces, int detail);
+QJsonObject layerToJson(const LayerInfo &layer, int detail);
+QJsonArray layersToJson(const QList<LayerInfo> &layers, int detail);
+QJsonObject treelandInfoToJson(const TreelandInfo &info, int detail);
+QJsonObject clientToJson(const ClientInfo &client, int detail);
+QJsonArray clientsToJson(const QList<ClientInfo> &clients, int detail);
 QJsonObject idleInhibitorToJson(const IdleInhibitor &inhibitor);
 QJsonObject idleToJson(const IdleInfo &info);
 QJsonObject shortcutToJson(const ShortcutInfo &shortcut);

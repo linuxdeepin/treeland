@@ -98,9 +98,9 @@ dde-dconfig -u <uid> set -a org.deepin.dde.treeland -r org.deepin.dde.treeland -
 切换 `remoteDebug` **立即生效** —— remote source 会在运行时被创建或销毁，无需重启（合成器运行时监听 `remoteDebugChanged`）。`treeland-debug` 连接的是构建类型对应的调试 socket（见上面的 socket 命名），remote object 名为 `WindowTree`。
 
 ## treeland-debug CLI
-`treeland-debug` 是 adb 风格的检查/控制工具。Release 构建中它会通过 polkit 自动提权；Debug 构建不改变现有连接候选顺序，只把 `/tmp/treeland-debug-<uid>` 放在优先位置，并保留 Release socket 回退。`--json` 为 `tree`/`cursor`/`windows`/`clients`/`idle` 提供机器可读输出。
+`treeland-debug` 是 adb 风格的检查/控制工具。Release 构建中它会通过 polkit 自动提权；Debug 构建不改变现有连接候选顺序，只把 `/tmp/treeland-debug-<uid>` 放在优先位置，并保留 Release socket 回退。`--json` 为 `tree`/`cursor`/`windows`/`clients`/`idle` 提供机器可读输出。输出分三级：默认（0 档）只给基础字段（`id`/`appId`/`title`/`geometry`/`state`/`active`/`minimized`/outputs 等）；`--detail`（1 档）加装饰几何、`damage`、output 诊断；再配合 `windows <id|appId> --detail`（2 档）才有 `inputRegion`/`opaqueRegion`（最占体积，任何列表都不给）。要看单个窗口的全部信息用 `windows <id|appId> --detail`，不必拉全量；只有 toplevel 能这样取，subsurface 会报找不到。`tree` 的文本输出不受 `--detail` 影响。
 
-全局选项：`--url <url>`（优先级最低的是自动探测；Debug 构建先探测 `/tmp/treeland-debug-<uid>`，再走原有系统与 runtime 目录及 Release fallback）、`--name <name>`（默认 `WindowTree`）、`--timeout-ms <n>`（默认 30000）、`--json`、`--preview` / `--no-preview`。socket 选择顺序：`--url` → `$TREELAND_DEBUG_SOCKET` → 自动探测。`TREELAND_DEBUG_SOCKET` 取 socket 路径或裸名（等价 `local:<值>`），带 scheme 的值原样使用。
+全局选项：`--url <url>`（优先级最低的是自动探测；Debug 构建先探测 `/tmp/treeland-debug-<uid>`，再走原有系统与 runtime 目录及 Release fallback）、`--name <name>`（默认 `WindowTree`）、`--timeout-ms <n>`（默认 30000）、`--json`、`--detail`、`--preview` / `--no-preview`。socket 选择顺序：`--url` → `$TREELAND_DEBUG_SOCKET` → 自动探测。`TREELAND_DEBUG_SOCKET` 取 socket 路径或裸名（等价 `local:<值>`），带 scheme 的值原样使用。
 
 ### 开关
 `treeland-debug debug [on|off|status]` —— 读写 `remoteDebug` 总开关（Release 默认关、Debug 构建忽略它，见上面「启用 debug source」）。它是唯一不需要调试 socket 的命令（socket 本来就是它开出来的），开关按用户存放，所以合成器不是以你的身份运行时它会自己走 `pkexec`；`--no-escalate` 只报告需要提权。REPL 里不能提权，需以一次性命令运行。
@@ -110,7 +110,7 @@ dde-dconfig -u <uid> set -a org.deepin.dde.treeland -r org.deepin.dde.treeland -
 | --- | --- |
 | `tree` | 完整布局树（人类可读；`--json` 输出 JSON）。`{"currentMode", "layers":[{name,layer,windows,workspaces:[{id,isActive,windows}]}]}` |
 | `cursor` | 光标位置 `{"x","y"}`。 |
-| `windows` | 顶层窗口表格 / JSON 数组。 |
+| `windows [id\|appId]` | 顶层窗口表格 / JSON 数组（默认基础字段）。带目标时只描述该窗口，字段逐行列出；`--detail` 加 `frames`/`damage`/装饰几何/output 诊断，单窗口再加 `inputRegion`/`opaqueRegion`。Web 端列表对应 `/api/windows?detail=0\|1`（合成器会把列表类档位截断到 1），单窗口用 `/api/window?target=...&detail=2`；MCP 是 `windows` 的 `detail` 参数（0/1）和 `window` 工具（0–2）。 |
 | `clients` | 客户端及其窗口（含 `pid`、`executable`、`command`）。 |
 | `idle` | 空闲状态：距上次输入活动的时长 `idleMs`、空闲抑制是否生效 `inhibited`/`screensaverInhibited`，以及每个抑制来源（`zwp_idle_inhibit_manager_v1` surface 或 `treeland_screensaver_v2` inhibit，含 `pid`/`appId`/`title`/`appName`/`reason`/`heldMs`）。合成器没有全局空闲阈值（阈值由客户端通过 `ext-idle-notify-v1` 自行设定），因此只报告时长与抑制来源。列表**包含当前未生效**的来源（如被最小化的抑制窗口），用 `active` 区分，只有 `active` 的才算进 `inhibited`；`surfaceId` 只有在抑制挂在 toplevel 上时才等于可控制命令的窗口 id（layer-shell / subsurface 抑制查不到窗口）。 |
 | `shortcuts` | 已注册的快捷键：按键绑定（`Ctrl+Alt+T`）与触摸板手势（`swipe`/`hold`），含 name、trigger、action、flags。`--json` 输出 `{name,type,key,flags,action,fingers,direction}`。 |
@@ -186,7 +186,7 @@ sudo journalctl -u treeland.service -f
 从症状出发，选最小可靠的检查手段。先复现，再逐层隔离（treeland vs waylib vs wlroots vs 客户端）。
 
 **窗口状态不对（最大/最小/全屏/平铺、几何、可见性）：**
-1. `treeland-debug --json windows` —— 读取目标窗口（按 `appId` 匹配）的 `state`、`visible`、`active`、`geometry`、`workspace`、`layer`、`frames`、`damage`。
+1. `treeland-debug --json windows` —— 读取目标窗口（按 `appId` 匹配）的 `state`、`visible`、`active`、`geometry`、`workspace`、`layer`；`frames`/`damage` 等细节要加 `--detail`，或直接 `treeland-debug --json --detail windows <id|appId>` 只看这一个窗口。
 2. `treeland-debug tree` —— 确认窗口所在的 layer/workspace。
 3. `treeland-debug scene <id>` —— 布局看着对但渲染不对时，检查 QtQuick 场景（菜单/弹窗/装饰）。
 4. 与日志交叉验证：`QT_LOGGING_RULES='treeland.surface.debug=true;treeland.workspace.debug=true'`。
@@ -204,11 +204,11 @@ sudo journalctl -u treeland.service -f
 **输入不落地 / 目标不对：**
 1. `treeland-debug move-cursor <x> <y>` 后 `treeland-debug event button left click`；`treeland-debug event key enter tap`。
 2. 用 `windows`（`active`）确认指针/键盘焦点 —— 键盘事件发往键盘聚焦的 surface，按键发往光标下的 surface。
-3. 输入区域不对时看 `windows` 的 `inputRegion`（surface 局部坐标的 box 列表）：未设置（`NULL`）的输入区域按协议是**无穷大**，打印出来是覆盖整面的一个 box；为空则要么是客户端显式提交了空 region（完全不接受输入），要么是 surface 还没提交过 buffer。出现多个小块通常是客户端只为命中区设了输入区域（如标题栏、按钮）。`opaqueRegion` 为空只表示客户端没有声明不透明区域（默认值），不要读成窗口透明，也不要和“不接收输入”混。
+3. 输入区域不对时看 `windows <id> --detail` 的 `inputRegion`（surface 局部坐标的 box 列表）：未设置（`NULL`）的输入区域按协议是**无穷大**，打印出来是覆盖整面的一个 box；为空则要么是客户端显式提交了空 region（完全不接受输入），要么是 surface 还没提交过 buffer。出现多个小块通常是客户端只为命中区设了输入区域（如标题栏、按钮）。`opaqueRegion` 为空只表示客户端没有声明不透明区域（默认值），不要读成窗口透明，也不要和“不接收输入”混。
 4. 相关分类：`treeland.input`、`treeland.seat`、`waylib.input.pointer`、`waylib.seat`。检查 seatd：`sudo journalctl -u dde-seatd -f`，以及 `LIBSEAT_BACKEND=seatd`/`SEATD_SOCK=/run/dde-seatd.sock` 是否已设置（见 `misc/systemd/treeland.service.in`）。
 
 **输出黑屏 / 缺失 / 分辨率不对：**
-1. `treeland-debug tree` —— 确认 output 存在；`treeland-debug --json windows` 按 output 查看。
+1. `treeland-debug tree` —— 确认 output 存在；`treeland-debug --json windows` 按 output/outputs 查看。
 2. `treeland-debug screenshot output <name> <file>` 看合成器实际渲染了什么。
 3. 相关分类：`treeland.output`、`waylib.output`、`waylib.output.drm`。硬件渲染失败时 `treeland.sh` 的 pixman 回退会生效。
 
@@ -218,7 +218,7 @@ sudo journalctl -u treeland.service -f
 3. 用 `treeland-debug`（注入事件、activate/close 窗口）以最小步骤复现，并记录崩溃前最后几个动作。
 4. 卡死时用 `top`/`clients` 看是否有客户端卡住，必要时 gdb attach（`sudo gdb -p <pid>`）。
 
-**怀疑客户端问题：** 用 `treeland-debug clients` 查客户端 pid；确认它确实在与合成器通信（`windows` 存在、`frames` 在递增）。冻结的客户端会表现为 `frames` 不再推进。
+**怀疑客户端问题：** 用 `treeland-debug clients` 查客户端 pid；确认它确实在与合成器通信（`windows` 存在、`windows --detail` 的 `frames` 在递增）。冻结的客户端会表现为 `frames` 不再推进。
 
 ## 规则
 - Release 构建中 `treeland-debug` 会通过 polkit 自动提权到 root（root 可访问任何用户的 socket）。Debug dev socket 为 `0600`、目录为 `0700`，仅当前 UID 可访问且同 UID 连接无需认证；Debug 客户端只探测自己的 runtime 目录，不枚举其他 UID 的 session socket。传 `--no-escalate` 可在脚本/CI 中跳过 polkit 提权。
