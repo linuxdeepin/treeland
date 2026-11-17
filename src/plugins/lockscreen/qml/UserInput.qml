@@ -367,6 +367,16 @@ Item {
         hintText.text = loginGroup.noPasswdLogin ? "" : normalHint
     }
 
+    // A closing popup hands the focus back to the button that opened it, so
+    // after the user list the input would need a click before it accepts typing.
+    // The popup calls this when it closes.
+    function focusInput() {
+        if (loginGroup.noPasswdLogin)
+            noPwdLoginBtn.forceActiveFocus()
+        else
+            passwordField.forceActiveFocus()
+    }
+
     function updateUser() {
         loginGroup.enteringOtherUser = false
         loginGroup.showUserNotFoundError = false
