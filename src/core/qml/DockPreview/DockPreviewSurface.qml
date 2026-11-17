@@ -32,9 +32,20 @@ Rectangle {
     color: "transparent"
     width: preview.frameWidth
     height: preview.frameHeight
-    radius: PopoverStyle.radius
+    radius: preview.requestedPresentation === DockPreview.Presentation.Tooltip
+            ? PopoverStyle.tooltipRadius
+            : PopoverStyle.radius
     clip: false
     visible: preview.visible
+
+    Behavior on radius {
+        enabled: surface.preview.enableAnimation
+        NumberAnimation {
+            id: radiusAnimation
+            duration: surface.preview.aniDuration
+            easing.type: Easing.OutExpo
+        }
+    }
 
     transform: Scale {
         xScale: surface.shellScale
