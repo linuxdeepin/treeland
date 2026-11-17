@@ -442,6 +442,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
     session->m_socket->setEnabled(false, globalSession() ? globalSession()->socket() : nullptr);
     // Add session to list
     m_sessions.append(session);
+    Q_EMIT sessionAdded();
 
     return session;
 }

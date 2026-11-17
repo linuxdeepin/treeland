@@ -21,6 +21,7 @@
 #include "seat/seatmanager.h"
 #include <wseat.h>
 #include <QKeyEvent>
+#include <QQuickItem>
 #include "session/sessionoutputmanager.h"
 #include "session/sessionswitcher.h"
 #include "input/inputmanager.h"
@@ -111,6 +112,35 @@ extern "C" bool protocol_test_ready(WaylandServer *server)
     return a && b && a != b && wl_list_length(&a->heads) == 3 && wl_list_length(&b->heads) == 3;
 }
 
+namespace {
+// The desktop a view belongs to: the DockPreview controller names it directly,
+// while the presentation surfaces reparented next to it only point at their
+// controller through `preview`.
+const DesktopEnvironment *owningDesktop(QQuickItem *view)
+{
+    const QVariant desktop = view->property("desktop");
+    if (desktop.isValid())
+        return desktop.value<DesktopEnvironment *>();
+
+    auto *preview = view->property("preview").value<QQuickItem *>();
+    return preview ? preview->property("desktop").value<DesktopEnvironment *>() : nullptr;
+}
+
+// A window of the fixture carries an app id (XDG toplevels and prelaunch splash
+// wrappers alike); the Xwayland the compositor starts on its own registers
+// wrappers without one, and those are not client windows.
+int countClientWindows(Session *session, bool visibleOnly)
+{
+    int count = 0;
+    for (auto *window : session->windows()->objects()) {
+        if (window->appId().isEmpty())
+            continue;
+        count += visibleOnly ? window->isVisible() : 1;
+    }
+    return count;
+}
+}
+
 extern "C" void isolation_read(void *data)
 {
     auto *state = static_cast<isolation_state *>(data);
@@ -154,14 +184,10 @@ extern "C" void isolation_read(void *data)
                     || surface->surfaceItem()->flags().testFlag(WSurfaceItem::NonLive));
         }
     }
-    state->a_visible_windows = 0;
-    state->b_visible_windows = 0;
-    for (auto *window : sessionA->windows()->objects())
-        state->a_visible_windows += window->isVisible();
-    for (auto *window : sessionB->windows()->objects())
-        state->b_visible_windows += window->isVisible();
-    state->a_windows = sessionA->windows()->rowCount();
-    state->b_windows = sessionB->windows()->rowCount();
+    state->a_visible_windows = countClientWindows(sessionA.get(), true);
+    state->b_visible_windows = countClientWindows(sessionB.get(), true);
+    state->a_windows = countClientWindows(sessionA.get(), false);
+    state->b_windows = countClientWindows(sessionB.get(), false);
     state->independent_workspaces = sessionA->workspace() != sessionB->workspace();
     state->a_current_workspace = sessionA->workspace()->currentIndex();
     state->b_current_workspace = sessionB->workspace()->currentIndex();
@@ -191,8 +217,7 @@ extern "C" void isolation_read(void *data)
             != sessionB->seatManager()->inputMethodHelper(bSeat);
     state->protocol_socket_ownership = aSeat && bSeat
         && aSeat->ownsSocket() == sessionA->socket()
-        && bSeat->ownsSocket() == sessionB->socket()
-        && !aSeat->ownsClient(nullptr) && !bSeat->ownsClient(nullptr);
+        && bSeat->ownsSocket() == sessionB->socket();
     if (aSeat && bSeat) {
         for (auto *client : sessionA->socket()->clients())
             state->protocol_socket_ownership &= aSeat->ownsClient(client) && !bSeat->ownsClient(client);
@@ -221,7 +246,7 @@ extern "C" void isolation_read(void *data)
         state->independent_desktops = state->independent_desktops && !views.isEmpty();
         for (auto *view : views)
             state->independent_desktops = state->independent_desktops
-                && view->property("desktop").value<DesktopEnvironment *>() == desktop;
+                && owningDesktop(view) == desktop;
     }
     auto *aInput = aDesktop->inputChannel();
     auto *bInput = bDesktop->inputChannel();

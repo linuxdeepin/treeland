@@ -1,12 +1,15 @@
 // Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include "modules/shortcut/shortcutcontroller.h"
 #include "modules/shortcut/shortcutmanager.h"
 
 #include <wserver.h>
 
 #include <QKeyCombination>
+#include <QKeyEvent>
 #include <QObject>
+#include <QSignalSpy>
 #include <QTest>
 
 class ShortcutTest : public QObject
@@ -70,6 +73,29 @@ private Q_SLOTS:
         QVERIFY(bindSide != 0);
         QCOMPARE(eventSide, bindSide);
         QCOMPARE(QKeyCombination::fromCombined(bindSide).key(), Qt::Key_Tab);
+    }
+
+    // A combination that lost its last binding must stop matching: the deletion
+    // used to leave the emptied entry in the key map, so matchesShortcut() still
+    // answered true after unregisterShortcut().
+    void testUnregisterKeyStopsMatching()
+    {
+        ShortcutController controller;
+        const QKeyEvent event(QEvent::KeyPress, Qt::Key_A, Qt::ControlModifier);
+        const QString keyText = QStringLiteral("Ctrl+A");
+        QVERIFY(ShortcutController::normalizedKeyCombinedFor(keyText) != 0);
+
+        QCOMPARE(controller.registerKey(QStringLiteral("regression-unbind"),
+                                        keyText,
+                                        ShortcutController::KeyPress,
+                                        ShortcutController::ShortcutAction::Notify),
+                 uint(0));
+        QVERIFY(controller.matchesShortcut(&event));
+
+        QSignalSpy unregistered(&controller, &ShortcutController::shortcutUnregistered);
+        controller.unregisterShortcut(QStringLiteral("regression-unbind"));
+        QCOMPARE(unregistered.count(), 1);
+        QVERIFY(!controller.matchesShortcut(&event));
     }
 
     void cleanupTestCase()

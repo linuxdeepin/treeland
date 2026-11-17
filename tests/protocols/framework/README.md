@@ -125,6 +125,14 @@ signal/event 的嵌套 event loop。唯一的例外是协议本身要求证明�
 screensaver 的 ext-idle inhibit 用例。若没有可观察的生产 signal/event，应先补出合适的
 可观察边界，而不是加 timeout。
 
+runner 订阅的“fixture ready”信号清单：output model `rowsInserted`、
+`WOutputLayout::outputsChanged`、`RootSurfaceContainer::primaryOutputChanged`、每个
+`SessionOutputManager::desktopGeometryChanged`（`SessionManager::sessionAdded` 后新增的 session
+也会被订阅）、`TreelandConfig/TreelandUserConfig::configInitializeSucceed`、
+`WaylandServer::lockScreenAvailableChanged`。新增 ready 条件时把对应的生产
+信号加进 `waitForFixture()`，否则该条件只能等到 15s 看门狗到期后以 `QVERIFY2` 失败——
+看门狗只是把“永远卡住”变成“明确失败”，不是同步手段。
+
 `treeland_add_protocol_test()` 确保 `lockscreen`、`multitaskview` target 先完成构建。runner
 完全复用 `Treeland` 的正常插件发现和初始化流程：plugin output 目录可访问时使用该目录，
 否则回退安装目录。测试框架不再维护独立的插件加载路径或代理实现。

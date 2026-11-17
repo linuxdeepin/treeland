@@ -53,6 +53,10 @@ public:
 Q_SIGNALS:
     void socketFileChanged();
     void sessionChanged();
+    // A session was added to the session list; unlike sessionChanged() this
+    // does not imply the active session changed. Removal is silent: observers
+    // of this signal only need to learn about new sessions.
+    void sessionAdded();
     void xwaylandAuthChanged();
 
 private:
