@@ -15,13 +15,18 @@
 
 #include <QEventLoop>
 #include <QQuickItem>
+#include <QTimer>
 
 namespace {
+// Upper bound of frames driven while waiting for a geometry transition; it only
+// keeps a transition that never settles from hanging the whole run.
+constexpr int MaxTransitionFrames = 600;
 SurfaceWrapper *g_wrapper = nullptr;
 int g_maximizeRequestCount = 0;
 int g_lastMaximizeRequest = -1;
 int g_maximizedAfterLastRequest = -1;
 int g_animationRunningAfterLastRequest = -1;
+bool g_transitionUnsettled = false;
 }
 
 void protocol_test_setup(WaylandServer *server)
@@ -66,6 +71,7 @@ extern "C" void foreign_toplevel_read_server_state(void *data)
     state.maximized_after_last_request = g_maximizedAfterLastRequest;
     state.animation_running_after_last_request = g_animationRunningAfterLastRequest;
     state.animation_running = g_wrapper && g_wrapper->isAnimationRunning();
+    state.transition_unsettled = g_transitionUnsettled;
     const auto *seatContainer = server->rootSurfaceContainer()->getSeatContainerOrDefault();
     state.focused = seatContainer && seatContainer->keyboardFocusSurface() == g_wrapper;
     *static_cast<foreign_toplevel_server_state *>(data) = state;
@@ -89,7 +95,38 @@ extern "C" void foreign_toplevel_render(void *)
     }
     if (!geometryAnimation)
         return;
-    QEventLoop eventLoop;
-    QObject::connect(geometryAnimation, SIGNAL(finished()), &eventLoop, SLOT(quit()));
-    eventLoop.exec();
+
+    // Wait for the transition's own finished() signal: the GUI event loop keeps
+    // running so the property animations advance, and one frame is rendered per
+    // turn so the OpacityAnimator in GeometryAnimation.qml (render-thread
+    // driven) can progress too. The frame budget only keeps a transition that
+    // never settles from hanging the run; it is reported to the client.
+    QEventLoop loop;
+    QObject::connect(geometryAnimation, SIGNAL(finished()), &loop, SLOT(quit()));
+
+    int frames = 0;
+    QTimer frameDriver;
+    frameDriver.setInterval(1);
+    QObject::connect(&frameDriver, &QTimer::timeout, &loop, [server, &frames, &loop] {
+        // The signal may already have been delivered through Qt.callLater()
+        // before the connection above, so convergence is checked here too.
+        if (!g_wrapper->isAnimationRunning()) {
+            loop.quit();
+            return;
+        }
+        if (frames >= MaxTransitionFrames) {
+            loop.quit();
+            return;
+        }
+        ++frames;
+        server->window()->render();
+    });
+    frameDriver.start();
+    loop.exec();
+    frameDriver.stop();
+
+    if (g_wrapper->isAnimationRunning()) {
+        g_transitionUnsettled = true;
+        qWarning("geometry transition still running after %d frames", frames);
+    }
 }

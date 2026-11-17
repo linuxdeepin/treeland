@@ -128,7 +128,15 @@ static const struct zwlr_foreign_toplevel_manager_v1_listener manager_listener =
 static int read_state(struct foreign_toplevel_server_state *state)
 {
     memset(state, 0, sizeof(*state));
-    return invoke_on_server_thread(foreign_toplevel_read_server_state, state);
+    if (!invoke_on_server_thread(foreign_toplevel_read_server_state, state))
+        return 0;
+    if (state->transition_unsettled) {
+        /* The fixture waited for a geometry transition that never settled, so
+         * every state read below would compare against a moving window. */
+        TEST_ERROR("wlr-foreign-toplevel: geometry transition did not settle\n");
+        return 0;
+    }
+    return 1;
 }
 
 static int render_ack_and_read_state(struct client_connection *connection,
