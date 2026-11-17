@@ -121,7 +121,7 @@ QByteArrayView WFoo::interfaceName() const
 native handle 是存在 `m_handle`（`void*`）里的 wlroots 原始 C 指针。销毁方式取决于 native 所有权：
 
 - 如果 `wlr_*_create(...)` 返回的对象没有公开的 destroy 函数，`destroy()` 通常只需清空 `m_handle = nullptr` —— native 对象会在 `WServer::stop()` 销毁 `wl_display` 时被回收
-- 如果该 wlroots 类型提供显式 `wlr_*_destroy(...)`，对按 socket 创建的协议 manager，在 `destroy()` 中以 `ownsSocket() && m_handle` 为条件调用 native destroy，再清空 `m_handle`；没有 owning socket 时保留 display-owned 回收路径。保留现有 wrapper/子对象清理，并先摘除监听。不要把这个条件套到本来就独立拥有 native handle 的 backend、seat、XWayland 上。
+- 如果该 wlroots 类型提供显式 `wlr_*_destroy(...)`，对按 socket 创建的协议 manager，在 `destroy()` 中以 `ownsSocket() && m_handle` 为条件调用 native destroy，再清空 `m_handle`；没有 owning socket 时只清空 wrapper 的 `m_handle`，native manager、global 和子对象均留给 display 回收，不调用 `wl_global_remove()` 或 native 子对象 destroy。wrapper 自身的状态与监听仍按原有生命周期清理。不要把这个条件套到本来就独立拥有 native handle 的 backend、seat、XWayland 上。
 - native manager 的显式 destroy 通常要求先销毁使用它的客户端对象；`ownsSocket()` 标记生命周期所属域，不会自动断开客户端。会话 teardown 必须先清理该域客户端再 detach manager。
 - 当前 vendored wlroots 已为 cursor-shape、pointer constraints/gestures、relative-pointer、foreign-toplevel、ext-workspace、output-management、xdg-shell/decoration/dialog/tag、session-lock、input-method、text-input-v3、virtual-keyboard 等 manager 提供显式 destroy API。以当前头文件为准，不要沿用 wrapper 中旧的“没有 destroy API”注释。
 - `WSecurityContextManager` 和 `WXdgOutputManager` 使用 waylib 本地实现（前者结构还带额外状态），不能将它们的 handle 交给 wlroots 同名类型的 destroy 函数。
@@ -139,7 +139,7 @@ native handle 是存在 `m_handle`（`void*`）里的 wlroots 原始 C 指针。
 
 - 每个 Session 独立创建 manager，经 `Session::attachInterface()` 在暴露 global 前设置 owning socket。
 - `WServerInterface::ownsClient()` 接受 socket 的父域；要求精确 Session 隔离时，还应通过 `setFilter()` 校验 `Session::ownsClient()`，不能只依赖 `setOwnsSocket()`。
-- display-owned manager 在 detach 后仍可能存活到 display 销毁。对于有 owning socket 且有原生 destroy API 的 manager，按上述条件显式销毁；若它没有原生 destroy API，撤销其 global（`wl_global_remove()`）后再清空 wrapper handle，防止失去 wrapper/filter 映射后继续被绑定。支持显式销毁的 group/handle 仍须清理。
+- 没有 owning socket 的 display-owned manager 在 `destroy()` 中只清空 `m_handle`，不撤销 global、不销毁 native 子对象。只有有 owning socket 且有原生 destroy API 的 manager，才按上述条件显式销毁；没有原生 destroy API 时不能假定它支持安全 detach。
 - commit 事件携带 wlroots 临时请求列表时，使用 `Qt::DirectConnection` 同步处理；不要将列表或请求指针排队到下一轮事件循环。
 
 ## 通过 `WaylandServer::init` 接线
