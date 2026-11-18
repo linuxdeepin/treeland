@@ -26,6 +26,7 @@ public:
     [[nodiscard]] bool noPasswdLogin() const noexcept;
     [[nodiscard]] QString identity() const noexcept;
     [[nodiscard]] quint64 UID() const noexcept;
+    [[nodiscard]] qint64 createdTime() const noexcept;
     [[nodiscard]] quint64 GID() const noexcept;
     [[nodiscard]] const QString &userName() const noexcept;
     [[nodiscard]] const QString &fullName() const noexcept;
