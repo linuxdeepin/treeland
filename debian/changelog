@@ -1,3 +1,24 @@
+treeland (0.12.0) unstable; urgency=medium
+
+  * test(foreign-toplevel): disable geometry animation in protocol test
+  * feat(dockpreview): take the preview radii from DTK's menu and
+    tooltip
+  * feat(dock-preview): add scroll hints to preview thumbnail and list
+  * fix: prevent protocol test timeouts from leaked services
+  * fix(shortcut): drop emptied key combination from key map
+  * refactor(session): tidy up session components
+  * refactor(surface): centralize window frame geometry and clipping
+  * fix: login fails after retrying with the correct password
+  * fix: show the lock icon only on the locked user's lockscreen
+  * fix(input): restore input to remote subsurfaces
+  * fix: Relayout multitask thumbnails when the dock resizes
+  * fix(dock-preview): hide close-all while hovering a thumbnail slot
+  * refactor(glass): drop redundant itemSize handling in the shader
+  * fix(input): prevent duplicate pointer gestures globals across
+    sessions
+
+ -- rewine <luhongxu@deepin.org>  Wed, 18 Nov 2026 13:20:58 +0800
+
 treeland (0.11.0) unstable; urgency=medium
 
   * fix(treeland-debug): fall back to the compositor runtime directory when
