@@ -27,7 +27,6 @@
 
 #include <wlr_all.h>
 #include <wayland-server-core.h>
-#include <xkbcommon/xkbcommon.h>
 #include <cstring>
 #include <utility>
 
@@ -53,7 +52,6 @@
 
 #include "treelanddebugsocket.h"
 #include "common/treelandlogging.h"
-#include <private/qxkbcommon_p.h>
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -179,33 +177,6 @@ qint64 surfaceId(WSurface *ws)
     if (!ws || !ws->handle() || !ws->handle()->resource)
         return 0;
     return reinterpret_cast<qint64>(ws->handle()->resource);
-}
-
-// Converts a Qt::Key value to a Linux evdev keycode using the keyboard's
-// current xkb keymap. Returns 0 if no keycode produces this key.
-// The evdev/keysym conversion lives on the server side (where wlr_seat needs
-// the code) while the client talks in portable Qt::Key values.
-int qtKeyToEvdev(int qtKey, wlr_keyboard *keyboard)
-{
-    if (!keyboard || !keyboard->xkb_state)
-        return 0;
-
-    // Walk the live keymap and return the first keycode whose level-0 symbol
-    // Qt maps back to the requested Qt::Key value, via Qt's own
-    // QXkbCommon::keysymToQtKey (the same table used by XWayland), so we never
-    // need a hand-maintained Qt::Key name -> keysym alias table.
-    xkb_keymap *keymap = xkb_state_get_keymap(keyboard->xkb_state);
-    const xkb_keycode_t min_kc = xkb_keymap_min_keycode(keymap);
-    const xkb_keycode_t max_kc = xkb_keymap_max_keycode(keymap);
-    for (xkb_keycode_t kc = min_kc; kc <= max_kc; ++kc) {
-        const xkb_keysym_t *syms = nullptr;
-        const int count = xkb_keymap_key_get_syms_by_level(keymap, kc, 0, 0, &syms);
-        for (int i = 0; i < count; ++i) {
-            if (QXkbCommon::keysymToQtKey(syms[i], Qt::NoModifier, keyboard->xkb_state, kc) == qtKey)
-                return kc;
-        }
-    }
-    return 0;
 }
 
 } // namespace
@@ -1041,9 +1012,11 @@ bool TreelandRemoteSource::sendPointerButton(int button, bool pressed)
     return true;
 }
 
-bool TreelandRemoteSource::sendKey(int qtKey, bool pressed)
+bool TreelandRemoteSource::sendKey(int evdevKey, bool pressed)
 {
     noteActivity();
+    if (evdevKey <= 0)
+        return false;
     auto *seat = WaylandServer::instance()->seat();
     if (!seat || !seat->handle())
         return false;
@@ -1057,15 +1030,11 @@ bool TreelandRemoteSource::sendKey(int qtKey, bool pressed)
                 wlr_seat_set_keyboard(seat->handle(), keyboard);
         }
     }
-    // Convert the portable Qt::Key value to a Linux evdev keycode using the
-    // keyboard's current xkb keymap. The client sends Qt::Key values (resolved
-    // from names like "Escape" via QMetaEnum); the evdev conversion lives here
-    // on the server side where wlr_seat expects evdev codes.
-    const int evdevCode = qtKeyToEvdev(qtKey, keyboard);
-    if (evdevCode == 0)
-        return false;
+    // The code is already a Linux evdev keycode: the client resolves key names
+    // to evdev codes (so an unmappable key is reported there instead of failing
+    // silently here) and wlr_seat_keyboard_notify_key() takes evdev codes.
     wlr_seat_keyboard_notify_key(seat->handle(), QDateTime::currentMSecsSinceEpoch(),
-                                 static_cast<uint32_t>(evdevCode),
+                                 static_cast<uint32_t>(evdevKey),
                                  pressed ? 1u : 0u);
     return true;
 }
