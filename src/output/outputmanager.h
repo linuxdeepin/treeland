@@ -191,6 +191,13 @@ private:
     // flight; it runs once the last commit job finished.
     bool m_groupsDirty = false;
     int m_inFlightOutputCommits = 0;
+    // Synchronous view of the output group membership. The generated DConfig
+    // wrappers update their cached value immediately on a setter, but the
+    // worker thread echoes the stored value back with a queued call that can
+    // land out of order and rewind the cache to an older value. Every write
+    // goes through here too, so reads observe the last write without waiting
+    // for that echo.
+    QHash<QString, OutputGroupMemberInfo> m_groupMembership;
     QMap<QString, bool> m_primaryRestoreIntents;
     QList<Output *> m_outputs;
     QMap<WAYLIB_SERVER_NAMESPACE::WOutput *, OutputConfig *> m_pendingOutputs;

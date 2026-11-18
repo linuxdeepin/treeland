@@ -965,7 +965,14 @@ QList<OutputGroupMemberInfo> OutputManager::outputGroupMembers() const
             // one means the record is not usable yet.
             continue;
         }
-        members.append({ uuid, config->groupName(), config->joinTime(), config->lastSetSourceTime() });
+        // The overlay carries the last write for this output; the DConfig
+        // cache can still hold an older value until the worker echoes it
+        // back (which may land out of order).
+        if (auto it = m_groupMembership.constFind(uuid); it != m_groupMembership.cend()) {
+            members.append(it.value());
+        } else {
+            members.append({ uuid, config->groupName(), config->joinTime(), config->lastSetSourceTime() });
+        }
     }
     return members;
 }
@@ -991,6 +998,7 @@ void OutputManager::writeOutputGroupMembership(const QString &uuid,
     config->setGroupName(groupName);
     config->setJoinTime(joinTime);
     config->setLastSetSourceTime(lastSetSourceTime);
+    m_groupMembership.insert(uuid, { uuid, groupName, joinTime, lastSetSourceTime });
 }
 
 Output *OutputManager::findOutputByUuid(const QString &uuid) const
