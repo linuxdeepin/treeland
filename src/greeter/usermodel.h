@@ -97,6 +97,7 @@ private Q_SLOTS:
 
 private:
     bool addUser(UserPtr user);
+    void sortUsers();
 
     UserModelPrivate *d{ nullptr };
 };
