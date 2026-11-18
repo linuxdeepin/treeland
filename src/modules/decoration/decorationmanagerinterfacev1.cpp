@@ -29,6 +29,24 @@ constexpr uint32_t MaxDecorationSize = 1000;
 // Color components are defined as [0, 255] by the protocol.
 constexpr uint32_t MaxColorComponent = 255;
 
+// Reserved "use the compositor default" sentinel for numeric decoration
+// values. The protocol does not define an enum for it (to avoid breaking
+// generated headers), so implementers define their own constant; a value
+// greater than or equal to this threshold selects the compositor default for
+// that argument instead of being treated as out-of-range. Signed so the
+// int32_t offset arguments compare correctly (no unsigned promotion).
+constexpr int32_t DefaultSentinel = 10000;
+
+// Compositor defaults, matching SurfaceWrapper's initial SSD state (see
+// Decoration::resetProperties()). A sentinel in a single argument restores
+// the default for just that argument while keeping the others.
+constexpr int32_t DefaultShadowBlurRadius = 40;
+constexpr int32_t DefaultShadowOffsetX = 0;
+constexpr int32_t DefaultShadowOffsetY = 10;
+constexpr int32_t DefaultBorderWidth = 1;
+const QColor DefaultShadowColor = QColor(0, 0, 0, 102); // rgba(0,0,0,0.4)
+const QColor DefaultBorderColor = QColor(0, 0, 0, 26);   // rgba(0,0,0,0.1)
+
 } // namespace
 
 // ---------------------------------------------------------------------------
@@ -132,6 +150,14 @@ void DecorationContextV1Private::set_corner_radius([[maybe_unused]] Resource *re
 {
     if (inert)
         return;
+    // A value >= DefaultSentinel requests the compositor default, as if the
+    // override had not been set. Checked before the size bound so the sentinel
+    // is not mistaken for an out-of-range value.
+    if (radius >= DefaultSentinel) {
+        cornerRadius.reset();
+        Q_EMIT q->cornerRadiusChanged();
+        return;
+    }
     if (radius > MaxDecorationSize) {
         qCInfo(lcTlProtocol) << "Decoration set_corner_radius ignored: radius" << radius
                              << "exceeds max" << MaxDecorationSize;
@@ -152,21 +178,37 @@ void DecorationContextV1Private::set_shadow([[maybe_unused]] Resource *resource,
 {
     if (inert)
         return;
-    if (radius > MaxDecorationSize) {
-        qCInfo(lcTlProtocol) << "Decoration set_shadow ignored: radius" << radius
-                             << "exceeds max" << MaxDecorationSize;
-        return;
-    }
-    if (r > MaxColorComponent || g > MaxColorComponent || b > MaxColorComponent
-        || a > MaxColorComponent) {
+
+    // A sentinel in any color component selects the default shadow color; the
+    // other color components are ignored. Checked before the [0,255] range
+    // check so a sentinel is not mistaken for an out-of-range component.
+    const bool defaultColor = r >= DefaultSentinel || g >= DefaultSentinel
+        || b >= DefaultSentinel || a >= DefaultSentinel;
+    if (!defaultColor
+        && (r > MaxColorComponent || g > MaxColorComponent || b > MaxColorComponent
+            || a > MaxColorComponent)) {
         qCInfo(lcTlProtocol) << "Decoration set_shadow ignored: color component out of [0,255]:"
                              << r << g << b << a;
         return;
     }
-    shadow = Shadow{ static_cast<int32_t>(radius),
-                     QPoint{ offset_x, offset_y },
-                     QColor{ static_cast<int>(r), static_cast<int>(g), static_cast<int>(b),
-                             static_cast<int>(a) } };
+
+    // A sentinel in a single numeric argument restores the default for just
+    // that argument while keeping the others (per-argument default).
+    if (radius < DefaultSentinel && radius > MaxDecorationSize) {
+        qCInfo(lcTlProtocol) << "Decoration set_shadow ignored: radius" << radius
+                             << "exceeds max" << MaxDecorationSize;
+        return;
+    }
+    const int32_t resolvedRadius = radius >= DefaultSentinel ? DefaultShadowBlurRadius
+                                                             : static_cast<int32_t>(radius);
+    const int32_t resolvedOffsetX = offset_x >= DefaultSentinel ? DefaultShadowOffsetX : offset_x;
+    const int32_t resolvedOffsetY = offset_y >= DefaultSentinel ? DefaultShadowOffsetY : offset_y;
+    const QColor color = defaultColor
+        ? DefaultShadowColor
+        : QColor{ static_cast<int>(r), static_cast<int>(g), static_cast<int>(b),
+                  static_cast<int>(a) };
+
+    shadow = Shadow{ resolvedRadius, QPoint{ resolvedOffsetX, resolvedOffsetY }, color };
     Q_EMIT q->shadowChanged();
 }
 
@@ -179,20 +221,33 @@ void DecorationContextV1Private::set_border([[maybe_unused]] Resource *resource,
 {
     if (inert)
         return;
-    if (width > MaxDecorationSize) {
-        qCInfo(lcTlProtocol) << "Decoration set_border ignored: width" << width
-                             << "exceeds max" << MaxDecorationSize;
-        return;
-    }
-    if (r > MaxColorComponent || g > MaxColorComponent || b > MaxColorComponent
-        || a > MaxColorComponent) {
+
+    // A sentinel in any color component selects the default border color; the
+    // other color components are ignored. Checked before the [0,255] range
+    // check so a sentinel is not mistaken for an out-of-range component.
+    const bool defaultColor = r >= DefaultSentinel || g >= DefaultSentinel
+        || b >= DefaultSentinel || a >= DefaultSentinel;
+    if (!defaultColor
+        && (r > MaxColorComponent || g > MaxColorComponent || b > MaxColorComponent
+            || a > MaxColorComponent)) {
         qCInfo(lcTlProtocol) << "Decoration set_border ignored: color component out of [0,255]:"
                              << r << g << b << a;
         return;
     }
-    border = Border{ static_cast<int32_t>(width),
-                     QColor{ static_cast<int>(r), static_cast<int>(g), static_cast<int>(b),
-                             static_cast<int>(a) } };
+
+    if (width < DefaultSentinel && width > MaxDecorationSize) {
+        qCInfo(lcTlProtocol) << "Decoration set_border ignored: width" << width
+                             << "exceeds max" << MaxDecorationSize;
+        return;
+    }
+    const int32_t resolvedWidth = width >= DefaultSentinel ? DefaultBorderWidth
+                                                           : static_cast<int32_t>(width);
+    const QColor color = defaultColor
+        ? DefaultBorderColor
+        : QColor{ static_cast<int>(r), static_cast<int>(g), static_cast<int>(b),
+                  static_cast<int>(a) };
+
+    border = Border{ resolvedWidth, color };
     Q_EMIT q->borderChanged();
 }
 
@@ -433,8 +488,13 @@ void Decoration::applyContext(DecorationContextV1 *context)
         wrapper->setRadius(*radius);
     }
     connect(context, &DecorationContextV1::cornerRadiusChanged, this, [wrapper, context] {
-        if (auto radius = context->cornerRadius())
+        const auto radius = context->cornerRadius();
+        if (radius)
             wrapper->setRadius(*radius);
+        else
+            // The override was cleared (e.g. sentinel): fall back to the
+            // compositor default via DConfig.
+            wrapper->setRadius(0);
     });
 
     // Shadow: radius 0 disables the shadow; the color components are [0,255].

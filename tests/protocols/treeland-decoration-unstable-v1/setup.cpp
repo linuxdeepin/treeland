@@ -10,6 +10,8 @@
 
 #include <wbackend.h>
 
+#include <QColor>
+
 namespace {
 SurfaceWrapper *g_toplevel = nullptr;
 }
@@ -34,4 +36,22 @@ extern "C" void decoration_read_server_state(void *data)
 
     state->valid = 1;
     state->radius = g_toplevel->radius();
+
+    state->shadow_blur = g_toplevel->shadowBlurRadius();
+    state->shadow_offset_x = g_toplevel->shadowOffsetX();
+    state->shadow_offset_y = g_toplevel->shadowOffsetY();
+    const QColor shadowColor = g_toplevel->shadowColor();
+    state->shadow_r = shadowColor.red();
+    state->shadow_g = shadowColor.green();
+    state->shadow_b = shadowColor.blue();
+    state->shadow_a = shadowColor.alpha();
+    state->shadow_visible = g_toplevel->shadowVisible() ? 1 : 0;
+
+    state->border_width = g_toplevel->borderWidth();
+    const QColor borderColor = g_toplevel->borderColor();
+    state->border_r = borderColor.red();
+    state->border_g = borderColor.green();
+    state->border_b = borderColor.blue();
+    state->border_a = borderColor.alpha();
+    state->border_visible = g_toplevel->borderVisible() ? 1 : 0;
 }
