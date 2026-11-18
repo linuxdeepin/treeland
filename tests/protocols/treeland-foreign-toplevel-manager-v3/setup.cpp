@@ -12,8 +12,7 @@
 #include <wbackend.h>
 #include <woutputrenderwindow.h>
 
-#include <QEventLoop>
-#include <QQuickItem>
+#include "animationconfig.hpp"
 
 #include <cstring>
 
@@ -25,10 +24,17 @@ struct ftm_server_state g_state {};
 
 void protocol_test_setup(WaylandServer *server)
 {
-    // Zero duration races GeometryAnimation::finished with the frame snapshot
-    // that emits ready(). A short real animation preserves the production
-    // lifecycle while the test waits for its finished signal below.
-    server->setAnimationSpeed(0.1f);
+    // This test asserts the foreign-toplevel protocol's state transitions,
+    // not the geometry animation. Disabling the animation makes every
+    // maximize/fullscreen/restore request land its surface state immediately,
+    // so the test does not have to pace the render-thread-driven
+    // OpacityAnimator, which used to cause intermittent timeouts.
+    auto *animationConfig = server->animationConfig();
+    if (animationConfig) {
+        animationConfig->setMaximize(false);
+        animationConfig->setFullscreen(false);
+        animationConfig->setRestoreWindow(false);
+    }
     add_headless_output(server->backend(), false);
     g_manager = server->shellHandler()->foreignToplevel();
     QObject::connect(g_manager,
@@ -108,27 +114,8 @@ extern "C" void ftm_render_and_settle(void *)
     if (!g_wrapper)
         return;
 
-    auto *server = WaylandServer::instance();
-    // The protocol request can be queued until the next scene-graph frame.
-    // Render first, then inspect the wrapper so we do not miss an animation
-    // created while processing that frame.
-    server->window()->render();
-    if (!g_wrapper->isAnimationRunning())
-        return;
-
-    QQuickItem *geometryAnimation = nullptr;
-    for (auto *item : g_wrapper->container()->childItems()) {
-        if (item->property("surface").value<SurfaceWrapper *>() == g_wrapper) {
-            geometryAnimation = item;
-            break;
-        }
-    }
-    if (!geometryAnimation)
-        return;
-
-    // Keep the QML animation alive until it has completed. This is an event
-    // handshake, not a time-based wait.
-    QEventLoop eventLoop;
-    QObject::connect(geometryAnimation, SIGNAL(finished()), &eventLoop, SLOT(quit()));
-    eventLoop.exec();
+    // Geometry animation is disabled, so the surface state lands when the
+    // protocol request is handled. One render lets any queued scene-graph
+    // frame apply the state before the test reads it back.
+    WaylandServer::instance()->window()->render();
 }
