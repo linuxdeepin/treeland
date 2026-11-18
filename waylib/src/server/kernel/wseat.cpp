@@ -1041,6 +1041,15 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
     case QEvent::MouseButtonPress: {
         auto e = static_cast<QMouseEvent*>(event);
         Q_ASSERT(e->source() == Qt::MouseEventNotSynthesized);
+        // A popup grab clears the pointer focus when the pointer enters another
+        // client's surface, and nothing recovers it before a press: motion is
+        // dropped above while pointerFocusEventObject is the previous object, and
+        // a button that reaches no focused surface makes wlroots end the grab
+        // (xdg_pointer_grab_button), so the popup the user is clicking gets
+        // popup_done instead of the click. Enter the surface under the cursor
+        // first, exactly as a motion would.
+        if (!d->pointerFocusSurface() && target && eventObject)
+            d->doEnter(target, eventObject, e->position());
         d->doNotifyButton(WCursor::toNativeButton(e->button()), WL_POINTER_BUTTON_STATE_PRESSED, event->timestamp());
         break;
     }
