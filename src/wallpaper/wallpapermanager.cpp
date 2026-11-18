@@ -208,12 +208,11 @@ void WallpaperManager::ensureWallpaperConfigForOutput(Output *output)
             if (outputConfig.outputName == outputId) {
                 const WallpaperWorkspaceConfig refConfig = outputConfig.workspaces.first();
                 for (int i = 0; i < m_workspace->count(); i++) {
-                    const int workspaceId = m_workspace->modelAt(i)->id();
-                    if (!outputConfig.containsWorkspace(workspaceId)) {
+                    if (!outputConfig.containsWorkspace(i)) {
                         WallpaperWorkspaceConfig wsConfig;
                         wsConfig.desktopWallpaper = refConfig.desktopWallpaper;
                         wsConfig.desktopWallpapertype = refConfig.desktopWallpapertype;
-                        wsConfig.workspaceId = workspaceId;
+                        wsConfig.workspaceId = i;
                         outputConfig.workspaces.append(wsConfig);
                     }
                 }
@@ -345,12 +344,11 @@ void WallpaperManager::syncAddWorkspace()
 
         const WallpaperWorkspaceConfig refConfig = outputConfig.workspaces.constFirst();
         for (int i = 0; i < m_workspace->count(); i++) {
-            const int workspaceId = m_workspace->modelAt(i)->id();
-            if (!outputConfig.containsWorkspace(workspaceId)) {
+            if (!outputConfig.containsWorkspace(i)) {
                 WallpaperWorkspaceConfig workspaceConfig;
                 workspaceConfig.desktopWallpaper = refConfig.desktopWallpaper;
                 workspaceConfig.desktopWallpapertype = refConfig.desktopWallpapertype;
-                workspaceConfig.workspaceId = workspaceId;
+                workspaceConfig.workspaceId = i;
                 outputConfig.workspaces.append(workspaceConfig);
                 update = true;
             }
