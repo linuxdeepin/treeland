@@ -53,10 +53,12 @@ jobs:
           # If not available, the build will proceed without them (may fail)
           pacman -S --noconfirm --noprogressbar dtk6core dtk6declarative dtk6systemsettings
 
-      - name: Install DDM dependencies
+      - name: Install DDM build dependencies
         run: |
-          # Try to install DDM from available packages
-          pacman -S --noconfirm --noprogressbar ddm
+          # DDM itself is built from source below: the Arch ddm package is still
+          # 0.4.0 and lacks DaemonMessages::SessionDirs / LastLogin, which
+          # src/greeter/greeterproxy.cpp requires.
+          pacman -S --noconfirm --noprogressbar extra-cmake-modules
 
       - name: Install MPV dependencies
         run: |
@@ -74,6 +76,18 @@ jobs:
           cmake --build build
           cmake --install build
           echo "✅ treeland-protocols built and installed from source"
+
+      - name: Build and Install DDM
+        run: |
+          echo "Building DDM from source..."
+          git clone https://github.com/linuxdeepin/ddm.git --depth 1
+          cd ddm
+          cmake -B build \
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+          cmake --install build
+          echo "✅ DDM built and installed from source"
 
       - uses: actions/checkout@v4
         with:
