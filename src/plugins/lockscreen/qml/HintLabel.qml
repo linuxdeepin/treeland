@@ -10,7 +10,7 @@ import QtQuick.Controls
 
 Popup {
     property string hintText
-    modal: true
+    modal: false
     background: D.FloatingPanel {
         anchors.fill: parent
         radius: 12

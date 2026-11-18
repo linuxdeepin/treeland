@@ -12,8 +12,7 @@ Popup {
 
     property var count: UserModel.count
     property var userItemHeight: 44
-    property var maxListHeight: userItemHeight * 5 + padding * 2
-    property var useScrollBar: listv.contentHeight > maxListHeight
+    property var maxListHeight: userItemHeight * 5
     property var lastCheckedIndex: -1
 
     signal otherUserRequested()
@@ -21,9 +20,9 @@ Popup {
     objectName: "LoginScreenUserListPopup"
     focus: true
     padding: 6
-    modal: true
+    modal: false
     width: 232
-    height: useScrollBar ? maxListHeight : listv.contentHeight + padding * 2
+    height: Math.min(maxListHeight, listv.contentHeight) + topPadding + bottomPadding
 
     function selectCurrentUser(userName, index) {
         UserModel.currentUserName = userName
@@ -51,6 +50,20 @@ Popup {
         highlightMoveDuration: 0
         Keys.onTabPressed: listv.incrementCurrentIndex()
         Keys.onReturnPressed: selectCurrentUser(model.name, model.index)
+
+        ScrollBar.vertical: ScrollBar {
+            id: scrollBar
+            // Let the bar extend beyond the clipped list into the popup padding.
+            parent: users.contentItem
+            policy: ScrollBar.AlwaysOn
+
+            anchors {
+                top: listv.top
+                bottom: listv.bottom
+                right: parent.right
+                rightMargin: 2 - users.rightPadding - scrollBar.rightPadding
+            }
+        }
 
         property D.Palette highlightColor: D.Palette {
             normal: D.DTK.makeColor(D.Color.Highlight)
