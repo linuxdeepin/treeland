@@ -965,7 +965,17 @@ QList<OutputGroupMemberInfo> OutputManager::outputGroupMembers() const
             // one means the record is not usable yet.
             continue;
         }
-        members.append({ uuid, config->groupName(), config->joinTime(), config->lastSetSourceTime() });
+        // A record written by us wins over the configuration: reading it back
+        // can still answer with the value stored before our write. The write
+        // path always fills the map first, so this only seeds an output we
+        // never wrote.
+        auto it = m_outputGroupMembers.constFind(uuid);
+        if (it == m_outputGroupMembers.cend()) {
+            it = m_outputGroupMembers.insert(
+                uuid,
+                { uuid, config->groupName(), config->joinTime(), config->lastSetSourceTime() });
+        }
+        members.append(*it);
     }
     return members;
 }
@@ -981,6 +991,8 @@ void OutputManager::writeOutputGroupMembership(const QString &uuid,
                               << "group:" << groupName;
         return;
     }
+    // Until the configuration is loaded the record is dropped as a whole, so
+    // the runtime copy never claims a membership that a restart would lose.
     auto *config = output->config();
     if (!config || !config->isInitializeSucceeded()) {
         qCWarning(lcTlOutput) << "Cannot persist output group membership before the output"
@@ -988,6 +1000,7 @@ void OutputManager::writeOutputGroupMembership(const QString &uuid,
                               << "group:" << groupName;
         return;
     }
+    m_outputGroupMembers.insert(uuid, { uuid, groupName, joinTime, lastSetSourceTime });
     config->setGroupName(groupName);
     config->setJoinTime(joinTime);
     config->setLastSetSourceTime(lastSetSourceTime);

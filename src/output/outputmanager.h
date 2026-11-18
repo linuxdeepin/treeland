@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <QHash>
 #include <QObject>
 #include <QPointer>
 #include <QPoint>
@@ -186,6 +187,13 @@ private:
     // Name of the group created by the menu bar copy-mode toggle, so the
     // toggle only dissolves its own group.
     QString m_menuBarGroupName;
+    // Runtime copy of the installed outputs' membership records, main thread
+    // only. A DConfig write is echoed back asynchronously, so reading the
+    // configuration can still return the value stored before it; the protocol
+    // path reads here instead. This process is the only writer, so a membership
+    // edited in the configuration from outside only takes effect after a
+    // restart.
+    mutable QHash<QString, OutputGroupMemberInfo> m_outputGroupMembers;
     bool m_applyingOutputGroups = false;
     // A group re-apply was requested while an output-management apply was in
     // flight; it runs once the last commit job finished.
