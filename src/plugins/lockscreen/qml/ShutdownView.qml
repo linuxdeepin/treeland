@@ -47,11 +47,10 @@ FocusScope {
             },
             ShutdownButton {
                 id: switchBtn
-                visible: !GreeterProxy.isLocked
+                visible: !GreeterProxy.isLocked && UserModel.count > 1
                 Keys.forwardTo: [powerList]
                 text: qsTr("switch user")
                 icon.name: "login_switchuser"
-                enabled: UserModel.count > 1
                 onClicked: root.switchUser()
             },
             ShutdownButton {
