@@ -40,6 +40,7 @@
 #include <QDBusConnection>
 #include <QDBusConnectionInterface>
 #include <QDBusMessage>
+#include <QDBusServiceWatcher>
 #include <QDebug>
 #include <QLocalSocket>
 #include <QLoggingCategory>
@@ -48,10 +49,12 @@
 #include <QDir>
 #include <QStandardPaths>
 
+#include <fcntl.h>
 #include <functional>
 #include <memory>
 #include <pwd.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 DCORE_USE_NAMESPACE
@@ -593,17 +596,40 @@ bool Treeland::ActivateWayland(QDBusUnixFileDescriptor _fd)
     WSocket *sessionSocket = session ? session->socket() : nullptr;
     if (!sessionSocket)
         return false;
-    std::shared_ptr<WSocket> socket = std::make_shared<WSocket>(sessionSocket);
-
-    socket->create(fd->fileDescriptor(), false);
-
     auto userModel =
         d->server->qmlEngine()->singletonInstance<UserModel *>("Treeland", "UserModel");
-
     const QString user = session->username();
-    if (auto u = userModel->getUser(user)) {
-        u->setWaylandSocket(socket);
+    auto u = userModel->getUser(user);
+    if (!u)
+        return false;
+
+    struct stat incomingStat {};
+    if (fstat(fd->fileDescriptor(), &incomingStat) < 0)
+        return false;
+
+    // SessionChanged makes treeland-sd submit the same listening socket again.
+    // Keep its WSocket and clients alive instead of replacing the connection owner.
+    if (auto existing = u->waylandSocket(); existing && existing->parentSocket() == sessionSocket) {
+        struct stat existingStat {};
+        if (fstat(existing->socketFd(), &existingStat) == 0
+            && existingStat.st_dev == incomingStat.st_dev
+            && existingStat.st_ino == incomingStat.st_ino) {
+            return true;
+        }
     }
+
+    // WSocket::create owns its fd; do not share ownership with the DBus wrapper.
+    const int socketFd = fcntl(fd->fileDescriptor(), F_DUPFD_CLOEXEC, 0);
+    if (socketFd < 0)
+        return false;
+    std::shared_ptr<WSocket> socket = std::make_shared<WSocket>(sessionSocket);
+
+    if (!socket->create(socketFd, false)) {
+        ::close(socketFd);
+        return false;
+    }
+
+    u->setWaylandSocket(socket);
 
     socket->setEnabled(userModel->currentUserName() == user,
                        WaylandServer::instance()->sessionManager()->globalSession()->socket());
@@ -612,12 +638,15 @@ bool Treeland::ActivateWayland(QDBusUnixFileDescriptor _fd)
 
     d->userDisplayFds[user] = fd;
 
-    connect(connection().interface(),
-            &QDBusConnectionInterface::serviceUnregistered,
-            socket.get(),
+    // Only the connection that supplied this socket may trigger its cleanup.
+    auto *watcher = new QDBusServiceWatcher(message().service(), connection(),
+                                           QDBusServiceWatcher::WatchForUnregistration,
+                                           socket.get());
+    connect(watcher, &QDBusServiceWatcher::serviceUnregistered, socket.get(),
             [user, userModel, d] {
-                userModel->getUser(user)->setWaylandSocket(nullptr);
                 d->userDisplayFds.remove(user);
+                if (auto u = userModel->getUser(user))
+                    u->setWaylandSocket(nullptr);
             });
 
     return true;

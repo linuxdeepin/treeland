@@ -171,7 +171,7 @@ sudo systemctl daemon-reload
 sudo systemctl restart treeland.service
 ```
 
-注意：随包安装的 unit 设置了 `StandardOutput=null` / `StandardError=null`，treeland 自身的 stdout/stderr（包括 Qt 日志）会被**丢弃**，不会出现在 journal 里。要捕获它们，需在同一 drop-in 中追加 `StandardOutput=journal` / `StandardError=journal`。journal 本身是 system journal（不是 `--user`）：
+注意：`src/main.cpp` 通过 `DLogManager::registerJournalAppender()` 直接写 journal，Qt 分类日志不依赖 stdout/stderr。随包安装的 unit 设置了 `StandardOutput=null` / `StandardError=null`，丢弃的是脚本及直接写到标准输出/错误的内容。仅在需要捕获这些内容时，才在 drop-in 中追加 `StandardOutput=journal` / `StandardError=journal`；Release 构建若还需要控制台 Qt 日志，应同时传入 `--console-log`。journal 本身是 system journal（不是 `--user`）：
 
 ```bash
 # 全局 treeland 服务（以 dde 运行）最近的日志
@@ -213,7 +213,7 @@ sudo journalctl -u treeland.service -f
 3. 相关分类：`treeland.output`、`waylib.output`、`waylib.output.drm`。硬件渲染失败时 `treeland.sh` 的 pixman 回退会生效。
 
 **崩溃 / 卡死：**
-1. 检查服务状态与重启日志：`sudo journalctl -u treeland.service -n 200 --no-pager`（先加 `StandardError=journal` drop-in，见“读日志”）。
+1. 检查服务状态与重启日志：`sudo journalctl -u treeland.service -n 200 --no-pager`（Qt 日志通过 journal appender 直接写入；标准错误的捕获见“读日志”）。
 2. 若启用了 ASAN：经 `treeland.service` 启动时日志写到 `/tmp/treeland-asan*` 文件而不是 journalctl（`ASAN_OPTIONS` 在 `misc/systemd/treeland.service.in` 里设）；本地直接跑则仍在 stderr。
 3. 用 `treeland-debug`（注入事件、activate/close 窗口）以最小步骤复现，并记录崩溃前最后几个动作。
 4. 卡死时用 `top`/`clients` 看是否有客户端卡住，必要时 gdb attach（`sudo gdb -p <pid>`）。
