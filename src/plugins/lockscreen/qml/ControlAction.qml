@@ -65,7 +65,12 @@ RowLayout {
 
         UserList {
             id: userList
-            x: (userItem.width - userList.width) / 2 - 10
+            x: {
+                const popupLeftInOutput = bottomGroup.rootItem.width - 10 - userList.width
+                const buttonLeftInOutput = bottomGroup.x + userItem.x
+                // Popup.x is relative to the user switch button.
+                return popupLeftInOutput - buttonLeftInOutput
+            }
             y: -userList.height - 10
             onClosed: userItem.expand = false
             onOtherUserRequested: bottomGroup.otherUserRequested()

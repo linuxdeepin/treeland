@@ -10,34 +10,42 @@ import LockScreen
 
 Popup {
     id: popup
-    modal: true
+
+    readonly property int sessionItemHeight: 60
+    readonly property int listMargin: 10
+    readonly property real maxListHeight: 4 * sessionItemHeight + 3 * list.spacing
+
+    modal: false
     width: 220
-    height: 280
+    height: Math.min(maxListHeight, list.contentHeight) + topPadding + bottomPadding + listMargin * 2
     objectName: "LoginScreenSessionListPopup"
 
     ListView {
         id: list
+        anchors.fill: parent
+        anchors.margins: popup.listMargin
         spacing: 1
-        width: parent.width - 20
-        height: parent.height - 20
-        x: 10
-        y: 10
         clip: true
         model: SessionModel
 
         ScrollBar.vertical: ScrollBar {
             id: verticalScrollBar
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
+            parent: popup.contentItem
             policy: ScrollBar.AlwaysOn
+
+            anchors {
+                top: list.top
+                bottom: list.bottom
+                right: parent.right
+                rightMargin: 2 - popup.rightPadding - verticalScrollBar.rightPadding
+            }
         }
 
         delegate: Item {
             required property string name
             required property int index
             width: parent.width
-            height: 60
+            height: popup.sessionItemHeight
             MouseArea {
                 anchors.fill: parent
                 hoverEnabled: true
