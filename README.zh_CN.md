@@ -149,6 +149,7 @@ treeland 可同时运行。Debug 构建的 treeland-debug 客户端自动优先�
 | `--name <name>` | `WindowTree` | Remote object 名称。 |
 | `--timeout-ms <n>` | `30000` | 请求超时（毫秒，非负整数）。 |
 | `--json` | 关 | 为 `tree`/`cursor`/`windows`/`clients` 输出机器可读 JSON。 |
+| `--detail` | 关 | 给 `tree`/`windows`/`clients` 增加较重的窗口字段（装饰几何、`damage`、output 诊断）；配合 `windows <id>` 再增加 `inputRegion`/`opaqueRegion`。见「输出格式」。 |
 | `--preview` | 自动 | 强制在终端内联显示截图预览（默认自动检测终端）。 |
 | `--no-preview` | 关 | 关闭终端内联截图预览。 |
 | `-h, --help` | — | 显示帮助。 |
@@ -166,7 +167,7 @@ treeland 可同时运行。Debug 构建的 treeland-debug 客户端自动优先�
 | --- | --- | --- |
 | `tree` | _（无，默认）_ | 布局树（人读格式；`--json` 输出 JSON）。 |
 | `cursor` | _（无）_ | 光标位置 `x=… y=…`（`--json` 输出 `{"x","y"}`）。 |
-| `windows` | _（无）_ | 窗口表格；`--json` 输出 JSON 数组。 |
+| `windows` | `[id\|appId]` | 窗口表格；`--json` 输出 JSON 数组。带目标时只描述该窗口（逐字段列出），配合 `--detail` 拿到它的全部信息。 |
 | `clients` | _（无）_ | 客户端 + 窗口表格；`--json` 输出 JSON 数组。 |
 | `top` | `[interval-ms]`（默认 1000） | 实时刷新的 top 式客户端视图（Ctrl+C 退出）。 |
 
@@ -219,6 +220,24 @@ treeland 可同时运行。Debug 构建的 treeland-debug 客户端自动优先�
 `tree` 和 `cursor` 默认输出人读格式；传 `--json` 输出机器可读 JSON。`windows` 和
 `clients` 同样默认输出人读表格，加 `--json` 输出 JSON 数组。
 
+输出是分级的：默认只给基础字段（`id`/`appId`/`title`/`geometry`/`state`/outputs 等），
+请求档位之外的字段不会被序列化，所以窗口很多时列表不会很长。档位如下：
+
+- **基础档**（默认，也就是表格显示的内容）：到 `geometry` 为止的标识/几何/状态字段，
+  加上 `outputs`、`framePacingOutput`。
+- **`--detail`（1 档）**：再加 `titlebarGeometry`、`boundingRect`、`iconGeometry`、
+  `position`、`frames`、`damage` 以及 output 诊断（`lastLeave*`、`lastOutputsUpdate*`）；
+  `windows`/`clients` 表格同时打印 SSD toplevel 的装饰几何。
+- **`windows <id>` 加 `--detail`（2 档）**：再加 `inputRegion`/`opaqueRegion` —— 每个窗口
+  一组 box，是整份负载里最占体积的部分。只有单窗口能取到：合成器会把列表类 getter 的档位
+  截断到 1，任何列表都拿不回全量 region；表格也从不打印 region 行。
+
+`windows <id|appId>` 只描述一个窗口，合成器也只序列化这一个，要 region 就用
+`windows <id> --detail`。注意只有 toplevel 可以这样取：`tree` 里列出的 subsurface 在这里
+没有条目，会报「找不到窗口」。`tree` 的文本输出不受 `--detail` 影响（两种档位打同样的列），
+要看额外字段请用 `--json`。窗口的 `z` 是它在层内的序号（`getWindows` 与 `getWindow` 一致），
+文本 `tree` 用的是列表下标。
+
 窗口 JSON 对象（`WindowInfo`）：
 
 | 字段 | 类型 | 说明 |
@@ -236,7 +255,7 @@ treeland 可同时运行。Debug 构建的 treeland-debug 客户端自动优先�
 | `visible` | boolean | 可见性。 |
 | `active` | boolean | 是否激活/聚焦。 |
 | `geometry` | object | `{"x","y","width","height"}`。 |
-| `titlebarGeometry` | object | 同上结构。 |
+| `titlebarGeometry` | object | 同上结构。以下字段需要 `--detail`（`inputRegion`/`opaqueRegion` 还需配合 `windows <id>`）。 |
 | `boundingRect` | object | 同上结构。 |
 | `iconGeometry` | object | 同上结构。 |
 | `position` | object | `{"x","y"}`。 |

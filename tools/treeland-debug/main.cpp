@@ -169,7 +169,7 @@ QString windowRegionDetail(const WindowInfo &w)
         .arg(formatRegion(w.inputRegion()), formatRegion(w.opaqueRegion()));
 }
 
-void printWindowsTable(const QList<WindowInfo> &windows)
+void printWindowsTable(const QList<WindowInfo> &windows, int detail)
 {
     QTextStream out(stdout);
     out << QStringLiteral("ID              APP-ID                STATE        ACTIVE  MIN  OUTPUT   GEOMETRY              TITLE\n");
@@ -189,12 +189,57 @@ void printWindowsTable(const QList<WindowInfo> &windows)
             .arg(static_cast<int>(g.height()))
             .arg(window.title());
         out << line << Qt::endl;
-        out << windowGeometryDetail(window);
-        out << windowRegionDetail(window);
+        if (detail > 0)
+            out << windowGeometryDetail(window);
+        // Regions are only fetched at level 2; printing them otherwise would
+        // report "(empty)", which means "the surface accepts no input".
+        if (detail >= 2)
+            out << windowRegionDetail(window);
     }
 }
 
-void printClientsTable(const QList<ClientInfo> &clients)
+// Field-per-line view of one window, printed by `windows <id>`. Everything the
+// listing omits is here, so a single window never needs the JSON output.
+void printWindowInfo(const WindowInfo &w, bool withRegions)
+{
+    QTextStream out(stdout);
+    const auto g = w.geometry();
+    const auto pos = w.position();
+    out << "id:           " << w.id() << "\n"
+        << "appId:        " << w.appId() << "\n"
+        << "title:        " << w.title() << "\n"
+        << "output:       " << w.output() << "\n"
+        << "outputs:      " << windowOutputsLabel(w) << "\n"
+        << "container:    " << w.container() << "\n"
+        << "workspace:    " << w.workspace() << "  layer: " << w.layer() << "  z: " << w.z() << "\n"
+        << "type:         " << w.type() << "  state: " << stateName(w.state()) << "\n"
+        << "visible:      " << (w.visible() ? "yes" : "no")
+        << "  active: " << (w.active() ? "yes" : "no")
+        << "  minimized: " << (w.minimized() ? "yes" : "no") << "\n"
+        << "geometry:     [" << static_cast<int>(g.x()) << "," << static_cast<int>(g.y()) << " "
+        << static_cast<int>(g.width()) << "x" << static_cast<int>(g.height()) << "]\n"
+        << "position:     " << pos.x() << "," << pos.y() << "\n";
+    out << windowGeometryDetail(w);
+    if (withRegions)
+        out << windowRegionDetail(w);
+    const auto damage = w.damage();
+    out << "frames:       " << w.frames() << "  damage=["
+        << static_cast<int>(damage.x()) << "," << static_cast<int>(damage.y()) << " "
+        << static_cast<int>(damage.width()) << "x" << static_cast<int>(damage.height()) << "]\n";
+    if (!w.lastLeaveOutput().isEmpty()) {
+        out << "last-leave:   " << w.lastLeaveOutput()
+            << " (enabled: " << (w.lastLeaveOutputEnabled() ? "yes" : "no")
+            << ", emptied outputs: " << (w.lastLeaveEmptiedOutputs() ? "yes" : "no") << ")\n";
+    }
+    if (!w.lastOutputsUpdateReason().isEmpty()) {
+        out << "last-outputs: " << w.lastOutputsUpdateReason()
+            << " (enabled " << w.lastOutputsUpdateEnabled() << "/" << w.lastOutputsUpdateTotal()
+            << ", computed " << w.lastOutputsUpdateComputed()
+            << ", automatic: " << (w.lastOutputsUpdateAutomatic() ? "yes" : "no") << ")\n";
+    }
+}
+
+void printClientsTable(const QList<ClientInfo> &clients, int detail)
 {
     QTextStream out(stdout);
     for (const auto &client : clients) {
@@ -219,8 +264,10 @@ void printClientsTable(const QList<ClientInfo> &clients)
                     .arg(static_cast<int>(g.height()))
                     .arg(windowOutputsLabel(window))
                     .arg(window.minimized() ? QStringLiteral("  (minimized)") : QString());
-            out << windowGeometryDetail(window);
-            out << windowRegionDetail(window);
+            if (detail > 0)
+                out << windowGeometryDetail(window);
+            if (detail >= 2)
+                out << windowRegionDetail(window);
         }
         out << Qt::endl;
     }
@@ -421,6 +468,10 @@ QString helpText()
         "                       else the build-specific socket found by probing)\n"        "  --name <name>        Remote object name (default: WindowTree)\n"
         "  --timeout-ms <n>     Request timeout in milliseconds (default: 30000)\n"
         "  --json               Emit machine-readable JSON for `tree`/`cursor`/`windows`/`clients`/`idle`/`shortcuts`\n"
+        "  --detail             More per-window info for `tree`/`windows`/`clients`: decorations,\n"
+        "                       damage and output diagnostics. Default is the basic field set.\n"
+        "                       With `windows <id>` it also adds the input/opaque regions.\n"
+        "                       The text `tree` view shows the same fields either way.\n"
         "  --preview            Force inline image preview in terminal (auto-detected by default)\n"
         "  --no-preview         Disable inline image preview\n"
         "  --no-escalate        Do not attempt polkit privilege escalation; report the\n"
@@ -429,7 +480,8 @@ QString helpText()
         "Inspection:\n"
         "  tree                       Print the complete window tree (human-readable, use --json for JSON)\n"
         "  cursor                     Print the cursor position (human-readable, use --json for JSON)\n"
-        "  windows                    List all toplevel windows (use --json for JSON)\n"
+        "  windows [id|appId]         List all toplevel windows (basic fields), or describe one\n"
+        "                             window in full (toplevels only; a subsurface has no entry)\n"
         "  clients                    List connected Wayland clients and their windows\n"
         "  idle                       Show the idle state (time since last input) and who holds idle off\n"
         "  shortcuts                  List registered key shortcuts and gestures\n"
@@ -701,7 +753,7 @@ volatile sig_atomic_t g_debugInterrupted = 0;
 
 // Executes a single one-shot command. Returns a process exit code.
 static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt,
-                      const QString &command, const QStringList &args);
+                      int detail, const QString &command, const QStringList &args);
 
 // `top` runs its own event loop.
 static int runTop(Session &session, int timeoutMs, int intervalMs);
@@ -712,7 +764,7 @@ static int runEvents(Session &session, int timeoutMs, int intervalMs);
 // `watch` monitors a single window's changes.
 static int runWatch(Session &session, int timeoutMs, qint64 id, int intervalMs);
 // `shell` reads commands from stdin.
-static int runShell(Session &session, int timeoutMs, bool json, int previewOpt);
+static int runShell(Session &session, int timeoutMs, bool json, int previewOpt, int detail);
 // Dispatches the live/refreshing commands (top, events, watch). Returns true
 // if @p command was recognized and run (in which case *rc holds the exit
 // code); returns false otherwise.
@@ -990,6 +1042,10 @@ int main(int argc, char *argv[])
     int timeoutMs = 30000;
     bool timeoutOk = true;
     bool json = false;
+    // --detail: 1 for the list commands (decorations, damage, output
+    // diagnostics -- never the regions), 2 for `windows <id>`, which also gets
+    // the regions because it describes a single window.
+    int detail = 0;
     bool previewOpt = 0; // 0=auto-detect, 1=force on, 2=force off
     bool compatTree = false;
     bool compatCursor = false;
@@ -1030,6 +1086,8 @@ int main(int argc, char *argv[])
             previewOpt = 2;
         else if (arg == QLatin1String("--json"))
             json = true;
+        else if (arg == QLatin1String("--detail"))
+            detail = 1;
         else if (arg == QLatin1String("--no-escalate"))
             noEscalate = true;
         else if (arg == QLatin1String("--tree"))
@@ -1193,18 +1251,18 @@ int main(int argc, char *argv[])
                             << " (fallback from " << candidateUrls.first() << ")\n";
 
     if (command == QLatin1String("shell"))
-        return runShell(session, timeoutMs, json, previewOpt);
+        return runShell(session, timeoutMs, json, previewOpt, detail);
     {
         int liveRc = 0;
         if (dispatchLiveCommand(session, timeoutMs, command, commandArgs, &liveRc))
             return liveRc;
     }
 
-    return runCommand(session, timeoutMs, json, previewOpt, command, commandArgs);
+    return runCommand(session, timeoutMs, json, previewOpt, detail, command, commandArgs);
 }
 
 static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt,
-                      const QString &command, const QStringList &args)
+                      int detail, const QString &command, const QStringList &args)
 {
     const ParseResult parsed = parseCommand(command, args);
     if (!parsed.ok)
@@ -1215,10 +1273,10 @@ static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt
     switch (parsed.command) {
     case DebugCommand::Tree: {
         TreelandInfo info;
-        if (!waitSlot(replica->getTreelandInfo(), timeoutMs, &info))
+        if (!waitSlot(replica->getTreelandInfo(detail), timeoutMs, &info))
             return fail("getTreelandInfo() failed");
         if (json)
-            printJson(QJsonDocument(treelandInfoToJson(info)));
+            printJson(QJsonDocument(treelandInfoToJson(info, detail)));
         else
             printTree(info);
         return EXIT_SUCCESS;
@@ -1232,23 +1290,45 @@ static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt
         return EXIT_SUCCESS;
     }
     case DebugCommand::Windows: {
+        // `windows <id|appId>` describes one window; without a target the whole
+        // list is printed, at the requested detail level.
+        if (!parsed.target.isEmpty()) {
+            bool ok = false;
+            const qint64 id = resolveTarget(session, timeoutMs, parsed.target, &ok);
+            if (!ok)
+                return fail(QStringLiteral("no window matches '%1'").arg(parsed.target));
+            // A single window is already the detailed view: level 1 always, and
+            // --detail adds the regions on top of it. The compositor answers
+            // with id 0 when the window is gone.
+            const int level = detail > 0 ? 2 : 1;
+            WindowInfo window;
+            if (!waitSlot(replica->getWindow(id, level), timeoutMs, &window))
+                return fail("getWindow() failed");
+            if (window.id() != id)
+                return fail(QStringLiteral("no window with id %1").arg(id));
+            if (json)
+                printJson(QJsonDocument(windowToJson(window, level)));
+            else
+                printWindowInfo(window, level >= 2);
+            return EXIT_SUCCESS;
+        }
         QList<WindowInfo> windows;
-        if (!waitSlot(replica->getWindows(), timeoutMs, &windows))
+        if (!waitSlot(replica->getWindows(detail), timeoutMs, &windows))
             return fail("getWindows() failed");
         if (json)
-            printJson(QJsonDocument(windowsToJson(windows)));
+            printJson(QJsonDocument(windowsToJson(windows, detail)));
         else
-            printWindowsTable(windows);
+            printWindowsTable(windows, detail);
         return EXIT_SUCCESS;
     }
     case DebugCommand::Clients: {
         QList<ClientInfo> clients;
-        if (!waitSlot(replica->getClients(), timeoutMs, &clients))
+        if (!waitSlot(replica->getClients(detail), timeoutMs, &clients))
             return fail("getClients() failed");
         if (json)
-            printJson(QJsonDocument(clientsToJson(clients)));
+            printJson(QJsonDocument(clientsToJson(clients, detail)));
         else
-            printClientsTable(clients);
+            printClientsTable(clients, detail);
         return EXIT_SUCCESS;
     }
     case DebugCommand::Idle: {
@@ -1471,7 +1551,8 @@ static int runTop(Session &session, int timeoutMs, int intervalMs)
     auto refresh = [&]() {
         // Fetch current status.
         QList<ClientInfo> clients;
-        if (!waitSlot(session.replica->getClients(), timeoutMs, &clients)) {
+        // top needs frames and damage, which are full-detail only.
+        if (!waitSlot(session.replica->getClients(1), timeoutMs, &clients)) {
             if (!g_debugInterrupted) {
                 QTextStream(stderr) << "treeland-debug: getClients() failed\n";
                 rc = EXIT_FAILURE;
@@ -1595,7 +1676,7 @@ static bool dispatchLiveCommand(Session &session, int timeoutMs,
     }
 }
 
-static int runShell(Session &session, int timeoutMs, bool json, int previewOpt)
+static int runShell(Session &session, int timeoutMs, bool json, int previewOpt, int detail)
 {
     QTextStream out(stdout);
     out << "treeland-debug shell — type 'help' for commands, 'exit' to quit\n";
@@ -1640,7 +1721,7 @@ static int runShell(Session &session, int timeoutMs, bool json, int previewOpt)
             out << "debug: run `treeland-debug debug on|off|status` as a one-shot command\n";
             continue;
         }
-        runCommand(session, timeoutMs, json, previewOpt, command, parts);
+        runCommand(session, timeoutMs, json, previewOpt, detail, command, parts);
     }
     return EXIT_SUCCESS;
 }
@@ -1719,21 +1800,17 @@ static int runWatch(Session &session, int timeoutMs, qint64 id, int intervalMs)
     timer.setInterval(intervalMs);
 
     auto refresh = [&]() {
-        QList<WindowInfo> windows;
-        if (!waitSlot(session.replica->getWindows(), timeoutMs, &windows)) {
+        // watch needs frames and damage, which are full-detail only.
+        WindowInfo cur;
+        if (!waitSlot(session.replica->getWindow(id, 1), timeoutMs, &cur)) {
             if (!g_debugInterrupted) {
-                QTextStream(stderr) << "treeland-debug: getWindows() failed\n";
+                QTextStream(stderr) << "treeland-debug: getWindow() failed\n";
                 rc = EXIT_FAILURE;
             }
             QCoreApplication::quit();
             return;
         }
-        WindowInfo cur;
-        bool found = false;
-        for (const auto &w : windows) {
-            if (w.id() == id) { cur = w; found = true; break; }
-        }
-        if (!found) {
+        if (cur.id() != id) {
             QTextStream(stderr) << "treeland-debug: window " << id << " no longer exists\n";
             rc = EXIT_FAILURE;
             QCoreApplication::quit();

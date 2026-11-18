@@ -416,9 +416,13 @@ QPointF TreelandRemoteSource::cursorPosition() const
     return {};
 }
 
-TreelandInfo TreelandRemoteSource::getTreelandInfo()
+TreelandInfo TreelandRemoteSource::getTreelandInfo(int detail)
 {
     noteActivity();
+    // A collection never carries the regions (contract in
+    // treelandwindowtree.rep): clamp so no caller can pull them back for every
+    // window, which is exactly the payload this grading exists to avoid.
+    detail = qMin(detail, 1);
     TreelandInfo info;
 
     auto mode = WaylandServer::instance()->currentMode();
@@ -430,7 +434,7 @@ TreelandInfo TreelandRemoteSource::getTreelandInfo()
         for (auto *container : subcontainers) {
             if (!container)
                 continue;
-            layers.append(buildLayerInfo(container));
+            layers.append(buildLayerInfo(container, detail));
         }
         info.setLayers(layers);
     }
@@ -461,7 +465,8 @@ static QString outputsUpdateReasonName(SurfaceWrapper::OutputsUpdateReason reaso
 WindowInfo TreelandRemoteSource::buildWindowInfo(SurfaceWrapper *surface,
                                                  int layer,
                                                  const QString &containerName,
-                                                 int z) const
+                                                 int z,
+                                                 int detail) const
 {
     WindowInfo info;
     info.setId(surfaceId(surface->surface()));
@@ -471,10 +476,6 @@ WindowInfo TreelandRemoteSource::buildWindowInfo(SurfaceWrapper *surface,
     info.setZ(z);
     info.setContainer(containerName);
     info.setGeometry(surface->geometry());
-    info.setTitlebarGeometry(surface->titlebarGeometry());
-    info.setBoundingRect(surface->boundingRect());
-    info.setIconGeometry(QRectF(surface->iconGeometry()));
-    info.setPosition(surface->position());
     info.setVisible(surface->isVisible());
     info.setActive(surface->isActivated());
     info.setMinimized(surface->isMinimized());
@@ -505,6 +506,24 @@ WindowInfo TreelandRemoteSource::buildWindowInfo(SurfaceWrapper *surface,
     }
     info.setFramePacingOutput(framePacingOutputName);
 
+    QString title;
+    if (auto *shellSurface = surface->shellSurface()) {
+        title = shellSurface->property("title").toString();
+    }
+    info.setTitle(title);
+
+    // Detail levels, as documented in treelandwindowtree.rep: 1 adds the
+    // decorations, output diagnostics, frames and damage; 2 adds the regions,
+    // which are the bulk of the payload and are only ever wanted for one
+    // window (no list view displays them, and `top` polls every second).
+    if (detail <= 0)
+        return info;
+
+    info.setTitlebarGeometry(surface->titlebarGeometry());
+    info.setBoundingRect(surface->boundingRect());
+    info.setIconGeometry(QRectF(surface->iconGeometry()));
+    info.setPosition(surface->position());
+
     const auto &diag = surface->outputsDiagnostics();
     info.setLastLeaveOutput(diag.lastLeaveOutput);
     info.setLastLeaveOutputEnabled(diag.lastLeaveOutputEnabled);
@@ -515,12 +534,6 @@ WindowInfo TreelandRemoteSource::buildWindowInfo(SurfaceWrapper *surface,
     info.setLastOutputsUpdateComputed(diag.updateComputedOutputs);
     info.setLastOutputsUpdateAutomatic(diag.updateAutomatic);
 
-    QString title;
-    if (auto *shellSurface = surface->shellSurface()) {
-        title = shellSurface->property("title").toString();
-    }
-    info.setTitle(title);
-
     // Frame/damage statistics from the underlying wlr_surface.
     if (auto *w = surface->surface()) {
         if (auto *wlr = w->handle()) {
@@ -530,9 +543,11 @@ WindowInfo TreelandRemoteSource::buildWindowInfo(SurfaceWrapper *surface,
                 info.setDamage(QRectF(extents->x1, extents->y1,
                                       extents->x2 - extents->x1,
                                       extents->y2 - extents->y1));
-            // wlroots already clipped both regions to the surface size.
-            info.setInputRegion(regionFromPixman(&wlr->input_region));
-            info.setOpaqueRegion(regionFromPixman(&wlr->opaque_region));
+            if (detail >= 2) {
+                // wlroots already clipped both regions to the surface size.
+                info.setInputRegion(regionFromPixman(&wlr->input_region));
+                info.setOpaqueRegion(regionFromPixman(&wlr->opaque_region));
+            }
         }
     }
     return info;
@@ -542,13 +557,14 @@ void TreelandRemoteSource::collectSurfaceInfos(QList<WindowInfo> &infos,
                                                SurfaceWrapper *surface,
                                                int layer,
                                                const QString &containerName,
-                                               int z) const
+                                               int z,
+                                               int detail) const
 {
-    infos.append(buildWindowInfo(surface, layer, containerName, z));
+    infos.append(buildWindowInfo(surface, layer, containerName, z, detail));
     const auto subSurfaces = surface->subSurfaces();
     for (auto *child : subSurfaces) {
         if (child) {
-            collectSurfaceInfos(infos, child, layer, containerName, z);
+            collectSurfaceInfos(infos, child, layer, containerName, z, detail);
         }
     }
 }
@@ -556,7 +572,8 @@ void TreelandRemoteSource::collectSurfaceInfos(QList<WindowInfo> &infos,
 void TreelandRemoteSource::collectWorkspaceModelWindows(QList<WindowInfo> &infos,
                                                         WorkspaceModel *workspaceModel,
                                                         int layer,
-                                                        const QString &containerName) const
+                                                        const QString &containerName,
+                                                        int detail) const
 {
     if (!workspaceModel)
         return;
@@ -565,7 +582,7 @@ void TreelandRemoteSource::collectWorkspaceModelWindows(QList<WindowInfo> &infos
     for (int index = 0; index < workspaceSurfaces.size(); ++index) {
         auto *surface = workspaceSurfaces.at(index);
         if (surface && !surface->parentSurface()) {
-            collectSurfaceInfos(infos, surface, layer, containerName, index);
+            collectSurfaceInfos(infos, surface, layer, containerName, index, detail);
         }
     }
 }
@@ -573,7 +590,8 @@ void TreelandRemoteSource::collectWorkspaceModelWindows(QList<WindowInfo> &infos
 void TreelandRemoteSource::collectCurrentWorkspaceModelWindows(QList<WindowInfo> &infos,
                                                         WorkspaceModel *workspaceModel,
                                                         int layer,
-                                                        const QString &containerName) const
+                                                        const QString &containerName,
+                                                        int detail) const
 {
     if (!workspaceModel)
         return;
@@ -595,12 +613,12 @@ void TreelandRemoteSource::collectCurrentWorkspaceModelWindows(QList<WindowInfo>
     for (int index = 0; index < workspaceSurfaces.size(); ++index) {
         auto *surface = workspaceSurfaces.at(index);
         if (surface && !surface->parentSurface()) {
-            collectSurfaceInfos(infos, surface, layer, containerName, index);
+            collectSurfaceInfos(infos, surface, layer, containerName, index, detail);
         }
     }
 }
 
-LayerInfo TreelandRemoteSource::buildLayerInfo(SurfaceContainer *container) const
+LayerInfo TreelandRemoteSource::buildLayerInfo(SurfaceContainer *container, int detail) const
 {
     LayerInfo layerInfo;
     const int layer = static_cast<int>(container->z());
@@ -617,9 +635,11 @@ LayerInfo TreelandRemoteSource::buildLayerInfo(SurfaceContainer *container) cons
             workspaceInfo.setIsActive(workspaceModel == workspace->current());
             QList<WindowInfo> windows;
             if (workspaceInfo.isActive()) {
-                collectCurrentWorkspaceModelWindows(windows, workspaceModel, layer, containerName);
+                collectCurrentWorkspaceModelWindows(windows, workspaceModel, layer,
+                                                    containerName, detail);
             } else {
-                collectWorkspaceModelWindows(windows, workspaceModel, layer, containerName);
+                collectWorkspaceModelWindows(windows, workspaceModel, layer, containerName,
+                                             detail);
             }
             workspaceInfo.setWindows(windows);
             workspaces.append(workspaceInfo);
@@ -631,7 +651,7 @@ LayerInfo TreelandRemoteSource::buildLayerInfo(SurfaceContainer *container) cons
         for (int index = 0; index < surfaces.size(); ++index) {
             auto *surface = surfaces.at(index);
             if (surface && !surface->parentSurface()) {
-                collectSurfaceInfos(windows, surface, layer, containerName, index);
+                collectSurfaceInfos(windows, surface, layer, containerName, index, detail);
             }
         }
         layerInfo.setWindows(windows);
@@ -675,6 +695,11 @@ void TreelandRemoteSource::collectAllToplevelSurfaces(QList<SurfaceWrapper *> &o
 
 SurfaceWrapper *TreelandRemoteSource::findSurfaceById(qint64 id) const
 {
+    // id 0 is "no id" (surfaceId() returns it for a surface without a
+    // wl_resource, e.g. a splash before its first commit), so it must not match
+    // an entry of the list.
+    if (id <= 0)
+        return nullptr;
     QList<SurfaceWrapper *> surfaces;
     collectAllToplevelSurfaces(surfaces);
     for (auto *surface : surfaces) {
@@ -684,21 +709,40 @@ SurfaceWrapper *TreelandRemoteSource::findSurfaceById(qint64 id) const
     return nullptr;
 }
 
-QList<WindowInfo> TreelandRemoteSource::getWindows()
+// Describes one surface the way getWindows() would, so a single window and a
+// listed one never disagree.
+WindowInfo TreelandRemoteSource::buildWindowInfoFor(SurfaceWrapper *surface, int detail) const
+{
+    auto *container = surface->container();
+    const QString containerName = container ? container->objectName() : QString();
+    const int layer = container ? static_cast<int>(container->z()) : 0;
+    return buildWindowInfo(surface, layer, containerName, static_cast<int>(surface->z()), detail);
+}
+
+QList<WindowInfo> TreelandRemoteSource::getWindows(int detail)
 {
     noteActivity();
+    detail = qMin(detail, 1);
     QList<SurfaceWrapper *> surfaces;
     collectAllToplevelSurfaces(surfaces);
 
     QList<WindowInfo> infos;
     infos.reserve(surfaces.size());
-    for (auto *surface : surfaces) {
-        auto *container = surface->container();
-        const QString containerName = container ? container->objectName() : QString();
-        const int layer = container ? static_cast<int>(container->z()) : 0;
-        infos.append(buildWindowInfo(surface, layer, containerName, static_cast<int>(surface->z())));
-    }
+    for (auto *surface : surfaces)
+        infos.append(buildWindowInfoFor(surface, detail));
     return infos;
+}
+
+// The returned struct carries id 0 whenever the window could not be described.
+// Callers must treat that as "no such window" -- an id-0 window is not a real
+// window either (see findSurfaceById()).
+WindowInfo TreelandRemoteSource::getWindow(qint64 id, int detail)
+{
+    noteActivity();
+    auto *surface = findSurfaceById(id);
+    if (!surface)
+        return {};
+    return buildWindowInfoFor(surface, detail);
 }
 
 namespace {
@@ -800,9 +844,10 @@ QList<ShortcutInfo> TreelandRemoteSource::getShortcuts()
     return result;
 }
 
-QList<ClientInfo> TreelandRemoteSource::getClients()
+QList<ClientInfo> TreelandRemoteSource::getClients(int detail)
 {
     noteActivity();
+    detail = qMin(detail, 1);
     QList<ClientInfo> result;
     auto *server = WaylandServer::instance();
     auto *nativeServer = server ? server->server() : nullptr;
@@ -858,7 +903,7 @@ QList<ClientInfo> TreelandRemoteSource::getClients()
         const QString containerName = container ? container->objectName() : QString();
         const int layer = container ? static_cast<int>(container->z()) : 0;
         entries[index].windows.append(
-            buildWindowInfo(surface, layer, containerName, static_cast<int>(surface->z())));
+            buildWindowInfo(surface, layer, containerName, static_cast<int>(surface->z()), detail));
     }
 
     // Also include connected clients that own no toplevel window.

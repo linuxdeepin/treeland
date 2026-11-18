@@ -150,9 +150,24 @@ class WindowTreeRemote {
     // socket is the authentication. Returns false when the directory is not one
     // Treeland may widen (a session instance).
     SLOT(bool requestNoAuth());
-    SLOT(TreelandInfo getTreelandInfo());
-    SLOT(QList<WindowInfo> getWindows());
-    SLOT(QList<ClientInfo> getClients());
+    // Window information is graded by `detail`, so a list of hundreds of
+    // windows stays short. A field outside the requested level keeps its
+    // default value and is never serialised.
+    //   0 = basic: id, appId, title, geometry, state, flags, outputs.
+    //   1 = plus decorations, position, output diagnostics, frames and damage.
+    //   2 = plus inputRegion and opaqueRegion -- a set of boxes per window, by
+    //       far the bulk of the payload, which no list consumer displays.
+    // Level 2 is meant for getWindow(); the collection getters clamp the
+    // level to 1, so no caller can pull every window's regions back.
+    SLOT(TreelandInfo getTreelandInfo(int detail));
+    SLOT(QList<WindowInfo> getWindows(int detail));
+    // One window by id, without paying for every other window. id <= 0 and an
+    // unknown id both yield a default WindowInfo whose id is 0, so 0 is never a
+    // valid window id -- surfaceId() returns 0 for a surface without a
+    // wl_resource, and those entries are not addressable. Only toplevel windows
+    // can be fetched: a subsurface shown by getTreelandInfo() has no id here.
+    SLOT(WindowInfo getWindow(qint64 id, int detail));
+    SLOT(QList<ClientInfo> getClients(int detail));
     SLOT(IdleInfo getIdleInfo());
     SLOT(QList<ShortcutInfo> getShortcuts());
     SLOT(bool activateWindow(qint64 id));

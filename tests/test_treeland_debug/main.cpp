@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "debughelpers.h"
+#include "debugsession.h"
 
 #include "treelanddebugsocket.h"
+
+#include <QJsonArray>
 
 #include <QDir>
 #include <QFile>
@@ -26,6 +29,10 @@
 #include <unistd.h>
 
 #include <cstring>
+
+// debugsession.cpp is linked in for its JSON/target helpers; the tool's main.cpp
+// owns this flag, so the test provides its own definition (never set here).
+volatile sig_atomic_t g_debugInterrupted = 0;
 
 // Unit tests for the pure-logic helpers shared by the treeland-debug tool
 // (stateName, buttonCode, keyCode, saveCapture, pointToJson, rectToJson)
@@ -58,6 +65,12 @@ private Q_SLOTS:
     void testPointToJson();
     void testRectToJson();
     void testRectsToJson();
+
+    // --- graded window JSON (the issue this covers: a window list must stay
+    // short, the heavy fields must be reachable on demand) ---
+    void testWindowJsonLevels();
+    void testWindowJsonDetailPassthrough();
+    void testResolveTargetRejectsZero();
     void testFormatRegionEmpty();
     void testFormatRegionAtLimit();
     void testFormatRegionOverLimit();
@@ -86,6 +99,8 @@ private Q_SLOTS:
     void testParseTree();
     void testParseCursor();
     void testParseWindows();
+    void testParseWindowsTarget();
+    void testParseWindowsTooManyArgs();
     void testParseClients();
     void testParseIdle();
     void testParseShortcuts();
@@ -1085,6 +1100,28 @@ void TreelandDebugTest::testParseWindows()
     QCOMPARE(r.command, DebugCommand::Windows);
 }
 
+void TreelandDebugTest::testParseWindowsTarget()
+{
+    // `windows <id|appId>` describes one window instead of listing them all.
+    const auto byId = parseCommand(QStringLiteral("windows"), {QStringLiteral("93824992268800")});
+    QVERIFY(byId.ok);
+    QCOMPARE(byId.command, DebugCommand::Windows);
+    QCOMPARE(byId.target, QStringLiteral("93824992268800"));
+
+    const auto byAppId = parseCommand(QStringLiteral("windows"),
+                                     {QStringLiteral("dde-file-manager")});
+    QVERIFY(byAppId.ok);
+    QCOMPARE(byAppId.target, QStringLiteral("dde-file-manager"));
+}
+
+void TreelandDebugTest::testParseWindowsTooManyArgs()
+{
+    const auto r = parseCommand(QStringLiteral("windows"),
+                                {QStringLiteral("1"), QStringLiteral("2")});
+    QVERIFY(!r.ok);
+    QVERIFY(!r.error.isEmpty());
+}
+
 void TreelandDebugTest::testParseClients()
 {
     const auto r = parseCommand(QStringLiteral("clients"), {});
@@ -1724,6 +1761,109 @@ void TreelandDebugTest::testParseListenPortNoValue()
     const auto r = parseCommand(QStringLiteral("listen"), {QStringLiteral("--port")});
     QVERIFY(!r.ok);
     QVERIFY(r.error.contains(QStringLiteral("usage")));
+}
+
+void TreelandDebugTest::testWindowJsonLevels()
+{
+    WindowInfo w;
+    w.setId(42);
+    w.setAppId(QStringLiteral("app"));
+    w.setTitle(QStringLiteral("title"));
+    w.setGeometry(QRectF(1, 2, 3, 4));
+    w.setFrames(7);
+    w.setDamage(QRectF(0, 0, 5, 5));
+    w.setInputRegion(QRegion(0, 0, 10, 10));
+    w.setOpaqueRegion(QRegion(0, 0, 10, 10));
+
+    // Level 0: identity and geometry only -- this is what a listing sends.
+    const auto basic = windowToJson(w, 0);
+    QCOMPARE(basic.value("id").toInteger(), qint64(42));
+    QCOMPARE(basic.value("title").toString(), QStringLiteral("title"));
+    QVERIFY(basic.contains("geometry"));
+    QVERIFY(!basic.contains("frames"));
+    QVERIFY(!basic.contains("damage"));
+    QVERIFY(!basic.contains("titlebarGeometry"));
+    QVERIFY(!basic.contains("inputRegion"));
+
+    // Level 1: the numbers a detail view shows, still no regions.
+    const auto level1 = windowToJson(w, 1);
+    QCOMPARE(level1.value("frames").toInteger(), qint64(7));
+    QVERIFY(level1.contains("damage"));
+    QVERIFY(level1.contains("titlebarGeometry"));
+    QVERIFY(!level1.contains("inputRegion"));
+    QVERIFY(!level1.contains("opaqueRegion"));
+
+    // Level 2: one window, regions included.
+    const auto level2 = windowToJson(w, 2);
+    QCOMPARE(level2.value("inputRegion").toArray().size(), 1);
+    QCOMPARE(level2.value("opaqueRegion").toArray().size(), 1);
+}
+
+void TreelandDebugTest::testWindowJsonDetailPassthrough()
+{
+    // The level must reach windows nested under tree/workspace/layer/client --
+    // otherwise `tree --json` ignores it.
+    WindowInfo w;
+    w.setId(1);
+    w.setInputRegion(QRegion(0, 0, 4, 4));
+
+    WorkspaceInfo workspace;
+    workspace.setId(1);
+    workspace.setWindows({w});
+    LayerInfo layer;
+    layer.setName(QStringLiteral("layer"));
+    layer.setWorkspaces({workspace});
+    layer.setWindows({w});
+    TreelandInfo info;
+    info.setLayers({layer});
+    ClientInfo client;
+    client.setId(2);
+    client.setWindows({w});
+
+    const auto nested = [](const QJsonObject &tree, const QString &branch) {
+        const auto layers = tree.value("layers").toArray();
+        const auto firstLayer = layers.at(0).toObject();
+        if (branch == QLatin1String("workspace"))
+            return firstLayer.value("workspaces").toArray().at(0).toObject()
+                .value("windows").toArray().at(0).toObject();
+        return firstLayer.value("windows").toArray().at(0).toObject();
+    };
+
+    const auto atWorkspace = [&](int level) {
+        return nested(treelandInfoToJson(info, level), QStringLiteral("workspace"));
+    };
+    const auto atLayer = [&](int level) {
+        return nested(treelandInfoToJson(info, level), QStringLiteral("layer"));
+    };
+    QVERIFY(!atWorkspace(0).contains("inputRegion"));
+    QVERIFY(!atLayer(0).contains("inputRegion"));
+    QVERIFY(atWorkspace(2).contains("inputRegion"));
+    QVERIFY(atLayer(2).contains("inputRegion"));
+
+    QVERIFY(!clientToJson(client, 0).value("windows").toArray().at(0).toObject()
+                 .contains("inputRegion"));
+    QVERIFY(clientToJson(client, 2).value("windows").toArray().at(0).toObject()
+                .contains("inputRegion"));
+}
+
+void TreelandDebugTest::testResolveTargetRejectsZero()
+{
+    // 0 means "no window" (the compositor answers with id 0 for a window it
+    // cannot describe), so it must never resolve to a target. The numeric
+    // branch returns before touching the replica, so an unconnected Session is
+    // enough here.
+    Session session;
+    bool ok = true;
+    QCOMPARE(resolveTarget(session, 100, QStringLiteral("0"), &ok), qint64(0));
+    QVERIFY(!ok);
+
+    ok = true;
+    QCOMPARE(resolveTarget(session, 100, QStringLiteral("-5"), &ok), qint64(0));
+    QVERIFY(!ok);
+
+    ok = false;
+    QCOMPARE(resolveTarget(session, 100, QStringLiteral("1234"), &ok), qint64(1234));
+    QVERIFY(ok);
 }
 
 QTEST_MAIN(TreelandDebugTest)
