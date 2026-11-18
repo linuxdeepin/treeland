@@ -44,7 +44,7 @@ description: "用于 treeland 私有 Wayland 服务端协议集成。触发场�
 
 不要猜生成类名、`Resource` 回调签名、`init(...)` 重载或 `interfaceName()`。
 
-注意：`treeland_*.xml` 协议文件由外部 CMake 包 `TreelandProtocols` 提供（通过 `find_package(TreelandProtocols REQUIRED)`），不在 treeland 源码树中。通过 `${TREELAND_PROTOCOLS_DATA_DIR}/treeland-*.xml` 访问。不要在 `src/modules/` 下搜索 XML 文件。
+注意：`treeland_*.xml` 协议文件有两个来源。只被本仓库二进制使用的内部协议在源码树 `src/protocols/` 中，直接用 `${PROJECT_SOURCE_DIR}/src/protocols/treeland-*.xml`。其余协议由外部 CMake 包 `TreelandProtocols` 提供（通过 `find_package(TreelandProtocols REQUIRED)`），通过 `${TREELAND_PROTOCOLS_DATA_DIR}/treeland-*.xml` 访问。先看清楚目标协议属于哪一种，再决定改哪个仓库。
 
 从生成的 `qwayland-server-*.h/.cpp` 中直接确认至少这些事实：
 
@@ -164,7 +164,7 @@ void destroy(Resource *resource) override
 
 少数已有 manager 缺 `destroy` 请求属于历史设计问题，当作兼容例外，不要作为新协议的模板。
 
-该请求本身属于协议 xml，而 xml 在外部 `TreelandProtocols` 包中（见“先读”中的说明）。添加它意味着在该包发布新的 xml 版本，本仓库无法声明它。
+该请求本身属于协议 xml（见“先读”中的说明）：内部协议的 xml 在 `src/protocols/`，本仓库可直接改；其余协议的 xml 在外部 `TreelandProtocols` 包中，添加它意味着在该包发布新的 xml 版本。
 
 ## 资源销毁
 这是最容易出错的部分，但分工只有一条：`destroy(...)` 只做 `wl_resource_destroy(resource->handle)`，业务清理只放 `destroy_resource(...)`。

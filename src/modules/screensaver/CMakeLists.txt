@@ -1,7 +1,6 @@
-find_package(TreelandProtocols 0.6.0 REQUIRED)
 
 waylib_generate_qtwayland_server_protocol(libtreeland
-    PROTOCOL ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-screensaver-unstable-v2.xml
+    PROTOCOL ${PROJECT_SOURCE_DIR}/src/protocols/treeland-screensaver-unstable-v2.xml
     BASENAME treeland-screensaver-unstable-v2
 )
 

@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="treeland_prelaunch_splash_unstable_v2">
+    <copyright><![CDATA[
+    SPDX-FileCopyrightText: 2026 UnionTech Software Technology Co., Ltd.
+    SPDX-License-Identifier: MIT
+    ]]></copyright>
+
+    <description summary="prelaunch splash screen management">
+        The key words "must", "must not", "required", "shall",
+        "shall not", "should", "should not", "recommended", "may",
+        and "optional" in this document are to be interpreted as
+        described in RFC 2119.
+
+        Warning! This protocol is EXPERIMENTAL and under active development.
+        It may change at any time, including in backward-incompatible ways,
+        without incrementing the interface major version and without prior
+        notice. No compatibility guarantees of any kind are provided. Clients
+        and compositors must track the upstream definition in treeland-protocols
+        and must not rely on the current interface names, requests, events, or
+        semantics remaining stable across releases.
+    </description>
+
+    <interface name="treeland_prelaunch_splash_manager_v2" version="1">
+        <description summary="prelaunch splash screen manager">
+            This interface is a manager for creating prelaunch splash screens.
+            A prelaunch splash screen is a placeholder surface that is shown
+            before an application's main window is mapped. This helps to improve
+            the perceived startup time.
+
+            It is particularly useful for application launchers to provide immediate
+            feedback to the user.
+
+            Compared to treeland_prelaunch_splash_manager_v1, this version returns
+            a splash object from create_splash. The caller can destroy the object
+            to dismiss the splash, and the compositor can send events (e.g. timeout)
+            back to the caller through the object.
+
+            This interface is a singleton. Only one client may bind it at a
+            time within a given user session. If a second client attempts to
+            bind while a binding is already active, the compositor must
+            reject the attempt by sending a protocol error
+            (binding_rejected). The singleton binding is released when the
+            client destroys the manager object.
+        </description>
+
+        <enum name="error">
+            <description summary="protocol errors for this interface">
+                Error codes sent as protocol errors via wl_display.error.
+            </description>
+            <entry name="binding_rejected" value="0" summary="the manager is already bound by another client" />
+        </enum>
+
+        <request name="destroy" type="destructor">
+            <description summary="destroy the manager"/>
+        </request>
+
+        <request name="create_splash">
+            <description summary="create a new splash screen">
+                Creates a new prelaunch splash screen and returns a splash object.
+
+                The `app_id` is a string that identifies the application. The compositor
+                will use this ID together with `sandbox_engine_name` to match the splash
+                screen with the actual application window when it appears. This
+                matching mechanism should also work for XWayland windows.
+
+                The `instance_id` identifies a specific application instance, allowing
+                multiple splashes for non-singleton applications. The compositor can
+                use this to associate a splash with a particular launch instance.
+
+                Callers MUST provide a non-empty `sandbox_engine_name` string which
+                identifies the sandboxing/container.
+            </description>
+            <arg name="splash" type="new_id" interface="treeland_prelaunch_splash_v2" summary="new splash object"/>
+            <arg name="app_id" type="string" summary="the application ID"/>
+            <arg name="instance_id" type="string" summary="the application instance ID"/>
+            <arg name="sandbox_engine_name" type="string" summary="the sandbox engine / security context name (required, non-empty)"/>
+            <arg name="icon_buffer" type="object" interface="wl_buffer" allow-null="true" summary="optional icon image as wl_buffer (e.g. wl_shm)"/>
+        </request>
+    </interface>
+
+    <interface name="treeland_prelaunch_splash_v2" version="1">
+        <description summary="prelaunch splash screen object">
+            Represents a single prelaunch splash screen created by the manager.
+
+            The caller can destroy this object to dismiss the corresponding splash.
+            The compositor may also send events through this object, for example
+            to notify the caller that the splash was closed due to a timeout.
+        </description>
+
+        <request name="destroy" type="destructor">
+            <description summary="dismiss and destroy the splash">
+                Dismisses the splash screen and destroys this object.
+            </description>
+        </request>
+    </interface>
+</protocol>
