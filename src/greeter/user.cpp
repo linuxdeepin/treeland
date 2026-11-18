@@ -14,6 +14,7 @@ struct UserPrivate
     bool noPasswdLogin{ false };
     quint64 uid{ 0 };
     quint64 gid{ 0 };
+    qint64 createdTime{ 0 };
     QString userName;
     QString fullName;
     QString homeDir;
@@ -60,6 +61,9 @@ User::User(AccountsUserPtr ptr)
     });
 
     d->updateUserData();
+    const auto createdTime = d->inter->createdTime();
+    if (createdTime.isValid())
+        d->createdTime = qMax<qint64>(0, createdTime.toSecsSinceEpoch());
 }
 
 User::User(const QString &userName, uid_t uid, gid_t gid,
@@ -98,6 +102,11 @@ QString User::identity() const noexcept
 quint64 User::UID() const noexcept
 {
     return d->uid;
+}
+
+qint64 User::createdTime() const noexcept
+{
+    return d->createdTime;
 }
 
 quint64 User::GID() const noexcept
@@ -162,6 +171,8 @@ void User::merge(const User &other)
         return;
     }
 
+    if (other.d->createdTime != 0)
+        d->createdTime = other.d->createdTime;
     d->icon = other.d->icon;
     d->passwordHint = other.d->passwordHint;
     d->locale = other.d->locale;

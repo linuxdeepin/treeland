@@ -151,6 +151,13 @@ bool UserModel::addUser(UserPtr user)
             existing = getUser(user->UID());
         }
         if (existing) {
+            if (user->createdTime() != 0 && user->createdTime() != existing->createdTime()) {
+                beginResetModel();
+                existing->merge(*user);
+                sortUsers();
+                endResetModel();
+                return false;
+            }
             const int row = static_cast<int>(d->users.indexOf(existing));
             existing->merge(*user);
             Q_EMIT dataChanged(index(row), index(row));
@@ -160,13 +167,22 @@ bool UserModel::addUser(UserPtr user)
 
     beginResetModel();
     d->users.emplace_back(std::move(user));
-    std::sort(d->users.begin(), d->users.end(), [](const UserPtr &u1, const UserPtr &u2) {
-        return u1->userName() < u2->userName();
-    });
+    sortUsers();
     endResetModel();
 
     Q_EMIT countChanged();
     return true;
+}
+
+void UserModel::sortUsers()
+{
+    std::sort(d->users.begin(), d->users.end(), [](const UserPtr &u1, const UserPtr &u2) {
+        const auto t1 = u1->createdTime();
+        const auto t2 = u2->createdTime();
+        if (t1 == 0 || t2 == 0)
+            return t1 != 0;
+        return t1 < t2;
+    });
 }
 
 void UserModel::updateUserLoginState(const QString &username, bool loggedIn)
