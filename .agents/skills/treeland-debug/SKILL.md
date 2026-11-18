@@ -98,7 +98,7 @@ dde-dconfig -u <uid> set -a org.deepin.dde.treeland -r org.deepin.dde.treeland -
 切换 `remoteDebug` **立即生效** —— remote source 会在运行时被创建或销毁，无需重启（合成器运行时监听 `remoteDebugChanged`）。`treeland-debug` 连接的是构建类型对应的调试 socket（见上面的 socket 命名），remote object 名为 `WindowTree`。
 
 ## treeland-debug CLI
-`treeland-debug` 是 adb 风格的检查/控制工具。Release 构建中它会通过 polkit 自动提权；Debug 构建不改变现有连接候选顺序，只把 `/tmp/treeland-debug-<uid>` 放在优先位置，并保留 Release socket 回退。`--json` 为 `tree`/`cursor`/`windows`/`clients`/`idle` 提供机器可读输出。
+`treeland-debug` 是 adb 风格的检查/控制工具。Release 构建中它会通过 polkit 自动提权；Debug 构建不改变现有连接候选顺序，只把 `/tmp/treeland-debug-<uid>` 放在优先位置，并保留 Release socket 回退。`--json` 为所有检查命令（`tree`/`cursor`/`windows`/`window`/`clients`/`idle`/`shortcuts`）提供机器可读输出，内容与 `listen` 的 HTTP/MCP 接口一致。列表视图一窗一行、几何用 x11 的 `WxH+X+Y`；`window <id>` 是 xwininfo 风格的 `Key: value` 完整信息（含 shell 类型、SSD 矩形、region）。
 
 全局选项：`--url <url>`（优先级最低的是自动探测；Debug 构建先探测 `/tmp/treeland-debug-<uid>`，再走原有系统与 runtime 目录及 Release fallback）、`--name <name>`（默认 `WindowTree`）、`--timeout-ms <n>`（默认 30000）、`--json`、`--preview` / `--no-preview`。socket 选择顺序：`--url` → `$TREELAND_DEBUG_SOCKET` → 自动探测。`TREELAND_DEBUG_SOCKET` 取 socket 路径或裸名（等价 `local:<值>`），带 scheme 的值原样使用。
 
@@ -192,7 +192,7 @@ sudo journalctl -u treeland.service -f
 4. 与日志交叉验证：`QT_LOGGING_RULES='treeland.surface.debug=true;treeland.workspace.debug=true'`。
 
 **焦点 / 激活不对：**
-1. `treeland-debug --json windows` —— 检查 `active` 标记；`treeland-debug cursor` 看指针位置。光标下的对象没有 CLI 子命令（`cursor-window`/`focused` 只暴露在 HTTP/WS）：`treeland-debug listen --host 127.0.0.1` 后 `curl -s 127.0.0.1:8080/api/cursor-window`、`curl -s 127.0.0.1:8080/api/focused`。
+1. `treeland-debug --json windows` —— 检查 `active` 标记；`treeland-debug cursor` 的 `window:` 字段即光标下的窗口（`focused` 只暴露在 HTTP/WS）：`treeland-debug listen --host 127.0.0.1` 后 `curl -s 127.0.0.1:8080/api/focused`。
 2. `treeland-debug activate <id|appId>` 后复查。
 3. 相关分类：`treeland.seat`、`treeland.popup.focus`、`treeland.activation`。
 
