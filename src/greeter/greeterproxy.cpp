@@ -627,7 +627,6 @@ void GreeterProxy::readyRead()
             qCInfo(lcTlGreeter) << "switch to greeter";
             lock();
         } break;
-#ifndef DDM_VERSION_LT_0_3_8
         case DaemonMessages::ShowGreeter: {
             if (!input.commitTransaction())
                 return;
@@ -637,7 +636,6 @@ void GreeterProxy::readyRead()
             // matching the previous startup behavior of showLockScreen().
             WaylandServer::instance()->showLockScreen(false);
         } break;
-#endif
         case DaemonMessages::UserActivateMessage: {
             QString user;
             QString sessionId;
