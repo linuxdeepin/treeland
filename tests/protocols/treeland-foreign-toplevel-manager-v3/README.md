@@ -16,7 +16,6 @@
 | 最大化 | 对 handle 发 `set_maximized`、`unset_maximized` | 同一真实 `SurfaceWrapper` 进入、退出 `Maximized` 状态 |
 | 全屏 | 对 handle 发 `set_fullscreen(NULL)`、`unset_fullscreen` | 同一真实 `SurfaceWrapper` 进入、退出 `Fullscreen` 状态 |
 | 布局与最小化正交 | `set_maximized`/`set_fullscreen` 后发 `set_minimized`、`unset_minimized`，再 `unset_maximized`/`unset_fullscreen` | 最小化期间 `SurfaceWrapper::surfaceState()` 保持布局状态且窗口不可见；恢复后仍为该布局状态并重新可见；取消布局状态后回到 `Normal` 且不再最小化 |
-| 动画在途重定向 | 最大化后不等动画结束发 `unset_maximized`；稳定最大化后连续发 `set_fullscreen`、`unset_fullscreen`、`set_maximized` | 动画进行中的状态请求被正确重定向或取消：前者最终回到 `Normal`，后者保持 `Maximized`；compositor 不因“目标 == 已生效状态”的退化动画触发断言而崩溃 |
 | 激活 | 对 handle 发 `activate(wl_seat)` | `WaylandServer` 将 wrapper 设为 activated，且它成为该 seat 的真实 keyboard focus surface |
 | 窗口代表区域 | 对 handle 的 mapped xdg `wl_surface` 发 `set_icon_geometry(11,12,130,140)` | production rectangle handler 将局部坐标换算为 wrapper 的 `iconGeometry`：`wrapper.position + QRect(11,12,130,140)` |
 
@@ -29,11 +28,11 @@ wrapper 已 mapped、已加入 `Workspace`，且 manager 的 `toplevel` 事件�
 manager 发出 `requestDockPreview`，fixture 读取到绝对坐标 `(10,20)`、`BOTTOM` 和
 一个真实 `WSurface`。
 
-状态转换保留生产 `SurfaceWrapper` 的几何动画语义。desktop fixture 仅把
-`WaylandServer::setAnimationSpeed()` 设为 `0.1f`，缩短而不跳过动画；每次状态请求先 render 一帧，
-若 animation 仍在运行，则连接对应 geometry item 的 `finished()` 信号并等待该信号。这个
-`QEventLoop` 是有明确完成信号的事件握手，不以固定时长的 sleep、`QTimer` 或轮询猜测动画
-是否完成；正常桌面进程的动画速度不受影响。
+状态转换关闭几何动画：desktop fixture 通过 `animationConfig` 关闭 `maximize`/
+`fullscreen`/`restoreWindow` 三个动画开关，使每个状态请求立即落地 `surfaceState`，
+不依赖渲染线程驱动的 `OpacityAnimator`。每次状态请求后 fixture render 一帧以刷新排队的
+场景图状态，再读取 wrapper 状态。这样测试验证的是协议状态转换本身，而不是几何动画的
+插值或收敛时序；正常桌面进程的动画行为不受影响。
 
 同一 context 的 `show_tooltip_surface(surface, 1, 2, LEFT)` 在 surface 还没有提交内容时
 属于客户端违约，服务端不得发出 `requestDockPreviewTooltip`；该 surface 提交内容后再次 show
@@ -51,13 +50,6 @@ compositor 的 `SurfaceWrapper::surfaceState()`，不是 foreign handle 自身�
 必须回到 `Normal`、可见且不再最小化。这覆盖了“全屏→最小化→恢复→取消全屏后卡在最小化”的
 回归路径，而不只是顺序地单独测试各状态。
 
-动画在途重定向：先稳定在 `Maximized`，再发 `set_maximized` 后立刻 `unset_maximized`，
-断言最终回到 `Normal`；以及稳定在 `Maximized` 后连续发 `set_fullscreen`、`unset_fullscreen`、
-`set_maximized`，断言最终保持 `Maximized`。后者曾是崩溃路径：动画在途时“请求已生效状态”
-被放行，建出目标 == 已生效状态的退化动画，其首帧触发致命断言。两个用例都把连续请求排在一个
-`wl_display_roundtrip` 之前，确保服务端在同一批事件内处理完重定向，不受渲染帧或动画定时器
-时序影响。
-
 `activate(wl_seat)` 进入 manager 连接的
 `WaylandServer::forceActivateSurface(wrapper, ..., seat)`，测试读取 wrapper 的 activated 标记和
 root surface container 默认 seat container 的 `keyboardFocusSurface()`，两者都必须指向同一
@@ -71,13 +63,12 @@ mapped wrapper。`set_icon_geometry` 则
 
 已覆盖 handle 的 `set/unset_minimized`、`set/unset_maximized`、
 `set/unset_fullscreen`、`activate`、`set_icon_geometry`、`close`，以及 manager/context 的
-`stop`、`get_dock_preview_context`、`show`、`show_tooltip_surface`、`close`、`destroy`；
-并覆盖布局状态请求在几何动画进行中的重定向与取消。
+`stop`、`get_dock_preview_context`、`show`、`show_tooltip_surface`、`close`、`destroy`。
 
 布局与最小化的组合已覆盖 `Maximized`、`Fullscreen` 两种布局；`Tiling` 没有对应的 foreign
 handle 请求，仍未被组合覆盖。
 
 仍未验证 dock UI 或 preview 的渲染像素；`output_enter` / `output_leave`、title、app-id、pid、
 parent 和 foreign handle 对 state event 的线上内容也尚未逐项断言。`set_fullscreen` 当前传
-`NULL` output，因此未覆盖“指定 `wl_output` 是 fullscreen hint”这一分支。fixture 的
-测试只等待动画的完成事件并读取最终 wrapper 状态，不构成对动画插值或最终帧像素的验证。
+`NULL` output，因此未覆盖“指定 `wl_output` 是 fullscreen hint”这一分支。fixture 关闭了几何
+动画，只读取最终 wrapper 状态，不构成对动画插值或最终帧像素的验证。
