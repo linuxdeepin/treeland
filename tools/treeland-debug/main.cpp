@@ -32,6 +32,7 @@
 #include "debughelpers.h"
 
 #include "debugsession.h"
+#include "debugswitch.h"
 #ifdef TREELAND_DEBUG_LISTEN
 #include "debugserver.h"
 #endif
@@ -133,23 +134,25 @@ void printJson(const QJsonDocument &document)
     QTextStream(stdout) << QString::fromUtf8(document.toJson(QJsonDocument::Indented));
 }
 
-// Extra geometry detail (content vs SSD titlebar/frame) shown for windows
-// that carry server-side decoration info, so the SSD frame and the real
-// content rect can be told apart in the human-readable views.
-QString windowGeometryDetail(const WindowInfo &w)
+// Every human-readable view follows the x11 tools' conventions, so fingers used
+// to xwininfo/xprop/xdotool read them the same way:
+//
+//  * lists (windows, clients, top, shortcuts) are a header row plus exactly one
+//    line per object -- no continuation lines; geometry is "WxH+X+Y";
+//  * one object's detail (`window`, `idle`) is "Key: value" lines with the keys
+//    padded, one field per line (xwininfo);
+//  * nested structure (`tree`, `scene`) keeps tree branches;
+//  * machine output is always --json (and the same JSON the HTTP API returns).
+
+// Pads a field key so the values of a `Key: value` block line up.
+QString fieldLine(const QString &key, const QString &value)
 {
-    const auto content = w.geometry();
-    const auto titlebar = w.titlebarGeometry();
-    const auto frame = w.boundingRect();
-    if (titlebar.isEmpty() && (frame.isEmpty() || frame == content))
-        return {};
-    return QStringLiteral("      content=[%1,%2 %3x%4] titlebar=[%5,%6 %7x%8] frame=[%9,%10 %11x%12]\n")
-        .arg(static_cast<int>(content.x())).arg(static_cast<int>(content.y()))
-        .arg(static_cast<int>(content.width())).arg(static_cast<int>(content.height()))
-        .arg(static_cast<int>(titlebar.x())).arg(static_cast<int>(titlebar.y()))
-        .arg(static_cast<int>(titlebar.width())).arg(static_cast<int>(titlebar.height()))
-        .arg(static_cast<int>(frame.x())).arg(static_cast<int>(frame.y()))
-        .arg(static_cast<int>(frame.width())).arg(static_cast<int>(frame.height()));
+    return QStringLiteral("  %1 %2\n").arg((key + QLatin1Char(':')).leftJustified(21), value);
+}
+
+QString yesNo(bool value)
+{
+    return value ? QStringLiteral("yes") : QStringLiteral("no");
 }
 
 // Outputs a window is drawn on, for the one-line views; '+' marks the output
@@ -160,87 +163,178 @@ QString windowOutputsLabel(const WindowInfo &window)
     return outputsLabel(window.outputs(), window.framePacingOutput(), window.output());
 }
 
-// Input and opaque regions are sets of surface-local boxes, and a client can
-// hand the compositor a region with thousands of them, so only the first few
-// are printed and the remainder is summarised as a count.
-QString windowRegionDetail(const WindowInfo &w)
+// Column widths shared by every window table's header and rows, so the two
+// cannot drift apart; kGap is the separator between two columns and is part of
+// each cell's padded width, so header and rows only ever add widths.  The
+// `shortcuts` widths below are already whole column widths, separator included.
+constexpr int kGap = 2;
+constexpr int kIdWidth = 16;
+constexpr int kTypeWidth = 13;
+constexpr int kAppIdWidth = 22;
+constexpr int kStateWidth = 10;
+constexpr int kActiveWidth = 6;
+constexpr int kMinWidth = 5;
+constexpr int kOutputWidth = 16;
+constexpr int kGeometryWidth = 18;
+
+// `top`'s per-interval frame delta column, right-aligned because it is a number.
+constexpr int kFramesWidth = 7;
+
+// `shortcuts` columns.
+constexpr int kShortcutNameWidth = 28;
+constexpr int kShortcutTriggerWidth = 24;
+constexpr int kShortcutActionWidth = 28;
+
+void printWindowHeader(QTextStream &out, const QString &indent)
 {
-    return QStringLiteral("      input-region=%1  opaque-region=%2\n")
-        .arg(formatRegion(w.inputRegion()), formatRegion(w.opaqueRegion()));
+    // Same widths (separator included) as printWindowRows(), so the columns
+    // cannot drift apart.
+    out << indent << QStringLiteral("ID").leftJustified(kIdWidth)
+        << QStringLiteral("TYPE").leftJustified(kTypeWidth + kGap)
+        << QStringLiteral("APP-ID").leftJustified(kAppIdWidth + kGap)
+        << QStringLiteral("STATE").leftJustified(kStateWidth + kGap)
+        << QStringLiteral("ACTIVE").leftJustified(kActiveWidth + kGap)
+        << QStringLiteral("MIN").leftJustified(kMinWidth + kGap)
+        << QStringLiteral("OUTPUT").leftJustified(kOutputWidth + kGap)
+        << QStringLiteral("GEOMETRY").leftJustified(kGeometryWidth + kGap)
+        << "TITLE\n";
+}
+
+// One line per window, nothing else: a list stays greppable. Everything else
+// about a window (regions, SSD rects, workspace, z) lives in `window <id>`.
+void printWindowRows(QTextStream &out, const QList<WindowInfo> &windows, const QString &indent)
+{
+    for (const auto &window : windows) {
+        out << indent
+            << QString::number(window.id()).leftJustified(kIdWidth)
+            << shellTypeName(window.type()).leftJustified(kTypeWidth + kGap)
+            << window.appId().leftJustified(kAppIdWidth + kGap)
+            << stateName(window.state()).leftJustified(kStateWidth + kGap)
+            << yesNo(window.active()).leftJustified(kActiveWidth + kGap)
+            << yesNo(window.minimized()).leftJustified(kMinWidth + kGap)
+            << windowOutputsLabel(window).leftJustified(kOutputWidth + kGap)
+            << formatGeometry(window.geometry()).leftJustified(kGeometryWidth + kGap)
+            << window.title() << '\n';
+    }
 }
 
 void printWindowsTable(const QList<WindowInfo> &windows)
 {
     QTextStream out(stdout);
-    out << QStringLiteral("ID              APP-ID                STATE        ACTIVE  MIN  OUTPUT   GEOMETRY              TITLE\n");
-    out << QStringLiteral("  (OUTPUT: every output the window is on; '+' = its framePacingOutput)\n");
-    for (const auto &window : windows) {
-        const auto g = window.geometry();
-        const QString line = QStringLiteral("%1  %2  %3  %4  %5  %6  %7,%8 %9x%10  %11")
-            .arg(QString::number(window.id()).leftJustified(16))
-            .arg(window.appId().leftJustified(22))
-            .arg(stateName(window.state()).leftJustified(12))
-            .arg(window.active() ? QStringLiteral("yes") : QStringLiteral("no"))
-            .arg((window.minimized() ? QStringLiteral("yes") : QStringLiteral("no")).leftJustified(5))
-            .arg(windowOutputsLabel(window).leftJustified(8))
-            .arg(static_cast<int>(g.x()))
-            .arg(static_cast<int>(g.y()))
-            .arg(static_cast<int>(g.width()))
-            .arg(static_cast<int>(g.height()))
-            .arg(window.title());
-        out << line << Qt::endl;
-        out << windowGeometryDetail(window);
-        out << windowRegionDetail(window);
+    printWindowHeader(out, QString());
+    printWindowRows(out, windows, QString());
+    // Last, so the table itself stays a contiguous block that head/tail cut
+    // cleanly; the legend explains the two shorthands it uses.
+    out << QStringLiteral("  (TYPE = shell surface type; '+' in OUTPUT marks the frame-pacing "
+                          "output;\n   GEOMETRY is WxH+X+Y; `treeland-debug window <id>` shows one "
+                          "window in full)\n");
+}
+
+// xwininfo-style detail view of a single window: `Key: value` lines, one field
+// per line. Empty fields are omitted rather than printed blank.
+void printWindowDetail(const WindowInfo &w)
+{
+    QTextStream out(stdout);
+    out << QStringLiteral("Window id: %1%2\n")
+               .arg(w.id())
+               .arg(w.title().isEmpty() ? QString()
+                                        : QStringLiteral(" \"%1\"").arg(w.title()));
+    out << fieldLine(QStringLiteral("App ID"),
+                     w.appId().isEmpty() ? QStringLiteral("(none)") : w.appId());
+    out << fieldLine(QStringLiteral("Shell type"), shellTypeName(w.type()));
+    if (!w.container().isEmpty())
+        out << fieldLine(QStringLiteral("Container"), w.container());
+    out << fieldLine(QStringLiteral("Layer"),
+                     QStringLiteral("%1  Z: %2").arg(w.layer()).arg(w.z()));
+    out << fieldLine(QStringLiteral("Workspace"), QString::number(w.workspace()));
+    out << fieldLine(QStringLiteral("State"), stateName(w.state()));
+    out << fieldLine(QStringLiteral("Visible"), yesNo(w.visible()));
+    out << fieldLine(QStringLiteral("Active"), yesNo(w.active()));
+    out << fieldLine(QStringLiteral("Minimized"), yesNo(w.minimized()));
+    out << fieldLine(QStringLiteral("Output"),
+                     w.output().isEmpty() ? QStringLiteral("(none)") : w.output());
+    // Every output, unmarked: "Frame pacing" is a field of its own here, so the
+    // tables' '+' legend does not apply.
+    out << fieldLine(QStringLiteral("Outputs"),
+                     w.outputs().isEmpty() ? QStringLiteral("(none)")
+                                           : w.outputs().join(QLatin1Char(',')));
+    out << fieldLine(QStringLiteral("Frame pacing"),
+                     w.framePacingOutput().isEmpty() ? QStringLiteral("(none)")
+                                                     : w.framePacingOutput());
+    out << fieldLine(QStringLiteral("Geometry"), formatGeometry(w.geometry()));
+    out << fieldLine(QStringLiteral("Position"),
+                     QStringLiteral("%1,%2").arg(w.position().x()).arg(w.position().y()));
+    if (!w.boundingRect().isEmpty())
+        out << fieldLine(QStringLiteral("Bounding rect"), formatGeometry(w.boundingRect()));
+    if (!w.titlebarGeometry().isEmpty())
+        out << fieldLine(QStringLiteral("Titlebar"), formatGeometry(w.titlebarGeometry()));
+    if (!w.iconGeometry().isEmpty())
+        out << fieldLine(QStringLiteral("Icon"), formatGeometry(w.iconGeometry()));
+    out << fieldLine(QStringLiteral("Frames"), QString::number(w.frames()));
+    if (!w.damage().isEmpty())
+        out << fieldLine(QStringLiteral("Damage"), formatGeometry(w.damage()));
+    out << fieldLine(QStringLiteral("Input region"), formatRegion(w.inputRegion()));
+    out << fieldLine(QStringLiteral("Opaque region"), formatRegion(w.opaqueRegion()));
+    // Why the window is on no output at all -- the question this view exists
+    // for. Empty means "nothing recorded", so those lines are omitted.
+    if (!w.lastLeaveOutput().isEmpty()) {
+        out << fieldLine(QStringLiteral("Last leave"),
+                         QStringLiteral("%1 (enabled: %2, emptied outputs: %3)")
+                             .arg(w.lastLeaveOutput(), yesNo(w.lastLeaveOutputEnabled()),
+                                  yesNo(w.lastLeaveEmptiedOutputs())));
     }
+    if (!w.lastOutputsUpdateReason().isEmpty()) {
+        out << fieldLine(QStringLiteral("Last outputs update"),
+                         QStringLiteral("%1 (enabled: %2/%3, computed: %4, automatic: %5)")
+                             .arg(w.lastOutputsUpdateReason())
+                             .arg(w.lastOutputsUpdateEnabled())
+                             .arg(w.lastOutputsUpdateTotal())
+                             .arg(w.lastOutputsUpdateComputed())
+                             .arg(yesNo(w.lastOutputsUpdateAutomatic())));
+    }
+    // Last line, like xwininfo: a single token to copy into a bug report.
+    out << "-geometry " << formatGeometry(w.geometry()) << Qt::endl;
 }
 
 void printClientsTable(const QList<ClientInfo> &clients)
 {
     QTextStream out(stdout);
+    if (clients.isEmpty())
+        out << "No connected clients.\n";
     for (const auto &client : clients) {
-        out << QStringLiteral("client pid=%1 id=0x%2 %3  (windows: %4)\n")
-                .arg(client.pid())
-                .arg(client.id(), 0, 16)
-                .arg(client.appId().isEmpty() ? QString() : QStringLiteral("%1 ").arg(client.appId()))
-                .arg(client.windows().size());
-        out << QStringLiteral("  exe: %1\n").arg(client.executable().isEmpty() ? QStringLiteral("(unknown)") : client.executable());
+        out << QStringLiteral("client 0x%1  pid=%2%3  windows=%4\n")
+                   .arg(client.id(), 0, 16)
+                   .arg(client.pid())
+                   .arg(client.appId().isEmpty() ? QString()
+                                                 : QStringLiteral("  appId=%1").arg(client.appId()))
+                   .arg(client.windows().size());
+        out << QStringLiteral("  exe: %1\n")
+                   .arg(client.executable().isEmpty() ? QStringLiteral("(unknown)")
+                                                      : client.executable());
         if (!client.command().isEmpty())
             out << QStringLiteral("  cmd: %1\n").arg(client.command());
-        for (const auto &window : client.windows()) {
-            const auto g = window.geometry();
-            out << QStringLiteral("  %1%2  id=%3  %4  %5,%6 %7x%8  [%9]%10\n")
-                    .arg(window.active() ? QStringLiteral("*") : QStringLiteral(" "))
-                    .arg(window.appId().leftJustified(24))
-                    .arg(window.id())
-                    .arg(stateName(window.state()))
-                    .arg(static_cast<int>(g.x()))
-                    .arg(static_cast<int>(g.y()))
-                    .arg(static_cast<int>(g.width()))
-                    .arg(static_cast<int>(g.height()))
-                    .arg(windowOutputsLabel(window))
-                    .arg(window.minimized() ? QStringLiteral("  (minimized)") : QString());
-            out << windowGeometryDetail(window);
-            out << windowRegionDetail(window);
-        }
-        out << Qt::endl;
+        printWindowHeader(out, QStringLiteral("  "));
+        printWindowRows(out, client.windows(), QStringLiteral("  "));
+        out << '\n';
     }
 }
 
+// `idle` is a `Key: value` block like `window`, followed by one line per
+// inhibitor (the list part), so it follows the same two conventions.
 void printIdle(const IdleInfo &info)
 {
     QTextStream out(stdout);
     const auto inhibitors = info.inhibitors();
 
-    out << "idle: " << formatDuration(info.idleMs()) << " since last input"
-        << "  inhibited: " << (info.inhibited() ? "yes" : "no")
-        << "  screensaver inhibit: " << (info.screensaverInhibited() ? "yes" : "no") << "\n";
+    out << fieldLine(QStringLiteral("Idle"),
+                     QStringLiteral("%1 since last input").arg(formatDuration(info.idleMs())));
+    out << fieldLine(QStringLiteral("Inhibited"), yesNo(info.inhibited()));
+    out << fieldLine(QStringLiteral("Screensaver"), yesNo(info.screensaverInhibited()));
+    out << fieldLine(QStringLiteral("Inhibitors"), QString::number(inhibitors.size()));
 
-    if (inhibitors.isEmpty()) {
-        out << "inhibitors: none\n";
+    if (inhibitors.isEmpty())
         return;
-    }
 
-    out << "inhibitors (" << inhibitors.size() << "):\n";
     for (const auto &inhibitor : inhibitors) {
         out << "  [" << inhibitor.kind() << "]"
             << " pid=" << inhibitor.pid()
@@ -278,6 +372,11 @@ void printShortcutsTable(const QList<ShortcutInfo> &shortcuts)
         out << "No shortcuts registered.\n";
         return;
     }
+    // A list, so it starts with a header row like the window tables.
+    out << QStringLiteral("NAME").leftJustified(kShortcutNameWidth)
+        << QStringLiteral("TRIGGER").leftJustified(kShortcutTriggerWidth)
+        << QStringLiteral("ACTION").leftJustified(kShortcutActionWidth)
+        << "FLAGS\n";
     for (const auto &shortcut : shortcuts) {
         QString binding;
         switch (shortcut.type()) {
@@ -293,19 +392,39 @@ void printShortcutsTable(const QList<ShortcutInfo> &shortcuts)
             binding = QStringLiteral("hold %1-finger").arg(shortcut.fingers());
             break;
         }
-        const QString flags = shortcut.type() == 0
-            ? QStringLiteral("  [%1]").arg(shortcutFlagsText(shortcut.flags()))
-            : QString();
-        out << shortcut.name().leftJustified(28) << binding.leftJustified(22) << "-> "
-            << shortcut.action() << flags << "\n";
-
+        out << shortcut.name().leftJustified(kShortcutNameWidth)
+            << binding.leftJustified(kShortcutTriggerWidth)
+            << shortcut.action().leftJustified(kShortcutActionWidth)
+            // Flags are a key-binding concept; a gesture row leaves the column
+            // empty rather than inventing one.
+            << (shortcut.type() == 0 ? shortcutFlagsText(shortcut.flags()) : QString()) << '\n';
     }
+}
+
+// One window of the layout tree: the same fields as a table row, plus the
+// active marker, laid out after the tree's branch characters.
+QString treeWindowLine(const WindowInfo &w)
+{
+    // Wider than the table's STATE column: the tree marks a minimized window
+    // with a suffix instead of a column of its own.
+    constexpr int kTreeStateWidth = 14;
+    return QStringLiteral("%1%2  %3  %4  %5  %6  [%7]%8")
+        .arg(w.active() ? QStringLiteral("* ") : QStringLiteral("  "),
+             QString::number(w.id()).leftJustified(kIdWidth),
+             shellTypeName(w.type()).leftJustified(kTypeWidth),
+             w.appId().leftJustified(kAppIdWidth),
+             (stateName(w.state()) + (w.minimized() ? QStringLiteral("+Min") : QString()))
+                 .leftJustified(kTreeStateWidth),
+             formatGeometry(w.geometry()).leftJustified(kGeometryWidth),
+             windowOutputsLabel(w),
+             w.title().isEmpty() ? QString() : QStringLiteral("  ") + w.title());
 }
 
 void printTree(const TreelandInfo &info)
 {
     QTextStream out(stdout);
     out << "Mode: " << info.currentMode() << "\n";
+    out << "  (per window: active id type app-id state geometry [outputs] title)\n";
     const auto layers = info.layers();
     for (int li = 0; li < layers.size(); ++li) {
         const auto &layer = layers[li];
@@ -326,18 +445,8 @@ void printTree(const TreelandInfo &info)
                     out << wsBranch << "   └─  (no windows)\n";
                 } else {
                     for (int i = 0; i < windows.size(); ++i) {
-                        const auto &w = windows[i];
-                        const auto g = w.geometry();
                         const QString conn = (i == windows.size() - 1) ? QStringLiteral("└─ ") : QStringLiteral("├─ ");
-                        out << wsBranch << "   " << conn
-                            << (w.active() ? QStringLiteral("* ") : QStringLiteral("  "))
-                            << w.appId() << "  id=" << w.id() << "  "
-                            << stateName(w.state())
-                            << (w.minimized() ? QStringLiteral("+Min") : QString()) << "  "
-                            << static_cast<int>(g.x()) << "," << static_cast<int>(g.y()) << " "
-                            << static_cast<int>(g.width()) << "x" << static_cast<int>(g.height())
-                            << "  [" << windowOutputsLabel(w) << "]"
-                            << (w.title().isEmpty() ? "" : "  " + w.title()) << "\n";
+                        out << wsBranch << "   " << conn << treeWindowLine(windows[i]) << "\n";
                     }
                 }
             }
@@ -345,19 +454,9 @@ void printTree(const TreelandInfo &info)
         // Print standalone windows on this layer (no workspace grouping).
         const auto windows = layer.windows();
         for (int i = 0; i < windows.size(); ++i) {
-            const auto &w = windows[i];
-            const auto g = w.geometry();
             const QString branch2 = (li == layers.size() - 1) ? QStringLiteral("   ") : QStringLiteral("│  ");
             const QString conn = (i == windows.size() - 1) ? QStringLiteral("└─ ") : QStringLiteral("├─ ");
-            out << branch2 << conn
-                << (w.active() ? QStringLiteral("* ") : QStringLiteral("  "))
-                << w.appId() << "  id=" << w.id() << "  "
-                << stateName(w.state())
-                << (w.minimized() ? QStringLiteral("+Min") : QString()) << "  "
-                << static_cast<int>(g.x()) << "," << static_cast<int>(g.y()) << " "
-                << static_cast<int>(g.width()) << "x" << static_cast<int>(g.height())
-                << "  [" << windowOutputsLabel(w) << "]"
-                << (w.title().isEmpty() ? "" : "  " + w.title()) << "\n";
+            out << branch2 << conn << treeWindowLine(windows[i]) << "\n";
         }
     }
 }
@@ -420,16 +519,25 @@ QString helpText()
         "  --url <url>          Remote object host URL (default: $TREELAND_DEBUG_SOCKET,\n"
         "                       else the build-specific socket found by probing)\n"        "  --name <name>        Remote object name (default: WindowTree)\n"
         "  --timeout-ms <n>     Request timeout in milliseconds (default: 30000)\n"
-        "  --json               Emit machine-readable JSON for `tree`/`cursor`/`windows`/`clients`/`idle`/`shortcuts`\n"
+        "  --json               Emit machine-readable JSON for every inspection command\n"
+        "                       (the same JSON the `listen` API returns)\n"
         "  --preview            Force inline image preview in terminal (auto-detected by default)\n"
         "  --no-preview         Disable inline image preview\n"
         "  --no-escalate        Do not attempt polkit privilege escalation; report the\n"
         "                       requirement instead (scripts, CI)\n"
         "\n"
+        "Output conventions (the same as the x11 tools, in one command):\n"
+        "  lists are a header row plus one line per window; geometry is WxH+X+Y as in\n"
+        "  `xwininfo -geometry`/`xdotool getwindowgeometry`; `window <id>` is a\n"
+        "  `Key: value` block like `xwininfo -id`; --json (and the `listen` API) is\n"
+        "  the machine-readable form of the same data.\n"
+        "\n"
         "Inspection:\n"
         "  tree                       Print the complete window tree (human-readable, use --json for JSON)\n"
-        "  cursor                     Print the cursor position (human-readable, use --json for JSON)\n"
-        "  windows                    List all toplevel windows (use --json for JSON)\n"
+        "  cursor                     Print the cursor position, xdotool-style (x:N y:N window:N,\n"
+        "                             window 0 = none under the cursor)\n"
+        "  windows                    List all toplevel windows, with their shell type\n"
+        "  window <id|appId>          Show one window in full (regions, SSD rects, frames, ...)\n"
         "  clients                    List connected Wayland clients and their windows\n"
         "  idle                       Show the idle state (time since last input) and who holds idle off\n"
         "  shortcuts                  List registered key shortcuts and gestures\n"
@@ -463,8 +571,10 @@ QString helpText()
 #ifdef TREELAND_DEBUG_LISTEN
         "Server:\n"
         "  listen [--port <port>] [--host <addr>]   Start HTTP/WebSocket server (default 0.0.0.0:8080)\n"
-        "                             All CLI commands available via HTTP and WebSocket.\n"
-        "                             Screenshots return raw bytes instead of saving to disk.\n"
+        "                             Every CLI capability is available as JSON over HTTP,\n"
+        "                             WebSocket and MCP; screenshots return raw PNG bytes.\n"
+        "                             `debug` writes without escalating: a switch that needs\n"
+        "                             root is reported as an error instead of prompting.\n"
         "\n"
 #endif
         "Access:\n"
@@ -491,95 +601,12 @@ QString helpText()
         "the `tree` and `cursor` commands.\n");
 }
 
-// uids of every running treeland, deduplicated and sorted.  Read through /proc,
-// which needs no privileges: the answer is the same before and after a polkit
-// escalation, so the elevated copy writes the key of the instance the caller
-// meant.
-QList<uid_t> compositorUids()
-{
-    QList<uid_t> uids;
-    const QDir proc(QStringLiteral("/proc"));
-    const QStringList entries = proc.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-    for (const QString &entry : entries) {
-        bool isPid = false;
-        entry.toUInt(&isPid);
-        if (!isPid)
-            continue;
-        const QString dir = proc.filePath(entry);
-        QFile comm(dir + QStringLiteral("/comm"));
-        if (!comm.open(QIODevice::ReadOnly) || comm.readAll().trimmed() != QByteArrayLiteral("treeland"))
-            continue;
-        struct stat st {};
-        if (::stat(QFile::encodeName(dir).constData(), &st) != 0)
-            continue;
-        const uid_t uid = static_cast<uid_t>(st.st_uid);
-        if (!uids.contains(uid))
-            uids.append(uid);
-    }
-    std::sort(uids.begin(), uids.end());
-    return uids;
-}
-
-QString userName(uid_t uid)
-{
-    if (const struct passwd *pw = ::getpwuid(uid))
-        return QString::fromLocal8Bit(pw->pw_name);
-    return QString::number(uid);
-}
-
-// Runs `dde-dconfig`, the DTK CLI for the config manager on the system bus.
-// `-u <uid>` names the user whose app-scoped keys are meant, which is how root
-// writes another user's switch.  Returns false only when the process could not
-// be run at all: the tool reports refusals as text and still exits 0, so every
-// caller judges the result by the value it reads back.
-bool runDConfig(const QStringList &args, QString *out, QString *err)
-{
-    const QString exe = QStandardPaths::findExecutable(QStringLiteral("dde-dconfig"));
-    if (exe.isEmpty()) {
-        *err = QStringLiteral("dde-dconfig was not found — install the dde-dconfig package");
-        return false;
-    }
-    QProcess process;
-    process.start(exe, args);
-    if (!process.waitForStarted(5000)) {
-        *err = process.errorString();
-        return false;
-    }
-    if (!process.waitForFinished(30000)) {
-        process.kill();
-        process.waitForFinished();
-        *err = QStringLiteral("dde-dconfig did not answer");
-        return false;
-    }
-    *out = QString::fromLocal8Bit(process.readAllStandardOutput()).trimmed();
-    *err = QString::fromLocal8Bit(process.readAllStandardError()).trimmed();
-    return true;
-}
-
-QStringList remoteDebugArgs(uid_t uid, const QString &action)
-{
-    return { QStringLiteral("-u"),
-             QString::number(uid),
-             action,
-             QStringLiteral("-a"),
-             QStringLiteral("org.deepin.dde.treeland"),
-             QStringLiteral("-r"),
-             QStringLiteral("org.deepin.dde.treeland"),
-             QStringLiteral("-k"),
-             QStringLiteral("remoteDebug") };
-}
-
-int failDConfig(const QString &what, const QString &out, const QString &err)
-{
-    const QString detail = (out + QLatin1Char(' ') + err).trimmed();
-    return fail(detail.isEmpty() ? what : what + QStringLiteral(": ") + detail);
-}
-
 // `debug [on|off|status]`: the only command that does not go through the debug
 // socket, because it is what makes a socket exist at all.  The switch is a
 // per-user DConfig key that treeland reads for its own user, so the uid of the
 // running compositor decides which key matters, and another user's key can only
-// be written as root.
+// be written as root.  The key access itself lives in debugswitch.cpp, shared
+// with the `listen` HTTP API.
 int runDebugSwitch(const QStringList &args, const QStringList &selfArgs, bool noEscalate)
 {
     const QString action = args.isEmpty() ? QStringLiteral("status") : args.first().toLower();
@@ -588,26 +615,12 @@ int runDebugSwitch(const QStringList &args, const QStringList &selfArgs, bool no
     if ((!on && !off && action != QLatin1String("status")) || args.size() > 1)
         return fail(QStringLiteral("usage: treeland-debug debug [on|off|status]"));
 
-    // A session instance normally runs as whoever asks and may share the machine
-    // with a global service, so our own uid wins when a compositor has it.
-    const QList<uid_t> uids = compositorUids();
-    const uid_t self = ::geteuid();
-    uid_t uid = self;
-    if (uids.contains(self)) {
-        uid = self;
-    } else if (uids.size() == 1) {
-        uid = uids.first();
-    } else if (uids.size() > 1) {
-        QStringList names;
-        for (const uid_t candidate : uids)
-            names.append(QStringLiteral("%1 (uid %2)").arg(userName(candidate)).arg(candidate));
-        return fail(QStringLiteral("several compositors are running, as %1; the switch is "
-                                   "per user, so write the one you mean with `dde-dconfig -u "
-                                   "<uid> set -a org.deepin.dde.treeland -r "
-                                   "org.deepin.dde.treeland -k remoteDebug -v true|false`")
-                        .arg(names.join(QStringLiteral(", "))));
-    }
+    uid_t uid = ::geteuid();
+    QString error;
+    if (!treelandDebugTargetUid(&uid, &error))
+        return fail(error);
 
+    const uid_t self = ::geteuid();
     // DConfig keeps app-scoped keys per user.  The check is the daemon's own uid
     // comparison (the system bus policy lets every local caller through): a plain
     // user only reaches its own keys, while root may name the target with `-u`,
@@ -617,14 +630,14 @@ int runDebugSwitch(const QStringList &args, const QStringList &selfArgs, bool no
             return fail(QStringLiteral("the compositor runs as %1 (uid %2), so its switch can "
                                        "only be written as that user or as root; remove "
                                        "--no-escalate to escalate via polkit")
-                            .arg(userName(uid))
+                            .arg(treelandUserName(uid))
                             .arg(uid));
         }
         const QString pkexec = QStandardPaths::findExecutable(QStringLiteral("pkexec"));
         if (pkexec.isEmpty()) {
             return fail(QStringLiteral("root privileges are required to write the switch of %1 "
                                        "(uid %2), but pkexec was not found — install polkit")
-                            .arg(userName(uid))
+                            .arg(treelandUserName(uid))
                             .arg(uid));
         }
         QStringList pkArgs;
@@ -632,23 +645,11 @@ int runDebugSwitch(const QStringList &args, const QStringList &selfArgs, bool no
         return QProcess::execute(pkexec, pkArgs);
     }
 
-    QString out;
-    QString err;
-    const QString wanted = on ? QStringLiteral("true") : QStringLiteral("false");
-    if (on || off) {
-        QStringList setArgs = remoteDebugArgs(uid, QStringLiteral("set"));
-        setArgs.append({ QStringLiteral("-v"), wanted });
-        if (!runDConfig(setArgs, &out, &err))
-            return failDConfig(QStringLiteral("cannot run dde-dconfig"), out, err);
-    }
-    if (!runDConfig(remoteDebugArgs(uid, QStringLiteral("get")), &out, &err))
-        return failDConfig(QStringLiteral("cannot run dde-dconfig"), out, err);
-    if (out != QLatin1String("true") && out != QLatin1String("false"))
-        return failDConfig(QStringLiteral("remoteDebug is unreadable"), out, err);
-    if ((on || off) && out != wanted)
-        return failDConfig(QStringLiteral("the switch did not change"), out, err);
+    bool enabled = false;
+    const int want = on ? 1 : (off ? 0 : -1);
+    if (!treelandRemoteDebugSwitch(uid, want, &enabled, &error))
+        return fail(error);
 
-    const bool enabled = out == QLatin1String("true");
     if (on)
         QTextStream(stdout) << "remoteDebug is on; treeland publishes its debug socket now\n";
     else if (off)
@@ -656,7 +657,7 @@ int runDebugSwitch(const QStringList &args, const QStringList &selfArgs, bool no
     else
         QTextStream(stdout) << "remoteDebug is " << (enabled ? "on" : "off") << " (uid " << uid
                             << ")\n";
-    if (uids.isEmpty())
+    if (treelandCompositorUids().isEmpty())
         QTextStream(stderr) << "treeland-debug: no treeland is running; the switch takes effect "
                                "when it starts\n";
     return EXIT_SUCCESS;
@@ -670,21 +671,16 @@ int runDebugSwitch(const QStringList &args, const QStringList &selfArgs, bool no
 // root, which the escalation then provides).
 QString remoteDebugOffHint()
 {
-    const QList<uid_t> uids = compositorUids();
-    const uid_t self = ::geteuid();
-    uid_t uid = self;
-    if (!uids.contains(self)) {
-        if (uids.size() != 1)
-            return {};
-        uid = uids.first();
-    }
-    if (uid != self && self != 0)
+    uid_t uid = ::geteuid();
+    QString error;
+    if (!treelandDebugTargetUid(&uid, &error))
         return {};
-    QString out;
-    QString err;
-    if (!runDConfig(remoteDebugArgs(uid, QStringLiteral("get")), &out, &err))
+    if (uid != ::geteuid() && ::geteuid() != 0)
         return {};
-    if (out != QLatin1String("false"))
+    bool enabled = false;
+    if (!treelandRemoteDebugSwitch(uid, -1, &enabled, &error))
+        return {};
+    if (enabled)
         return {};
     return QStringLiteral("treeland's `remoteDebug` switch is off, so it publishes no debug "
                           "socket; turn it on with `treeland-debug debug on`");
@@ -1224,11 +1220,37 @@ static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt
         return EXIT_SUCCESS;
     }
     case DebugCommand::Cursor: {
-        QPointF pos = replica->cursorPosition();
+        const QPointF pos = replica->cursorPosition();
+        // 0 means "no window under the cursor", exactly like `xdotool
+        // getmouselocation`; an unanswered query leaves it at 0 too rather than
+        // hiding the field, so the output shape never changes.
+        qint64 cursorWindow = 0;
+        waitSlot(replica->windowUnderCursor(), timeoutMs, &cursorWindow);
+        if (json) {
+            QJsonObject obj = pointToJson(pos);
+            obj.insert(QStringLiteral("window"), cursorWindow);
+            printJson(QJsonDocument(obj));
+            return EXIT_SUCCESS;
+        }
+        // xdotool getmouselocation layout: the fields are already labelled for
+        // whoever is reading, quotes or not.
+        QTextStream out(stdout);
+        out << "x:" << pos.x() << " y:" << pos.y() << " window:" << cursorWindow << Qt::endl;
+        return EXIT_SUCCESS;
+    }
+    case DebugCommand::Window: {
+        WindowInfo window;
+        int matches = 0;
+        if (!lookupWindow(session, timeoutMs, parsed.target, &window, &matches))
+            return fail(QStringLiteral("no window matches '%1'").arg(parsed.target));
+        if (matches > 1) {
+            QTextStream(stderr) << "treeland-debug: " << matches << " windows match '"
+                                << parsed.target << "'; showing id " << window.id() << "\n";
+        }
         if (json)
-            printJson(QJsonDocument(pointToJson(pos)));
+            printJson(QJsonDocument(windowToJson(window)));
         else
-            QTextStream(stdout) << "x=" << pos.x() << " y=" << pos.y() << Qt::endl;
+            printWindowDetail(window);
         return EXIT_SUCCESS;
     }
     case DebugCommand::Windows: {
@@ -1487,8 +1509,8 @@ static int runTop(Session &session, int timeoutMs, int intervalMs)
 
         // Collect all windows with their frame deltas.
         struct WinRow {
-            qint64 id; QString appId; QString title; QString output;
-            int state; QRectF geo; bool active; bool minimized;
+            qint64 id; QString appId; QString title; QString shellType; int state;
+            QRectF geo; bool minimized;
             qint64 frames; QRectF damage;
             int64_t framesDelta;
         };
@@ -1497,8 +1519,8 @@ static int runTop(Session &session, int timeoutMs, int intervalMs)
             for (const auto &w : cl.windows()) {
                 WinRow r;
                 r.id = w.id(); r.appId = w.appId(); r.title = w.title();
-                r.output = w.output(); r.state = w.state(); r.active = w.active();
-                r.minimized = w.minimized();
+                r.shellType = shellTypeName(w.type());
+                r.state = w.state(); r.minimized = w.minimized();
                 r.geo = w.geometry(); r.frames = w.frames(); r.damage = w.damage();
                 const auto prev = prevFrames.value(w.id());
                 r.framesDelta = (prev > 0) ? (w.frames() - prev) : 0;
@@ -1526,23 +1548,32 @@ static int runTop(Session &session, int timeoutMs, int intervalMs)
                 << "  inhibited: " << (idle.inhibited() ? "yes" : "no")
                 << "  sources: " << idle.inhibitors().size() << " (" << active << " active)\n";
         }
-        out << "  ID              APP-ID                STATE       MIN  FRAMES  GEO          MARKER\n";
+        out << "  " << QStringLiteral("ID").leftJustified(kIdWidth)
+            << QStringLiteral("TYPE").leftJustified(kTypeWidth + kGap)
+            << QStringLiteral("APP-ID").leftJustified(kAppIdWidth + kGap)
+            << QStringLiteral("STATE").leftJustified(kStateWidth + kGap)
+            << QStringLiteral("MIN").leftJustified(kMinWidth + kGap)
+            << QStringLiteral("FRAMES").rightJustified(kFramesWidth)
+            << QStringLiteral("  ")
+            << QStringLiteral("GEOMETRY").leftJustified(kGeometryWidth + kGap)
+            << "MARKER\n";
         for (const auto &r : rows) {
             QString marker;
-            if (r.id == focusId) marker = QStringLiteral("F");
-            else if (r.id == cursorId) marker = QStringLiteral("C");
+            if (r.id == focusId) marker = QStringLiteral("F (focus)");
+            else if (r.id == cursorId) marker = QStringLiteral("C (under cursor)");
             else marker = QStringLiteral(" ");
-            out << QStringLiteral("  %1  %2  %3  %4  %5  %6,%7 %8x%9  %10\n")
-                .arg(QString::number(r.id).leftJustified(16))
-                .arg(r.appId.leftJustified(22))
-                .arg(stateName(r.state).leftJustified(12))
-                .arg((r.minimized ? QStringLiteral("yes") : QStringLiteral("no")).leftJustified(4))
-                .arg(r.framesDelta, 5)
-                .arg(static_cast<int>(r.geo.x()))
-                .arg(static_cast<int>(r.geo.y()))
-                .arg(static_cast<int>(r.geo.width()))
-                .arg(static_cast<int>(r.geo.height()))
-                .arg(marker);
+            // A numeric column, so it is right-aligned and the separator has to
+            // follow it rather than be part of its width.
+            out << QStringLiteral("  %1%2%3%4%5%6  %7  %8\n")
+                .arg(QString::number(r.id).leftJustified(kIdWidth),
+                     r.shellType.leftJustified(kTypeWidth + kGap),
+                     r.appId.leftJustified(kAppIdWidth + kGap),
+                     stateName(r.state).leftJustified(kStateWidth + kGap),
+                     (r.minimized ? QStringLiteral("yes") : QStringLiteral("no"))
+                         .leftJustified(kMinWidth + kGap),
+                     QString::number(r.framesDelta).rightJustified(kFramesWidth),
+                     formatGeometry(r.geo).leftJustified(kGeometryWidth),
+                     marker);
         }
         out.flush();
     };
@@ -1746,15 +1777,16 @@ static int runWatch(Session &session, int timeoutMs, qint64 id, int intervalMs)
         if (firstSample) {
             out << "Window " << id << " " << cur.appId()
                 << (cur.title().isEmpty() ? QString() : QStringLiteral(" (%1)").arg(cur.title()))
+                << "\n  type=" << shellTypeName(cur.type())
+                << " state=" << stateName(cur.state())
+                << " geometry=" << formatGeometry(cur.geometry())
                 << "\n";
             havePrev = true;
         }
         QStringList changes;
         if (!firstSample) {
             if (cur.geometry() != prev.geometry())
-                changes << QStringLiteral("geometry %1,%2 %3x%4")
-                    .arg(cur.geometry().x()).arg(cur.geometry().y())
-                    .arg(cur.geometry().width()).arg(cur.geometry().height());
+                changes << QStringLiteral("geometry %1").arg(formatGeometry(cur.geometry()));
             if (cur.workspace() != prev.workspace())
                 changes << QStringLiteral("workspace %1").arg(cur.workspace());
             if (cur.state() != prev.state())
@@ -1769,9 +1801,7 @@ static int runWatch(Session &session, int timeoutMs, qint64 id, int intervalMs)
         if (frames != prevFrames)
             changes << QStringLiteral("frames %1 (+%2)").arg(frames).arg(frames - prevFrames);
         if (!cur.damage().isEmpty())
-            changes << QStringLiteral("damage %1,%2 %3x%4")
-                .arg(cur.damage().x()).arg(cur.damage().y())
-                .arg(cur.damage().width()).arg(cur.damage().height());
+            changes << QStringLiteral("damage %1").arg(formatGeometry(cur.damage()));
         prevFrames = frames;
 
         // Always print one line per refresh (like `top`); changes are prefixed

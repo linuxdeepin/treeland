@@ -21,6 +21,35 @@ QString stateName(int state)
     }
 }
 
+// The order is the wire contract: it is SurfaceWrapper::Type as serialised in
+// WindowInfo::type, so these names must follow that enum's declaration order.
+QString shellTypeName(int type)
+{
+    switch (type) {
+    case 0: return QStringLiteral("xdg-toplevel");
+    case 1: return QStringLiteral("xdg-popup");
+    case 2: return QStringLiteral("xwayland");
+    case 3: return QStringLiteral("layer-shell");
+    case 4: return QStringLiteral("input-popup");
+    case 5: return QStringLiteral("lock-screen");
+    case 6: return QStringLiteral("splash-screen");
+    default: return QStringLiteral("unknown(%1)").arg(type);
+    }
+}
+
+QString formatGeometry(const QRectF &rect)
+{
+    const int x = qRound(rect.x());
+    const int y = qRound(rect.y());
+    return QStringLiteral("%1x%2%3%4%5%6")
+        .arg(qRound(rect.width()))
+        .arg(qRound(rect.height()))
+        .arg(x < 0 ? QLatin1Char('-') : QLatin1Char('+'))
+        .arg(qAbs(x))
+        .arg(y < 0 ? QLatin1Char('-') : QLatin1Char('+'))
+        .arg(qAbs(y));
+}
+
 QString formatDuration(quint64 ms)
 {
     // Round to the nearest 100ms up front: the sub-minute format shoots a
@@ -179,6 +208,17 @@ ParseResult parseCommand(const QString &command, const QStringList &args)
     if (command == QLatin1String("windows")) {
         r.ok = true;
         r.command = DebugCommand::Windows;
+        return r;
+    }
+    // ---- window <id|appId> (xwininfo-style single-window detail) ----
+    if (command == QLatin1String("window")) {
+        if (args.isEmpty()) {
+            r.error = QStringLiteral("window: missing window target (id or appId)");
+            return r;
+        }
+        r.ok = true;
+        r.command = DebugCommand::Window;
+        r.target = args.first();
         return r;
     }
     if (command == QLatin1String("clients")) {

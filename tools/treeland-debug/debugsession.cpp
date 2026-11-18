@@ -116,6 +116,34 @@ bool waitCaptureResult(WindowTreeRemoteReplica *replica, int timeoutMs, QByteArr
     return true;
 }
 
+// Fetches the full record of one window, addressed the same way every control
+// command addresses it (numeric id or appId). Returns false when no window
+// matches; @p matches receives how many windows the token matched, so a detail
+// view can say when it picked one of several (`resolveTarget`'s rule).
+bool lookupWindow(Session &session, int timeoutMs, const QString &token, WindowInfo *out,
+                  int *matches)
+{
+    QList<WindowInfo> windows;
+    if (!waitSlot(session.replica->getWindows(), timeoutMs, &windows))
+        return false;
+
+    bool parsed = false;
+    const qint64 id = token.toLongLong(&parsed);
+    bool found = false;
+    int count = 0;
+    for (const auto &window : windows) {
+        if (parsed ? window.id() == id : window.appId() == token) {
+            if (!found && out)
+                *out = window;
+            found = true;
+            ++count;
+        }
+    }
+    if (matches)
+        *matches = count;
+    return found;
+}
+
 qint64 resolveTarget(Session &session, int timeoutMs, const QString &token, bool *ok)
 {
     *ok = true;
@@ -176,6 +204,7 @@ QJsonObject windowToJson(const WindowInfo &window)
         {"layer", window.layer()},
         {"z", window.z()},
         {"type", window.type()},
+        {"shellType", shellTypeName(window.type())},
         {"state", window.state()},
         {"visible", window.visible()},
         {"active", window.active()},

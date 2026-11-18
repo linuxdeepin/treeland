@@ -145,7 +145,7 @@ receive an error explaining how to proceed.
                      enumerate other UIDs' runtime directories.)
 --name <name>        Remote object name (default: WindowTree)
 --timeout-ms <n>     Request timeout in milliseconds (default: 30000)
---json               Emit machine-readable JSON for `windows`/`clients`
+--json               Emit machine-readable JSON instead of the text view
 --no-escalate        Do not attempt polkit privilege escalation; report the
                      requirement instead (scripts, CI)
 -h, --help           Show help
@@ -178,6 +178,383 @@ candidate -- which also gives a compositor that publishes its source late the ti
 to do so. An explicit `--url` or `$TREELAND_DEBUG_SOCKET` is used verbatim and tries
 nothing else.
 
+## Output format
+
+The human-readable output follows the x11 tools, so anyone used to `xwininfo`,
+`xprop` and `xdotool` reads it the same way -- in one command instead of five
+programs:
+
+- **Lists** (`windows`, `clients`, `top`, `shortcuts`) are a header row plus
+  exactly one line per object, with no continuation lines, so they stay
+  readable and greppable.
+- **Geometry** is `WxH+X+Y`, the `xwininfo -geometry` / `xdotool
+  getwindowgeometry` order: `800x600+100+50`. A negative coordinate keeps its
+  own sign (`800x600-10+50`); unlike x11 it is not an offset from the right
+  edge, because a window can sit left of the layout origin on a multi-output
+  desktop.
+- **One object in full** (`window <id>`, `idle`) is a `Key: value` block with
+  one field per line and the keys padded, like `xwininfo -id`; `window` ends
+  with a bare `-geometry WxH+X+Y` line that can be pasted into a report.
+- **Nested structure** (`tree`, `scene`) keeps tree branch characters.
+- **`--json`** is the machine-readable form of the same data: the `listen`
+  HTTP/WebSocket/MCP API returns exactly the same records (as its `data`
+  field), so a script and a browser read one contract.
+
+Every window record names its **shell surface type** -- `xdg-toplevel`,
+`xdg-popup`, `xwayland`, `layer-shell`, `input-popup`, `lock-screen`,
+`splash-screen` -- in the `TYPE` column of the tables, in the tree, and as
+`shellType` in JSON. That is what tells an application window apart from a
+layer-shell panel, a popup or an XWayland window.
+
+[Example output](#example-output) below shows every command's actual output.
+
+## Example output
+
+One example per command, on a two-output desktop (`eDP-1`, `HDMI-A-1`) with a
+`dde-file-manager` window on workspace 1, the dock as a `layer-shell` surface,
+an XWayland app and the lock screen. Ids, timestamps and sizes differ from run
+to run; the layout shown is exactly what the commands print.
+
+### Inspection
+
+`tree` -- the layout tree, no header row: layers, then workspaces, then
+windows. `*` marks the active window, `+` inside `[outputs]` the output driving
+its frame callbacks, and `+Min` a minimized window:
+
+```console
+$ treeland-debug tree
+Mode: Normal
+  (per window: active id type app-id state geometry [outputs] title)
+├─ Layer: normal (2)
+│  ├─ Workspace 1 (active)
+│     └─ * 93824992268800    xdg-toplevel   dde-file-manager        Normal          800x600+100+50      [+eDP-1]  Documents
+│  └─ Workspace 2
+│     └─  (no windows)
+├─ Layer: top (3)
+│  └─   93824992269056    layer-shell    dde-dock                Normal          1920x40+0+1040      [eDP-1,+HDMI-A-1]
+└─ Layer: overlay (4)
+   └─   93824992269568    lock-screen    dde-lock                Fullscreen      1920x1080+0+0       [+eDP-1]
+```
+
+`windows` -- one header row, one line per window, and a two-line legend under
+the table. A window with no title prints a title column that is simply empty:
+
+```console
+$ treeland-debug windows
+ID              TYPE           APP-ID                  STATE       ACTIVE  MIN    OUTPUT            GEOMETRY            TITLE
+93824992268800  xdg-toplevel   dde-file-manager        Normal      yes     no     +eDP-1            800x600+100+50      Documents
+93824992269056  layer-shell    dde-dock                Normal      no      no     eDP-1,+HDMI-A-1   1920x40+0+1040
+93824992269312  xwayland       steam                   Tiling      no      yes    +HDMI-A-1         1240x800-10+50      Steam
+93824992269568  lock-screen    dde-lock                Fullscreen  no      no     +eDP-1            1920x1080+0+0
+  (TYPE = shell surface type; '+' in OUTPUT marks the frame-pacing output;
+   GEOMETRY is WxH+X+Y; `treeland-debug window <id>` shows one window in full)
+```
+
+`window <id|appId>` -- the full record, `Key: value`, one field per line, empty
+fields omitted, and a bare `-geometry` line last for pasting into a report:
+
+```console
+$ treeland-debug window 93824992268800
+Window id: 93824992268800 "Documents"
+  App ID:               dde-file-manager
+  Shell type:           xdg-toplevel
+  Layer:                2  Z: 3
+  Workspace:            1
+  State:                Normal
+  Visible:              yes
+  Active:               yes
+  Minimized:            no
+  Output:               eDP-1
+  Outputs:              eDP-1
+  Frame pacing:         eDP-1
+  Geometry:             800x600+100+50
+  Position:             100,50
+  Bounding rect:        800x600+100+50
+  Titlebar:             800x40+100+50
+  Icon:                 24x24+140+60
+  Frames:               12345
+  Damage:               300x200+120+80
+  Input region:         [100,50 800x600]
+  Opaque region:        [100,90 800x560]
+  Last leave:           HDMI-A-1 (enabled: yes, emptied outputs: no)
+  Last outputs update:  enabledChanged (enabled: 1/2, computed: 1, automatic: yes)
+-geometry 800x600+100+50
+```
+
+`Damage`, `Titlebar`, `Icon`, `Bounding rect`, `Last leave` and `Last outputs
+update` only appear when the compositor reported them, so a quiet window prints
+a shorter block.
+
+An `appId` that matches more than one window shows the first one and says so on
+stderr, which keeps `--json` output parseable:
+
+```console
+$ treeland-debug window dde-file-manager
+treeland-debug: 2 windows match 'dde-file-manager'; showing id 93824992268800
+Window id: 93824992268800 "Documents"
+  ...
+```
+
+`clients` -- one block per connected Wayland client (hex id, pid, appId,
+window count, `exe`/`cmd`), followed by that client's windows in the same table
+as `windows`:
+
+```console
+$ treeland-debug clients
+client 0x560000000001  pid=4242  appId=dde-file-manager  windows=1
+  exe: /usr/bin/dde-file-manager
+  cmd: dde-file-manager -p
+  ID              TYPE           APP-ID                  STATE       ACTIVE  MIN    OUTPUT            GEOMETRY            TITLE
+  93824992268800  xdg-toplevel   dde-file-manager        Normal      yes     no     +eDP-1            800x600+100+50      Documents
+
+client 0x560000000002  pid=5150  windows=2
+  exe: /usr/bin/steam
+  ID              TYPE           APP-ID                  STATE       ACTIVE  MIN    OUTPUT            GEOMETRY            TITLE
+  93824992269312  xwayland       steam                   Tiling      no      yes    +HDMI-A-1         1240x800-10+50      Steam
+  93824992269056  layer-shell    dde-dock                Normal      no      no     eDP-1,+HDMI-A-1   1920x40+0+1040
+```
+
+`cursor` -- one line, labelled, `xdotool getmouselocation` style. `window:0`
+means no window is under the pointer (or the compositor did not answer), so the
+shape never changes:
+
+```console
+$ treeland-debug cursor
+x:100 y:50 window:93824992268800
+$ treeland-debug --json cursor
+{
+    "window": 93824992268800,
+    "x": 100,
+    "y": 50
+}
+```
+
+`idle` -- a `Key: value` block, then one line per idle-inhibit source. Note that
+the second source below is `active=no`, so it does not count towards
+`Inhibited: yes`:
+
+```console
+$ treeland-debug idle
+  Idle:                 12.3s since last input
+  Inhibited:            yes
+  Screensaver:          no
+  Inhibitors:           2
+  [idle-inhibit] pid=6001 appId=vlc window=93824992269440 "Big Buck Bunny" active=yes held=5m12s exe=/usr/bin/vlc
+  [screensaver] pid=6100 appId=(unknown) app="dde-screensaver" reason="playing a slideshow" active=no held=5.0s
+```
+
+`shortcuts` -- a header row and one line per binding; gesture rows leave `FLAGS`
+empty (flags are a key-binding concept):
+
+```console
+$ treeland-debug shortcuts
+NAME                        TRIGGER                 ACTION                      FLAGS
+launcher                    Meta                    toggle-launcher             press
+terminal                    Ctrl+Alt+T              launch-terminal             press|repeat
+workspace-left              swipe 3-finger left     switch-workspace-left
+expo                        hold 4-finger           toggle-expo
+```
+
+`top` -- a live screen repainted in place every `interval-ms` (default 1000).
+Each frame carries its timestamp, the client/window counts and an idle summary,
+then one line per window, most active first, with the frame delta since the
+previous frame:
+
+```console
+$ treeland-debug top
+treeland-debug top — 2026-11-18T14:32:07  (clients: 2  windows: 3)
+  idle: 12.3s  inhibited: no  sources: 0 (0 active)
+  ID              TYPE           APP-ID                  STATE       MIN     FRAMES  GEOMETRY            MARKER
+  93824992268800  xdg-toplevel   dde-file-manager        Normal      no        1234  800x600+100+50      F (focus)
+  93824992269312  xwayland       steam                   Tiling      yes         57  1240x800-10+50
+  93824992269056  layer-shell    dde-dock                Normal      no           0  1920x40+0+1040      C (under cursor)
+```
+
+`scene [id]` -- the QtQuick item tree behind a window (or the whole render
+scene), pre-formatted by the compositor: `ClassName "objectName" [x,y WxH]
+z=<z> op=<opacity>`, with `hidden` on invisible items:
+
+```console
+$ treeland-debug scene 93824992268800
+TreelandWindow [0.0,0.0 800.0x600.0] z=0.0 op=1.00
+  QQuickRectangle [0.0,0.0 800.0x40.0] z=1.0 op=1.00
+    QQuickText "titleLabel" [12.0,8.0 120.0x24.0] z=0.0 op=1.00
+  QQuickItem "surfaceContent" [0.0,40.0 800.0x560.0] z=0.0 op=1.00
+  QQuickPopupItem "popup" [200.0,300.0 240.0x120.0] hidden z=3.0 op=0.00
+```
+
+`events` -- a live stream, one line per event: time, event type (the same names
+the JSON `type` field uses, padded), the compositor's description, then
+`-> <window id>` when the event has a target:
+
+```console
+$ treeland-debug events
+treeland-debug events — streaming every 50ms (Ctrl+C to quit)
+
+14:32:07.512  motion                 782,410 -> 93824992268800
+14:32:08.004  focus                  -> 93824992269312
+14:32:08.311  shortcut-triggered     "terminal" -> launch-terminal
+14:32:09.077  shortcut-registered    "expo" = hold 4-finger -> toggle-expo
+```
+
+`watch <id> [interval-ms]` -- samples one window every `interval-ms` (default
+250 ms). The first sample prints a header, then every refresh prints one line,
+`*`-prefixed when something changed since the previous sample:
+
+```console
+$ treeland-debug watch 93824992268800
+treeland-debug watch 93824992268800 — every 250ms (Ctrl+C to quit)
+
+Window 93824992268800 dde-file-manager (Documents)
+  type=xdg-toplevel state=Normal geometry=800x600+100+50
+14:32:07  (no change)
+14:32:08    * frames 12346 (+1); damage 800x560+100+90
+14:32:09    * state Normal -> Maximized; geometry 1920x1080+0+0
+```
+
+### Window control
+
+The control commands print a single `ok` (or `failed`, with a non-zero exit
+code). `activate`/`close`/… take an `id` or an `appId`:
+
+```console
+$ treeland-debug activate dde-file-manager
+ok
+$ treeland-debug maximize 93824992268800
+ok
+$ treeland-debug move 93824992268800 200 120
+ok
+$ treeland-debug resize 93824992268800 1024 768
+ok
+$ treeland-debug workspace 93824992268800 2
+ok
+$ treeland-debug close steam
+ok
+```
+
+### Input and pointer events
+
+`move-cursor` and the `event` subcommands also print `ok`; nothing is echoed
+back because the effect shows up in `cursor`, `watch` or `events`:
+
+```console
+$ treeland-debug move-cursor 100 50
+ok
+$ treeland-debug event motion 100 50
+ok
+$ treeland-debug event button left click
+ok
+$ treeland-debug event key enter tap
+ok
+```
+
+### Image capture
+
+`screenshot` writes a PNG and prints the path it wrote (`/tmp/treeland-debug-
+<ms>.png` when no file is given, `.png` appended when the name has no suffix).
+On a terminal that supports inline images the picture is also previewed:
+
+```console
+$ treeland-debug screenshot output
+/tmp/treeland-debug-1763447100123.png
+$ treeland-debug screenshot window 93824992268800 ~/shots/win.png
+/home/demo/shots/win.png
+```
+
+### The debug switch and access
+
+`debug` prints the switch state it read back, and says what the compositor will
+do next; the running-as state is included so a per-user switch is unambiguous:
+
+```console
+$ treeland-debug debug
+remoteDebug is off (uid 1000)
+$ treeland-debug debug on
+remoteDebug is on; treeland publishes its debug socket now
+$ treeland-debug debug off
+remoteDebug is off; treeland drops its debug socket now
+```
+
+`no-auth` confirms the 30-minute window it opened:
+
+```console
+$ sudo treeland-debug no-auth
+the debug socket is open to every user for 30 minutes
+```
+
+### listen (HTTP / WebSocket / MCP)
+
+`listen` prints the address it bound, then serves:
+
+```console
+$ treeland-debug listen --host 127.0.0.1 --port 8080
+treeland-debug listening on 127.0.0.1:8080
+```
+
+The HTTP API answers with the same records the CLI prints, wrapped in
+`{"ok":…}`, compact:
+
+```console
+$ curl -s 127.0.0.1:8080/api/cursor
+{"data":{"window":93824992268800,"x":100,"y":50},"ok":true}
+$ curl -s '127.0.0.1:8080/api/window?target=dde-file-manager'
+{"data":{"active":true,"appId":"dde-file-manager",…,"shellType":"xdg-toplevel","state":0,"type":0,…},"ok":true}
+$ curl -s -X POST -d '{"state":"on"}' 127.0.0.1:8080/api/debug
+{"data":{"enabled":true,"uid":1000},"ok":true}
+$ curl -s -X POST -d '{"target":"93824992268800"}' 127.0.0.1:8080/api/activate
+{"data":true,"ok":true}
+```
+
+Errors keep the same shape and a non-200 status:
+`{"ok":false,"error":"no window matches 'foo'"}`.
+
+### shell
+
+The REPL accepts any command above plus `help` and `exit`; each result is
+printed exactly as the one-shot form would print it:
+
+```console
+$ treeland-debug shell
+treeland-debug shell — type 'help' for commands, 'exit' to quit
+treeland> cursor
+x:100 y:50 window:93824992268800
+treeland> activate dde-file-manager
+ok
+treeland> exit
+```
+
+`debug` is the one exception: it writes DConfig outside the debug socket, so the
+REPL tells you to run it as a one-shot command instead of escalating a polkit
+prompt from inside the shell.
+
+### help
+
+`--help` / `help` prints the whole command reference, grouped like the
+[Commands](#commands) section:
+
+```console
+$ treeland-debug --help
+Usage: treeland-debug [global-options] <command> [args]
+
+An adb-style inspector and controller for the Treeland compositor. Runs in
+one-shot (non-shell) mode by default; use the `shell` command for an
+interactive REPL.
+
+Global options:
+  --url <url>          Remote object host URL (default: $TREELAND_DEBUG_SOCKET,
+                       else the build-specific socket found by probing)
+  ...
+Output conventions (the same as the x11 tools, in one command):
+  ...
+
+Inspection:
+  tree                       Print the complete window tree (human-readable, use --json for JSON)
+  cursor                     Print the cursor position, xdotool-style (x:N y:N window:N,
+                             window 0 = none under the cursor)
+  windows                    List all toplevel windows, with their shell type
+  ...
+```
+
 ## Commands
 
 Run `treeland-debug <command>` for any of the following.
@@ -193,18 +570,20 @@ Run `treeland-debug <command>` for any of the following.
 
 | Command | Description |
 | --- | --- |
-| `tree` | Print the complete layout tree as JSON (default). |
-| `cursor` | Print the cursor position as JSON. |
-| `windows` | List all toplevel windows (table, or JSON with `--json`), including every output each window is on and its frame-pacing output. |
+| `tree` | Print the complete layout tree (human-readable by default; `--json` for JSON). |
+| `cursor` | Print the cursor position, xdotool-style: `x:100 y:50 window:93824992268800`. |
+| `windows` | List every window (table, or JSON with `--json`): id, shell type, appId, state, active/minimized, outputs, geometry. |
+| `window <id\|appId>` | Show one window in full, xwininfo-style: shell type, container, layer/z, workspace, state, outputs, geometry, SSD rects, frame counter, damage, input and opaque regions. |
 | `clients` | List connected Wayland clients and the windows each owns. |
 | `idle` | Show the idle state (time since the last input activity), whether idle is inhibited, and every idle-inhibit source (window/idle-inhibitor or screensaver) holding it off. |
 | `shortcuts` | List the registered shortcuts (key bindings and touchpad gestures). |
 | `top [interval-ms]` | Live, `top`-like refreshing view of clients and windows (default 1000 ms, Ctrl+C to quit). Includes an idle summary line. |
 | `scene [id]` | Dump the QtQuick scene tree of one window (by `id`/`appId`) or, with no id, the whole render scene. Useful for inspecting menus, popups and decorations that do not show up in the layout `tree`. |
 
-`shortcuts` prints one line per registered shortcut — name, trigger
-(`Ctrl+Alt+T`, `swipe 3-finger left`, `hold 4-finger`), target action and, for
-key bindings, the trigger flags (`press`/`release`/`repeat`). Use `--json` for
+`shortcuts` prints a header row and then one line per registered shortcut —
+name, trigger (`Ctrl+Alt+T`, `swipe 3-finger left`, `hold 4-finger`), target
+action and, for key bindings, the trigger flags
+(`press`/`release`/`repeat`; gesture rows leave that column empty). Use `--json` for
 `[{name,type,key,flags,action,fingers,direction}]`, where `type` is
 `0`=key, `1`=swipe, `2`=hold. Registrations come from clients, so the list is
 empty until a shell binds shortcuts through `treeland-shortcut-manager-v3`.
@@ -215,7 +594,9 @@ window. That id (or the window's `appId`) is accepted by every control command.
 `idle` reports the time since the last input activity (the compositor has no
 global idle threshold — clients such as the screensaver pick their own via
 `ext-idle-notify-v1`), whether idle notification is currently suppressed, and
-every idle-inhibit source currently held: `zwp_idle_inhibit_manager_v1`
+every idle-inhibit source currently held. The summary is a `Key: value` block
+(`Idle`/`Inhibited`/`Screensaver`/`Inhibitors`), followed by one line per
+inhibitor with its `key=value` fields: `zwp_idle_inhibit_manager_v1`
 surfaces (identified by window id/appId/title) and `treeland_screensaver_v2`
 inhibits (identified by the client-provided application name and reason).
 `--json` emits the same data with `idleMs`/`heldMs` in milliseconds.
@@ -356,7 +737,7 @@ OPTIONS preflight is handled, so a browser frontend can call the API directly.
 | Method | Path | Body / Query | Description |
 | --- | --- | --- | --- |
 | GET | `/api/tree` | — | Layout tree JSON |
-| GET | `/api/cursor` | — | Cursor position JSON |
+| GET | `/api/cursor` | — | Cursor position JSON, plus `window` (id under the cursor, `0` for none) |
 | GET | `/api/windows` | — | All windows JSON |
 | GET | `/api/clients` | — | All clients JSON |
 | GET | `/api/idle` | — | Idle state and idle-inhibit sources JSON |
@@ -364,6 +745,9 @@ OPTIONS preflight is handled, so a browser frontend can call the API directly.
 | GET | `/api/shortcuts` | — | Registered shortcuts JSON |
 | GET | `/api/focused` | — | Focused window id |
 | GET | `/api/cursor-window` | — | Window under cursor id |
+| GET | `/api/window` | `?target=...` | One window's full record (the same JSON `treeland-debug --json window <id>` prints) |
+| GET | `/api/debug` | — | Treeland's `remoteDebug` switch: `{enabled, uid}` |
+| POST | `/api/debug` | `{"state":"on\|off"}` | Turn the switch on or off. The server cannot escalate, so a switch that needs root fails with the reason instead of prompting. It also blocks its event loop while `dde-dconfig` answers (a 3 s budget for the set and the read-back together), so live subscriptions stall for that long at worst. |
 | GET | `/api/scene` | `?target=...` | QtQuick scene tree of a window (or the whole scene if `target` is omitted), as pre-formatted text |
 | GET | `/api/events` | `?since=N` | Debug events after seq N |
 | GET | `/api/screenshot/output` | `?name=...` | PNG bytes (`image/png`) |
@@ -387,8 +771,9 @@ Responses are JSON: `{"ok":true,"data":...}` or `{"ok":false,"error":"..."}`.
 #### WebSocket API
 
 Connect to `ws://<host>:<port>/ws` and send JSON messages. One-shot commands
-mirror the HTTP API (`{"command":"tree"}`, `{"command":"activate","target":"..."}`
-etc.). Screenshots are returned as a binary frame followed by a JSON ack.
+mirror the HTTP API and the CLI command names (`{"command":"tree"}`,
+`{"command":"window","target":"..."}`, `{"command":"debug","state":"on"}`,
+`{"command":"activate","target":"..."}` etc.). Screenshots are returned as a binary frame followed by a JSON ack.
 
 Live subscriptions:
 
@@ -425,7 +810,7 @@ Supported JSON-RPC methods:
 | `tools/call` | Invokes a tool by name with arguments |
 | `ping` | Health check |
 
-The 24 available tools mirror the HTTP REST API and CLI commands:
+The 27 available tools mirror the HTTP REST API and CLI commands:
 
 | Tool | Args | Description |
 | --- | --- | --- |
@@ -438,6 +823,8 @@ The 24 available tools mirror the HTTP REST API and CLI commands:
 | `shortcuts` | — | Registered shortcuts |
 | `focused` | — | Focused window id |
 | `cursor_window` | — | Window under cursor id |
+| `window` | `target` | One window's full record |
+| `debug` | `state?` | Read (`state` omitted) or write (`"on"`/`"off"`) the `remoteDebug` switch |
 | `scene` | `target?` | QtQuick scene tree of a window (or whole scene) |
 | `events` | `since?` | Debug events after seq N |
 | `activate` | `target` | Activate window |
@@ -475,25 +862,28 @@ authentication are required.
 
 ## JSON output
 
-`tree` and `cursor` always print JSON. `windows` and `clients` print a
-human-readable table by default; pass `--json` for machine-readable JSON, which
-includes the stable `id`, `appId`, `title`, geometry, state, `outputs` (every
-output the window is on), `framePacingOutput` (the output driving its frame
-callbacks: the entered output with the highest refresh rate) and (for
-`clients`) the owning client
+`--json` is available on every inspection command and prints the same data the
+HTTP API returns. A window record includes the stable `id`, `appId`, `title`,
+`type` (the numeric shell-surface type) alongside `shellType` (its name), the
+geometry, state, `outputs` (every output the window is on),
+`framePacingOutput` (the output driving its frame callbacks: the entered output
+with the highest refresh rate) and (for `clients`) the owning client
 `pid`/`executable`/`command` (the full command line, read from
 `/proc/<pid>/cmdline`). The `output` field is the output the compositor treats
 as the window's owner -- a window spanning several outputs reports all of them
 in `outputs` (taken from the compositor's window wrapper, so a pre-launch
 splash window reports its outputs too). The `windows`/`clients`/`tree` views
 list every output and prefix the frame-pacing one with `+` (`*` keeps its
-existing meaning there: the active window). The `windows`/`clients` tables
-additionally show the server-side decoration (`content`/`titlebar`/`frame`)
-geometry when the window is an SSD toplevel, plus the window's input region
-and opaque region.
-Those two are sets of surface-local boxes (`inputRegion`/`opaqueRegion` in
-JSON, a list of `{x,y,width,height}` rects; the table prints the first few
-boxes and summarises the rest).
+existing meaning there: the active window).
+
+The single-window views -- `window <id>`, `GET /api/window` and the MCP
+`window` tool -- carry what the one-line lists leave out: the server-side
+decoration geometry (`geometry` is the content rect, `titlebarGeometry` the SSD
+titlebar, `boundingRect` the whole frame), the frame counter, the damage rect,
+and the window's input and opaque regions.
+Those two regions are sets of surface-local boxes (`inputRegion`/`opaqueRegion`
+in JSON, a list of `{x,y,width,height}` rects; the text views print the first
+few boxes and summarise the rest).
 
 `(empty)` means the committed region has no boxes. A `NULL` input region is
 *not* empty: the protocol defines it as infinite, and wlroots clips every region
@@ -506,7 +896,8 @@ transparent.
 
 `damage`/region data is serialised on every `windows`/`clients` call, so a
 client committing a region with thousands of boxes inflates the polls of `top`
-as well, which does not display them.
+as well (which does not display them); use `window <id>` when you need the
+regions and a cheap `windows` poll while you look at something else.
 
 `WindowInfo` is a `WindowTreeRemote` POD, and Qt Remote Objects serialises a POD
 by field order with no version negotiation: a `treeland-debug` built from a

@@ -3,6 +3,7 @@
 
 #include "debugserver.h"
 
+#include "debugswitch.h"
 #include "treelanddebugsocket.h"
 
 #include <QHostAddress>
@@ -122,11 +123,17 @@ bool DebugServer::listen(const QString &host, int port)
     m_httpServer.route("/api/cursor-window", [this]() {
         return jsonCorsResponse(handleCursorWindow());
     });
+    m_httpServer.route("/api/window", [this](const QHttpServerRequest &request) {
+        return jsonCorsResponse(handleWindow(request));
+    });
     m_httpServer.route("/api/scene", [this](const QHttpServerRequest &request) {
         return jsonCorsResponse(handleScene(request));
     });
     m_httpServer.route("/api/no-auth", [this]() {
         return jsonCorsResponse(handleNoAuth());
+    });
+    m_httpServer.route("/api/debug", [this](const QHttpServerRequest &request) {
+        return jsonCorsResponse(handleDebug(request));
     });
 
     // --- Window control routes ---
@@ -232,8 +239,14 @@ QJsonObject DebugServer::handleTree()
 QJsonObject DebugServer::handleCursor()
 {
     return sessionRequest([this](Session &session) {
-        QPointF pos = session.replica->cursorPosition();
-        return QJsonObject{{"ok", true}, {"data", pointToJson(pos)}};
+        const QPointF pos = session.replica->cursorPosition();
+        QJsonObject data = pointToJson(pos);
+        // The CLI's `cursor` prints the window under the cursor too; 0 when
+        // there is none (or the compositor did not answer), as xdotool does.
+        qint64 cursorWindow = 0;
+        waitSlot(session.replica->windowUnderCursor(), m_timeoutMs, &cursorWindow);
+        data.insert(QStringLiteral("window"), cursorWindow);
+        return QJsonObject{{"ok", true}, {"data", data}};
     });
 }
 
@@ -333,6 +346,69 @@ QJsonObject DebugServer::handleScene(const QHttpServerRequest &request)
 {
     const auto query = request.query();
     return handleScene(query.queryItemValue("target"));
+}
+
+QJsonObject DebugServer::handleWindow(const QString &target)
+{
+    if (target.isEmpty())
+        return {{"ok", false}, {"error", "missing 'target'"}};
+    return sessionRequest([this, target](Session &session) {
+        WindowInfo window;
+        if (!lookupWindow(session, m_timeoutMs, target, &window))
+            return QJsonObject{{"ok", false},
+                               {"error", QStringLiteral("no window matches '%1'").arg(target)}};
+        return QJsonObject{{"ok", true}, {"data", windowToJson(window)}};
+    });
+}
+
+QJsonObject DebugServer::handleWindow(const QHttpServerRequest &request)
+{
+    return handleWindow(request.query().queryItemValue("target"));
+}
+
+// The `debug` switch: the same read/write the CLI performs, minus escalation.
+// This server cannot prompt for a password, so a switch that needs root fails
+// with the reason instead of hanging the request on a polkit dialog.
+QJsonObject DebugServer::handleDebug(int want)
+{
+    uid_t uid = ::geteuid();
+    QString error;
+    if (!treelandDebugTargetUid(&uid, &error))
+        return {{"ok", false}, {"error", error}};
+    const bool rootNeeded = uid != ::geteuid() && ::geteuid() != 0;
+    if (want >= 0 && rootNeeded) {
+        return {{"ok", false},
+                {"error", QStringLiteral("the compositor runs as %1 (uid %2), so its switch can "
+                                        "only be written as that user or as root; run "
+                                        "`treeland-debug debug %3` there")
+                              .arg(treelandUserName(uid))
+                              .arg(uid)
+                              .arg(want == 1 ? QStringLiteral("on") : QStringLiteral("off"))}};
+    }
+    bool enabled = false;
+    // shortcut: dde-dconfig is called synchronously here, so this request holds
+    // the server's single event loop (live subscriptions included); the budget
+    // below covers the whole write, which is two dde-dconfig runs (set, then
+    // read back), so each gets half of it.  Make it async if it ever needs more.
+    constexpr int kSwitchTimeoutMs = 3000;
+    if (!treelandRemoteDebugSwitch(uid, want, &enabled, &error, kSwitchTimeoutMs / 2))
+        return {{"ok", false}, {"error", error}};
+    return {{"ok", true}, {"data", QJsonObject{{"enabled", enabled}, {"uid", static_cast<qint64>(uid)}}}};
+}
+
+QJsonObject DebugServer::handleDebug(const QHttpServerRequest &request)
+{
+    // A switch write is a state change, so GET only reads: a browser tab or a
+    // preloader must not be able to turn debugging on by fetching a URL.
+    if (request.method() != QHttpServerRequest::Method::Post)
+        return handleDebug(-1);
+    const QString state =
+        QJsonDocument::fromJson(request.body()).object().value("state").toString().toLower();
+    if (state.isEmpty())
+        return handleDebug(-1);
+    if (state != QLatin1String("on") && state != QLatin1String("off"))
+        return {{"ok", false}, {"error", "state must be 'on' or 'off'"}};
+    return handleDebug(state == QLatin1String("on") ? 1 : 0);
 }
 
 // --- Window control handlers ---
@@ -851,6 +927,33 @@ QJsonObject DebugServer::mcpToolsList() const
                 {"inputSchema", noArgs}
             },
             QJsonObject{
+                {"name", "window"},
+                {"description", "Get one window in full: the same record `windows` lists, including its shell type, workspace, z-order, every output, server-side decoration rects, frame counter, damage and input/opaque regions."},
+                {"inputSchema", QJsonObject{
+                    {"type", "object"},
+                    {"properties", QJsonObject{
+                        {"target", targetSchema("Window id (number) or appId (string).")}
+                    }},
+                    {"required", QJsonArray{"target"}},
+                    {"additionalProperties", false}
+                }}
+            },
+            QJsonObject{
+                {"name", "debug"},
+                {"description", "Read treeland's remoteDebug switch, or turn it on/off with 'state'. Writing the switch of a compositor running as another user needs root, which this server cannot obtain: it reports the requirement as an error instead of prompting."},
+                {"inputSchema", QJsonObject{
+                    {"type", "object"},
+                    {"properties", QJsonObject{
+                        {"state", QJsonObject{
+                            {"type", "string"},
+                            {"enum", QJsonArray{"on", "off"}},
+                            {"description", "Omit to read the switch."}
+                        }}
+                    }},
+                    {"additionalProperties", false}
+                }}
+            },
+            QJsonObject{
                 {"name", "no-auth"},
                 {"description", "Let any local user connect to this debug socket for 30 minutes without authentication; every later call extends the window, an idle half hour closes it. Refused by a session instance, which keeps requiring root."},
                 {"inputSchema", noArgs}
@@ -1121,8 +1224,21 @@ QJsonArray DebugServer::mcpDispatchTool(const QString &name, const QJsonObject &
         return formatJson(handleFocused());
     if (name == "cursor_window")
         return formatJson(handleCursorWindow());
+    if (name == "window")
+        return formatJson(handleWindow(targetToString(args.value("target"))));
     if (name == "scene")
         return formatJson(handleScene(targetToString(args.value("target"))));
+    if (name == "debug") {
+        const QString state = args.value("state").toString().toLower();
+        if (state.isEmpty())
+            return formatJson(handleDebug(-1));
+        if (state != QLatin1String("on") && state != QLatin1String("off")) {
+            *isError = true;
+            return QJsonArray{QJsonObject{{"type", "text"},
+                                          {"text", "state must be 'on' or 'off'"}}};
+        }
+        return formatJson(handleDebug(state == QLatin1String("on") ? 1 : 0));
+    }
     if (name == "events")
         return formatJson(handleEvents(static_cast<quint64>(args.value("since").toInteger())));
 
@@ -1290,6 +1406,16 @@ void DebugServer::handleWebSocketMessage(QWebSocket *socket, const QString &mess
         result = handleFocused();
     } else if (command == "cursor-window") {
         result = handleCursorWindow();
+    } else if (command == "window") {
+        result = handleWindow(obj.value("target").toString());
+    } else if (command == "debug") {
+        const QString state = obj.value("state").toString().toLower();
+        if (state.isEmpty())
+            result = handleDebug(-1);
+        else if (state == QLatin1String("on") || state == QLatin1String("off"))
+            result = handleDebug(state == QLatin1String("on") ? 1 : 0);
+        else
+            result = QJsonObject{{"ok", false}, {"error", "state must be 'on' or 'off'"}};
     } else if (command == "scene") {
         const QString target = obj.value("target").toString();
         result = sessionRequest([this, target](Session &session) {

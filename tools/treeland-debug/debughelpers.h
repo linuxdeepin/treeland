@@ -15,6 +15,20 @@
 // Maps a window state enum to a human-readable name.
 QString stateName(int state);
 
+// Maps a window's shell-surface type (WindowInfo::type, i.e.
+// SurfaceWrapper::Type) to a name: xdg-toplevel, xdg-popup, xwayland,
+// layer-shell, input-popup, lock-screen, splash-screen. This is the `TYPE`
+// column of the window lists: it tells an xdg client's window apart from a
+// layer-shell panel or an XWayland window.
+QString shellTypeName(int type);
+
+// Formats a rect the way the x11 tools do (xwininfo -geometry, xdotool
+// getwindowgeometry): "WxH+X+Y", a negative coordinate keeping its sign
+// ("800x600-10+50"). Unlike x11, the sign is the coordinate's own value, not
+// an offset from the right/bottom edge: a window can sit left of the layout
+// origin on a multi-output desktop.
+QString formatGeometry(const QRectF &rect);
+
 // Formats a millisecond duration compactly for the live views: "12.3s" under a
 // minute, "2m03s" under an hour, "1h02m" above. Rounded to the nearest 100ms
 // first, so 59.99s renders as "1m00s" rather than "60.0s".
@@ -57,6 +71,7 @@ enum class DebugCommand {
     Tree,
     Cursor,
     Windows,
+    Window,
     Clients,
     Idle,
     Shortcuts,

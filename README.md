@@ -307,12 +307,15 @@ All commands run as the `dde` user:
 # Inspect the window tree (human-readable, default command)
 sudo -u dde -- treeland-debug tree
 
-# Cursor position
+# Cursor position (xdotool getmouselocation style)
 sudo -u dde -- treeland-debug cursor
-# → x=960 y=540
+# → x:960 y:540 window:93824992268800
 
-# List windows
+# List windows (one row each; TYPE is the shell surface type)
 sudo -u dde -- treeland-debug windows
+
+# One window in full, xwininfo-style
+sudo -u dde -- treeland-debug window 93824992268800
 
 # List clients and their windows
 sudo -u dde -- treeland-debug clients

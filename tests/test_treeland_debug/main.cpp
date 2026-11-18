@@ -44,6 +44,8 @@ private Q_SLOTS:
     void testFormatDuration();
     void testOutputsLabel();
     void testStateNameUnknown();
+    void testShellTypeName();
+    void testFormatGeometry();
     void testButtonCodeNamed();
     void testButtonCodeRaw();
     void testButtonCodeUnknown();
@@ -86,6 +88,8 @@ private Q_SLOTS:
     void testParseTree();
     void testParseCursor();
     void testParseWindows();
+    void testParseWindowMissingTarget();
+    void testParseWindow();
     void testParseClients();
     void testParseIdle();
     void testParseShortcuts();
@@ -231,6 +235,31 @@ void TreelandDebugTest::testStateNameUnknown()
 {
     QCOMPARE(stateName(99), QStringLiteral("Unknown(99)"));
     QCOMPARE(stateName(-1), QStringLiteral("Unknown(-1)"));
+}
+
+void TreelandDebugTest::testShellTypeName()
+{
+    // The order is SurfaceWrapper::Type as serialised in WindowInfo::type.
+    QCOMPARE(shellTypeName(0), QStringLiteral("xdg-toplevel"));
+    QCOMPARE(shellTypeName(1), QStringLiteral("xdg-popup"));
+    QCOMPARE(shellTypeName(2), QStringLiteral("xwayland"));
+    QCOMPARE(shellTypeName(3), QStringLiteral("layer-shell"));
+    QCOMPARE(shellTypeName(4), QStringLiteral("input-popup"));
+    QCOMPARE(shellTypeName(5), QStringLiteral("lock-screen"));
+    QCOMPARE(shellTypeName(6), QStringLiteral("splash-screen"));
+    // A newer compositor may add types; an old client must still print something.
+    QCOMPARE(shellTypeName(7), QStringLiteral("unknown(7)"));
+}
+
+void TreelandDebugTest::testFormatGeometry()
+{
+    // x11 -geometry order: WxH+X+Y.
+    QCOMPARE(formatGeometry(QRectF(100, 50, 800, 600)), QStringLiteral("800x600+100+50"));
+    QCOMPARE(formatGeometry(QRectF(0, 0, 0, 0)), QStringLiteral("0x0+0+0"));
+    // A window left of/above the layout origin keeps the coordinate's sign.
+    QCOMPARE(formatGeometry(QRectF(-10, -20, 100, 200)), QStringLiteral("100x200-10-20"));
+    // Fractional geometry is rounded, not printed with a decimal point.
+    QCOMPARE(formatGeometry(QRectF(1.4, 2.6, 10.5, 20.4)), QStringLiteral("11x20+1+3"));
 }
 
 void TreelandDebugTest::testButtonCodeNamed()
@@ -1083,6 +1112,22 @@ void TreelandDebugTest::testParseWindows()
     const auto r = parseCommand(QStringLiteral("windows"), {});
     QVERIFY(r.ok);
     QCOMPARE(r.command, DebugCommand::Windows);
+}
+
+void TreelandDebugTest::testParseWindowMissingTarget()
+{
+    const auto r = parseCommand(QStringLiteral("window"), {});
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("window: missing window target (id or appId)"));
+    QCOMPARE(r.command, DebugCommand::Unknown);
+}
+
+void TreelandDebugTest::testParseWindow()
+{
+    const auto r = parseCommand(QStringLiteral("window"), { QStringLiteral("93824992268800") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Window);
+    QCOMPARE(r.target, QStringLiteral("93824992268800"));
 }
 
 void TreelandDebugTest::testParseClients()
