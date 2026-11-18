@@ -32,6 +32,7 @@ set(treeland_debug_sources
     main.cpp
     debughelpers.cpp
     debugsession.cpp
+    debugswitch.cpp
     "${PROJECT_SOURCE_DIR}/src/modules/resource/treelanddebugsocket.cpp"
     "${windowtree_replica_header}"
 )

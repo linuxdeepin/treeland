@@ -76,6 +76,12 @@ bool waitCaptureResult(WindowTreeRemoteReplica *replica, int timeoutMs, QByteArr
 // failure.
 qint64 resolveTarget(Session &session, int timeoutMs, const QString &token, bool *ok);
 
+// Fetches the full record of one window, addressed like every control command
+// addresses it. Returns false when no window matches; @p matches (optional)
+// receives how many windows the token matched.
+bool lookupWindow(Session &session, int timeoutMs, const QString &token, WindowInfo *out,
+                  int *matches = nullptr);
+
 // Registers the metatypes needed for serialising replica structs across
 // the Qt RemoteObjects wire.
 void registerNamedMetatypes();

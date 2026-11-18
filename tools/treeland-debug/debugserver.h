@@ -48,7 +48,10 @@ private:
     QJsonObject handleFocused();
     QJsonObject handleCursorWindow();
     QJsonObject handleScene(const QHttpServerRequest &request);
+    QJsonObject handleWindow(const QHttpServerRequest &request);
     QJsonObject handleNoAuth();
+    // GET reports the switch, POST {"state":"on|off"} writes it (no escalation).
+    QJsonObject handleDebug(const QHttpServerRequest &request);
 
     // --- HTTP route handlers (window control) ---
     QJsonObject handleActivate(const QHttpServerRequest &request);
@@ -75,6 +78,9 @@ private:
     // Used by both the HTTP POST routes and the MCP tools/call dispatcher so
     // that parameter extraction is not tied to QHttpServerRequest.
     QJsonObject handleScene(const QString &target);
+    QJsonObject handleWindow(const QString &target);
+    // @p want is -1 to read the switch, 1/0 to turn it on/off.
+    QJsonObject handleDebug(int want);
     QJsonObject handleActivate(const QJsonObject &body);
     QJsonObject handleClose(const QJsonObject &body);
     QJsonObject handleMinimize(const QJsonObject &body);

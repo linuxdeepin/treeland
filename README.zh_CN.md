@@ -165,8 +165,9 @@ treeland 可同时运行。Debug 构建的 treeland-debug 客户端自动优先�
 | 命令 | 参数 | 输出 |
 | --- | --- | --- |
 | `tree` | _（无，默认）_ | 布局树（人读格式；`--json` 输出 JSON）。 |
-| `cursor` | _（无）_ | 光标位置 `x=… y=…`（`--json` 输出 `{"x","y"}`）。 |
-| `windows` | _（无）_ | 窗口表格；`--json` 输出 JSON 数组。 |
+| `cursor` | _（无）_ | 光标位置，xdotool 风格 `x:… y:… window:…`（`--json` 输出 `{"x","y","window"}`）。 |
+| `windows` | _（无）_ | 窗口表格，含 shell 类型 `TYPE` 列；`--json` 输出 JSON 数组。 |
+| `window` | `<id\|appId>` | 单个窗口的完整信息（xwininfo 风格 `Key: value` 块）；`--json` 输出该窗口的 JSON。 |
 | `clients` | _（无）_ | 客户端 + 窗口表格；`--json` 输出 JSON 数组。 |
 | `top` | `[interval-ms]`（默认 1000） | 实时刷新的 top 式客户端视图（Ctrl+C 退出）。 |
 
@@ -263,9 +264,9 @@ treeland 可同时运行。Debug 构建的 treeland-debug 客户端自动优先�
 # 查看窗口树（人读格式，默认命令）
 sudo -u dde -- treeland-debug tree
 
-# 光标位置
+# 光标位置（xdotool 风格）
 sudo -u dde -- treeland-debug cursor
-# → x=960 y=540
+# → x:960 y:540 window:93824992268800
 
 # 列出窗口
 sudo -u dde -- treeland-debug windows
