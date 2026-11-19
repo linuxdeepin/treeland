@@ -1,0 +1,71 @@
+#compdef treeland-debug
+# SPDX-FileCopyrightText: 2026 UnionTech Software Technology Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+#
+# Zsh completion for treeland-debug. Installed as
+# $DATADIR/zsh/site-functions/_treeland-debug; for a build-tree copy, add
+# tools/treeland-debug/completions to $fpath.
+#
+# The word lists mirror debugCommandNames()/completionCandidates() in
+# tools/treeland-debug/debughelpers.cpp; testCompletionScriptsMatchCommandTable()
+# compares them and fails when one side was changed without the other.
+
+_treeland_debug()
+{
+    local -a commands
+    commands=(
+        'tree:Print the complete window tree'
+        'cursor:Print the cursor position'
+        'windows:List all toplevel windows'
+        'window:Print one window in detail'
+        'clients:List connected clients'
+        'idle:Print the idle state'
+        'shortcuts:List registered shortcuts'
+        'scene:Dump the QtQuick scene tree'
+        'activate:Activate a window'
+        'close:Close a window'
+        'minimize:Minimize a window'
+        'maximize:Maximize a window'
+        'fullscreen:Toggle fullscreen on a window'
+        'move:Move a window'
+        'resize:Resize a window'
+        'workspace:Move a window to a workspace'
+        'move-cursor:Move the cursor'
+        'event:Inject an input event'
+        'screenshot:Capture an output or a window'
+        'top:Live window table'
+        'events:Live input event stream'
+        'watch:Watch one window'
+        'no-auth:Open the debug socket to every user for 30 minutes'
+        'listen:Expose the CLI over HTTP and WebSocket'
+        'debug:Read or write the remoteDebug switch'
+        'help:Show the command reference'
+        'shell:Start the interactive REPL'
+    )
+
+    # `_arguments -C` shifts $words, so remember the command now: in the args
+    # state $words[1] is the subcommand and $words[2] its first argument. Reading
+    # $words[2] after the call is what used to fall through to _files.
+    local first_argument=$words[2]
+
+    _arguments -C \
+        '1:command:->command' \
+        '*::arg:->args'
+
+    case $state in
+    command)
+        _describe -t commands 'treeland-debug command' commands
+        ;;
+    args)
+        case $first_argument in
+        event) _values 'event' motion button key ;;
+        screenshot) _values 'screenshot target' output window ;;
+        debug) _values 'debug action' on off status ;;
+        listen) _arguments '--port[port to bind]:port' '--host[address to bind]:address' ;;
+        *) _files ;;
+        esac
+        ;;
+    esac
+}
+
+_treeland_debug "$@"

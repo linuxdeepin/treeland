@@ -97,8 +97,14 @@ socket 选择顺序与探测细节见 [access.md](access.md)。`--tree`、`--cur
 ## 交互式 shell
 
 `shell` 启动 REPL（`help` 看命令、`exit`/`quit` 退出），所有命令（含 `top`/`events`/`watch`）
-都可用；Ctrl+C 中断实时视图并回到提示符。`debug [on|off|status]` 在 REPL 里不可用 —— 它可能
-需要转发 polkit 提权，只能以一次性命令运行。
+都可用；Ctrl+C 中断实时视图并回到提示符。Tab 补全命令动词与 `event`/`screenshot`/`debug`/`listen`
+的首个参数，↑/↓ 翻历史，提示符下 Ctrl+C 丢弃当前行、Ctrl+D 退出（管道输入仍按行读取）。
+一次性命令行的补全定义在 `tools/treeland-debug/completions/`（bash/zsh/fish）。`debug [on|off|status]`
+在 REPL 里不可用 —— 它可能需要转发 polkit 提权，只能以一次性命令运行。
+
+三份脚本与命令表由 `tests/test_treeland_debug` 的 `testCompletionScriptsMatchCommandTable()` 逐项
+比对（动词 = `debugCommandNames()` 去掉 REPL 专属的 `exit`/`quit`，首参 = `completionCandidates()`），
+所以**新增/改名命令或首参时必须同步改这三份脚本**，否则该测试失败。
 
 ## 访问
 

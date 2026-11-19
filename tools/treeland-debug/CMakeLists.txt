@@ -30,6 +30,7 @@ add_custom_command(
 
 set(treeland_debug_sources
     main.cpp
+    shellline.cpp
     debughelpers.cpp
     debugsession.cpp
     debugswitch.cpp
@@ -69,5 +70,21 @@ target_link_libraries(treeland-debug PRIVATE
 
 install(TARGETS treeland-debug
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    COMPONENT treeland-debug
+)
+
+# Tab completion for the one-shot command line, one file per shell. dash is not
+# listed: it has no programmable completion, so there is nothing to install for
+# it (see README.md).
+install(FILES completions/treeland-debug
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/bash-completion/completions"
+    COMPONENT treeland-debug
+)
+install(FILES completions/_treeland-debug
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/zsh/site-functions"
+    COMPONENT treeland-debug
+)
+install(FILES completions/treeland-debug.fish
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/fish/vendor_completions.d"
     COMPONENT treeland-debug
 )

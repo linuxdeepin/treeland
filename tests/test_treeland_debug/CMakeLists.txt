@@ -14,6 +14,12 @@ target_include_directories(test_treeland_debug PRIVATE
     "${PROJECT_SOURCE_DIR}/src/modules/resource"
 )
 
+# The completion scripts are hand-written per shell; the test that compares them
+# with the command table reads them from the source tree.
+target_compile_definitions(test_treeland_debug PRIVATE
+    TREELAND_DEBUG_SOURCE_DIR="${debug_helpers_dir}"
+)
+
 target_link_libraries(test_treeland_debug
     PRIVATE
         Qt6::Test
