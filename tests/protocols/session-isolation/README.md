@@ -83,3 +83,6 @@ xdg-foreign 接口新增状态断言（未编译、未执行）：每个 Session
 分别对应两个 WServerInterface 对象，绑定同一所属 socket，共享 native registry。
 配合现有 C registry 断言检查各连接仅看见自己的 exporter/importer global。
 尚未覆盖创建期间的广播、restart 以及 export/import token 的完整请求链路。
+
+同账户重登回归连续使用三个新 session ID。测试延迟清理旧 Session，检查新桌面仍是
+唯一活动桌面，并通过两个新建的真实 Wayland 连接核对 shell、数据传输、输入法和捕获协议的 registry。
