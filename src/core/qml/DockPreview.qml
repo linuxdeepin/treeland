@@ -15,10 +15,10 @@ Item {
     // layer around it keeps using aniDuration; only the picture goes early.
     property int closeContentDuration: 100
     // Gap between two slots; the highlight frame is drawn in it.
-    property int spacing: 10
+    property int spacing: PopoverStyle.previewSpacing
 
-    readonly property int panelHorizontalPadding: PopoverStyle.tooltipHorizontalPadding
-    readonly property int panelVerticalPadding: PopoverStyle.tooltipVerticalPadding
+    // Inset of the thumbnail content from every panel edge.
+    readonly property int thumbnailPadding: PopoverStyle.previewPanelPadding
     readonly property int screenEdgeMargin: 10
     property bool enableBlur: true
     property bool enableShadow: GraphicsInfo.api !== GraphicsInfo.Software
@@ -67,7 +67,7 @@ Item {
 
     readonly property real titleRowHeight: titleFontMetrics.height
     // Chrome the thumbnail adds above its content; only it carries a header.
-    readonly property real titleRowChrome: root.titleRowHeight + root.spacing
+    readonly property real titleRowChrome: root.titleRowHeight + PopoverStyle.previewSpacing
 
     // Picture box of one slot: fixed short side, clamped aspect ratio.
     function previewSlotSize(wrapper, horizontal) {
@@ -154,18 +154,20 @@ Item {
                 : Qt.size(cross, last.y + last.height);
     }
 
-    readonly property int listContentWidth: PopoverStyle.listContentWidth
+    readonly property int listPanelWidth: PopoverStyle.listPanelWidth
+    readonly property int listPanelPadding: PopoverStyle.listPanelPadding
+    readonly property int listContentWidth: root.listPanelWidth - 2 * root.listPanelPadding
     readonly property int listRowHeight: PopoverStyle.listRowHeight
     readonly property int listRowSpacing: PopoverStyle.listRowSpacing
     readonly property int listMaxFrameHeight: PopoverStyle.listMaxFrameHeight
     readonly property int listMaxContentHeight:
-        Math.max(0, root.listMaxFrameHeight - 2 * root.panelVerticalPadding)
+        Math.max(0, root.listMaxFrameHeight - 2 * root.listPanelPadding)
     // What the list can actually show: the frame cap and the output both bound
     // it, so a short output never hides rows the scroller cannot reach.
     readonly property real listMaxViewportHeight: Math.max(0,
         Math.min(root.listMaxContentHeight,
                  root.outPutSize.height - 2 * root.screenEdgeMargin
-                     - 2 * root.panelVerticalPadding))
+                     - 2 * root.listPanelPadding))
 
     function listRowRects(wrappers) {
         const rects = [ ];
@@ -223,33 +225,35 @@ Item {
     // screen, or the one that just left.
     readonly property size tooltipSize: tooltipPresent.naturalSize
 
-    function previewFrameSizeFor(contentSize, titleChrome) {
+    function previewFrameSizeFor(contentSize, titleChrome, padding) {
         const maxContentWidth = Math.max(0, root.outPutSize.width
                                             - 2 * root.screenEdgeMargin
-                                            - 2 * root.panelHorizontalPadding);
+                                            - 2 * padding);
         const maxContentHeight = Math.max(0, root.outPutSize.height
                                              - 2 * root.screenEdgeMargin
-                                             - 2 * root.panelVerticalPadding
+                                             - 2 * padding
                                              - titleChrome);
-        return Qt.size(Math.min(contentSize.width, maxContentWidth)
-                           + 2 * root.panelHorizontalPadding,
+        return Qt.size(Math.min(contentSize.width, maxContentWidth) + 2 * padding,
                        Math.min(contentSize.height, maxContentHeight)
-                           + titleChrome + 2 * root.panelVerticalPadding);
+                           + titleChrome + 2 * padding);
     }
 
     readonly property size targetFrameSize:
         root.requestedPresentation === DockPreview.Presentation.Tooltip
             ? root.tooltipSize
       : root.requestedPresentation === DockPreview.Presentation.List
-            ? root.previewFrameSizeFor(root.listContentSize, 0)
+            ? root.previewFrameSizeFor(root.listContentSize, 0,
+                                       PopoverStyle.listPanelPadding)
             : root.previewFrameSizeFor(root.thumbnailContentSize,
-                                       root.titleRowChrome)
+                                       root.titleRowChrome,
+                                       root.thumbnailPadding)
 
     readonly property size previewViewport: {
         const frame = root.previewFrameSizeFor(root.thumbnailContentSize,
-                                               root.titleRowChrome);
-        return Qt.size(Math.max(0, frame.width - 2 * root.panelHorizontalPadding),
-                       Math.max(0, frame.height - 2 * root.panelVerticalPadding
+                                               root.titleRowChrome,
+                                               root.thumbnailPadding);
+        return Qt.size(Math.max(0, frame.width - 2 * root.thumbnailPadding),
+                       Math.max(0, frame.height - 2 * root.thumbnailPadding
                                         - root.titleRowChrome));
     }
 
@@ -403,15 +407,17 @@ Item {
         }
     }
 
-    // The content rect every presentation fills: the frame minus its panel
-    // padding. A presentation that carries a title row insets itself by it, so
-    // no other presentation's geometry depends on that row.
-    readonly property real contentLeft: root.panelHorizontalPadding
-    readonly property real contentTop: root.panelVerticalPadding
-    readonly property real contentWidth:
-        Math.max(0, root.frameWidth - 2 * root.panelHorizontalPadding)
-    readonly property real contentHeight:
-        Math.max(0, root.frameHeight - 2 * root.panelVerticalPadding)
+    // The rect each presentation fills: the frame minus its own padding.
+    readonly property rect thumbnailContentRect: Qt.rect(
+        root.thumbnailPadding,
+        root.thumbnailPadding,
+        Math.max(0, root.frameWidth - 2 * root.thumbnailPadding),
+        Math.max(0, root.frameHeight - 2 * root.thumbnailPadding))
+    readonly property rect listContentRect: Qt.rect(
+        root.listPanelPadding,
+        root.listPanelPadding,
+        Math.max(0, root.frameWidth - 2 * root.listPanelPadding),
+        Math.max(0, root.frameHeight - 2 * root.listPanelPadding))
 
     visible: false
 

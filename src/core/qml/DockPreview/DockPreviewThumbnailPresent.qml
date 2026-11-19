@@ -274,10 +274,10 @@ Item {
         id: slotClip
 
         // Clipped one frame margin wider than the content.
-        x: preview.contentLeft - root.frameMargin
-        y: preview.contentTop + root.titleSpace - root.frameMargin
-        width: preview.contentWidth + 2 * root.frameMargin
-        height: Math.max(0, preview.contentHeight - root.titleSpace
+        x: preview.thumbnailContentRect.x - root.frameMargin
+        y: preview.thumbnailContentRect.y + root.titleSpace - root.frameMargin
+        width: preview.thumbnailContentRect.width + 2 * root.frameMargin
+        height: Math.max(0, preview.thumbnailContentRect.height - root.titleSpace
                             + 2 * root.frameMargin)
         clip: true
 
@@ -422,9 +422,9 @@ Item {
             left: parent.left
             right: parent.right
             top: parent.top
-            leftMargin: preview.panelHorizontalPadding
-            rightMargin: preview.panelHorizontalPadding
-            topMargin: preview.panelVerticalPadding
+            leftMargin: preview.thumbnailPadding
+            rightMargin: preview.thumbnailPadding
+            topMargin: preview.thumbnailPadding
         }
 
         Loader {
