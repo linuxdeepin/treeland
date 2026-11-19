@@ -280,6 +280,39 @@ extern "C" void isolation_reactivate_b(void *)
     WaylandServer::instance()->sessionManager()->updateActiveUserSession(sessionB->username(), sessionB->id());
 }
 
+extern "C" void isolation_recreate_b(void *data)
+{
+    auto *state = static_cast<isolation_state *>(data);
+    *state = {};
+    if (!sessionB)
+        return;
+    // Drain disconnected B clients before switching away from B can freeze them.
+    isolation_restore_a(nullptr);
+    auto *manager = WaylandServer::instance()->sessionManager();
+    static unsigned int login = 0;
+    const auto id = QStringLiteral("treelandisolation-relogin-%1").arg(++login);
+    const auto username = sessionB->username();
+    auto previous = sessionB;
+    const std::weak_ptr<Session> retired = previous;
+    manager->updateActiveUserSession(username, sessionB->id());
+    manager->updateActiveUserSession(username, id);
+    sessionB = manager->sessionForId(id);
+    const bool previousInactive = !previous->isActive();
+    // Late cleanup of the old object must not remove or deactivate the new one.
+    manager->removeSession(previous);
+    previous.reset();
+    if (!sessionB || !previousInactive || !retired.expired()
+        || manager->activeSession().lock() != sessionB || !sessionB->isActive() || sessionA->isActive())
+        return;
+    manager->updateActiveUserSession(sessionA->username(), sessionA->id());
+    if (!sessionA->isActive() || sessionB->isActive())
+        return;
+    sessionB->socket()->setEnabled(true);
+    const auto name = sessionB->socket()->fullServerName().toUtf8();
+    std::strncpy(state->socket_name, name.constData(), sizeof(state->socket_name) - 1);
+    state->ready = 1;
+}
+
 extern "C" void isolation_restore_a(void *)
 {
     const auto clients = sessionB->socket()->clients();

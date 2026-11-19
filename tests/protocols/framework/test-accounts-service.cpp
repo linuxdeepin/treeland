@@ -7,10 +7,12 @@
 #include <QDBusObjectPath>
 #include <QObject>
 
+#include <pwd.h>
+#include <unistd.h>
+
 namespace {
 constexpr auto accountsService = "org.freedesktop.Accounts";
 constexpr auto accountsPath = "/org/freedesktop/Accounts";
-constexpr auto accountsUserPath = "/org/freedesktop/Accounts/User1000";
 
 class TestAccountsManager : public QObject
 {
@@ -19,21 +21,22 @@ class TestAccountsManager : public QObject
     Q_PROPERTY(QStringList UserList READ userList)
 
 public:
-    QStringList userList() const { return { QString::fromLatin1(accountsUserPath) }; }
+    QString userPath = QStringLiteral("/org/freedesktop/Accounts/User1000");
+    QStringList userList() const { return { userPath }; }
 
 public Q_SLOTS:
     QList<QDBusObjectPath> ListCachedUsers() const
     {
-        return { QDBusObjectPath(QString::fromLatin1(accountsUserPath)) };
+        return { QDBusObjectPath(userPath) };
     }
 
     QDBusObjectPath FindUserById(qint64) const
     {
-        return QDBusObjectPath(QString::fromLatin1(accountsUserPath));
+        return QDBusObjectPath(userPath);
     }
     QDBusObjectPath FindUserByName(const QString &) const
     {
-        return QDBusObjectPath(QString::fromLatin1(accountsUserPath));
+        return QDBusObjectPath(userPath);
     }
 };
 
@@ -82,13 +85,23 @@ TestAccountsService::~TestAccountsService() = default;
 
 bool TestAccountsService::registerObjects()
 {
+    if (qEnvironmentVariableIsSet("TREELAND_PROTOCOL_TEST_USE_RUNNING_ACCOUNT")) {
+        const auto *account = getpwuid(getuid());
+        if (!account)
+            return false;
+        d->user.uid = account->pw_uid;
+        d->user.gid = account->pw_gid;
+        d->user.userName = QString::fromLocal8Bit(account->pw_name);
+        d->user.homeDir = QString::fromLocal8Bit(account->pw_dir);
+        d->manager.userPath = QStringLiteral("/org/freedesktop/Accounts/User%1").arg(d->user.uid);
+    }
     auto connection = QDBusConnection::systemBus();
     constexpr auto exportOptions = QDBusConnection::ExportAllSlots
         | QDBusConnection::ExportAllProperties;
     return connection.isConnected()
         && connection.registerService(QString::fromLatin1(accountsService))
         && connection.registerObject(QString::fromLatin1(accountsPath), &d->manager, exportOptions)
-        && connection.registerObject(QString::fromLatin1(accountsUserPath), &d->user, exportOptions);
+        && connection.registerObject(d->manager.userPath, &d->user, exportOptions);
 }
 
 #include "test-accounts-service.moc"

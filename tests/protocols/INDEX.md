@@ -23,8 +23,9 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 
 | 协议 | 覆盖等级 | 主要生产结果 |
 | --- | --- | --- |
-| [Session 窗口隔离](session-isolation/README.md) | E（新增，待执行） | pointer-gestures 每连接单 global（新增待执行）、两个真实 Session 的窗口模型、工作区、三种 foreign-toplevel 枚举、跨 Session 预览及 LayerShell 逻辑输出/专属区域、最小化模型隔离及共享系统缩放（A/B=1.5，切换不恢复）、三个 output head 的身份和账户往返切换稳定性、四个捕获协议 registry 实例隔离（待执行）、xdg-foreign 单 global 接口对象（待执行）、shell 协议实例及 appearance 请求/事件隔离；快捷键后台即时绑定、upsert/解绑及切换保留；同 appId 闪屏关闭隔离、后台子 socket 窗口激活恢复及协议 socket 归属（待执行），以及停用 Session 全 surface 隐藏/禁用/NonLive（新增待执行） |
+| [Session 窗口隔离](session-isolation/README.md) | E（新增，待执行） | pointer-gestures 每连接单 global（新增待执行）、两个真实 Session 的窗口模型、工作区、三种 foreign-toplevel 枚举、跨 Session 预览及 LayerShell 逻辑输出/专属区域、最小化模型隔离及共享系统缩放（A/B=1.5，切换不恢复）、三个 output head 的身份和账户往返切换稳定性、四个捕获协议 registry 实例隔离（待执行）、xdg-foreign 单 global 接口对象（待执行）、shell 协议实例及 appearance 请求/事件隔离；快捷键后台即时绑定、upsert/解绑及切换保留；同 appId 闪屏关闭隔离、后台子 socket 窗口激活恢复及协议 socket 归属（待执行），以及停用 Session 全 surface 隐藏/禁用/NonLive（新增待执行）；同账户换 ID 重登、延迟清理旧 Session 后的桌面激活与 registry 隔离 |
 | [Session 协议销毁](session-protocol-lifecycle/README.md) | E（新增，待编译、待执行） | 八个原生销毁信号、两个无 destroy 信号的 capture manager global 清理、重复 detach、Session 接口移除、真实客户端连接关闭及其他 Session 连接保留、同账户重建；新增额外共享引用下同步 shutdown、mapped 窗口和子 socket 断连、重复 shutdown 断言（待编译执行） |
+| [用户 socket 生命周期](session-isolation/README.md#用户-socket-生命周期) | E（新增，待执行） | 真实 D-Bus 注册、重复注册保留连接、原 owner 注销保留替换连接、当前 owner 注销释放监听器、用户 socket 启停跟随 Session 且不受当前显示用户影响、Session 注销断开该会话的用户 socket 和后代 socket 连接 |
 | [测试框架架构](framework/README.md) | 基础设施 | runner、fixture、C client、生产状态桥接与 E/V 断言边界 |
 | [app-id-resolver-v2](treeland-app-id-resolver-v2/README.md) | I / E | resolver pidfd 应答；返回 app-id 转换真实 splash wrapper 为 xdg window |
 | [capture-unstable-v1](treeland-capture-unstable-v1/README.md) | E / V / P | 真实窗口选择、frame copy 与目标 buffer 像素；无 source 错误 |

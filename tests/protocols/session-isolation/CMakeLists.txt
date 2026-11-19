@@ -17,3 +17,11 @@ treeland_add_protocol_test(
 if(TARGET test_session_isolation)
     target_sources(test_session_isolation PRIVATE appearance-isolation.c appearance-isolation.h background-window.c background-window.h)
 endif()
+
+treeland_add_protocol_test(
+    NAME session_socket_lifecycle
+    SETUP "${CMAKE_CURRENT_SOURCE_DIR}/socket-lifecycle-setup.cpp"
+    CLIENT "${CMAKE_CURRENT_SOURCE_DIR}/socket-lifecycle.c"
+)
+set_property(TEST test_session_socket_lifecycle APPEND PROPERTY ENVIRONMENT
+    "TREELAND_PROTOCOL_TEST_USE_RUNNING_ACCOUNT=1")
