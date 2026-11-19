@@ -1,6 +1,6 @@
 ---
 name: treeland-protocol-upstream
-description: "在 waylib 与 treeland 中封装和集成上游 Wayland 协议（standard/ext/unstable/wlr）：`WServerInterface` 封装、native handle 所有权与销毁、每会话 global 隔离与撤销。在使用 `m_server->attach<W...>()` 消费上游协议、新增 `W...` 封装、判断 wlroots `wlr_*_destroy` 与 `globalRemove()` 的归属、把协议接到 `WaylandServer::init` 启动路径时使用。treeland 私有协议见 `treeland-protocol`。"
+description: "在 waylib 与 treeland 中封装和集成上游 Wayland 协议（standard/ext/unstable/wlr）：`WServerInterface` 封装、native handle 所有权与销毁、每会话 global 隔离与撤销。在使用 `m_server->attach` 挂载 `W...` 封装、新增 `W...` 封装类、判断 wlroots `wlr_*_destroy` 与 `globalRemove()` 的归属、把协议接到 `WaylandServer::init` 启动路径时使用。treeland 私有协议见 `treeland-protocol`。"
 ---
 
 # 上游协议封装与集成
