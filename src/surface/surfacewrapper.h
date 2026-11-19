@@ -672,7 +672,9 @@ private:
     int m_workspaceId = -1;
     int m_explicitAlwaysOnTop = 0;
     bool m_explicitAlwaysOnBottom = false;
-    qreal m_radius = 0.0;
+    // Negative = no per-window radius override, fall back to DConfig; any
+    // non-negative value is applied as sent (0 = square corners).
+    qreal m_radius = -1.0;
     // Per-window SSD customization state (treeland-decoration-unstable-v1).
     // Defaults mirror Decoration.qml (XdgShadow / Border) rendering so that
     // windows without a decoration context look unchanged.
