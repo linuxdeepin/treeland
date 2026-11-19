@@ -1,6 +1,6 @@
 ---
 name: treeland-logging
-description: "为 treeland 与 waylib 添加、修改、评审日志：集中式日志分类体系、级别选择、消息质量与敏感数据。在写 `qCDebug`/`qCInfo`/`qCWarning`/`qCCritical`、新增或调整日志分类（`treeland.<module>`、`waylib.<module>`）、把裸 `qDebug()`/`qWarning()` 换成带分类的调用、清理日志输出时使用。"
+description: "为 treeland 与 waylib 添加、修改、评审日志：集中式日志分类体系、级别选择、消息质量与敏感数据。在写 `qCDebug`/`qCInfo`/`qCWarning`/`qCCritical`、新增或调整日志分类（`treeland.*`、`waylib.*` 命名空间）、把裸 `qDebug()`/`qWarning()` 换成带分类的调用、清理日志输出时使用。"
 ---
 
 # 日志规范

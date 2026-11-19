@@ -1,6 +1,6 @@
 ---
 name: treeland-debug
-description: "检查和操控运行中的 treeland 合成器，用于定位窗口、焦点、输入、输出、渲染与卡死问题：窗口树与单窗口详情、客户端清单、空闲与空闲抑制来源、快捷键、输入注入、截图、QtQuick 场景树、实时视图，以及调试 socket 的访问权限和 Qt 日志分类。在调试/复现 treeland 运行时问题、读写 remoteDebug 开关、连接调试 socket、按 treeland.<module> 或 waylib.<module> 分类读日志时使用。"
+description: "检查和操控运行中的 treeland 合成器，用于定位窗口、焦点、输入、输出、渲染与卡死问题：窗口树与单窗口详情、客户端清单、空闲与空闲抑制来源、快捷键、输入注入、截图、QtQuick 场景树、实时视图，以及调试 socket 的访问权限和 Qt 日志分类。在调试/复现 treeland 运行时问题、读写 remoteDebug 开关、连接调试 socket、按 treeland 与 waylib 的日志分类读日志时使用。"
 ---
 
 # Treeland 调试
