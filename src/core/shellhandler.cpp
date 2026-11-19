@@ -511,14 +511,6 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
                          updateSurfaceWithParentContainer);
     updateSurfaceWithParentContainer();
     Q_ASSERT(wrapper->parentItem());
-    if (surface->isInitialized()) {
-        const auto initialState = surface->handle()->requested.fullscreen
-            ? SurfaceWrapper::State::Fullscreen
-            : surface->handle()->requested.maximized ? SurfaceWrapper::State::Maximized
-                                                     : SurfaceWrapper::State::Normal;
-        if (initialState != SurfaceWrapper::State::Normal)
-            wrapper->setSurfaceStateDirectly(initialState);
-    }
     setupSurfaceWindowMenu(wrapper);
     // Only setup active watcher for newly created wrappers;
     // prelaunch splash wrappers already have it set up in initializePrelaunchSurface
@@ -527,6 +519,17 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
         registerSurfaceToForeignToplevel(wrapper);
     }
     Q_EMIT surfaceWrapperAdded(wrapper);
+
+    // After surfaceWrapperAdded(): the SSD title bar is arbitrated by its handlers, so an
+    // earlier apply configures zero padding.
+    if (surface->isInitialized()) {
+        const auto initialState = surface->handle()->requested.fullscreen
+            ? SurfaceWrapper::State::Fullscreen
+            : surface->handle()->requested.maximized ? SurfaceWrapper::State::Maximized
+                                                     : SurfaceWrapper::State::Normal;
+        if (initialState != SurfaceWrapper::State::Normal)
+            wrapper->setSurfaceStateDirectly(initialState);
+    }
 
     // Privileged overlay, IM candidate panel, and snap mask detection via xdg-toplevel-tag
     QPointer<SurfaceWrapper> wrapperPtr(wrapper);

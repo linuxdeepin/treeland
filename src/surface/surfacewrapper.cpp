@@ -1616,17 +1616,28 @@ void SurfaceWrapper::updateTitleBar()
         m_titleBar->disconnect(this);
         m_titleBar->deleteLater();
         m_titleBar = nullptr;
-        m_surfaceItem->setTopPadding(0);
     } else {
         m_titleBar = m_engine->createTitleBar(this, m_surfaceItem);
         m_titleBar->setZ(static_cast<int>(WSurfaceItem::ZOrder::ContentItem));
-        m_surfaceItem->setTopPadding(m_titleBar->height());
-        connect(m_titleBar, &QQuickItem::heightChanged, this, [this] {
-            m_surfaceItem->setTopPadding(m_titleBar->height());
-        });
+        connect(m_titleBar, &QQuickItem::heightChanged, this, &SurfaceWrapper::syncTitleBarPadding);
     }
 
+    syncTitleBarPadding();
     Q_EMIT noTitleBarChanged();
+}
+
+void SurfaceWrapper::syncTitleBarPadding()
+{
+    m_surfaceItem->setTopPadding(m_titleBar ? m_titleBar->height() : 0);
+
+    // A maximized/fullscreen/tiled window keeps its frame on the state rect, so a title bar
+    // that appears or goes away later must re-apply it; an animation lands the rect itself.
+    // applied == state only holds because applyShellSurfaceState()'s single caller lands it.
+    const QRectF stateGeometry = targetGeometryForState(m_surfaceState);
+    if (!m_isProxy && m_surfaceState != State::Normal && m_appliedSurfaceState == m_surfaceState
+        && !m_geometryAnimation && stateGeometry.isValid()) {
+        applyGeometry(stateGeometry);
+    }
 }
 
 void SurfaceWrapper::setBoundedRect(const QRectF &newBoundedRect)
@@ -2110,8 +2121,9 @@ void SurfaceWrapper::applyShellSurfaceState()
         break;
     }
 
-    m_appliedSurfaceState = newSurfaceState;
+    // Before recording the state, so a padding change here does not re-apply the geometry.
     updateTitleBar();
+    m_appliedSurfaceState = newSurfaceState;
     updateVisible();
 }
 

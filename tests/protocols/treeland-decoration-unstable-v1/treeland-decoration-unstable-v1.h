@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -10,6 +12,10 @@ extern "C" {
 struct decoration_server_state {
     int valid;
     double radius;
+    // Maximized frame rect and the SSD title bar height currently taken out of it.
+    int32_t maximized_width;
+    int32_t maximized_height;
+    int32_t titlebar_height;
 };
 
 void decoration_read_server_state(void *data);

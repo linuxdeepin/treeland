@@ -537,6 +537,7 @@ private:
     void updateActiveState();
     void setNormalGeometry(const QRectF &newNormalGeometry);
     void updateTitleBar();
+    void syncTitleBarPadding();
     void updateDecoration();
     void initializeFrameGeometry();
     void updateRadiusConfig();
