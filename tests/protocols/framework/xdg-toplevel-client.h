@@ -20,6 +20,9 @@ struct xdg_toplevel_client {
     struct wl_buffer *buffer;
     uint32_t configure_serial;
     uint32_t acknowledged_configure_serial;
+    // Last xdg_toplevel.configure size, for tests that assert compositor-driven resizes.
+    int32_t configure_width;
+    int32_t configure_height;
     int configured;
     int close_received;
 };

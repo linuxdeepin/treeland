@@ -8,6 +8,8 @@
 #include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 
+#include "animationconfig.hpp"
+
 #include <wbackend.h>
 
 namespace {
@@ -17,6 +19,12 @@ SurfaceWrapper *g_toplevel = nullptr;
 void protocol_test_setup(WaylandServer *server)
 {
     Q_ASSERT(find_server_interface<DecorationManagerInterfaceV1>(server));
+    // Apply state geometry immediately: these cases assert configure sizes, not animation.
+    if (auto *animation = server->animationConfig()) {
+        animation->setMaximize(false);
+        animation->setFullscreen(false);
+        animation->setRestoreWindow(false);
+    }
     add_headless_output(server->backend(), false);
     QObject::connect(server->shellHandler(), &ShellHandler::surfaceWrapperAdded, server,
                      [](SurfaceWrapper *wrapper) {
@@ -34,4 +42,8 @@ extern "C" void decoration_read_server_state(void *data)
 
     state->valid = 1;
     state->radius = g_toplevel->radius();
+    const QRectF maximized = g_toplevel->maximizedGeometry();
+    state->maximized_width = maximized.width();
+    state->maximized_height = maximized.height();
+    state->titlebar_height = g_toplevel->surfaceItem()->topPadding();
 }

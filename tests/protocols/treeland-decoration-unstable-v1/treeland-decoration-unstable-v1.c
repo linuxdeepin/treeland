@@ -5,15 +5,116 @@
 #include "treeland-decoration-unstable-v1.h"
 #include "xdg-toplevel-client.h"
 #include "treeland-decoration-unstable-v1-client-protocol.h"
+#include "xdg-decoration-unstable-v1-client-protocol.h"
 
 #include <stdio.h>
+
+struct decoration_mode_state {
+    uint32_t mode;
+    int received;
+};
+
+static void decoration_configure(void *data,
+                                 struct zxdg_toplevel_decoration_v1 *decoration,
+                                 uint32_t mode)
+{
+    (void)decoration;
+    struct decoration_mode_state *state = data;
+    state->mode = mode;
+    state->received = 1;
+}
+
+static const struct zxdg_toplevel_decoration_v1_listener decoration_listener = {
+    .configure = decoration_configure,
+};
+
+// The compositor answers set_mode with a configure; wait for it before the next step.
+static struct zxdg_toplevel_decoration_v1 *request_decoration(
+    struct client_connection *connection,
+    struct zxdg_decoration_manager_v1 *manager,
+    struct xdg_toplevel *toplevel,
+    uint32_t mode,
+    struct decoration_mode_state *state)
+{
+    struct zxdg_toplevel_decoration_v1 *decoration =
+        zxdg_decoration_manager_v1_get_toplevel_decoration(manager, toplevel);
+    if (!decoration)
+        return NULL;
+    zxdg_toplevel_decoration_v1_add_listener(decoration, &decoration_listener, state);
+    zxdg_toplevel_decoration_v1_set_mode(decoration, mode);
+    for (int i = 0; i < 32 && !state->received; ++i) {
+        if (wl_display_roundtrip(connection->display) < 0)
+            break;
+    }
+    return decoration;
+}
+
+static int read_server_state(struct decoration_server_state *state)
+{
+    if (!invoke_on_server_thread(decoration_read_server_state, state) || !state->valid) {
+        fprintf(stderr, "decoration: server state unavailable\n");
+        return 1;
+    }
+    return 0;
+}
+
+// A maximized window keeps its frame on the rect: only the height gives up the title bar.
+static int expect_maximized_configure(struct client_connection *connection,
+                                      struct xdg_toplevel_client *toplevel,
+                                      const char *step)
+{
+    // Bounded wait: a compositor that never corrects the size must fail, not hang.
+    for (int i = 0; i < 32; ++i) {
+        struct decoration_server_state state = { 0 };
+        if (read_server_state(&state))
+            return 1;
+        if (toplevel->configure_width == state.maximized_width
+            && toplevel->configure_height == state.maximized_height - state.titlebar_height)
+            return 0;
+        if (wl_display_roundtrip(connection->display) < 0)
+            return 1;
+    }
+    struct decoration_server_state state = { 0 };
+    if (read_server_state(&state))
+        return 1;
+    fprintf(stderr,
+            "decoration: configure %dx%d after %s, expected %dx%d "
+            "(maximized %dx%d, title bar %d)\n",
+            toplevel->configure_width, toplevel->configure_height, step,
+            state.maximized_width, state.maximized_height - state.titlebar_height,
+            state.maximized_width, state.maximized_height, state.titlebar_height);
+    return 1;
+}
+
+// Hide or show the title bar and wait until the server side really did it.
+static int set_titlebar_mode(struct client_connection *connection,
+                            struct treeland_decoration_context_v1 *context,
+                            uint32_t mode,
+                            int32_t expectedHeight)
+{
+    treeland_decoration_context_v1_set_titlebar_mode(context, mode);
+    if (wl_display_roundtrip(connection->display) < 0)
+        return 1;
+    for (int i = 0; i < 32; ++i) {
+        struct decoration_server_state state = { 0 };
+        if (read_server_state(&state))
+            return 1;
+        if ((expectedHeight == 0 && state.titlebar_height == 0)
+            || (expectedHeight > 0 && state.titlebar_height == expectedHeight))
+            return 0;
+        if (wl_display_roundtrip(connection->display) < 0)
+            return 1;
+    }
+    fprintf(stderr, "decoration: title bar padding did not become %d\n", expectedHeight);
+    return 1;
+}
 
 int protocol_test_run(const char *socket_name)
 {
     struct client_connection connection;
     struct xdg_toplevel_client toplevel = { 0 };
     if (!client_connect(&connection, socket_name)
-        || !xdg_toplevel_client_create(&connection, &toplevel))
+        || !xdg_toplevel_client_create_pending(&connection, &toplevel))
         return 1;
     struct treeland_decoration_manager_v1 *manager = client_bind(&connection,
         "treeland_decoration_manager_v1", &treeland_decoration_manager_v1_interface, 1);
@@ -31,12 +132,58 @@ int protocol_test_run(const char *socket_name)
     if (wl_display_roundtrip(connection.display) < 0)
         return 1;
     struct decoration_server_state state = { 0 };
-    if (!invoke_on_server_thread(decoration_read_server_state, &state)
-        || !state.valid || state.radius != 12.0) {
-        fprintf(stderr, "decoration: corner radius was not applied (valid=%d radius=%g)\n",
-                state.valid, state.radius);
+    if (read_server_state(&state))
+        return 1;
+    if (state.radius != 12.0) {
+        fprintf(stderr, "decoration: corner radius was not applied (radius=%g)\n", state.radius);
         return 1;
     }
+
+    // Restore maximized: the bar only lands once the toplevel initializes, after a first apply.
+    struct zxdg_decoration_manager_v1 *decorationManager = client_bind(&connection,
+        "zxdg_decoration_manager_v1", &zxdg_decoration_manager_v1_interface, 1);
+    if (!decorationManager) {
+        fprintf(stderr, "decoration: xdg-decoration manager missing\n");
+        return 1;
+    }
+    xdg_toplevel_set_maximized(toplevel.toplevel);
+    struct decoration_mode_state mode = { 0 };
+    struct zxdg_toplevel_decoration_v1 *decoration =
+        request_decoration(&connection, decorationManager, toplevel.toplevel,
+                           ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE, &mode);
+    if (!decoration || mode.mode != ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE) {
+        fprintf(stderr, "decoration: server-side decoration not negotiated (received=%d mode=%u)\n",
+                mode.received, mode.mode);
+        return 1;
+    }
+    if (!xdg_toplevel_client_complete_map(&connection, &toplevel))
+        return 1;
+    if (read_server_state(&state))
+        return 1;
+    if (state.titlebar_height <= 0) {
+        fprintf(stderr, "decoration: server-side decoration drew no title bar\n");
+        return 1;
+    }
+    if (expect_maximized_configure(&connection, &toplevel, "the title bar appeared"))
+        return 1;
+
+    // Hiding the title bar gives that space back to the client area.
+    const int32_t titlebar_height = state.titlebar_height;
+    if (set_titlebar_mode(&connection, context,
+                          TREELAND_DECORATION_CONTEXT_V1_TITLEBAR_MODE_HIDE, 0))
+        return 1;
+    if (expect_maximized_configure(&connection, &toplevel, "the title bar went away"))
+        return 1;
+
+    // ...and showing it again takes that space back.
+    if (set_titlebar_mode(&connection, context,
+                          TREELAND_DECORATION_CONTEXT_V1_TITLEBAR_MODE_SHOW, titlebar_height))
+        return 1;
+    if (expect_maximized_configure(&connection, &toplevel, "the title bar came back"))
+        return 1;
+
+    zxdg_toplevel_decoration_v1_destroy(decoration);
+    zxdg_decoration_manager_v1_destroy(decorationManager);
     treeland_decoration_context_v1_destroy(context);
     treeland_decoration_manager_v1_destroy(manager);
     xdg_toplevel_client_destroy(&toplevel);
