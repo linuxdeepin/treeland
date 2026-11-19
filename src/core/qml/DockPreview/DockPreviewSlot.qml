@@ -4,7 +4,6 @@
 import QtQuick
 
 import Treeland
-import org.deepin.dtk 1.0 as D
 
 // One window in the preview view. The slot owns its own rectangle, the size
 // its pictures are drawn at, and everything that fades them.
@@ -26,8 +25,6 @@ Item {
     // Whole-slot opacity: a new slot starts at the tail of the stack, fades
     // in as it slides out, and fades out while it collapses.
     property real reveal: 1
-    // The slot owns its border; the view only decides which slot shows it.
-    property real borderOpacity: 0
     // Content cross-fade, like the tooltip layers.
     property real contentOpacity: 1
     // Pictures that left this slot and are still fading out, one per
@@ -140,7 +137,6 @@ Item {
         collapsing = true;
         // Freeze the picture while the window can still provide it;
         closeSnapshot.scheduleUpdate();
-        borderOpacity = 0;
         revealAnimation.stop();
         if (preview.enableAnimation) {
             contentReveal.stop();
@@ -347,23 +343,6 @@ Item {
         }
     }
 
-    Rectangle {
-        anchors.fill: parent
-        radius: view.radius + 4
-        color: "transparent"
-        border.width: 4
-        opacity: slot.borderOpacity
-        property D.Palette borderPalette: D.Palette {
-            normal {
-                common: Qt.rgba(0, 0, 0, 0.2)
-            }
-            normalDark {
-                common: Qt.rgba(1, 1, 1, 0.3)
-            }
-        }
-        border.color: D.ColorSelector.borderPalette
-    }
-
     Connections {
         target: slot.wrapper
         function onAboutToBeInvalidated() {
@@ -383,7 +362,6 @@ Item {
             preview.previewWindow(slot.wrapper);
             view.currentSlot = slot.slotIndex;
             view.hoveredSlot = slot;
-            view.updateHoverBorder();
         }
     }
 
@@ -416,14 +394,6 @@ Item {
         to: 1
         duration: preview.aniDuration
         easing.type: Easing.OutExpo
-    }
-
-    Behavior on borderOpacity {
-        enabled: preview.enableAnimation
-        NumberAnimation {
-            duration: preview.aniDuration
-            easing.type: Easing.OutExpo
-        }
     }
 
     NumberAnimation {
