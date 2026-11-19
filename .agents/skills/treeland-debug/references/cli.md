@@ -13,6 +13,8 @@
 --preview            强制在终端内联预览截图（默认自动探测）
 --no-preview         关闭内联预览
 --no-escalate        不走 polkit 提权，只报告需要 root（脚本/CI 用）
+--log-level <level>  本客户端自身 stderr 诊断的详细度：error、warning、info（默认）、
+                     debug。目前只有 info 与 debug 有差别，debug 还会标出回退连接的来源
 -h, --help           帮助
 -v, --version        版本
 ```
@@ -62,6 +64,10 @@ socket 选择顺序与探测细节见 [access.md](access.md)。`--tree`、`--cur
   自己的符号（`800x600-10+50`），不是从右边缘算的偏移。
 - **单个对象**（`window`、`idle`）是 `Key: value` 逐行块，键补齐对齐。
 - **嵌套结构**（`tree`、`scene`）保留树枝字符。
+- **来源 socket**：每次建立连接的运行结束时都在 stderr 上说明数据来自哪个 socket
+  （`treeland-debug: connected to local:...`），`shell` 进入时则作为 login 信息给出同一句话；
+  `help`、`--version`、`debug`、`listen` 不建立调试连接，不输出这行。`(fallback from ...)`
+  只有在 `--log-level debug` 下才出现（`error`/`warning` 目前与 `info` 无差别）。
 
 ## 窗口控制
 

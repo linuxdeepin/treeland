@@ -141,6 +141,12 @@ treeland 可同时运行。Debug 构建的 treeland-debug 客户端自动优先�
 然后是上面的自动探测。显式 URL 始终优先，不做任何隐式处理 —— 它也是连接旧版 treeland
 留在迁移前 `/tmp/<name>` 的 socket 的方式：`--url local:/tmp/org.deepin.dde.treeland.debug`。
 
+每次建立连接的运行结束时都会在 stderr 上说明数据来自哪个 socket（`treeland-debug: connected to
+local:...`），shell 模式则在进入时以 login 信息的形式给出同一句话，所以粘贴出来的输出
+始终能看出属于哪个实例。`help`、`--version`、`debug`、`listen` 不建立调试连接，不会输出这行。
+`(fallback from ...)` 属于客户端自身的探测细节，只有
+`--log-level debug` 才会输出。
+
 ### 全局选项
 
 | 选项 | 默认值 | 说明 |
@@ -151,6 +157,7 @@ treeland 可同时运行。Debug 构建的 treeland-debug 客户端自动优先�
 | `--json` | 关 | 为 `tree`/`cursor`/`windows`/`clients` 输出机器可读 JSON。 |
 | `--preview` | 自动 | 强制在终端内联显示截图预览（默认自动检测终端）。 |
 | `--no-preview` | 关 | 关闭终端内联截图预览。 |
+| `--log-level <level>` | `info` | 本客户端自身 stderr 诊断的详细程度：`error`、`warning`、`info`、`debug`。目前只有 `info` 与 `debug` 有实际差别：`debug` 额外说明回退连接来自哪个 socket；`error`/`warning` 暂时没有更安静的效果。 |
 | `-h, --help` | — | 显示帮助。 |
 | `-v, --version` | — | 显示版本。 |
 | `--tree` / `--cursor` | — | `tree` / `cursor` 命令的向后兼容别名。 |
