@@ -4,6 +4,7 @@
 import QtQuick
 
 import Treeland
+import org.deepin.dtk 1.0 as D
 
 // One window in the preview view. The slot owns its own rectangle, the size
 // its pictures are drawn at, and everything that fades them.
@@ -39,6 +40,8 @@ Item {
     // Set when the shell closes with no windows left: the slot keeps
     // its last picture while the whole shell fades away.
     property bool frozen: false
+    // True while the picture still follows the window.
+    readonly property bool pictureLive: wrapperAlive && !collapsing && !frozen
     property int slotIndex: -1
     // True while the pointer is over this slot's box, so the view can
     // pick the survivor after a move between slots.
@@ -134,9 +137,8 @@ Item {
     // once that is done. The picture is the one thing that goes early;
     // the slot and every layer around it stay on the normal duration.
     function collapseTo(rect) {
+        // Freeze the picture at this frame.
         collapsing = true;
-        // Freeze the picture while the window can still provide it;
-        closeSnapshot.scheduleUpdate();
         revealAnimation.stop();
         if (preview.enableAnimation) {
             contentReveal.stop();
@@ -161,7 +163,6 @@ Item {
         if (frozen || collapsing)
             return;
         frozen = true;
-        closeSnapshot.scheduleUpdate();
     }
 
     // The list took this slot back before it was gone: turn around from
@@ -261,41 +262,54 @@ Item {
         color: PopoverStyle.itemBackground
     }
 
+    // One rounded mask for everything the slot draws.
+    D.OpacityMask {
+        anchors.fill: parent
+        source: contentClip
+        maskSource: pictureMask
+    }
+
+    // The rounded contour of the slot.
+    Rectangle {
+        id: pictureMask
+        anchors.fill: parent
+        radius: view.radius
+        color: "white"
+        visible: false
+    }
+
+    // Source of the mask above; never drawn directly.
     Item {
         id: contentClip
         anchors.fill: parent
+        visible: false
         clip: true
 
+        ShaderEffectSource {
+            id: contentFeed
+            anchors.centerIn: parent
+            implicitWidth: slot.contentSize.width
+            implicitHeight: slot.contentSize.height
+            // Sampled by the picture below, never drawn.
+            visible: false
+            live: slot.pictureLive
+            hideSource: false
+            smooth: true
+            sourceItem: slot.wrapper
+        }
+
+        // Mirrors the feed while the window is alive; stops sampling when the
+        // slot closes so the last frame survives the window.
         ShaderEffectSource {
             id: contentSource
             anchors.centerIn: parent
             implicitWidth: slot.contentSize.width
             implicitHeight: slot.contentSize.height
             opacity: slot.contentOpacity
-            visible: slot.wrapperAlive
-            live: true
+            live: slot.pictureLive
             hideSource: false
             smooth: true
-            sourceItem: slot.wrapper
-        }
-
-        // The window may be destroyed before the collapse or the shell fade
-        // ends, so the slot shows a frame frozen while the window still had
-        // one.
-        ShaderEffectSource {
-            id: closeSnapshot
-            anchors.centerIn: parent
-            implicitWidth: slot.contentSize.width
-            implicitHeight: slot.contentSize.height
-            // The same early fade as the live picture, so a window that
-            // is already gone does not keep it on screen.
-            opacity: slot.contentOpacity
-            visible: slot.collapsing || slot.frozen
-            live: false
-            hideSource: false
-            smooth: true
-            z: 1
-            sourceItem: (slot.collapsing || slot.frozen) ? contentSource : null
+            sourceItem: contentFeed
         }
     }
 
