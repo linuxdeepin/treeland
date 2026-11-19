@@ -37,11 +37,11 @@ static const struct xdg_surface_listener xdg_surface_listener = {
 static void xdg_toplevel_configure(void *data, struct xdg_toplevel *toplevel,
                                    int32_t width, int32_t height, struct wl_array *states)
 {
-    (void)data;
     (void)toplevel;
-    (void)width;
-    (void)height;
     (void)states;
+    struct xdg_toplevel_client *client = data;
+    client->configure_width = width;
+    client->configure_height = height;
 }
 
 static void xdg_toplevel_close(void *data, struct xdg_toplevel *toplevel)
