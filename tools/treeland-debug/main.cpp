@@ -123,6 +123,16 @@ void SigIntInterrupt::restore()
     }
 }
 
+// Verbosity of this client's own stderr diagnostics; --log-level selects it.
+// Info (the default) already hides the discovery noise, so a run says only what
+// the user asked for plus where the data came from.
+LogLevel g_logLevel = LogLevel::Info;
+
+bool logEnabled(LogLevel level)
+{
+    return static_cast<int>(level) <= static_cast<int>(g_logLevel);
+}
+
 int fail(const QString &message)
 {
     QTextStream(stderr) << "treeland-debug: " << message << Qt::endl;
@@ -525,6 +535,10 @@ QString helpText()
         "  --no-preview         Disable inline image preview\n"
         "  --no-escalate        Do not attempt polkit privilege escalation; report the\n"
         "                       requirement instead (scripts, CI)\n"
+        "  --log-level <level>  Verbosity of this client's own stderr diagnostics:\n"
+        "                       error, warning, info (default) or debug.  Only info\n"
+        "                       and debug differ today; debug also names the socket\n"
+        "                       a fallback connection came from\n"
         "\n"
         "Output conventions (the same as the x11 tools, in one command):\n"
         "  lists are a header row plus one line per window; geometry is WxH+X+Y as in\n"
@@ -708,7 +722,8 @@ static int runEvents(Session &session, int timeoutMs, int intervalMs);
 // `watch` monitors a single window's changes.
 static int runWatch(Session &session, int timeoutMs, qint64 id, int intervalMs);
 // `shell` reads commands from stdin.
-static int runShell(Session &session, int timeoutMs, bool json, int previewOpt);
+static int runShell(Session &session, int timeoutMs, bool json, int previewOpt,
+                    const QString &connectedUrl, const QStringList &candidateUrls);
 // Dispatches the live/refreshing commands (top, events, watch). Returns true
 // if @p command was recognized and run (in which case *rc holds the exit
 // code); returns false otherwise.
@@ -970,6 +985,22 @@ static void explainConnectFailure(const QStringList &candidateUrls,
     printSocketNotes(leftover, inaccessible, unanswered);
 }
 
+// Names the socket the data came from, so a pasted output says whose it is.
+// A one-shot run prints it when it is done, and the shell prints it on entry
+// like a login banner (a REPL has no end of output).  It goes to stderr, which
+// keeps piped and --json stdout parseable; the "(fallback from ...)" detail is
+// client-side discovery noise and stays a --log-level debug message.
+void printSourceNotice(const QString &connectedUrl, const QStringList &candidateUrls, bool login)
+{
+    QTextStream out(stderr);
+    out << "treeland-debug: " << (login ? "logged in to " : "connected to ") << connectedUrl;
+    if (logEnabled(LogLevel::Debug) && !candidateUrls.isEmpty()
+        && connectedUrl != candidateUrls.first()) {
+        out << " (fallback from " << candidateUrls.first() << ")";
+    }
+    out << Qt::endl;
+}
+
 int main(int argc, char *argv[])
 {
     QCoreApplication application(argc, argv);
@@ -990,6 +1021,7 @@ int main(int argc, char *argv[])
     bool compatTree = false;
     bool compatCursor = false;
     bool noEscalate = false;
+    bool logLevelOk = true;
     QStringList rest;
 
     for (int i = 1; i < argc; ++i) {
@@ -1028,6 +1060,17 @@ int main(int argc, char *argv[])
             json = true;
         else if (arg == QLatin1String("--no-escalate"))
             noEscalate = true;
+        else if (arg == QLatin1String("--log-level")) {
+            bool ok = false;
+            g_logLevel = parseLogLevel(next(), &ok);
+            if (!ok)
+                logLevelOk = false;
+        } else if (arg.startsWith(QLatin1String("--log-level="))) {
+            bool ok = false;
+            g_logLevel = parseLogLevel(arg.mid(12), &ok);
+            if (!ok)
+                logLevelOk = false;
+        }
         else if (arg == QLatin1String("--tree"))
             compatTree = true;
         else if (arg == QLatin1String("--cursor"))
@@ -1045,6 +1088,9 @@ int main(int argc, char *argv[])
 
     if (!timeoutOk || timeoutMs < 0)
         return fail("--timeout-ms must be a non-negative integer");
+
+    if (!logLevelOk)
+        return fail("--log-level must be one of error, warning, info, debug");
 
     if (urlExplicit && url.isEmpty())
         return fail("--url requires a non-empty value");
@@ -1180,23 +1226,16 @@ int main(int argc, char *argv[])
                         .arg(candidateUrls.join(" or ")));
     }
 
-    // Log only when a fallback actually happened (the preferred candidate was
-    // unreachable), not on every debug build, to avoid polluting --json output.
-    // Compare against the candidate list, not the filtered one: an absent
-    // preferred socket is exactly the case the notice exists for.
-    if (connectedUrl != candidateUrls.first())
-        QTextStream(stderr) << "treeland-debug: connected to " << connectedUrl
-                            << " (fallback from " << candidateUrls.first() << ")\n";
-
+    // The source notice closes every run: a shell prints it on entry instead
+    // (see runShell), because a REPL has no end of output.
     if (command == QLatin1String("shell"))
-        return runShell(session, timeoutMs, json, previewOpt);
-    {
-        int liveRc = 0;
-        if (dispatchLiveCommand(session, timeoutMs, command, commandArgs, &liveRc))
-            return liveRc;
-    }
+        return runShell(session, timeoutMs, json, previewOpt, connectedUrl, candidateUrls);
 
-    return runCommand(session, timeoutMs, json, previewOpt, command, commandArgs);
+    int rc = EXIT_SUCCESS;
+    if (!dispatchLiveCommand(session, timeoutMs, command, commandArgs, &rc))
+        rc = runCommand(session, timeoutMs, json, previewOpt, command, commandArgs);
+    printSourceNotice(connectedUrl, candidateUrls, false);
+    return rc;
 }
 
 static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt,
@@ -1626,10 +1665,15 @@ static bool dispatchLiveCommand(Session &session, int timeoutMs,
     }
 }
 
-static int runShell(Session &session, int timeoutMs, bool json, int previewOpt)
+static int runShell(Session &session, int timeoutMs, bool json, int previewOpt,
+                    const QString &connectedUrl, const QStringList &candidateUrls)
 {
     QTextStream out(stdout);
     out << "treeland-debug shell — type 'help' for commands, 'exit' to quit\n";
+    // Like an ssh login banner: say up front which socket this session reads, so
+    // nobody mistakes another instance's windows for their own.
+    out.flush();
+    printSourceNotice(connectedUrl, candidateUrls, true);
     QTextStream in(stdin);
     while (true) {
         out << "treeland> ";

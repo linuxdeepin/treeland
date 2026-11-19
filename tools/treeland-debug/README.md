@@ -148,6 +148,10 @@ receive an error explaining how to proceed.
 --json               Emit machine-readable JSON instead of the text view
 --no-escalate        Do not attempt polkit privilege escalation; report the
                      requirement instead (scripts, CI)
+--log-level <level>  Verbosity of this client's own stderr diagnostics: error,
+                     warning, info (default) or debug. Only info and debug differ
+                     today; debug adds discovery detail such as the socket a
+                     fallback connection came from.
 -h, --help           Show help
 -v, --version        Show version
 ```
@@ -168,8 +172,14 @@ Backward compatibility: `--tree` and `--cursor` are accepted as aliases for the
 When neither `--url` nor `$TREELAND_DEBUG_SOCKET` is given, the client tries each
 candidate socket path followed by the instances Treeland published under a
 `"<name>-<N>"` suffix (taken when another instance already holds the base name), so
-the build-type preference still wins. It reports `(fallback from ...)` only when it
-attached to something other than the first candidate. Each candidate is probed with `--timeout-ms` shared between the
+the build-type preference still wins. Every connected run names the socket it read at
+the end (and the shell does it on entry), so a pasted output always says whose it is;
+`help`, `--version`, `debug` and `listen` never connect, so they print no source line.
+Which candidate it fell back from is client-side discovery detail: that
+`(fallback from ...)` suffix is printed only with `--log-level debug`, and it also
+covers attaching to a `-<N>` instance of the preferred build type -- not only a
+cross-build-type fallback. `error`/`warning`/`info` behave identically today, because
+no current message is classed below Info. Each candidate is probed with `--timeout-ms` shared between the
 candidates still to be tried, but never for less than one short probe (about three
 seconds): a live socket answers in milliseconds, so a probe only bounds the wait for
 one that is slow or dead. A dead socket therefore delays the preferred instance
@@ -196,6 +206,12 @@ programs:
   one field per line and the keys padded, like `xwininfo -id`; `window` ends
   with a bare `-geometry WxH+X+Y` line that can be pasted into a report.
 - **Nested structure** (`tree`, `scene`) keeps tree branch characters.
+- **Source** is named at the end of every connected run on stderr --
+  `treeland-debug: connected to local:/run/treeland-debug/...` -- so the data
+  never floats free of the instance it came from, and `--json`/piped stdout stay
+  parseable. The shell prints the same line as its login banner instead, and the
+  commands that never connect (`help`, `--version`, `debug`, `listen`) print no
+  source line.
 - **`--json`** is the machine-readable form of the same data: the `listen`
   HTTP/WebSocket/MCP API returns exactly the same records (as its `data`
   field), so a script and a browser read one contract.
@@ -516,6 +532,7 @@ printed exactly as the one-shot form would print it:
 ```console
 $ treeland-debug shell
 treeland-debug shell — type 'help' for commands, 'exit' to quit
+treeland-debug: logged in to local:/run/treeland-debug/org.deepin.dde.treeland.debug
 treeland> cursor
 x:100 y:50 window:93824992268800
 treeland> activate dde-file-manager
@@ -710,7 +727,9 @@ treeland-debug shell
 
 Starts a REPL (`treeland>`) that accepts any of the commands above, plus `help`
 and `exit`. This is the *shell* mode; running a single command on the command
-line is the *non-shell* mode.
+line is the *non-shell* mode. Like an ssh login banner, it names the socket the
+session reads as soon as it starts, so a shell attached to another instance does
+not look like your own desktop.
 
 ### HTTP / WebSocket server mode
 
