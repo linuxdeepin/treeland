@@ -14,6 +14,8 @@ Item {
     property int duration: 350
     property bool enableAnimation: true
     property bool interactive: true
+    // Part of the view that is outside the visible area.
+    property int inset: 0
 
     readonly property real edgeTolerance: 0.5
     readonly property bool moreAtStart: {
@@ -87,10 +89,10 @@ Item {
     ScrollButton {
         horizontal: root.horizontal
         iconName: root.horizontal ? "arrow_ordinary_left" : "arrow_ordinary_up"
-        x: root.horizontal ? PopoverStyle.scrollHintMargin
+        x: root.horizontal ? root.inset + PopoverStyle.scrollHintMargin
                            : Math.round((root.width - width) / 2)
         y: root.horizontal ? Math.round((root.height - height) / 2)
-                           : PopoverStyle.scrollHintMargin
+                           : root.inset + PopoverStyle.scrollHintMargin
         visible: root.moreAtStart
         onClicked: root.page(-1)
     }
@@ -98,10 +100,10 @@ Item {
     ScrollButton {
         horizontal: root.horizontal
         iconName: root.horizontal ? "arrow_ordinary_right" : "arrow_ordinary_down"
-        x: root.horizontal ? root.width - width - PopoverStyle.scrollHintMargin
+        x: root.horizontal ? root.width - root.inset - width - PopoverStyle.scrollHintMargin
                            : Math.round((root.width - width) / 2)
         y: root.horizontal ? Math.round((root.height - height) / 2)
-                           : root.height - height - PopoverStyle.scrollHintMargin
+                           : root.height - root.inset - height - PopoverStyle.scrollHintMargin
         visible: root.moreAtEnd
         onClicked: root.page(1)
     }
