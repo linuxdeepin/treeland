@@ -27,6 +27,33 @@ sudo cmake --install build --component treeland-debug
 The executable is installed to `/usr/local/bin/treeland-debug` by default.
 Set `CMAKE_INSTALL_PREFIX` during configuration to use another prefix.
 
+## Shell completion
+
+The same install step also installs completion definitions for the one-shot
+command line:
+
+| Shell | Installed file |
+|-------|----------------|
+| bash | `$DATADIR/bash-completion/completions/treeland-debug` |
+| zsh | `$DATADIR/zsh/site-functions/_treeland-debug` |
+| fish | `$DATADIR/fish/vendor_completions.d/treeland-debug.fish` |
+
+They complete the command verbs and the fixed first argument of `event`,
+`screenshot`, `debug` and `listen`; every other argument is a window id, a
+coordinate or a path, which the shell already completes. A build-tree copy can
+be used directly -- `source tools/treeland-debug/completions/treeland-debug` in
+bash, or add `tools/treeland-debug/completions` to `$fpath` in zsh.
+
+dash is deliberately missing: it has no programmable completion at all, so
+there is nothing to install for it. That does not make dash users worse off in
+the REPL, because shell mode completes on its own (see
+[shell](#shell)) whatever shell started it.
+
+The three files are written by hand, so `tests/test_treeland_debug` reads them
+back and compares them with the command table (`testCompletionScriptsMatchCommandTable`).
+Adding or renaming a command, or changing its first argument, without editing
+them fails that test -- the completion cannot go stale unnoticed.
+
 ## Enabling the debug source in Treeland
 
 Treeland runs as the `dde` user in global mode. Who may connect to its debug
@@ -544,6 +571,13 @@ treeland> exit
 REPL tells you to run it as a one-shot command instead of escalating a polkit
 prompt from inside the shell.
 
+Tab completes the command verb and the fixed first argument of `event`,
+`screenshot`, `debug` and `listen`; a keypress is read one at a time, so the
+completion arrives before the line ends. Up/Down recall earlier lines, Ctrl+C
+discards the line at the prompt (and still interrupts a live view), Ctrl+D ends
+the session. A piped stdin (`echo windows | treeland-debug shell`) has no Tab to
+act on, so it keeps reading plain lines.
+
 ### help
 
 `--help` / `help` prints the whole command reference, grouped like the
@@ -729,7 +763,9 @@ Starts a REPL (`treeland>`) that accepts any of the commands above, plus `help`
 and `exit`. This is the *shell* mode; running a single command on the command
 line is the *non-shell* mode. Like an ssh login banner, it names the socket the
 session reads as soon as it starts, so a shell attached to another instance does
-not look like your own desktop.
+not look like your own desktop. Tab completes the command verb and its fixed
+first argument, Up/Down recall earlier lines, and Ctrl+C discards the line at
+the prompt.
 
 ### HTTP / WebSocket server mode
 

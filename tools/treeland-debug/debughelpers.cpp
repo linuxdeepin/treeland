@@ -213,6 +213,123 @@ LogLevel parseLogLevel(const QString &name, bool *ok)
     return LogLevel::Info;
 }
 
+QStringList debugCommandNames()
+{
+    return {
+        QStringLiteral("tree"),
+        QStringLiteral("cursor"),
+        QStringLiteral("windows"),
+        QStringLiteral("window"),
+        QStringLiteral("clients"),
+        QStringLiteral("idle"),
+        QStringLiteral("shortcuts"),
+        QStringLiteral("scene"),
+        QStringLiteral("activate"),
+        QStringLiteral("close"),
+        QStringLiteral("minimize"),
+        QStringLiteral("maximize"),
+        QStringLiteral("fullscreen"),
+        QStringLiteral("move"),
+        QStringLiteral("resize"),
+        QStringLiteral("workspace"),
+        QStringLiteral("move-cursor"),
+        QStringLiteral("event"),
+        QStringLiteral("screenshot"),
+        QStringLiteral("top"),
+        QStringLiteral("events"),
+        QStringLiteral("watch"),
+        QStringLiteral("no-auth"),
+        QStringLiteral("listen"),
+        // REPL-only words: `debug` is a one-shot command (it may need polkit),
+        // `exit`/`quit` end the REPL. Neither reaches parseCommand().
+        QStringLiteral("debug"),
+        QStringLiteral("help"),
+        QStringLiteral("shell"),
+        QStringLiteral("exit"),
+        QStringLiteral("quit"),
+    };
+}
+
+// The commands whose first argument is a fixed set of words. Every other command
+// takes a window id, a coordinate or a path, which completion cannot guess.
+static QStringList firstArgumentCandidates(const QString &command)
+{
+    if (command == QLatin1String("event"))
+        return { QStringLiteral("motion"), QStringLiteral("button"), QStringLiteral("key") };
+    if (command == QLatin1String("screenshot"))
+        return { QStringLiteral("output"), QStringLiteral("window") };
+    if (command == QLatin1String("debug"))
+        return { QStringLiteral("on"), QStringLiteral("off"), QStringLiteral("status") };
+    if (command == QLatin1String("listen"))
+        return { QStringLiteral("--port"), QStringLiteral("--host") };
+    return {};
+}
+
+QStringList completionCandidates(const QStringList &words)
+{
+    const QString prefix = words.isEmpty() ? QString() : words.last();
+    // Word 0 is the command and word 1 its first argument; anything deeper is a
+    // window id, a coordinate or a path, which has nothing to offer.
+    QStringList source;
+    if (words.size() <= 1)
+        source = debugCommandNames();
+    else if (words.size() == 2)
+        source = firstArgumentCandidates(words.first());
+    QStringList result;
+    for (const QString &candidate : source) {
+        if (candidate.startsWith(prefix))
+            result.append(candidate);
+    }
+    return result;
+}
+
+CompletionEdit completeLine(const QString &line, int cursor)
+{
+    CompletionEdit edit{ line, cursor, {} };
+    // Only the end of a word can be completed: with the cursor inside one,
+    // inserting a longer candidate would split it into two words.
+    if (cursor < line.size() && line.at(cursor) != QLatin1Char(' '))
+        return edit;
+    const QString head = line.left(cursor);
+    const int wordStart = head.lastIndexOf(QLatin1Char(' ')) + 1;
+    const QString prefix = head.mid(wordStart);
+    QStringList words = head.left(wordStart).split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    words.append(prefix);
+
+    const QStringList candidates = completionCandidates(words);
+    if (candidates.isEmpty())
+        return edit;
+
+    QString common = candidates.first();
+    for (const QString &candidate : candidates) {
+        int shared = 0;
+        while (shared < common.size() && shared < candidate.size()
+               && common.at(shared) == candidate.at(shared))
+            ++shared;
+        common.truncate(shared);
+    }
+
+    const bool unique = candidates.size() == 1;
+    if (!unique && common.size() <= prefix.size()) {
+        edit.list = candidates;
+        return edit;
+    }
+
+    const QString completed = unique ? candidates.first() : common;
+    edit.line.replace(wordStart, prefix.size(), completed);
+    edit.cursor = wordStart + int(completed.size());
+    if (unique) {
+        // Separate the completed word from what follows; a mid-line completion
+        // that already has a space after it would otherwise get a second one.
+        if (edit.cursor == edit.line.size()
+            || edit.line.at(edit.cursor) != QLatin1Char(' ')) {
+            edit.line.insert(edit.cursor, QLatin1Char(' '));
+            ++edit.cursor;
+        }
+    }
+    return edit;
+}
+
 ParseResult parseCommand(const QString &command, const QStringList &args)
 {
     ParseResult r;
