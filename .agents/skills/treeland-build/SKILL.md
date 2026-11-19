@@ -13,6 +13,7 @@ description: "配置、编译与安装 treeland：CMake preset 与构建选项�
 - Ninja（`CMakePresets.json` 里的 preset 都用它）
 - pkg-config
 - Qt ≥ 6.8（Core/Gui/Qml/Quick/QuickControls2/RemoteObjects/Network/DBus/Test…）、Dtk6、wlroots 0.20、外部 CMake 包 `TreelandProtocols`
+- DDM ≥ 0.5.0（`find_package(DDM 0.5.0 REQUIRED COMPONENTS Common)`，在 `src/CMakeLists.txt`）；`DISABLE_DDM=ON` 时不要求。系统里残留低版本 DDM 会直接在 configure 阶段报版本不兼容
 - 完整清单以 `debian/control` 为准；`apt build-dep .` 一次装齐
 
 ## 配置
