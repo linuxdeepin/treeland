@@ -1,6 +1,6 @@
 ---
 name: treeland-build
-description: "触发场景：配置/编译/安装 treeland、`cmake --preset`、`CMAKE_BUILD_TYPE=Debug`、`CMAKE_INSTALL_PREFIX=/usr`、`cmake --install`、`DESTDIR`、构建选项（`WITH_SUBMODULE_WAYLIB`、`BUILD_TREELAND_PROTOCOL_TESTS`、`BUILD_TREELAND_DEBUG`、`ADDRESS_SANITIZER`、`TREELAND_INSTALL_DEV`）、依赖缺失、`-Werror` 编译失败。"
+description: "配置、编译与安装 treeland：CMake preset 与构建选项、依赖、安装前缀与安装去向、常见构建失败。在 configure/build/install treeland、调整 CMake 选项（`WITH_SUBMODULE_WAYLIB`、`BUILD_TREELAND_PROTOCOL_TESTS`、`BUILD_TREELAND_DEBUG`、`ADDRESS_SANITIZER`、`DISABLE_XWAYLAND`、`TREELAND_INSTALL_DEV`）、排查 `TreelandProtocols` 找不到、产物装到 `/usr/local` 与 unit 混装、`-Werror` 编译失败时使用。"
 ---
 
 # 构建与安装
@@ -85,7 +85,7 @@ DESTDIR=/tmp/stage cmake --install build                  # 打包/沙箱，不�
 | 内容 | 路径（`CMAKE_INSTALL_PREFIX=/usr`） |
 |------|------|
 | `treeland`、`treeland.sh` | `/usr/bin` |
-| `treeland-sd`、`treeland-xwayland` | `/usr/libexec` |
+| `treeland-sd`、`treeland-xwayland`、`treeland-screensaver`、`treeland-session-helper` | `/usr/libexec` |
 | `libtreeland`、插件 | `${CMAKE_INSTALL_LIBDIR}`（Debian 上为 `/usr/lib/<triplet>`）、`${CMAKE_INSTALL_LIBDIR}/treeland/plugins` |
 | systemd system unit（`treeland.service`） | `/usr/lib/systemd/system`（pkg-config 绝对路径） |
 | systemd user unit（session-helper、screensaver） | `/usr/lib/systemd/user`（pkg-config 绝对路径） |

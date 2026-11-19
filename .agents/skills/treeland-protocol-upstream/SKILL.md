@@ -1,6 +1,6 @@
 ---
 name: treeland-protocol-upstream
-description: "用于在 wlroots、waylib、treeland 中集成或封装上游 Wayland 协议。触发场景：standard/ext/unstable/wlr 协议、wlroots 已实现的协议、waylib `WServerInterface` 封装、`m_server->attach<W...>()`、native handle 生命周期、把上游协议接到 `WaylandServer::init` 启动路径。"
+description: "在 waylib 与 treeland 中封装和集成上游 Wayland 协议（standard/ext/unstable/wlr）：`WServerInterface` 封装、native handle 所有权与销毁、每会话 global 隔离与撤销。在使用 `m_server->attach<W...>()` 消费上游协议、新增 `W...` 封装、判断 wlroots `wlr_*_destroy` 与 `globalRemove()` 的归属、把协议接到 `WaylandServer::init` 启动路径时使用。treeland 私有协议见 `treeland-protocol`。"
 ---
 
 # 上游协议封装与集成

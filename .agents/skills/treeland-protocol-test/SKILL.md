@@ -1,6 +1,6 @@
 ---
 name: treeland-protocol-test
-description: "用于新增、扩展、重构或调试 `tests/protocols` 下的协议测试。触发场景：协议测试 CMake 目标、C 版 Wayland 客户端、`setup.cpp` fixture、`protocol_test_setup`、`protocol_test_run`、`client_connect`、`client_bind`、`invoke_on_server_thread`、headless output、CTest 协议测试执行。协议实现本身见 treeland-protocol 或 treeland-protocol-upstream。"
+description: "在 `tests/protocols` 下新增、扩展、重构或调试 Wayland 协议测试：C 版客户端与 fixture 契约、`treeland_add_protocol_test` CMake 注册、可观察证据的断言写法、CTest 执行与 skip 处理。在创建协议测试目录与 `setup.cpp`、实现 `protocol_test_run()`、用 `client_connect`/`client_bind`/`invoke_on_server_thread`、排查 ctest 超时或残留后台进程时使用。协议实现见 `treeland-protocol` 或 `treeland-protocol-upstream`。"
 ---
 
 # Wayland 协议测试
