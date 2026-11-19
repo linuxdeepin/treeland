@@ -16,10 +16,10 @@ Item {
     // popover or only clears the list is the controller's decision.
     signal emptied()
 
-    x: preview.contentLeft
-    y: preview.contentTop
-    width: preview.contentWidth
-    height: preview.contentHeight
+    x: preview.listContentRect.x
+    y: preview.listContentRect.y
+    width: preview.listContentRect.width
+    height: preview.listContentRect.height
     // The shell fade covers enter and leave; the reveal adds the hand-over.
     opacity: preview.shellFade * preview.listReveal
     visible: root.liveLayer !== null || root.fadingLayers.length > 0

@@ -40,8 +40,8 @@ Item {
             return 1;
         if (!(width > 0) || !(height > 0))
             return 1;
-        return Math.max(0, Math.min(1, preview.contentWidth / width,
-                                     preview.contentHeight / height));
+        return Math.max(0, Math.min(1, preview.listContentRect.width / width,
+                                     preview.listContentRect.height / height));
     }
 
     width: preview.listContentWidth
@@ -50,7 +50,7 @@ Item {
     // bottom, so it grows out of the dock edge.
     y: (listLayer.drawsAtOwnSize || !preview.listPinnedToBottom)
        ? 0
-       : Math.max(0, preview.contentHeight - listLayer.height * listLayer.fitScale)
+       : Math.max(0, preview.listContentRect.height - listLayer.height * listLayer.fitScale)
     transform: Scale {
         origin.x: 0
         origin.y: 0

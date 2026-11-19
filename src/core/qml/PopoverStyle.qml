@@ -30,10 +30,6 @@ QtObject {
 
     readonly property color titleColor: D.DTK.palette.windowText
 
-    // dde-shell overrides DTK's toolTip padding horizontally (8 instead of 5),
-    readonly property int tooltipHorizontalPadding: 8
-    readonly property int tooltipVerticalPadding: DS.Style.toolTip.verticalPadding
-
     readonly property int shadowBlur: 20
     readonly property int shadowOffsetY: 6
     readonly property color shadowColor: DS.Style.arrowRectangleBlur.shadowColor
@@ -46,13 +42,15 @@ QtObject {
     readonly property int closeButtonMaxSize: DS.Style.floatingButton.size
 
     /* --- the preview list --- */
-    // Width of the list content; the frame adds the panel padding around it.
-    readonly property int listContentWidth: 200
+    // Width of the list panel, padding included.
+    readonly property int listPanelWidth: 200
+    // Inset of the list content from every panel edge.
+    readonly property int listPanelPadding: 6
     // One row of the list.
     readonly property int listRowHeight: 26
     readonly property int listRowSpacing: 0
     // Left and right padding of a row.
-    readonly property int listRowPadding: tooltipHorizontalPadding
+    readonly property int listRowPadding: 8
     // Gap between two things inside a row (icon and title, title and button)
     readonly property int listInnerSpacing: DS.Style.control.spacing
     // App icon of a row.
@@ -72,6 +70,10 @@ QtObject {
     readonly property int scrollHintMargin: 3
 
     /* --- the preview slots --- */
+    // Spacing inside the thumbnail view.
+    readonly property int previewSpacing: 10
+    // Inset of the thumbnail content from every panel edge.
+    readonly property int previewPanelPadding: DS.Style.popup.padding
     // Width of the highlight frame, drawn outside the slot box.
     readonly property int frameBorderWidth: 4
 
