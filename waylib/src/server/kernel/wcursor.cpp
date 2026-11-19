@@ -19,6 +19,7 @@
 
 #include <wlr_all.h>
 
+#include <wlr/types/wlr_tablet_tool.h>
 #include <QPixmap>
 #include <QCoreApplication>
 #include <QQuickWindow>
@@ -282,6 +283,66 @@ void WCursorPrivate::on_touch_up(wlr_touch_up_event *event)
     }
 }
 
+void WCursorPrivate::on_tablet_axis(wlr_tablet_tool_axis_event *event)
+{
+    auto *device = &event->tablet->base;
+    const QPointF oldPos = q_func()->position();
+    double lx, ly;
+    wlr_cursor_absolute_to_layout_coords(handle(), device,
+                                         event->x, event->y, &lx, &ly);
+    const QPointF rawDelta(lx - oldPos.x(), ly - oldPos.y());
+
+    if (!applyPointerConstraint(device, oldPos, rawDelta))
+        processCursorMotion(device, event->time_msec);
+}
+
+void WCursorPrivate::on_tablet_button(wlr_tablet_tool_button_event *event)
+{
+    auto *device = &event->tablet->base;
+    button = WCursor::fromNativeButton(event->button);
+
+    if (event->state == WL_POINTER_BUTTON_STATE_RELEASED) {
+        state &= ~button;
+    } else {
+        state |= button;
+        lastPressedOrTouchDownPosition = q_func()->position();
+    }
+
+    if (auto inputDevice = WInputDevice::fromHandle(device)) {
+        if (auto deviceSeat = inputDevice->seat()) {
+            deviceSeat->notifyButton(q_func(), inputDevice, button, event->state, event->time_msec);
+        }
+    }
+}
+
+void WCursorPrivate::on_tablet_tip(wlr_tablet_tool_tip_event *event)
+{
+    auto *device = &event->tablet->base;
+
+    if (event->state == WLR_TABLET_TOOL_TIP_DOWN) {
+        lastPressedOrTouchDownPosition = q_func()->position();
+        if (auto inputDevice = WInputDevice::fromHandle(device)) {
+            if (auto deviceSeat = inputDevice->seat()) {
+                deviceSeat->notifyButton(q_func(), inputDevice, Qt::LeftButton,
+                                         WL_POINTER_BUTTON_STATE_PRESSED, event->time_msec);
+            }
+        }
+    } else {
+        if (auto inputDevice = WInputDevice::fromHandle(device)) {
+            if (auto deviceSeat = inputDevice->seat()) {
+                deviceSeat->notifyButton(q_func(), inputDevice, Qt::LeftButton,
+                                         WL_POINTER_BUTTON_STATE_RELEASED, event->time_msec);
+            }
+        }
+    }
+}
+
+void WCursorPrivate::on_tablet_proximity(wlr_tablet_tool_proximity_event *event)
+{
+    auto *device = &event->tablet->base;
+    q_func()->setScalePosition(device, QPointF(event->x, event->y));
+}
+
 void WCursorPrivate::connect()
 {
     W_Q(WCursor);
@@ -306,6 +367,11 @@ void WCursorPrivate::connect()
     q->listeners()->add(&m_handle->events.touch_frame, this, &WCursorPrivate::on_touch_frame);
     q->listeners()->add(&m_handle->events.touch_cancel, this, &WCursorPrivate::on_touch_cancel);
     q->listeners()->add(&m_handle->events.touch_up, this, &WCursorPrivate::on_touch_up);
+    // Handle tablet tool device related signals
+    q->listeners()->add(&m_handle->events.tablet_tool_axis, this, &WCursorPrivate::on_tablet_axis);
+    q->listeners()->add(&m_handle->events.tablet_tool_button, this, &WCursorPrivate::on_tablet_button);
+    q->listeners()->add(&m_handle->events.tablet_tool_tip, this, &WCursorPrivate::on_tablet_tip);
+    q->listeners()->add(&m_handle->events.tablet_tool_proximity, this, &WCursorPrivate::on_tablet_proximity);
 }
 
 void WCursorPrivate::processCursorMotion(wlr_input_device *device, uint32_t time)
