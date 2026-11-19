@@ -1,6 +1,6 @@
 ---
 name: treeland-logging
-description: "触发场景：treeland 或 waylib 代码中新增/修改/评审/删除日志、日志分类、`Q_LOGGING_CATEGORY`、`Q_DECLARE_LOGGING_CATEGORY`、`qCDebug`、`qCInfo`、`qCWarning`、`qCCritical`、日志级别选择、分类命名、清理日志输出。treeland 代码使用 `src/common/treelandlogging.h/.cpp` 中的集中式分类；waylib 代码使用 `waylib/src/server/wayliblogging.h/.cpp` 中的集中式分类。"
+description: "为 treeland 与 waylib 添加、修改、评审日志：集中式日志分类体系、级别选择、消息质量与敏感数据。在写 `qCDebug`/`qCInfo`/`qCWarning`/`qCCritical`、新增或调整日志分类（`treeland.<module>`、`waylib.<module>`）、把裸 `qDebug()`/`qWarning()` 换成带分类的调用、清理日志输出时使用。"
 ---
 
 # 日志规范

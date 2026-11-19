@@ -1,11 +1,12 @@
 ---
 name: treeland-dconfig
-description: "触发场景：新增/修改/评审/调试 treeland 的 DConfig 配置文件、生成的配置封装类、运行时 DConfig CLI 检查、`misc/dconfig/*.json`、`dtk_add_config_to_cpp`、`treelandconfig.hpp` 等生成头文件、`TreelandConfig`、`TreelandUserConfig`、`OutputConfig`、`SeatUserDConfig`、`AppConfig`、`createByName`、`configInitializeSucceed`、DConfig 的 `magic/version/contents`、`serial`、`flags`、`permissions`、`visibility`、override、`dde-dconfig`、把设置迁入 dconfig。"
+description: "新增、修改、评审与调试 treeland 的 DConfig 配置：描述文件字段、配置作用域与 subpath、生成的配置封装类、异步初始化、override 与序列号演进、运行时 dde-dconfig 检查。在改动 `misc/dconfig/*.json`、`dtk_add_config_to_cpp` 生成的类（`TreelandConfig`、`TreelandUserConfig`、`AnimationConfig`、`OutputConfig`、`SeatUserDConfig`、`AppConfig`）、把设置迁入 DConfig、排查配置读不到或不生效时使用。"
 ---
 
 # Treeland DConfig 配置
 
 > **铁律**：用户业务对象通过构造时注入的固定配置访问设置，不查询 Session 或活动用户。Session/DesktopEnvironment 组装边界负责解析配置与按用户名 subpath 隔离的 provider；仅共享运行时的活动桌面兼容入口使用 `WaylandServer::config()`（动画开关为该入口上的 `WaylandServer::animationConfig()`）。不要因为全局模式以 `dde` 运行就把用户偏好写进 `TreelandConfig`。显示模式、主屏、复制/单屏配置为系统级；各 Session 的窗口、协议资源和专属区域仍独立。
+
 ## 范围
 本 skill 用于由 Desktop Spec Group 配置元数据描述、并通过 DTK DConfig 生成的 C++ 封装类消费的 treeland 配置。
 
@@ -176,42 +177,17 @@ treeland 在 `src/CMakeLists.txt` 中用 `dtk_add_config_to_cpp(...)` 生成类�
 
 ## 生成头文件事实
 不要在源码树里搜索生成的配置头文件，它们由 CMake/dconfig2cpp 生成到 `build/src/`。
+执行 `cmake --preset default` 后直接读生成文件，例如 `build/src/treelanduserconfig.hpp`。
 
-执行 `cmake --preset default` 后直接检查生成头文件，例如：
+生成头文件呈现的 API 与约定、`create(...)`/`createByName(...)` 的完整签名见
+[references/generated-cpp.md](references/generated-cpp.md)。日常要记住的四条：
 
-```bash
-sed -n '1,260p' build/src/treelanduserconfig.hpp
-```
+- 每个键有 `Q_PROPERTY`（getter、setter、`*Changed` 信号、`reset*`）和键名宏。
+- 初始化是异步的：用 `isInitializeSucceeded()` 或 `configInitializeSucceed(DConfig *)`，
+  不要用已废弃的 `isInitializeSucceed()`。
+- 已废弃 API 兼容分支只出现在既有代码里，新代码不要复制。
 
-当前生成头文件呈现这些 API 与约定：
-
-- 头文件注释记录 `dconfig2cpp` 命令行、输出路径、类名、源 JSON、JSON 版本与工具版本。
-- include guard/类宏前缀由 `CLASS_NAME` 推导，例如 `TREELANDUSERCONFIG_DCONFIG_FILE_VERSION_MAJOR` 与 `TREELANDUSERCONFIG_DCONFIG_FILE_VERSION_MINOR`。
-- 生成的 `*_DCONFIG_FILE_VERSION_MINOR` 宏反映生成器 API 兼容性；即使 `Q_CLASSINFO("DConfigFileVersion", "1.0")` 来自 JSON 描述文件，当前生成头文件也把它定义为 `1`。新代码不需要旧 DTK 兼容分支。
-- 每个键生成 `#define <CLASS>_DCONFIG_FILE_<key>`。
-- 每个键生成带 getter、setter、`*Changed` 信号与 `reset*` 方法的 `Q_PROPERTY`。
-- JSON 整数生成为 `qlonglong`；JSON 浮点生成为 `double`；字符串为 `QString`；布尔为 `bool`。
-- 类提供 `keyList()`、`isDefaultValue(key)`、按键的 `*IsDefaultValue()`、`config()`、`isInitializeSucceeded()`、已废弃的 `isInitializeSucceed()`、`isInitializeFailed()`、`isInitializing()`。
 - 类同时发出具体的 `keyChanged()` 信号与通用的 `valueChanged(const QString &key, const QVariant &value)`。
-- setter 先更新缓存的属性存储，再在底层 `DConfig` 对象存在时异步调用 `DConfig::setValue(...)`。
-- 初始化在 `DTK_CORE_NAMESPACE::DConfig::globalThread()` 上异步进行。构造函数发出 `configInitializeSucceed(DConfig *)` 或 `configInitializeFailed()`。
-
-每个类生成的创建 helper：
-
-```cpp
-static ClassName *create(const QString &appId = {},
-                         const QString &subpath = {},
-                         QObject *parent = nullptr,
-                         QThread *thread = DTK_CORE_NAMESPACE::DConfig::globalThread());
-
-static ClassName *createByName(const QString &name,
-                               const QString &appId = {},
-                               const QString &subpath = {},
-                               QObject *parent = nullptr,
-                               QThread *thread = DTK_CORE_NAMESPACE::DConfig::globalThread());
-```
-
-生成的描述文件名已足够时用 `create(...)`；现有 treeland 代码显式传入描述文件名与 app id 时（用户、output、seat 配置路径）用 `createByName(...)`。
 
 ## 新增描述文件
 优先扩展已有描述文件。确实需要新的 DConfig 描述文件时：
@@ -324,4 +300,8 @@ dde-dconfig set   -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k <key>
 dde-dconfig watch -a org.deepin.dde.treeland -r org.deepin.dde.treeland.user -s /<username> -k <key>
 ```
 
-参数映射（`-a`/`-r`/`-s`/`-k`/`-v`/`-u`）、按 output/app/seat 作用域的完整命令、`-m` 元数据查询与取值注意事项见 `references/dde-dconfig.md`。
+参数映射（`-a`/`-r`/`-s`/`-k`/`-v`/`-u`）、按 output/app/seat 作用域的完整命令、`-m` 元数据查询与取值注意事项见 [references/dde-dconfig.md](references/dde-dconfig.md)。
+
+## 参考文件
+- [references/generated-cpp.md](references/generated-cpp.md) —— 生成头文件的类结构、键访问器、版本宏与 `create(...)`/`createByName(...)` 签名。
+- [references/dde-dconfig.md](references/dde-dconfig.md) —— `dde-dconfig` 命令行参数映射与各作用域的完整命令。

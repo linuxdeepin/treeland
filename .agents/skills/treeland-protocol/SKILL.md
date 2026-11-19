@@ -1,6 +1,6 @@
 ---
 name: treeland-protocol
-description: "用于 treeland 私有 Wayland 服务端协议集成。触发场景：treeland 自有 xml、`treeland_*` 接口、`src/modules/*`、QtWayland scanner 输出、`QtWaylandServer::*`、`waylib_generate_qtwayland_server_protocol(...)`、`globalRemove()`、`destroy_resource(...)`、把私有协议接到 `WaylandServer::init` 启动路径。"
+description: "把 treeland 私有 Wayland 服务端协议接入合成器：协议 XML 与生成的代码、manager/resource 实现、资源销毁职责划分、`WServerInterface` 接线。在新增或修改 `treeland_*` 协议、在 `src/modules/*` 下实现 `QtWaylandServer::` 类、用 `waylib_generate_qtwayland_server_protocol(...)` 生成代码、区分 `destroy(...)` 与 `destroy_resource(...)`、把协议接到 `WaylandServer::init` 启动路径时使用。上游 standard/ext/unstable/wlr 协议见 `treeland-protocol-upstream`。"
 ---
 
 # Treeland 私有协议集成
@@ -229,6 +229,8 @@ waylib_generate_qtwayland_server_protocol(libtreeland
 ```
 
 容易漏掉的原因：共享库默认允许未定义符号，所以 `--target libtreeland` 会成功。错误只在可执行文件链接 libtreeland 时才暴露（`undefined reference to <iface>_interface`），而损坏的 `libtreeland.so` 在运行时加载也会失败。
+
+现存例子：`src/modules/output-uuid/CMakeLists.txt` —— `treeland-output-uuid-head-unstable-v1` 的参数是 `zwlr_output_head_v1`，所以它同时把 `wlr-output-management-unstable-v1.xml` 生成进 libtreeland。
 
 ## 输出要求
 用本 skill 处理真实任务时，先明确这几点：
