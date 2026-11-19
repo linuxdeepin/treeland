@@ -79,17 +79,6 @@
             "permissions": "readwrite",
             "visibility": "public"
         },
-        "themeName": {
-            "value": "",
-            "serial": 0,
-            "flags": [],
-            "name": "Theme Name",
-            "name[zh_CN]": "主题名称",
-            "description": "Theme Name",
-            "description[zh_CN]": "主题名称",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
         "iconThemeName": {
             "value": "nirvana",
             "serial": 0,
