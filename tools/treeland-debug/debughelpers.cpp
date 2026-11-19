@@ -190,6 +190,29 @@ QString formatRegion(const QRegion &region, int maxBoxes)
     return boxes.join(QLatin1Char(','));
 }
 
+LogLevel parseLogLevel(const QString &name, bool *ok)
+{
+    const QString level = name.toLower();
+    if (level == QLatin1String("error")) {
+        *ok = true;
+        return LogLevel::Error;
+    }
+    if (level == QLatin1String("warning") || level == QLatin1String("warn")) {
+        *ok = true;
+        return LogLevel::Warning;
+    }
+    if (level == QLatin1String("info")) {
+        *ok = true;
+        return LogLevel::Info;
+    }
+    if (level == QLatin1String("debug")) {
+        *ok = true;
+        return LogLevel::Debug;
+    }
+    *ok = false;
+    return LogLevel::Info;
+}
+
 ParseResult parseCommand(const QString &command, const QStringList &args)
 {
     ParseResult r;

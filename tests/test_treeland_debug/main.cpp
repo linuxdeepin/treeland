@@ -63,6 +63,7 @@ private Q_SLOTS:
     void testFormatRegionEmpty();
     void testFormatRegionAtLimit();
     void testFormatRegionOverLimit();
+    void testParseLogLevel();
 
     // --- treeland-debug socket naming / conflict avoidance ---
     void testSocketDefaultPath();
@@ -439,6 +440,24 @@ void TreelandDebugTest::testFormatRegionOverLimit()
     const QString text = formatRegion(region);
     QCOMPARE(text.count(QLatin1Char('[')), 8);
     QVERIFY(text.endsWith(QLatin1String("(+1 more)")));
+}
+
+void TreelandDebugTest::testParseLogLevel()
+{
+    bool ok = false;
+    QCOMPARE(parseLogLevel(QStringLiteral("debug"), &ok), LogLevel::Debug);
+    QVERIFY(ok);
+    QCOMPARE(parseLogLevel(QStringLiteral("INFO"), &ok), LogLevel::Info);
+    QVERIFY(ok);
+    QCOMPARE(parseLogLevel(QStringLiteral("warning"), &ok), LogLevel::Warning);
+    QVERIFY(ok);
+    QCOMPARE(parseLogLevel(QStringLiteral("error"), &ok), LogLevel::Error);
+    QVERIFY(ok);
+    // An unknown level is rejected so --log-level can name the alternatives.
+    QCOMPARE(parseLogLevel(QStringLiteral("verbose"), &ok), LogLevel::Info);
+    QVERIFY(!ok);
+    QCOMPARE(parseLogLevel(QString(), &ok), LogLevel::Info);
+    QVERIFY(!ok);
 }
 
 // ---------------------------------------------------------------------------

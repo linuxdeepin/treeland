@@ -142,6 +142,22 @@ struct ParseResult
     QString host = QStringLiteral("0.0.0.0");
 };
 
+// Verbosity of the client's own stderr diagnostics, selected by --log-level.
+// Ordered from quietest to loudest, so `level <= threshold` decides whether a
+// message is shown.  The default, Info, hides the client's discovery details
+// (which candidate socket a connection came from) that only matter while
+// debugging the client itself.
+enum class LogLevel {
+    Error,
+    Warning,
+    Info,
+    Debug,
+};
+
+// Parses a --log-level value: error, warning, info or debug, case-insensitively.
+// Sets *ok=false (and returns the default Info) for anything else.
+LogLevel parseLogLevel(const QString &name, bool *ok);
+
 // Parses a command verb and its argument list into a ParseResult.  Performs
 // every validation step that does not require a live Session connection
 // (missing arguments, unknown button/key names, unknown subcommands).  On
