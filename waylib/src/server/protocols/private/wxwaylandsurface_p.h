@@ -45,6 +45,7 @@ public:
     void updateSizeHints();
     void updateWindowTypes();
     void updateClipShape();
+    void onGrabFocus();
     // Called by the owner (WXWayland) while the native parent surface is
     // being destroyed, before the parent wrapper is deleted: the child's
     // QPointer to the parent wrapper would otherwise be cleared by the
@@ -67,6 +68,7 @@ public:
     QRegion clipShapeRegion;
     QVariantList clipShape;
     bool hasClipShape = false;
+    bool everGrabbedFocus = false;
     QSize minimumSize;
     QSize maximumSize = QSize(INT_MAX, INT_MAX);
     uint maximized:1;

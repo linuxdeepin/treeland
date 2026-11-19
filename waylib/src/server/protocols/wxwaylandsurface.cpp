@@ -54,6 +54,13 @@ void WXWaylandSurfacePrivate::init()
         Q_ASSERT(!WSurface::fromHandle(handle()->surface));
         surface = new WSurface(handle()->surface);
         surface->setAttachedData<WXWaylandSurface>(q);
+        // A grab only covers the current mapped lifetime: clear the latch on
+        // unmap so that a later map without a new grab does not take keyboard
+        // focus again.
+        QObject::connect(surface, &WSurface::mappedChanged, q, [this] {
+            if (!surface->mapped())
+                everGrabbedFocus = false;
+        });
         Q_EMIT q->surfaceChanged();
         Q_EMIT q->associated();
     });
@@ -121,11 +128,19 @@ void WXWaylandSurfacePrivate::init()
     q->listeners()->add(&m_handle->events.set_decorations, q, &WXWaylandSurface::decorationsFlagsChanged);
     q->listeners()->add(&m_handle->events.set_title, q, &WXWaylandSurface::titleChanged);
     q->listeners()->add(&m_handle->events.set_class, q, &WXWaylandSurface::appIdChanged);
+    q->listeners()->add(&m_handle->events.grab_focus, this, &WXWaylandSurfacePrivate::onGrabFocus);
     updateChildren();
     updateParent();
     updateSizeHints();
     updateWindowTypes();
     updateClipShape();
+}
+
+void WXWaylandSurfacePrivate::onGrabFocus()
+{
+    everGrabbedFocus = true;
+    W_Q(WXWaylandSurface);
+    Q_EMIT q->grabFocus();
 }
 
 void WXWaylandSurfacePrivate::updateSizeHints()
@@ -557,6 +572,12 @@ bool WXWaylandSurface::isBypassManager() const
 {
     W_DC(WXWaylandSurface);
     return d->handle()->override_redirect;
+}
+
+bool WXWaylandSurface::everGrabbedFocus() const
+{
+    W_DC(WXWaylandSurface);
+    return d->everGrabbedFocus;
 }
 
 bool WXWaylandSurface::isAbove() const

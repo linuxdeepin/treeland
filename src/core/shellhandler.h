@@ -181,6 +181,18 @@ private:
     bool checkAndApplyPrivilegedOverlay(SurfaceWrapper *wrapper);
     void applyPrivilegedOverlay(SurfaceWrapper *wrapper);
     void revokePrivilegedOverlay(SurfaceWrapper *wrapper);
+#ifndef DISABLE_XWAYLAND
+    void onXWaylandSurfaceGrabFocus(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface);
+    void onXWaylandSurfaceRequestActivate(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface);
+    void grantXWaylandGrabFocus(SurfaceWrapper *wrapper);
+    void releaseXWaylandGrabFocus(SurfaceWrapper *wrapper);
+    void setupXWaylandGrabFocusWatcher(SurfaceWrapper *wrapper);
+    // Set while an X11 override-redirect grab holds the keyboard, together with
+    // the surface to hand it back to once the popup unmaps or is destroyed.
+    QPointer<SurfaceWrapper> m_xwaylandGrabFocusSurface;
+    QPointer<SurfaceWrapper> m_xwaylandGrabRestoreTarget;
+    QPointer<WSeat> m_xwaylandGrabSeat;
+#endif
     TreelandWallpaperShellInterfaceV1 *m_wallpaperShell = nullptr;
 #ifndef DISABLE_XWAYLAND
     QList<WAYLIB_SERVER_NAMESPACE::WXWayland *> m_xwaylands;
