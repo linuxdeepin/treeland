@@ -47,6 +47,7 @@ void isolation_switch_b(void *data);
 void isolation_scale_a(void *data);
 void isolation_restore_a(void *data);
 void isolation_reactivate_b(void *data);
+void isolation_recreate_b(void *data);
 #ifdef __cplusplus
 }
 #endif

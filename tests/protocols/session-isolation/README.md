@@ -83,3 +83,25 @@ xdg-foreign 接口新增状态断言（未编译、未执行）：每个 Session
 分别对应两个 WServerInterface 对象，绑定同一所属 socket，共享 native registry。
 配合现有 C registry 断言检查各连接仅看见自己的 exporter/importer global。
 尚未覆盖创建期间的广播、restart 以及 export/import token 的完整请求链路。
+
+同账户重登回归连续使用三个新 session ID。测试延迟清理旧 Session，检查新桌面仍是
+唯一活动桌面，并通过两个新建的真实 Wayland 连接核对 shell、数据传输、输入法和捕获协议的 registry。
+
+## 用户 socket 生命周期
+
+`test_session_socket_lifecycle` 单独运行，不依赖窗口隔离或缩放检查。隔离 D-Bus 上的两个调用方
+以测试进程的真实 UID 调用 `ActivateWayland`。真实 Wayland 客户端验证重复注册保留原连接，
+且原 owner 注销后，移交的同一监听器和替换后的新监听器各自保留连接。当前 owner 注销时，
+注册的监听器被释放，其客户端无法再 roundtrip。
+
+注册后、连接客户端前，fixture 切换所属 Session 根 socket 的启停状态，确认用户 socket 随之同步；
+再把 `UserModel` 当前用户切到 `dde`，确认用户 socket 仍保持启用，不再受锁屏显示的用户影响。
+
+注销前，fixture 在已注册的用户 socket 下添加一层监听 socket，以覆盖 `security-context`
+使用的父链归属关系。测试确认注销释放注册的 socket，用户连接和后代连接均无法 roundtrip，
+另一 Session 仍可通信。`security-context` 协议请求本身由 `test_wayland_security_context_v1` 覆盖。
+
+```sh
+cmake --build --preset ci --target test_session_socket_lifecycle
+ctest --test-dir build --output-on-failure -R '^test_session_socket_lifecycle$'
+```
