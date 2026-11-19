@@ -174,6 +174,7 @@ sudo journalctl -u treeland.service -f
 
 ## 规则
 - 需要解析的状态用 `--json`；控制窗口前先用 `windows`/`clients`/`top` 查到稳定的窗口 id。
+- 改 `treeland-debug` 的命令动词或某个命令的固定首参时，**必须同步** `tools/treeland-debug/completions/` 下的三份脚本（`treeland-debug`、`_treeland-debug`、`treeland-debug.fish`）和 `debughelpers.cpp` 里的 `debugCommandNames()`/`firstArgumentCandidates()`：`tests/test_treeland_debug` 的 `testCompletionScriptsMatchCommandTable()` 会逐项比对，漏改即测试失败。
 - 截图是强证据：布局 `tree` 正确但图像不对，问题在渲染/QtQuick 场景，不在布局。
 - 优先修根因；实时工具用于观察与复现，不能替代阅读拥有该状态的那段代码路径。
 - 修改权限/提权相关的理解前，先读 [references/access.md](references/access.md)，不要凭"root 能连任何 socket"类推到会话模式。

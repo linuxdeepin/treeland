@@ -9,3 +9,6 @@ usr/share/dbus-1/system.d/*
 usr/lib/*/lib*.so.*
 usr/lib/*/treeland/plugins/lib*.so
 usr/share/polkit-1/actions/org.deepin.dde.treeland-debug.policy
+usr/share/bash-completion/completions/treeland-debug
+usr/share/zsh/site-functions/_treeland-debug
+usr/share/fish/vendor_completions.d/treeland-debug.fish

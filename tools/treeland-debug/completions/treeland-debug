@@ -1,0 +1,40 @@
+# SPDX-FileCopyrightText: 2026 UnionTech Software Technology Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+#
+# Bash completion for treeland-debug. Installed as
+# $DATADIR/bash-completion/completions/treeland-debug; for a build-tree copy,
+# `source tools/treeland-debug/completions/treeland-debug`.
+#
+# The word lists mirror debugCommandNames()/completionCandidates() in
+# tools/treeland-debug/debughelpers.cpp; testCompletionScriptsMatchCommandTable()
+# compares them and fails when one side was changed without the other.
+
+# Only the verbs parseCommand() accepts: the REPL-only `exit`/`quit` would be
+# offered for a command line that rejects them (the REPL completes those itself).
+_treeland_debug_commands='tree cursor windows window clients idle shortcuts scene
+    activate close minimize maximize fullscreen move resize workspace move-cursor
+    event screenshot top events watch no-auth listen debug help shell'
+
+# The fixed first argument of the commands that have one; every other command
+# takes a window id, a coordinate or a path, which the shell already completes.
+_treeland_debug_first_arg()
+{
+    case $1 in
+    event) echo 'motion button key' ;;
+    screenshot) echo 'output window' ;;
+    debug) echo 'on off status' ;;
+    listen) echo '--port --host' ;;
+    esac
+}
+
+_treeland_debug()
+{
+    local cur=${COMP_WORDS[COMP_CWORD]}
+    if [ "$COMP_CWORD" -le 1 ]; then
+        COMPREPLY=($(compgen -W "$_treeland_debug_commands" -- "$cur"))
+    else
+        COMPREPLY=($(compgen -W "$(_treeland_debug_first_arg "${COMP_WORDS[1]}")" -- "$cur"))
+    fi
+}
+
+complete -o default -F _treeland_debug treeland-debug

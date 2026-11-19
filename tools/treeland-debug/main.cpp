@@ -33,6 +33,7 @@
 
 #include "debugsession.h"
 #include "debugswitch.h"
+#include "shellline.h"
 #ifdef TREELAND_DEBUG_LISTEN
 #include "debugserver.h"
 #endif
@@ -608,7 +609,10 @@ QString helpText()
         "  shell                      Start an interactive REPL (shell mode)\n"
         "                             All commands above (including top/events/watch)\n"
         "                             work inside the REPL; Ctrl+C interrupts a live\n"
-        "                             view and returns to the prompt.\n"
+        "                             view and returns to the prompt. Tab completes a\n"
+        "                             command and its subcommands (event, screenshot,\n"
+        "                             debug, listen), Up/Down recall earlier lines, and\n"
+        "                             Ctrl+C discards the line at the prompt.\n"
         "  help                       Show this help\n"
         "\n"
         "Backward compatibility: `--tree` and `--cursor` are accepted as aliases for\n"
@@ -1669,18 +1673,34 @@ static int runShell(Session &session, int timeoutMs, bool json, int previewOpt,
                     const QString &connectedUrl, const QStringList &candidateUrls)
 {
     QTextStream out(stdout);
-    out << "treeland-debug shell — type 'help' for commands, 'exit' to quit\n";
+    out << "treeland-debug shell — type 'help' for commands, 'exit' to quit\n"
+        << "Tab completes a command, ↑/↓ recall what was typed\n";
+    out.flush();
     // Like an ssh login banner: say up front which socket this session reads, so
     // nobody mistakes another instance's windows for their own.
-    out.flush();
     printSourceNotice(connectedUrl, candidateUrls, true);
+
+    // A pipe cannot deliver a Tab before the line ends, so only a terminal gets
+    // the line editor; a script keeps reading plain lines from stdin.
+    const bool interactive = ::isatty(STDIN_FILENO) && ::isatty(STDOUT_FILENO);
+    ShellLineEditor editor;
     QTextStream in(stdin);
     while (true) {
-        out << "treeland> ";
+        // The prompt is written straight to the terminal by the line editor, so
+        // anything buffered here (help text, the live-view newline, the debug
+        // hint) has to reach stdout first or it would show up after the prompt.
         out.flush();
-        const QString line = in.readLine();
-        if (line.isNull()) // EOF
-            break;
+        QString line;
+        if (interactive) {
+            if (!editor.readLine(QStringLiteral("treeland> "), &line))
+                break;
+        } else {
+            out << "treeland> ";
+            out.flush();
+            line = in.readLine();
+            if (line.isNull()) // EOF
+                break;
+        }
         const QString trimmed = line.trimmed();
         if (trimmed.isEmpty())
             continue;

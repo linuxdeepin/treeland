@@ -158,6 +158,36 @@ enum class LogLevel {
 // Sets *ok=false (and returns the default Info) for anything else.
 LogLevel parseLogLevel(const QString &name, bool *ok);
 
+// The command verbs the REPL accepts and completes: every parseCommand() verb,
+// plus the REPL-only `debug` (one-shot only, it may escalate through polkit),
+// `exit` and `quit`. Kept in the order the help text groups them, and mirrored
+// by the shell completion scripts in completions/; adding or renaming a verb
+// means editing those three files too, and testCompletionScriptsMatchCommandTable()
+// (tests/test_treeland_debug) fails until they agree.
+QStringList debugCommandNames();
+
+// Completes the last word of a REPL line. @p words holds every word already
+// typed, the partial one included ("event " passes {"event", ""}). Only the
+// verb and a command's first argument are completed; deeper arguments stay
+// free-form because they are window ids, key names or paths.
+QStringList completionCandidates(const QStringList &words);
+
+// Outcome of applying completion to one REPL line.
+struct CompletionEdit
+{
+    QString line;
+    int cursor = 0;
+    // Candidates to print on their own line: what is available when nothing new
+    // could be inserted (a shared prefix the line already has). Empty when the
+    // line was completed, so there is nothing to show.
+    QStringList list;
+};
+
+// Completes the word before @p cursor in @p line and returns the resulting line,
+// cursor and the candidates to show. A single candidate is inserted whole and
+// followed by a space; several candidates insert their common prefix.
+CompletionEdit completeLine(const QString &line, int cursor);
+
 // Parses a command verb and its argument list into a ParseResult.  Performs
 // every validation step that does not require a live Session connection
 // (missing arguments, unknown button/key names, unknown subcommands).  On

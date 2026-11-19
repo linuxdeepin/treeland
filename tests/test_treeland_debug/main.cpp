@@ -8,7 +8,9 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QHash>
 #include <QJsonObject>
+#include <QRegularExpression>
 #include <QSet>
 #include <QPointF>
 #include <QRectF>
@@ -64,6 +66,22 @@ private Q_SLOTS:
     void testFormatRegionAtLimit();
     void testFormatRegionOverLimit();
     void testParseLogLevel();
+
+    // --- REPL completion ---
+    void testCompletionCommandWords();
+    void testCompletionCommandPrefix();
+    void testCompletionFirstArgument();
+    void testCompletionFirstArgumentPrefix();
+    void testCompletionFreeFormArguments();
+    void testCompletionOnlyFirstArgument();
+    void testCommandNamesAcceptedByParseCommand();
+    void testCompleteLineUnique();
+    void testCompleteLineCommonPrefix();
+    void testCompleteLineListsCandidates();
+    void testCompleteLineMidLine();
+    void testCompleteLineInsideWord();
+    void testCompleteLineNoCandidates();
+    void testCompletionScriptsMatchCommandTable();
 
     // --- treeland-debug socket naming / conflict avoidance ---
     void testSocketDefaultPath();
@@ -458,6 +476,302 @@ void TreelandDebugTest::testParseLogLevel()
     QVERIFY(!ok);
     QCOMPARE(parseLogLevel(QString(), &ok), LogLevel::Info);
     QVERIFY(!ok);
+}
+
+// ---------------------------------------------------------------------------
+// REPL completion
+// ---------------------------------------------------------------------------
+
+void TreelandDebugTest::testCompletionCommandWords()
+{
+    // An empty line offers every command the REPL accepts.
+    QCOMPARE(completionCandidates({ QString() }), debugCommandNames());
+    QVERIFY(debugCommandNames().contains(QStringLiteral("event")));
+    QVERIFY(debugCommandNames().contains(QStringLiteral("quit")));
+}
+
+void TreelandDebugTest::testCompletionCommandPrefix()
+{
+    QCOMPARE(completionCandidates({ QStringLiteral("scr") }),
+             QStringList{ QStringLiteral("screenshot") });
+    // Prefix matching keeps the declared order.
+    QCOMPARE(completionCandidates({ QStringLiteral("e") }),
+             (QStringList{ QStringLiteral("event"), QStringLiteral("events"),
+                           QStringLiteral("exit") }));
+    QVERIFY(completionCandidates({ QStringLiteral("nosuchcommand") }).isEmpty());
+}
+
+void TreelandDebugTest::testCompletionFirstArgument()
+{
+    // A trailing space means the word being completed is empty, which offers
+    // the whole set for the command that has one.
+    QCOMPARE(completionCandidates({ QStringLiteral("event"), QString() }),
+             (QStringList{ QStringLiteral("motion"), QStringLiteral("button"),
+                           QStringLiteral("key") }));
+    QCOMPARE(completionCandidates({ QStringLiteral("screenshot"), QString() }),
+             (QStringList{ QStringLiteral("output"), QStringLiteral("window") }));
+    QCOMPARE(completionCandidates({ QStringLiteral("debug"), QString() }),
+             (QStringList{ QStringLiteral("on"), QStringLiteral("off"),
+                           QStringLiteral("status") }));
+    QCOMPARE(completionCandidates({ QStringLiteral("listen"), QString() }),
+             (QStringList{ QStringLiteral("--port"), QStringLiteral("--host") }));
+}
+
+void TreelandDebugTest::testCompletionFirstArgumentPrefix()
+{
+    QCOMPARE(completionCandidates({ QStringLiteral("event"), QStringLiteral("bu") }),
+             QStringList{ QStringLiteral("button") });
+    QVERIFY(completionCandidates({ QStringLiteral("event"), QStringLiteral("zz") }).isEmpty());
+}
+
+void TreelandDebugTest::testCompletionFreeFormArguments()
+{
+    // Window ids, coordinates and paths are not guessable, so nothing is
+    // offered for them -- and the second word of a command that takes none.
+    QVERIFY(completionCandidates({ QStringLiteral("activate"), QString() }).isEmpty());
+    QVERIFY(completionCandidates({ QStringLiteral("tree"), QString() }).isEmpty());
+    QVERIFY(completionCandidates({ QStringLiteral("move"), QStringLiteral("42") }).isEmpty());
+}
+
+void TreelandDebugTest::testCompletionOnlyFirstArgument()
+{
+    // Only the first argument of a command is a fixed set; a third word is a
+    // value (event button's action, listen's port), so nothing is offered.
+    QVERIFY(completionCandidates({ QStringLiteral("event"), QStringLiteral("button"),
+                                   QString() }).isEmpty());
+    QVERIFY(completionCandidates({ QStringLiteral("listen"), QStringLiteral("--port"),
+                                   QStringLiteral("8080"), QString() }).isEmpty());
+}
+
+void TreelandDebugTest::testCommandNamesAcceptedByParseCommand()
+{
+    // Keep debugCommandNames() and parseCommand() in sync: every listed word is
+    // either a parsed command or one of the three REPL-only words.
+    const QStringList replOnly{ QStringLiteral("debug"), QStringLiteral("exit"),
+                                QStringLiteral("quit") };
+    for (const QString &name : debugCommandNames()) {
+        const ParseResult r = parseCommand(name, {});
+        if (replOnly.contains(name)) {
+            // Not a one-shot command, so parseCommand() rejects it on purpose.
+            QVERIFY2(r.error.contains(QLatin1String("unknown command")), qPrintable(name));
+        } else {
+            QVERIFY2(!r.error.contains(QLatin1String("unknown command")), qPrintable(name));
+        }
+    }
+}
+
+void TreelandDebugTest::testCompleteLineUnique()
+{
+    // A unique candidate is filled in whole and followed by a space, with the
+    // cursor left after it.
+    const CompletionEdit edit = completeLine(QStringLiteral("tre"), 3);
+    QCOMPARE(edit.line, QStringLiteral("tree "));
+    QCOMPARE(edit.cursor, 5);
+    QVERIFY(edit.list.isEmpty());
+}
+
+void TreelandDebugTest::testCompleteLineCommonPrefix()
+{
+    // Several candidates insert the part they share, and nothing is listed.
+    const CompletionEdit edit = completeLine(QStringLiteral("eve"), 3);
+    QCOMPARE(edit.line, QStringLiteral("event"));
+    QCOMPARE(edit.cursor, 5);
+    QVERIFY(edit.list.isEmpty());
+}
+
+void TreelandDebugTest::testCompleteLineListsCandidates()
+{
+    // Nothing new to insert: the line stays put and the candidates come back
+    // for the caller to print.
+    const CompletionEdit edit = completeLine(QStringLiteral("e"), 1);
+    QCOMPARE(edit.line, QStringLiteral("e"));
+    QCOMPARE(edit.cursor, 1);
+    QCOMPARE(edit.list, (QStringList{ QStringLiteral("event"), QStringLiteral("events"),
+                                      QStringLiteral("exit") }));
+}
+
+void TreelandDebugTest::testCompleteLineMidLine()
+{
+    // The word before the cursor is the one completed; the rest of the line is
+    // kept, and no second space is added before it.
+    const CompletionEdit edit = completeLine(QStringLiteral("screenshot wi 42"), 13);
+    QCOMPARE(edit.line, QStringLiteral("screenshot window 42"));
+    QCOMPARE(edit.cursor, 17);
+    QVERIFY(edit.list.isEmpty());
+}
+
+void TreelandDebugTest::testCompleteLineInsideWord()
+{
+    // Completing in the middle of a word would insert a longer candidate before
+    // the rest of it and split the word in two, so it leaves the line alone.
+    const CompletionEdit edit = completeLine(QStringLiteral("eve"), 1);
+    QCOMPARE(edit.line, QStringLiteral("eve"));
+    QCOMPARE(edit.cursor, 1);
+    QVERIFY(edit.list.isEmpty());
+}
+
+void TreelandDebugTest::testCompleteLineNoCandidates()
+{
+    // A free-form argument and an unknown word both leave the line untouched.
+    for (const QString &line : { QStringLiteral("activate "), QStringLiteral("zzz") }) {
+        const CompletionEdit edit = completeLine(line, int(line.size()));
+        QCOMPARE(edit.line, line);
+        QCOMPARE(edit.cursor, int(line.size()));
+        QVERIFY(edit.list.isEmpty());
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Shell completion scripts vs. the command table
+// ---------------------------------------------------------------------------
+
+namespace {
+
+// completions/ spells the command table out once per shell, in that shell's own
+// syntax, so each file needs its own reader. The test below compares what they
+// list with debugCommandNames()/completionCandidates(), so adding a command or a
+// first argument without updating the scripts fails here instead of drifting
+// silently.
+struct ScriptCompletions
+{
+    QStringList commands;
+    QHash<QString, QStringList> firstArguments;
+};
+
+QStringList matches(const QRegularExpression &regex, const QString &text, int group)
+{
+    QStringList found;
+    auto it = regex.globalMatch(text);
+    while (it.hasNext())
+        found.append(it.next().captured(group));
+    return found;
+}
+
+QStringList words(const QString &text)
+{
+    return text.split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
+}
+
+ScriptCompletions bashCompletions(const QString &script)
+{
+    ScriptCompletions result;
+    // _treeland_debug_commands='tree cursor ...'
+    const auto commands = QRegularExpression(QStringLiteral("_treeland_debug_commands='([^']*)'"));
+    // event) echo 'motion button key' ;;
+    const auto firstArguments = QRegularExpression(
+        QStringLiteral("^\\s*([a-z][a-z-]*)\\) echo '([^']*)'"),
+        QRegularExpression::MultilineOption);
+
+    const auto commandMatch = commands.match(script);
+    if (commandMatch.hasMatch())
+        result.commands = words(commandMatch.captured(1));
+    auto it = firstArguments.globalMatch(script);
+    while (it.hasNext()) {
+        const auto match = it.next();
+        result.firstArguments.insert(match.captured(1), words(match.captured(2)));
+    }
+    return result;
+}
+
+ScriptCompletions zshCompletions(const QString &script)
+{
+    ScriptCompletions result;
+    // commands=( 'tree:Print the complete window tree' ... )
+    result.commands = matches(QRegularExpression(QStringLiteral("^\\s*'([a-z][a-z-]*):"),
+                                                 QRegularExpression::MultilineOption),
+                              script, 1);
+    // event) _values 'event' motion button key ;;
+    auto values = QRegularExpression(
+        QStringLiteral("^\\s*([a-z][a-z-]*)\\) _values '[^']*' ([^;]*);;"),
+        QRegularExpression::MultilineOption).globalMatch(script);
+    while (values.hasNext()) {
+        const auto match = values.next();
+        result.firstArguments.insert(match.captured(1), words(match.captured(2)));
+    }
+    // listen) _arguments '--port[port to bind]:port' '--host[address to bind]:address' ;;
+    auto options = QRegularExpression(QStringLiteral("^\\s*([a-z][a-z-]*)\\) _arguments (.*);;"),
+                                      QRegularExpression::MultilineOption).globalMatch(script);
+    while (options.hasNext()) {
+        const auto match = options.next();
+        result.firstArguments.insert(
+            match.captured(1),
+            matches(QRegularExpression(QStringLiteral("'(--[a-z-]+)")), match.captured(2), 1));
+    }
+    return result;
+}
+
+ScriptCompletions fishCompletions(const QString &script)
+{
+    ScriptCompletions result;
+    result.commands = matches(
+        QRegularExpression(QStringLiteral("-n '__fish_use_subcommand' -a ([a-z][a-z-]*)")), script, 1);
+    // -a 'motion button key'
+    auto values = QRegularExpression(
+        QStringLiteral("-n '__fish_seen_subcommand_from ([a-z][a-z-]*)' -a '([^']*)'"))
+                      .globalMatch(script);
+    while (values.hasNext()) {
+        const auto match = values.next();
+        result.firstArguments.insert(match.captured(1), words(match.captured(2)));
+    }
+    // listen's flags are fish options (-l port), i.e. the same word --port.
+    auto options = QRegularExpression(
+        QStringLiteral("-n '__fish_seen_subcommand_from ([a-z][a-z-]*)' -l ([a-z-]+)"))
+                       .globalMatch(script);
+    while (options.hasNext()) {
+        const auto match = options.next();
+        result.firstArguments[match.captured(1)].append(QStringLiteral("--") + match.captured(2));
+    }
+    return result;
+}
+
+// "cmd: a b c" per command, sorted, so a mismatch prints something readable.
+QStringList describe(const QHash<QString, QStringList> &firstArguments)
+{
+    QStringList lines;
+    for (auto it = firstArguments.cbegin(); it != firstArguments.cend(); ++it)
+        lines.append(it.key() + QStringLiteral(": ") + it.value().join(QLatin1Char(' ')));
+    lines.sort();
+    return lines;
+}
+
+} // namespace
+
+void TreelandDebugTest::testCompletionScriptsMatchCommandTable()
+{
+    // The REPL-only words are not one-shot commands, so the shell scripts leave
+    // them out on purpose (see completions/treeland-debug).
+    QStringList expectedCommands = debugCommandNames();
+    expectedCommands.removeAll(QStringLiteral("exit"));
+    expectedCommands.removeAll(QStringLiteral("quit"));
+
+    QHash<QString, QStringList> expectedFirstArguments;
+    for (const QString &command : debugCommandNames()) {
+        const QStringList candidates = completionCandidates({ command, QString() });
+        if (!candidates.isEmpty())
+            expectedFirstArguments.insert(command, candidates);
+    }
+
+    struct Script
+    {
+        const char *file;
+        ScriptCompletions (*read)(const QString &);
+    };
+    const Script scripts[] = {
+        { "treeland-debug", &bashCompletions },
+        { "_treeland-debug", &zshCompletions },
+        { "treeland-debug.fish", &fishCompletions },
+    };
+
+    for (const Script &script : scripts) {
+        const QString path = QStringLiteral(TREELAND_DEBUG_SOURCE_DIR "/completions/")
+            + QString::fromLatin1(script.file);
+        QFile file(path);
+        QVERIFY2(file.open(QIODevice::ReadOnly | QIODevice::Text), path.toUtf8().constData());
+        const ScriptCompletions parsed = script.read(QString::fromUtf8(file.readAll()));
+        QVERIFY2(!parsed.commands.isEmpty(), script.file);
+        QCOMPARE(parsed.commands, expectedCommands);
+        QCOMPARE(describe(parsed.firstArguments), describe(expectedFirstArguments));
+    }
 }
 
 // ---------------------------------------------------------------------------
