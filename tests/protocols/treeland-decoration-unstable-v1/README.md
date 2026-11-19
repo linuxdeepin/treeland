@@ -3,7 +3,8 @@
 覆盖等级：E。
 
 测试创建并映射真实 xdg toplevel，创建 decoration context 后发送
-`set_corner_radius(12)`，再在 compositor 线程回读同一 `SurfaceWrapper::radius()`。
+`set_corner_radius(12)`，再在 compositor 线程回读同一 `SurfaceWrapper::radius()`；
+随后发送 `set_corner_radius(0)` 并断言回读值为 0（0 即无圆角，不回退默认值）。
 因此断言的是生产窗口状态，而非 request 仅能派发。
 
 同一 toplevel 随后在最大化状态下切换 SSD 标题栏：SSD 标题栏出现时客户端收到的

@@ -139,6 +139,18 @@ int protocol_test_run(const char *socket_name)
         return 1;
     }
 
+    // 0 means square corners, not "fall back to the compositor default radius".
+    treeland_decoration_context_v1_set_corner_radius(context, 0);
+    if (wl_display_roundtrip(connection.display) < 0)
+        return 1;
+    state = (struct decoration_server_state){ 0 };
+    if (read_server_state(&state))
+        return 1;
+    if (state.radius != 0.0) {
+        fprintf(stderr, "decoration: radius 0 was not applied (radius=%g)\n", state.radius);
+        return 1;
+    }
+
     // Restore maximized: the bar only lands once the toplevel initializes, after a first apply.
     struct zxdg_decoration_manager_v1 *decorationManager = client_bind(&connection,
         "zxdg_decoration_manager_v1", &zxdg_decoration_manager_v1_interface, 1);
