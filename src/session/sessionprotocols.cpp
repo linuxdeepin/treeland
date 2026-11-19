@@ -216,11 +216,8 @@ protected:
     void create(WServer *server) override { m_handle = m_registry->acquire(server); }
     void destroy(WServer *) override
     {
-        if (m_handle) {
-            if (ownsSocket())
-                wl_global_remove(global());
+        if (m_handle)
             m_registry->release(ownsSocket() != nullptr);
-        }
 
         m_handle = nullptr;
     }
