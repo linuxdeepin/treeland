@@ -248,7 +248,10 @@ void SurfaceProtocolController::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         // removed, drop this block and its setRadius() call — the decoration
         // protocol already drives SurfaceWrapper::setRadius() on its own.
         auto updateCornerRadius = [attached] {
-            attached->surfaceWrapper()->setRadius(attached->cornerRadius());
+            // The deprecated protocol has no "unset" state, so its 0 keeps meaning
+            // "use the compositor default" rather than "square corners".
+            const auto radius = attached->cornerRadius();
+            attached->surfaceWrapper()->setRadius(radius > 0 ? radius : -1);
         };
         connect(attached, &Personalization::cornerRadiusChanged, this, updateCornerRadius);
         updateCornerRadius();

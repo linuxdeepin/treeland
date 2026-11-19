@@ -508,7 +508,7 @@ void Decoration::resetProperties()
     // and blindly restoring the titlebar would clobber the xdg-decoration
     // CSD/SSD negotiation state managed by WaylandServer/Personalization. A client
     // that wants the default titlebar back sends set_titlebar_mode(show).
-    wrapper->setRadius(0);
+    wrapper->setRadius(-1);
     wrapper->setShadowValues(40, 0, 10, QColor(0, 0, 0, 102)); // blur 40, offset (0,10), rgba(0,0,0,0.4)
     wrapper->setShadowVisible(true);
     wrapper->setBorderValues(1, QColor(0, 0, 0, 26)); // width 1, rgba(0,0,0,0.1)

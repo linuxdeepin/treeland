@@ -2442,14 +2442,14 @@ qreal SurfaceWrapper::radius() const
         return 8;
 
     qreal radius = m_radius;
-    // m_radius > 1 means radius was explicitly set via Personalization protocol;
-    // m_radius <= 1 means no per-window override, fall back to DConfig.
-    // Proxies receive an explicit display radius, including zero.
-    if (radius < 1 && m_type != Type::Layer && !m_isProxy) {
+    // A negative m_radius means no per-window override, so fall back to DConfig.
+    // Every non-negative value is explicit and applied as sent, including 0 which
+    // means square corners (treeland-decoration set_corner_radius(0)).
+    if (radius < 0 && m_type != Type::Layer && !m_isProxy) {
         radius = (desktop() ? desktop()->config()->windowRadius() : 0);
     }
 
-    return radius;
+    return radius < 0 ? 0 : radius;
 }
 
 void SurfaceWrapper::setRadius(qreal newRadius)
