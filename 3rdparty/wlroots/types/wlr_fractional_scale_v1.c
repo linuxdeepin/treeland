@@ -184,8 +184,9 @@ static void fractional_scale_manager_v1_destroy(struct wlr_fractional_scale_mana
 	free(mgr);
 }
 
-void wlr_fractional_scale_manager_v1_destroy(struct wlr_fractional_scale_manager_v1 *mgr) {
-	fractional_scale_manager_v1_destroy(mgr, true);
+void wlr_fractional_scale_manager_v1_destroy(struct wlr_fractional_scale_manager_v1 *mgr,
+		bool destroy_global_safe) {
+	fractional_scale_manager_v1_destroy(mgr, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
