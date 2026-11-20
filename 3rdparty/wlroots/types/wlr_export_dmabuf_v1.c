@@ -205,8 +205,9 @@ static void export_dmabuf_manager_v1_destroy(struct wlr_export_dmabuf_manager_v1
 	free(manager);
 }
 
-void wlr_export_dmabuf_manager_v1_destroy(struct wlr_export_dmabuf_manager_v1 *manager) {
-	export_dmabuf_manager_v1_destroy(manager, true);
+void wlr_export_dmabuf_manager_v1_destroy(struct wlr_export_dmabuf_manager_v1 *manager,
+		bool destroy_global_safe) {
+	export_dmabuf_manager_v1_destroy(manager, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
