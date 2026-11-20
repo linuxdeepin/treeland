@@ -8,9 +8,11 @@
 #include "surface/surfacewrapper.h"
 #include "treeland-foreign-toplevel-manager-v3.h"
 #include "workspace/workspace.h"
+#include "output/output.h"
 
 #include <wbackend.h>
 #include <woutputrenderwindow.h>
+#include <woutputviewport.h>
 
 #include "animationconfig.hpp"
 
@@ -115,7 +117,11 @@ extern "C" void ftm_render_and_settle(void *)
         return;
 
     // Geometry animation is disabled, so the surface state lands when the
-    // protocol request is handled. One render lets any queued scene-graph
-    // frame apply the state before the test reads it back.
-    WaylandServer::instance()->window()->render();
+    // protocol request is handled. Render each output once to apply any queued
+    // scene-graph frame before the test reads it back.
+    auto *server = WaylandServer::instance();
+    for (auto *output : server->rootSurfaceContainer()->outputs()) {
+        if (output && output->screenViewport())
+            server->window()->render(output->screenViewport(), true);
+    }
 }

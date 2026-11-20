@@ -78,7 +78,6 @@ void WOutputItemPrivate::initForOutput()
     QObject::connect(output, &WOutput::transformedSizeChanged, q, [this] {
         updateImplicitSize();
     });
-
     QObject::connect(output, &WOutput::beforeDestroy, q, [this, q] {
         if (layout) {
             layout->remove(q);

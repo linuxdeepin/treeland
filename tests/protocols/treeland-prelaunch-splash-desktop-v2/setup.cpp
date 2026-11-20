@@ -16,6 +16,7 @@
 #include <QQuickItem>
 #include <QTimer>
 
+#include "output/output.h"
 #include <wbackend.h>
 #include <wbufferitem.h>
 #include <woutputrenderwindow.h>
@@ -123,6 +124,14 @@ void settleOneFrame()
     loop.exec();
 }
 
+void renderOutputs()
+{
+    auto *server = WaylandServer::instance();
+    for (auto *output : server->rootSurfaceContainer()->outputs()) {
+        if (output && output->screenViewport())
+            server->window()->render(output->screenViewport(), true);
+    }
+}
 void rememberSplash(SurfaceWrapper *wrapper)
 {
     g_state = {};
@@ -215,7 +224,7 @@ extern "C" void prelaunch_splash_desktop_wait_converted(void *data)
 {
     auto *ready = static_cast<int *>(data);
     for (int frame = 0; frame < MaxConvertFrames; ++frame) {
-        WaylandServer::instance()->window()->render();
+        renderOutputs();
         if (g_wrapper && g_wrapper->type() == SurfaceWrapper::Type::XdgToplevel
             && !g_wrapper->prelaunchSplash()) {
             *ready = 1;
@@ -278,7 +287,7 @@ extern "C" void prelaunch_splash_desktop_probe_icon(void *data)
     };
 
     for (int frame = 0; frame < MaxSettleFrames; ++frame) {
-        server->window()->render();
+        renderOutputs();
         auto *item = findIcon();
         const bool revealDone = preview->property("thumbnailReveal").toReal() >= 1.0
             || preview->property("listReveal").toReal() >= 1.0;
