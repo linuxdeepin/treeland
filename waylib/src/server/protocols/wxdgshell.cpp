@@ -163,7 +163,7 @@ void WXdgShell::destroy([[maybe_unused]] WServer *server)
     }
 
     if (ownsSocket() && m_handle)
-        wlr_xdg_shell_destroy(nativeInterface<wlr_xdg_shell>());
+        wlr_xdg_shell_destroy(nativeInterface<wlr_xdg_shell>(), false);
 
     m_handle = nullptr;
 }
