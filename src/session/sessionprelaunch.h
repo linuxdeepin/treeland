@@ -22,6 +22,7 @@ class SessionPrelaunch : public SessionComponent
 public:
     SessionPrelaunch(Session *owner, WaylandServer *runtime);
 
+    void shutdown();
     bool needsResolution() const;
     bool consumeClosed(const QString &appId);
     SurfaceWrapper *takeSplash(const QString &appId,

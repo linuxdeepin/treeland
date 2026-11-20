@@ -19,6 +19,30 @@ SessionScene::~SessionScene()
     }
 }
 
+void SessionScene::shutdown()
+{
+    const auto surfaces = m_surfaces;
+    for (const auto &surface : surfaces) {
+        if (surface) {
+            surface->disableWindowAnimation();
+            surface->setRenderingEnabled(false);
+        }
+    }
+}
+
+void SessionScene::finishShutdown()
+{
+    const auto surfaces = m_surfaces;
+    for (const auto &surface : surfaces) {
+        if (!surface)
+            continue;
+
+        Q_ASSERT(surface->isAboutToRemove());
+        if (surface->isAboutToRemove())
+            delete surface.data();
+    }
+}
+
 bool SessionScene::allows(SurfaceWrapper *surface) const
 {
     // The dedicated login service is a system domain, not a logged-in user's
@@ -26,7 +50,8 @@ bool SessionScene::allows(SurfaceWrapper *surface) const
     const bool systemSurface = m_system
         && (surface->type() == SurfaceWrapper::Type::LockScreen
             || surface->surfaceRole() == SurfaceWrapper::SurfaceRole::PrivilegedOverlay);
-    return !surface->isAboutToRemove() && (isActive() || systemSurface);
+    return !session()->isShuttingDown() && !surface->isAboutToRemove()
+        && (isActive() || systemSurface);
 }
 
 void SessionScene::attach(SurfaceWrapper *surface)
