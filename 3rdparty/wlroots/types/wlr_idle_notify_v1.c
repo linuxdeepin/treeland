@@ -220,8 +220,8 @@ static void idle_notifier_v1_destroy(struct wlr_idle_notifier_v1 *notifier,
 	free(notifier);
 }
 
-void wlr_idle_notifier_v1_destroy(struct wlr_idle_notifier_v1 *notifier) {
-	idle_notifier_v1_destroy(notifier, true);
+void wlr_idle_notifier_v1_destroy(struct wlr_idle_notifier_v1 *notifier, bool destroy_global_safe) {
+	idle_notifier_v1_destroy(notifier, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
