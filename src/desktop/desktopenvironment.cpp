@@ -42,7 +42,7 @@ DesktopEnvironment::DesktopEnvironment(TreelandUserConfig *config, Workspace *wo
     // C++ visual parents have no QML creation context unless explicitly set.
     engine->setContextForObject(m_viewRoot, engine->rootContext());
     QQmlEngine::setObjectOwnership(m_viewRoot, QQmlEngine::CppOwnership);
-    m_viewRoot->setZ(RootSurfaceContainer::OverlayZOrder);
+    m_viewRoot->setZ(RootSurfaceContainer::NormalZOrder);
     m_viewRoot->setVisible(false);
     m_viewRoot->setEnabled(false);
     connect(runtime, &WaylandServer::activatedSurfaceChanged,
