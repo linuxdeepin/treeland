@@ -661,8 +661,9 @@ static void drm_lease_v1_manager_destroy(struct wlr_drm_lease_v1_manager *manage
 	free(manager);
 }
 
-void wlr_drm_lease_v1_manager_destroy(struct wlr_drm_lease_v1_manager *manager) {
-	drm_lease_v1_manager_destroy(manager, true);
+void wlr_drm_lease_v1_manager_destroy(struct wlr_drm_lease_v1_manager *manager,
+		bool destroy_global_safe) {
+	drm_lease_v1_manager_destroy(manager, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
