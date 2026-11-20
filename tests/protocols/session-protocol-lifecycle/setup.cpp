@@ -47,7 +47,7 @@ struct DestroyProbe {
 std::shared_ptr<Session> owner;
 QString username;
 std::list<DestroyProbe> probes;
-QList<wl_global *> captureGlobals;
+int captureManagerCount = 0;
 QList<WServerInterface *> interfaces;
 WServerInterface *screencopy = nullptr;
 QPointer<WSocket> childSocket;
@@ -66,11 +66,13 @@ void observe(WServerInterface *interface)
     else if (name == "zwlr_screencopy_manager_v1") {
         probes.emplace_back(&interface->nativeInterface<wlr_screencopy_manager_v1>()->events.destroy);
         screencopy = interface;
-    } else if (name == "ext_image_copy_capture_manager_v1")
-        captureGlobals.append(interface->nativeInterface<wlr_ext_image_copy_capture_manager_v1>()->global);
-    else if (name == "ext_output_image_capture_source_manager_v1")
-        captureGlobals.append(interface->nativeInterface<wlr_ext_output_image_capture_source_manager_v1>()->global);
-    else if (name == "ext_foreign_toplevel_image_capture_source_manager_v1")
+    } else if (name == "ext_image_copy_capture_manager_v1"
+               || name == "ext_output_image_capture_source_manager_v1") {
+        // These managers expose no destroy signal. Their global pointer is not
+        // kept: Session teardown destroys it immediately (destroy_global_safe
+        // == false), so reading it afterwards would touch freed memory.
+        ++captureManagerCount;
+    } else if (name == "ext_foreign_toplevel_image_capture_source_manager_v1")
         probes.emplace_back(&interface->nativeInterface<wlr_ext_foreign_toplevel_image_capture_source_manager_v1>()->events.destroy);
     else if (name == "zxdg_exporter_v2") {
         auto *foreign = interface->nativeInterface<wlr_xdg_foreign_v2>();
@@ -106,7 +108,7 @@ extern "C" void lifecycle_prepare(void *data)
     if (username.isEmpty())
         return;
     probes.clear();
-    captureGlobals.clear();
+    captureManagerCount = 0;
     interfaces.clear();
     screencopy = nullptr;
     auto *runtime = WaylandServer::instance();
@@ -132,7 +134,7 @@ extern "C" void lifecycle_prepare(void *data)
     runtime->addSocket(childSocket);
     const auto childName = childSocket->fullServerName().toUtf8();
     std::strncpy(state->child_socket_name, childName.constData(), sizeof(state->child_socket_name) - 1);
-    state->observed = int(probes.size()) + captureGlobals.size();
+    state->observed = int(probes.size()) + captureManagerCount;
     state->ready = 1;
 }
 
@@ -166,13 +168,6 @@ extern "C" void lifecycle_remove(void *data)
     owner->shutdown();
     runtime->sessionManager()->removeSession(owner);
     state->shutdown_idempotent = destroyedCount() == state->destroyed;
-    // Explicit native destroy retires these globals and clears their user data.
-    // Read them synchronously before the event loop can process deferred deletion.
-    state->globals_retired = 0;
-    for (auto *global : captureGlobals) {
-        if (!wl_global_get_user_data(global))
-            ++state->globals_retired;
-    }
     state->interfaces_removed = 1;
     for (auto *interface : interfaces) {
         if (runtime->server()->interfaceList().contains(interface))

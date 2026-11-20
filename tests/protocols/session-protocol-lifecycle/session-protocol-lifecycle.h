@@ -8,7 +8,6 @@ struct lifecycle_state {
     int ready;
     int observed;
     int destroyed;
-    int globals_retired;
     int interfaces_removed;
     int detached_once;
     int shutdown_with_reference;
