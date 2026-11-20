@@ -201,13 +201,19 @@ void WallpaperItem::updateSurface()
             return;
         if (source == m_source && surface() == interface->wSurface())
             return;
-        m_source = source;
-        setSurface(interface->wSurface());
-        interface->wSurface()->enterOutput(output());
-        update();
+        setWallpaperSurface(interface);
         if (!WaylandServer::instance()->m_greeterProxy->isLocked())
             setPlay(false);
     }
+}
+
+void WallpaperItem::setWallpaperSurface(TreelandWallpaperSurfaceInterfaceV1 *interface)
+{
+    m_source = interface->source();
+    auto *surface = interface->wSurface();
+    setSurface(surface);
+    surface->enterOutput(output());
+    update();
 }
 
 void WallpaperItem::handleWorkspaceAdded()

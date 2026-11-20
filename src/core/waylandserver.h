@@ -225,6 +225,8 @@ public:
     QList<DesktopEnvironment *> desktopEnvironments() const;
     WallpaperManager *wallpaperManager() const;
     TreelandWallpaperNotifierInterfaceV1 *wallpaperNotifier() const;
+    QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> wallpaperLibrary(wlr_output *excluded) const;
+    LockScreenManager *lockScreenManager() const { return m_lockScreenManager; }
     OutputManager *outputHardware() const;
     CompositorInputFilter *createInputFilter(InputContext *context, GestureManager *gestures,
                                              ShortcutController *controller, QObject *parent);
