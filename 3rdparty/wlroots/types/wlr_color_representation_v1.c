@@ -407,8 +407,8 @@ static void color_representation_manager_v1_destroy(
 }
 
 void wlr_color_representation_manager_v1_destroy(
-		struct wlr_color_representation_manager_v1 *manager) {
-	color_representation_manager_v1_destroy(manager, true);
+		struct wlr_color_representation_manager_v1 *manager, bool destroy_global_safe) {
+	color_representation_manager_v1_destroy(manager, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
