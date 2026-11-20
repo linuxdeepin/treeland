@@ -69,8 +69,8 @@ static void xdg_system_bell_v1_destroy(struct wlr_xdg_system_bell_v1 *bell,
 	free(bell);
 }
 
-void wlr_xdg_system_bell_v1_destroy(struct wlr_xdg_system_bell_v1 *bell) {
-	xdg_system_bell_v1_destroy(bell, true);
+void wlr_xdg_system_bell_v1_destroy(struct wlr_xdg_system_bell_v1 *bell, bool destroy_global_safe) {
+	xdg_system_bell_v1_destroy(bell, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
