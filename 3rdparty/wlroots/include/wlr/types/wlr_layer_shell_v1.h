@@ -127,11 +127,14 @@ struct wlr_layer_shell_v1 *wlr_layer_shell_v1_create(struct wl_display *display,
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_layer_shell_v1_destroy(struct wlr_layer_shell_v1 *layer_shell);
+void wlr_layer_shell_v1_destroy(struct wlr_layer_shell_v1 *layer_shell, bool destroy_global_safe);
 
 /**
  * Notifies the layer surface to configure itself with this width/height. The

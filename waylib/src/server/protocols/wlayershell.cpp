@@ -116,7 +116,7 @@ void WLayerShell::destroy([[maybe_unused]] WServer *server)
         delete surface;
     }
     if (ownsSocket() && m_handle)
-        wlr_layer_shell_v1_destroy(nativeInterface<wlr_layer_shell_v1>());
+        wlr_layer_shell_v1_destroy(nativeInterface<wlr_layer_shell_v1>(), false);
 
     m_handle = nullptr;
 }
