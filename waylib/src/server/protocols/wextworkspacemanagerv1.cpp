@@ -42,7 +42,7 @@ void WExtWorkspaceManagerV1::create(WServer *server)
 void WExtWorkspaceManagerV1::destroy(WServer *)
 {
     if (ownsSocket() && m_handle)
-        wlr_ext_workspace_manager_v1_destroy(handle());
+        wlr_ext_workspace_manager_v1_destroy(handle(), false);
 
     m_handle = nullptr;
 }
