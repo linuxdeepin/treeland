@@ -18,6 +18,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <time.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -700,6 +701,25 @@ static int sees_one(const struct observer *observer)
     printf("PASS: %s\n", name); \
 } while (0)
 
+/*
+ * The shared scale is applied through a queued output commit, so one read right
+ * after the request still sees the previous hardware scale. Wait for the commit
+ * instead of asserting on it immediately.
+ */
+static int wait_for_shared_scale(struct isolation_state *state, double expected)
+{
+    for (int attempt = 0; attempt < 100; ++attempt) {
+        if (!invoke_on_server_thread(isolation_read, state))
+            return 0;
+        if (state->a_scale == expected && state->b_scale == expected
+            && state->hardware_scale == expected)
+            return 1;
+        struct timespec delay = { 0, 20 * 1000 * 1000 };
+        nanosleep(&delay, NULL);
+    }
+    return 0;
+}
+
 static int test_prelaunch_isolation(struct client_connection *a, struct client_connection *b)
 {
     struct treeland_prelaunch_splash_manager_v2 *am = client_bind(a,
@@ -831,8 +851,7 @@ int protocol_test_run(const char *socket_name)
     b_scale_events_before = b_heads.head_scale_count;
     REQUIRE(invoke_on_server_thread(isolation_scale_a, NULL)
             && wl_display_roundtrip(a.display) >= 0
-            && invoke_on_server_thread(isolation_read, &state)
-            && state.a_scale == 1.5 && state.b_scale == 1.5 && state.hardware_scale == 1.5
+            && wait_for_shared_scale(&state, 1.5)
             && state.b_logical_width == state.a_logical_width,
             "system scale is shared while Session window models remain independent");
     REQUIRE(wl_display_roundtrip(b.display) >= 0
@@ -859,8 +878,7 @@ int protocol_test_run(const char *socket_name)
             && state.active_bottom_zone == 60 && state.a_bottom_zone == 40
             && state.b_bottom_zone == 60 && state.a_panel_at_bottom && state.b_panel_at_bottom,
             "switch projects session B's exclusive zone without stacking panels");
-    REQUIRE(invoke_on_server_thread(isolation_read, &state)
-            && state.a_scale == 1.5 && state.b_scale == 1.5 && state.hardware_scale == 1.5
+    REQUIRE(wait_for_shared_scale(&state, 1.5)
             && state.b_logical_width == state.a_logical_width,
             "switch to B preserves the system scale and shared screen geometry");
     REQUIRE(wl_display_roundtrip(a.display) >= 0 && wl_display_roundtrip(b.display) >= 0
