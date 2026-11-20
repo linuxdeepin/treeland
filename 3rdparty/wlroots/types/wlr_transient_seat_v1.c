@@ -130,8 +130,9 @@ static void transient_seat_manager_v1_destroy(struct wlr_transient_seat_manager_
 	free(manager);
 }
 
-void wlr_transient_seat_manager_v1_destroy(struct wlr_transient_seat_manager_v1 *manager) {
-	transient_seat_manager_v1_destroy(manager, true);
+void wlr_transient_seat_manager_v1_destroy(struct wlr_transient_seat_manager_v1 *manager,
+		bool destroy_global_safe) {
+	transient_seat_manager_v1_destroy(manager, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
