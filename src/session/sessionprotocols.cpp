@@ -45,8 +45,12 @@ protected:
     void create(WServer *server) override { m_handle = Create(server->handle()); }
     void destroy(WServer *) override
     {
-        if (ownsSocket() && m_handle)
-            Destroy(nativeInterface<Native>());
+        if (ownsSocket() && m_handle) {
+            if constexpr (std::is_invocable_v<decltype(Destroy), Native *, bool>)
+                Destroy(nativeInterface<Native>(), false);
+            else
+                Destroy(nativeInterface<Native>());
+        }
 
         m_handle = nullptr;
     }
@@ -170,7 +174,7 @@ struct SessionForeignRegistry
                 return nullptr;
             native = wlr_xdg_foreign_v2_create(server->handle(), registry);
             if (!native) {
-                wlr_xdg_foreign_registry_destroy(registry);
+                wlr_xdg_foreign_registry_destroy(registry, false);
                 registry = nullptr;
                 return nullptr;
             }
@@ -187,8 +191,8 @@ struct SessionForeignRegistry
             return;
 
         if (destroyNative) {
-            wlr_xdg_foreign_v2_destroy(native);
-            wlr_xdg_foreign_registry_destroy(registry);
+            wlr_xdg_foreign_v2_destroy(native, false);
+            wlr_xdg_foreign_registry_destroy(registry, false);
         }
 
         native = nullptr;
