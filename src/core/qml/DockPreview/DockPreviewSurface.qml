@@ -33,8 +33,8 @@ Rectangle {
     width: preview.frameWidth
     height: preview.frameHeight
     radius: preview.requestedPresentation === DockPreview.Presentation.Tooltip
-            ? PopoverStyle.tooltipRadius
-            : PopoverStyle.radius
+            ? preview.tooltipRadius
+            : preview.panelRadius
     clip: false
     visible: preview.visible
 
