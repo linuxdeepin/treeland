@@ -62,7 +62,7 @@ void WPointerConstraintsV1::create(WServer *server)
 void WPointerConstraintsV1::destroy(WServer *)
 {
     if (ownsSocket() && m_handle)
-        wlr_pointer_constraints_v1_destroy(nativeInterface<wlr_pointer_constraints_v1>());
+        wlr_pointer_constraints_v1_destroy(nativeInterface<wlr_pointer_constraints_v1>(), false);
 
     m_handle = nullptr;
 }
