@@ -17,13 +17,23 @@ FocusScope {
     function applyFocus() {
         if (powerList.focusPowerButton(GreeterProxy.shutdownMenuFocus))
             return
-        powerList.focusItem(GreeterProxy.shutdownMenuFocus === "logOut" ? logoutBtn : lockBtn)
+        powerList.focusItem(GreeterProxy.shutdownMenuFocus === WaylandServer.ShutdownMenuFocus.LogOut
+                            ? logoutBtn : lockBtn)
     }
 
     Component.onCompleted: applyFocus()
     onVisibleChanged: {
         if (visible)
             applyFocus()
+    }
+
+    // A repeat request while the menu is already up only moves the focus.
+    Connections {
+        target: GreeterProxy
+        function onShutdownMenuFocusChanged() {
+            if (visible && GreeterProxy.showShutdownView)
+                applyFocus()
+        }
     }
 
     MouseArea {

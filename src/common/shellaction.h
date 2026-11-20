@@ -62,19 +62,6 @@ enum class ShellAction : uint32_t {
     MoveWindowToNextWorkspace,
 };
 
-// Which shutdown-menu button the menu focuses when it opens. The focus is
-// carried by the ShowShutdownMenu* actions above; None leaves the choice to
-// the view, which focuses the lock button. GreeterProxy exposes it to QML as
-// the name of the target (None is "none").
-enum class ShutdownMenuFocus : uint32_t {
-    None = 0,
-    PowerOff,
-    Reboot,
-    Suspend,
-    Hibernate,
-    LogOut,
-};
-
 // Stateless executor: every call re-reads WaylandServer::instance(). Task switching,
 // Notify and Quit stay producer-local (they depend on switch/quit state).
 class ShellActionExecutor

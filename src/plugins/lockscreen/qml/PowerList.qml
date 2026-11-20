@@ -37,10 +37,10 @@ FocusScope {
     // handles those and every target that does not resolve here.
     function focusPowerButton(focus) {
         switch (focus) {
-        case "powerOff": focusItem(powerOffBtn); return true
-        case "reboot":   focusItem(rebootBtn);  return true
-        case "suspend":  focusItem(suspendBtn); return true
-        case "hibernate": focusItem(hibernateBtn); return true
+        case WaylandServer.ShutdownMenuFocus.PowerOff:  focusItem(powerOffBtn);  return true
+        case WaylandServer.ShutdownMenuFocus.Reboot:    focusItem(rebootBtn);    return true
+        case WaylandServer.ShutdownMenuFocus.Suspend:   focusItem(suspendBtn);   return true
+        case WaylandServer.ShutdownMenuFocus.Hibernate: focusItem(hibernateBtn); return true
         }
         return false
     }
