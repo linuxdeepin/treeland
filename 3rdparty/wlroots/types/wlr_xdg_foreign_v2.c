@@ -369,8 +369,8 @@ static void xdg_foreign_v2_destroy(struct wlr_xdg_foreign_v2 *foreign,
 	free(foreign);
 }
 
-void wlr_xdg_foreign_v2_destroy(struct wlr_xdg_foreign_v2 *foreign) {
-	xdg_foreign_v2_destroy(foreign, true);
+void wlr_xdg_foreign_v2_destroy(struct wlr_xdg_foreign_v2 *foreign, bool destroy_global_safe) {
+	xdg_foreign_v2_destroy(foreign, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
@@ -383,7 +383,7 @@ static void handle_foreign_registry_destroy(struct wl_listener *listener,
 		void *data) {
 	struct wlr_xdg_foreign_v2 *foreign =
 		wl_container_of(listener, foreign, foreign_registry_destroy);
-	wlr_xdg_foreign_v2_destroy(foreign);
+	wlr_xdg_foreign_v2_destroy(foreign, true);
 }
 
 struct wlr_xdg_foreign_v2 *wlr_xdg_foreign_v2_create(
