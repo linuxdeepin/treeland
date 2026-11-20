@@ -362,8 +362,9 @@ static void xdg_activation_v1_destroy(struct wlr_xdg_activation_v1 *activation,
 	free(activation);
 }
 
-void wlr_xdg_activation_v1_destroy(struct wlr_xdg_activation_v1 *activation) {
-	xdg_activation_v1_destroy(activation, true);
+void wlr_xdg_activation_v1_destroy(struct wlr_xdg_activation_v1 *activation,
+		bool destroy_global_safe) {
+	xdg_activation_v1_destroy(activation, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
