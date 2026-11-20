@@ -410,8 +410,9 @@ static void pointer_gestures_v1_destroy(struct wlr_pointer_gestures_v1 *gestures
 	free(gestures);
 }
 
-void wlr_pointer_gestures_v1_destroy(struct wlr_pointer_gestures_v1 *gestures) {
-	pointer_gestures_v1_destroy(gestures, true);
+void wlr_pointer_gestures_v1_destroy(struct wlr_pointer_gestures_v1 *gestures,
+		bool destroy_global_safe) {
+	pointer_gestures_v1_destroy(gestures, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
