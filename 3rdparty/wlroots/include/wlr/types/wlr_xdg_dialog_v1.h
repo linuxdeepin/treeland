@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_XDG_DIALOG_V1_H
 #define WLR_TYPES_WLR_XDG_DIALOG_V1_H
 
+#include <stdbool.h>
 #include <wayland-server-core.h>
 #include <wlr/util/addon.h>
 
@@ -50,11 +51,14 @@ struct wlr_xdg_wm_dialog_v1 *wlr_xdg_wm_dialog_v1_create(struct wl_display *disp
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_xdg_wm_dialog_v1_destroy(struct wlr_xdg_wm_dialog_v1 *wm);
+void wlr_xdg_wm_dialog_v1_destroy(struct wlr_xdg_wm_dialog_v1 *wm, bool destroy_global_safe);
 
 /**
  * Get a struct wlr_xdg_dialog_v1 from a struct wlr_xdg_toplevel.

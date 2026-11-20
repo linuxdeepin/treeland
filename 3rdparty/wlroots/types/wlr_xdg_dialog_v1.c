@@ -171,8 +171,8 @@ static void xdg_wm_dialog_v1_destroy(struct wlr_xdg_wm_dialog_v1 *wm,
 	free(wm);
 }
 
-void wlr_xdg_wm_dialog_v1_destroy(struct wlr_xdg_wm_dialog_v1 *wm) {
-	xdg_wm_dialog_v1_destroy(wm, true);
+void wlr_xdg_wm_dialog_v1_destroy(struct wlr_xdg_wm_dialog_v1 *wm, bool destroy_global_safe) {
+	xdg_wm_dialog_v1_destroy(wm, destroy_global_safe);
 }
 
 static void xdg_wm_dialog_handle_display_destroy(struct wl_listener *listener, void *data) {

@@ -146,7 +146,7 @@ void WXdgDialogManagerV1::destroy([[maybe_unused]] WServer *server)
     // Clearing dialogListeners destroys per-dialog WListenerOwner tokens.
     d->dialogListeners.clear();
     if (ownsSocket() && m_handle)
-        wlr_xdg_wm_dialog_v1_destroy(nativeInterface<wlr_xdg_wm_dialog_v1>());
+        wlr_xdg_wm_dialog_v1_destroy(nativeInterface<wlr_xdg_wm_dialog_v1>(), false);
 
     m_handle = nullptr;
 }
