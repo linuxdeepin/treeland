@@ -224,7 +224,7 @@ WaylandServer::~WaylandServer()
     }
     if (auto *configManager = DConfigManager::instance())
         configManager->stopActiveUserConfig();
-    delete m_lockScreenManager;
+    delete std::exchange(m_lockScreenManager, nullptr);
     delete m_surfaceProtocols;
     delete m_dragController;
     delete m_captureManager;
@@ -401,11 +401,25 @@ WallpaperManager *WaylandServer::wallpaperManager() const
     return activeSession() ? activeSession()->wallpaperManager() : nullptr;
 }
 
+WallpaperManager::WallpaperLibrary WaylandServer::wallpaperLibrary(wlr_output *excluded) const
+{
+    WallpaperManager::WallpaperLibrary wallpapers;
+    for (const auto &session : m_sessionManager->sessions()) {
+        if (session->isShuttingDown())
+            continue;
+        wallpapers.insert(session->wallpaperManager()->globalValidWallpaper(excluded));
+    }
+    if (m_lockScreenManager)
+        m_lockScreenManager->collectGreeterWallpapers(wallpapers);
+    return wallpapers;
+}
+
 void WaylandServer::onWallpaperNotifierBound(wl_resource *resource)
 {
     // The wallpaper factory is a shared, privileged resource consumer.
-    for (const auto &session : m_sessionManager->sessions())
-        session->wallpaperManager()->onWallpaperNotifierBound(resource);
+    const auto wallpapers = wallpaperLibrary(nullptr);
+    for (auto it = wallpapers.cbegin(); it != wallpapers.cend(); ++it)
+        m_wallpaperNotifierInterfaceV1->sendAddForResource(resource, it.value(), it.key());
 }
 
 void WaylandServer::onWallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfaceV1 *surface)

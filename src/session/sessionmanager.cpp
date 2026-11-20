@@ -435,7 +435,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
             return DConfigManager::instance()->userSeatConfig(username, seatName);
         },
         [owner = session.get()] { return owner->seatManager()->seats(); },
-        [this](wlr_output *excluded) { return wallpaperLibrary(excluded); }, session.get());
+        [runtime](wlr_output *excluded) { return runtime->wallpaperLibrary(excluded); }, session.get());
 
     session->m_socket = createWSocket();
     if (!session->m_socket)
@@ -695,18 +695,4 @@ void SessionManager::commitActiveUserSession(const ActiveSessionUpdate &update)
     auto *server = WaylandServer::instance();
     if (update.activeSessionChanged && server->currentMode() == WaylandServer::CurrentMode::Normal)
         server->activateSurface(update.session->workspace()->current()->latestActiveSurface());
-}
-
-WallpaperManager::WallpaperLibrary SessionManager::wallpaperLibrary(wlr_output *excluded) const
-{
-    WallpaperManager::WallpaperLibrary result;
-    for (const auto &owner : m_sessions) {
-        if (owner->isShuttingDown())
-            continue;
-        const auto used = owner->wallpaperManager()->globalValidWallpaper(excluded);
-        for (auto it = used.cbegin(); it != used.cend(); ++it)
-            result.insert(it.key(), it.value());
-    }
-
-    return result;
 }

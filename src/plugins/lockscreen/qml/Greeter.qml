@@ -33,7 +33,7 @@ FocusScope {
 
         readonly property int scaleDuration: 1000
         readonly property int duration: (GreeterProxy.isLocked || scale !== 1) ? scaleDuration : 600
-        readonly property bool hasWallpaper: wallpaper.surface !== null
+        readonly property bool hasWallpaper: wallpaper.source !== ""
         property real effectStrength: 0.0
         readonly property bool dimActive: WaylandServer.config.lockscreenWallpaperDimEnabled
         anchors.fill: parent
@@ -107,9 +107,7 @@ FocusScope {
                 // Only a real lock screen entry zooms the desktop wallpaper.
                 if (GreeterProxy.isLocked || GreeterProxy.undecided)
                     WaylandServer.startLockscreen(root.output, true);
-                wallpaper.play = true;
             } else {
-                wallpaper.play = false;
                 WaylandServer.showDesktop(root.output)
             }
         }
@@ -118,15 +116,13 @@ FocusScope {
                 root.hideAnimationFinished()
         }
 
-        Wallpaper {
+        WallpaperSwitcher {
             id: wallpaper
 
             anchors.fill: parent
             clip: true
-            wallpaperRole: Wallpaper.Lockscreen
             output: root.output
-
-            visible: !background.dimActive
+            play: background.state === "Show" && root.visible
         }
 
         ShaderEffect {
@@ -136,7 +132,11 @@ FocusScope {
             clip: true
             visible: background.hasWallpaper && background.dimActive
 
-            property variant source: wallpaper
+            property variant source: ShaderEffectSource {
+                sourceItem: wallpaper
+                hideSource: wallpaperEffect.visible
+                live: wallpaperEffect.visible
+            }
             property real u_dimRatio: WaylandServer.config.lockscreenWallpaperDimRatio
             property real u_strength: background.effectStrength
 

@@ -10,6 +10,7 @@ Q_MOC_INCLUDE("workspace/workspace.h")
 
 class WallpaperSlot;
 class TreelandWallpaperSurfaceInterfaceV1;
+class TreelandUserConfig;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WOutput;
@@ -58,18 +59,23 @@ Q_SIGNALS:
     void sourceChanged();
     void opacityDurationChanged();
 
+protected:
+    void componentComplete() override;
+
 private:
     void handleWallpaperUpdate();
+    void updateGreeterWallpaper();
     void handleWallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfaceV1 *interface);
     void handleWorkspaceAdded();
-    void switchToNewSlot();
+    WallpaperSlot *createSlot();
+    void presentSlot(WallpaperSlot *slot, bool animated);
     void startFadeIn(WallpaperSlot *slot, WallpaperSlot *oldSlot, bool animated);
     void startFadeOut(WallpaperSlot *slot);
 
     QPointer<WorkspaceModel> m_workspace;
     QPointer<WOutput> m_output;
     bool m_play = true;
-    QString m_source;
+    QPointer<TreelandUserConfig> m_greeterConfig;
     int m_opacityDuration = 500;
 
     WallpaperSlot *m_currentSlot = nullptr;
