@@ -243,8 +243,8 @@ static void viewporter_destroy(struct wlr_viewporter *viewporter,
 	free(viewporter);
 }
 
-void wlr_viewporter_destroy(struct wlr_viewporter *viewporter) {
-	viewporter_destroy(viewporter, true);
+void wlr_viewporter_destroy(struct wlr_viewporter *viewporter, bool destroy_global_safe) {
+	viewporter_destroy(viewporter, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {

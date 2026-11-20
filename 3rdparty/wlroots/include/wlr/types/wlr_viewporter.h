@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_VIEWPORTER_H
 #define WLR_TYPES_WLR_VIEWPORTER_H
 
+#include <stdbool.h>
 #include <wayland-server-core.h>
 
 /**
@@ -39,10 +40,13 @@ struct wlr_viewporter *wlr_viewporter_create(struct wl_display *display);
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_viewporter_destroy(struct wlr_viewporter *viewporter);
+void wlr_viewporter_destroy(struct wlr_viewporter *viewporter, bool destroy_global_safe);
 
 #endif
