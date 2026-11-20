@@ -5,12 +5,20 @@
 
 #include "wallpaperitem.h"
 #include "core/waylandserver.h"
+#include "dconfig/dconfigmanager.h"
+#include "lockscreen/lockscreenmanager.h"
+#include "session/sessionmanager.h"
 #include "workspace/workspacemodel.h"
 #include "wallpapershellinterfacev1.h"
 #include "wallpapermanager.h"
 #include "workspace.h"
 #include "shellhandler.h"
 #include "animationconfig.hpp"
+#include "treelanduserconfig.hpp"
+
+#ifndef DISABLE_DDM
+#include "greeter/usermodel.h"
+#endif
 
 #include <woutput.h>
 
@@ -29,23 +37,50 @@ public:
     {
         setLive(true);
     }
+
+    ~WallpaperSlot() override
+    {
+        if (auto *server = WaylandServer::instance(); server && m_greeterPreview)
+            server->lockScreenManager()->updateGreeterWallpapers(this, {});
+    }
+
+    void setGreeterPreview(TreelandWallpaperSurfaceInterfaceV1 *interface,
+                           TreelandWallpaperInterfaceV1::WallpaperType type)
+    {
+        m_greeterPreview = true;
+        WaylandServer::instance()->lockScreenManager()->updateGreeterWallpapers(this, interface->source(), type);
+        setWallpaperSurface(interface);
+    }
+
+private:
+    bool m_greeterPreview = false;
 };
 
 WallpaperSwitcherItem::WallpaperSwitcherItem(QQuickItem *parent)
     : QQuickItem(parent)
 {
+    auto *server = WaylandServer::instance();
+#ifndef DISABLE_DDM
+    if (auto *userModel = server->userModel()) {
+        connect(userModel, &UserModel::currentUserNameChanged,
+                this, &WallpaperSwitcherItem::handleWallpaperUpdate);
+    }
+#endif
+    connect(server, &WaylandServer::currentModeChanged,
+            this, &WallpaperSwitcherItem::handleWallpaperUpdate);
+
     m_currentSlot = new WallpaperSlot(this);
     QQuickItemPrivate::get(m_currentSlot)->anchors()->setFill(this);
 
-    connect(WaylandServer::instance(),
+    connect(server,
             &WaylandServer::wallpaperChanged,
             this,
             &WallpaperSwitcherItem::handleWallpaperUpdate);
-    connect(WaylandServer::instance()->shellHandler()->wallpaperShell(),
+    connect(server->shellHandler()->wallpaperShell(),
             &TreelandWallpaperShellInterfaceV1::wallpaperSurfaceAdded,
             this,
             &WallpaperSwitcherItem::handleWallpaperSurfaceAdded);
-    connect(WaylandServer::instance(),
+    connect(server,
             &WaylandServer::workspaceAdded,
             this,
             &WallpaperSwitcherItem::handleWorkspaceAdded);
@@ -53,8 +88,16 @@ WallpaperSwitcherItem::WallpaperSwitcherItem(QQuickItem *parent)
 
 WallpaperSwitcherItem::~WallpaperSwitcherItem()
 {
+    if (auto *server = WaylandServer::instance())
+        server->lockScreenManager()->updateGreeterWallpapers(this, {});
     delete m_oldSlot;
     delete m_currentSlot;
+}
+
+void WallpaperSwitcherItem::componentComplete()
+{
+    QQuickItem::componentComplete();
+    handleWallpaperUpdate();
 }
 
 WOutput *WallpaperSwitcherItem::output() const
@@ -74,6 +117,8 @@ void WallpaperSwitcherItem::setOutput(WOutput *output)
         m_currentSlot->setOutput(output);
     if (m_oldSlot)
         m_oldSlot->setOutput(output);
+    if (!m_workspace)
+        handleWallpaperUpdate();
 }
 
 WorkspaceModel *WallpaperSwitcherItem::workspace() const
@@ -118,6 +163,8 @@ void WallpaperSwitcherItem::setPlay(bool value)
         m_currentSlot->setPlay(value);
     if (m_oldSlot)
         m_oldSlot->setPlay(value);
+    if (!m_workspace)
+        handleWallpaperUpdate();
 }
 
 QString WallpaperSwitcherItem::source() const
@@ -147,8 +194,42 @@ void WallpaperSwitcherItem::slowDown()
 
 void WallpaperSwitcherItem::handleWallpaperUpdate()
 {
-    if (!m_output || !m_currentSlot)
+    if (!isComponentComplete() || !m_output || !m_currentSlot)
         return;
+
+#ifndef DISABLE_DDM
+    auto *server = WaylandServer::instance();
+    const auto *userModel = server->userModel();
+    QString user;
+    TreelandUserConfig *userConfig = nullptr;
+    // The workspace keeps its desktop wallpaper behind the lock screen.
+    // Startup and shutdown can also show the lock screen item outside LockScreen mode.
+    if (!m_workspace && userModel
+        && (server->currentMode() == WaylandServer::CurrentMode::LockScreen || m_play)) {
+        user = userModel->currentUserName();
+        if (user.isEmpty())
+            user = QStringLiteral("dde");
+        userConfig = DConfigManager::instance()->userConfig(user);
+    }
+    if (m_greeterConfig != userConfig) {
+        if (m_greeterConfig)
+            disconnect(m_greeterConfig, nullptr, this, nullptr);
+
+        m_greeterConfig = userConfig;
+        if (userConfig) {
+            connect(userConfig, &TreelandUserConfig::configInitializeSucceed,
+                    this, &WallpaperSwitcherItem::handleWallpaperUpdate);
+            connect(userConfig, &TreelandUserConfig::configInitializeFailed,
+                    this, &WallpaperSwitcherItem::handleWallpaperUpdate);
+        } else {
+            server->lockScreenManager()->updateGreeterWallpapers(this, {});
+        }
+    }
+    if (userConfig) {
+        updateGreeterWallpaper(user);
+        return;
+    }
+#endif
 
     if (!m_workspace)
         return;
@@ -160,7 +241,49 @@ void WallpaperSwitcherItem::handleWallpaperUpdate()
     if (newSource == m_currentSlot->source())
         return;
 
-    switchToNewSlot();
+    auto *newSlot = createSlot();
+    newSlot->setWorkspace(m_workspace);
+    if (newSlot->source().isEmpty()) {
+        newSlot->deleteLater();
+        return;
+    }
+
+    auto *config = WaylandServer::instance()->animationConfig();
+    presentSlot(newSlot, m_play && (!config || config->wallpaperCrossFade()));
+}
+
+void WallpaperSwitcherItem::updateGreeterWallpaper(const QString &user)
+{
+    if (!configurationReady(m_greeterConfig.data()))
+        return;
+
+    auto *server = WaylandServer::instance();
+    auto *lockScreenManager = server->lockScreenManager();
+    const auto session = server->sessionManager()->sessionForUser(user);
+    const auto wallpaper = session ? session->wallpaperManager()->getOutputConfig(m_output->handle())
+                                   : WallpaperManager::currentGreeterWallpaper(*m_greeterConfig, m_output);
+
+    const auto &path = wallpaper.lockscreenWallpaper;
+    auto *interface = TreelandWallpaperSurfaceInterfaceV1::get(path);
+    if (!interface || !interface->wallpaperReady() || !interface->wSurface()) {
+        lockScreenManager->updateGreeterWallpapers(this, path, wallpaper.lockScreenWallpapertype);
+        return;
+    }
+
+    if (path == source() && m_currentSlot->surface() == interface->wSurface()) {
+        lockScreenManager->updateGreeterWallpapers(this, {});
+        return;
+    }
+
+    auto *newSlot = createSlot();
+    newSlot->setGreeterPreview(interface, wallpaper.lockScreenWallpapertype);
+    newSlot->setPlay(m_play);
+    lockScreenManager->updateGreeterWallpapers(this, {});
+
+    auto *config = server->animationConfig();
+    const bool animated = m_play && m_currentSlot->surface()
+        && (!config || (config->lockscreen() && config->wallpaperCrossFade()));
+    presentSlot(newSlot, animated);
 }
 
 void WallpaperSwitcherItem::handleWorkspaceAdded()
@@ -179,60 +302,30 @@ void WallpaperSwitcherItem::handleWallpaperSurfaceAdded(TreelandWallpaperSurface
     }
 }
 
-void WallpaperSwitcherItem::switchToNewSlot()
+WallpaperSlot *WallpaperSwitcherItem::createSlot()
 {
     auto *newSlot = new WallpaperSlot(this);
     QQuickItemPrivate::get(newSlot)->anchors()->setFill(this);
     newSlot->setOpacity(0);
     newSlot->setOutput(m_output);
-    newSlot->setWorkspace(m_workspace);
+    return newSlot;
+}
 
-    if (newSlot->source().isEmpty()) {
-        newSlot->deleteLater();
-        return;
-    }
-
+void WallpaperSwitcherItem::presentSlot(WallpaperSlot *newSlot, bool animated)
+{
     m_oldSlot = m_currentSlot;
     m_currentSlot = newSlot;
 
     Q_EMIT sourceChanged();
 
-    auto *config = WaylandServer::instance()->animationConfig();
-    const bool animated = !config || config->wallpaperCrossFade();
-    const QPointer<WallpaperSlot> oldSlot = m_oldSlot;
-    if (animated) {
-        startFadeOut(oldSlot);
-    } else if (oldSlot) {
-        // A superseded request may never become ready. Keep its old slot tied
-        // to its lifetime so abandoning it cannot leave a wallpaper behind.
-        connect(newSlot, &QObject::destroyed, oldSlot, &QObject::deleteLater);
-    }
-
-    auto *interface = TreelandWallpaperSurfaceInterfaceV1::get(newSlot->source());
-    if (interface && interface->wallpaperReady()) {
-        startFadeIn(newSlot, oldSlot, animated);
-    } else if (interface) {
-        // Waiting for the content to load is not an animation: keep it even when
-        // the cross fade is disabled.
-        connect(interface,
-                &TreelandWallpaperSurfaceInterfaceV1::ready,
-                this,
-                [this, newSlot = QPointer<WallpaperSlot>(newSlot), oldSlot, animated]() {
-                    if (newSlot && m_currentSlot == newSlot)
-                        startFadeIn(newSlot, oldSlot, animated);
-                },
-                Qt::SingleShotConnection);
-    }
+    startFadeIn(newSlot, m_oldSlot, animated);
 }
 
 void WallpaperSwitcherItem::startFadeOut(WallpaperSlot *slot)
 {
-    if (!slot)
-        return;
-
-    auto *fadeOut = new QPropertyAnimation(slot, "opacity");
+    auto *fadeOut = new QPropertyAnimation(slot, "opacity", slot);
     fadeOut->setDuration(m_opacityDuration);
-    fadeOut->setStartValue(1.0);
+    fadeOut->setStartValue(slot->opacity());
     fadeOut->setEndValue(0.0);
     fadeOut->setEasingCurve(QEasingCurve::InOutQuad);
     connect(fadeOut, &QPropertyAnimation::finished, slot, &QObject::deleteLater);
@@ -241,7 +334,7 @@ void WallpaperSwitcherItem::startFadeOut(WallpaperSlot *slot)
 
 void WallpaperSwitcherItem::startFadeIn(WallpaperSlot *slot, WallpaperSlot *oldSlot, bool animated)
 {
-    if (!animated) {
+    if (!animated || m_opacityDuration == 0) {
         // The new content is ready: show it and release the previous wallpaper in
         // one step instead of fading.
         slot->setOpacity(1.0);
@@ -255,5 +348,20 @@ void WallpaperSwitcherItem::startFadeIn(WallpaperSlot *slot, WallpaperSlot *oldS
     anim->setStartValue(0.0);
     anim->setEndValue(1.0);
     anim->setEasingCurve(QEasingCurve::InOutQuad);
+    if (oldSlot && m_workspace) {
+        startFadeOut(oldSlot);
+    } else if (oldSlot) {
+        // Give the incoming wallpaper a head start. Leave an outgoing slot
+        // that is still fading in alone until it can cover the desktop.
+        connect(anim, &QPropertyAnimation::valueChanged, oldSlot,
+                [this, oldSlot, fadeOutStarted = false](const QVariant &value) mutable {
+            const qreal opacity = value.toReal();
+            if (fadeOutStarted || opacity < 0.5 || (opacity < 1.0 && oldSlot->opacity() < 1.0))
+                return;
+            fadeOutStarted = true;
+            startFadeOut(oldSlot);
+        });
+        connect(slot, &QObject::destroyed, oldSlot, &QObject::deleteLater);
+    }
     anim->start(QAbstractAnimation::DeleteWhenStopped);
 }

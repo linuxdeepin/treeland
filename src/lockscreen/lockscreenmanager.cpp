@@ -40,6 +40,40 @@ LockScreenManager::LockScreenManager(WaylandServer *server)
 
 LockScreenManager::~LockScreenManager() = default;
 
+void LockScreenManager::collectGreeterWallpapers(WallpaperManager::WallpaperLibrary &wallpapers) const
+{
+    for (const auto &sources : m_greeterWallpapers)
+        wallpapers.insert(sources);
+}
+
+void LockScreenManager::updateGreeterWallpapers(const QObject *item, const QString &source,
+                                               TreelandWallpaperInterfaceV1::WallpaperType type)
+{
+    const auto previous = m_greeterWallpapers.value(item);
+    const auto previousSource = previous.isEmpty() ? QString{} : previous.firstKey();
+    if (previousSource == source && (source.isEmpty() || previous.first() == type))
+        return;
+
+    if (source.isEmpty())
+        m_greeterWallpapers.remove(item);
+    else
+        m_greeterWallpapers.insert(item, {{source, type}});
+
+    auto *notifier = m_server->wallpaperNotifier();
+    if (!notifier || previousSource == source)
+        return;
+
+    if (!source.isEmpty()) {
+        qCDebug(lcTlWallpaper) << "Requesting greeter wallpaper from factory" << source << "type" << type;
+        notifier->sendAdd(type, source);
+    }
+
+    if (!previousSource.isEmpty() && !m_server->wallpaperLibrary(nullptr).contains(previousSource)) {
+        qCDebug(lcTlWallpaper) << "Releasing greeter wallpaper from factory" << previousSource;
+        notifier->sendRemove(previousSource);
+    }
+}
+
 void LockScreenManager::setGreeterProxy(GreeterProxy *greeter)
 {
     m_greeterProxy = greeter;

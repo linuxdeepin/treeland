@@ -56,9 +56,6 @@ Q_SIGNALS:
     void xwaylandAuthChanged();
 
 private:
-    WallpaperManager::WallpaperLibrary wallpaperLibrary(wlr_output *excluded) const;
-
-private:
     std::weak_ptr<Session> m_activeSession;
     QList<std::shared_ptr<Session>> m_sessions;
     WallpaperLauncher *m_wallpaperLauncher { nullptr };
