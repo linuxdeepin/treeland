@@ -125,6 +125,7 @@ public:
     bool isBelow() const;
     bool isModal() const;
     WindowTypes windowTypes() const;
+    bool isPopupLike() const;
     DecorationsFlags decorationsFlags() const;
     DecorationsFlags effectiveDecorationsFlags(xcb_atom_t noTitlebarAtom = XCB_ATOM_NONE) const;
 
