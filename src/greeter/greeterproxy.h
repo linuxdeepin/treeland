@@ -4,7 +4,7 @@
 #pragma once
 
 #include "QDBusContext"
-#include "common/shellaction.h"
+#include "core/waylandserver.h"
 #include <QDBusObjectPath>
 #include <QObject>
 #include <QQmlEngine>
@@ -40,7 +40,7 @@ class GreeterProxy
     Q_PROPERTY(int     failedAttempts   READ failedAttempts   NOTIFY failedAttemptsChanged)
     Q_PROPERTY(bool    authPending      READ authPending      NOTIFY authPendingChanged)
     Q_PROPERTY(bool    showShutdownView READ showShutdownView WRITE  setShowShutdownView NOTIFY showShutdownViewChanged)
-    Q_PROPERTY(QString shutdownMenuFocus READ shutdownMenuFocus NOTIFY shutdownMenuFocusChanged)
+    Q_PROPERTY(WaylandServer::ShutdownMenuFocus shutdownMenuFocus READ shutdownMenuFocus NOTIFY shutdownMenuFocusChanged)
     Q_PROPERTY(bool    showAnimation    READ showAnimation    NOTIFY showAnimationChanged)
     Q_PROPERTY(bool    hasActiveSession READ hasActiveSession NOTIFY hasActiveSessionChanged)
 
@@ -136,13 +136,14 @@ public:
     /**
      * @brief Get the button the shutdown view should focus when it opens
      * QML elements should listen to this property to pick the initial focus.
-     * The value is the name of the ShutdownMenuFocus target: "powerOff",
-     * "reboot", "suspend", "hibernate", "logOut", or "none" for no
-     * preference.
      *
-     * @return Name of the focus target
+     * @return The focus target, WaylandServer::ShutdownMenuFocus::None for no
+     *         preference
      */
-    QString shutdownMenuFocus() const;
+    inline WaylandServer::ShutdownMenuFocus shutdownMenuFocus() const
+    {
+        return m_shutdownMenuFocus;
+    };
 
     /**
      * @brief Get whether to show animation on lock/unlock
@@ -176,9 +177,10 @@ public:
     /**
      * @brief Set the button the shutdown view should focus when it opens
      *
-     * @param focus The focus target, ShutdownMenuFocus::None for no preference
+     * @param focus The focus target, WaylandServer::ShutdownMenuFocus::None for
+     *              no preference
      */
-    void setShutdownMenuFocus(ShutdownMenuFocus focus);
+    void setShutdownMenuFocus(WaylandServer::ShutdownMenuFocus focus);
 
     ////////////////////
     // Public methods //
@@ -342,7 +344,7 @@ Q_SIGNALS:
     void showShutdownViewChanged (bool showShutdownView);
 
     /** @brief Emitted when shutdownMenuFocus changes. See shutdownMenuFocus() */
-    void shutdownMenuFocusChanged ();
+    void shutdownMenuFocusChanged(WaylandServer::ShutdownMenuFocus focus);
 
     /** @brief Emitted when showAnimation changes. See showAnimation() */
     void showAnimationChanged    (bool showAnimation);
@@ -408,7 +410,7 @@ private:
     int  m_failedAttempts   { 0     };
     QString m_authenticationUser;
     bool m_showShutdownView { false };
-    ShutdownMenuFocus m_shutdownMenuFocus { ShutdownMenuFocus::None };
+    WaylandServer::ShutdownMenuFocus m_shutdownMenuFocus { WaylandServer::ShutdownMenuFocus::None };
     bool m_showAnimation    { true  };
     bool m_hasActiveSession { false };
     bool m_handshakeEnabled { false };

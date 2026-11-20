@@ -117,19 +117,19 @@ void ShellActionExecutor::execute(ShellAction action)
         server->showShutdownMenu();
         break;
     case ShellAction::ShowShutdownMenuPowerOff:
-        server->showShutdownMenu(ShutdownMenuFocus::PowerOff);
+        server->showShutdownMenu(WaylandServer::ShutdownMenuFocus::PowerOff);
         break;
     case ShellAction::ShowShutdownMenuReboot:
-        server->showShutdownMenu(ShutdownMenuFocus::Reboot);
+        server->showShutdownMenu(WaylandServer::ShutdownMenuFocus::Reboot);
         break;
     case ShellAction::ShowShutdownMenuSuspend:
-        server->showShutdownMenu(ShutdownMenuFocus::Suspend);
+        server->showShutdownMenu(WaylandServer::ShutdownMenuFocus::Suspend);
         break;
     case ShellAction::ShowShutdownMenuHibernate:
-        server->showShutdownMenu(ShutdownMenuFocus::Hibernate);
+        server->showShutdownMenu(WaylandServer::ShutdownMenuFocus::Hibernate);
         break;
     case ShellAction::ShowShutdownMenuLogOut:
-        server->showShutdownMenu(ShutdownMenuFocus::LogOut);
+        server->showShutdownMenu(WaylandServer::ShutdownMenuFocus::LogOut);
         break;
     case ShellAction::ShowUserSwitch:
         server->showSwitchUser();

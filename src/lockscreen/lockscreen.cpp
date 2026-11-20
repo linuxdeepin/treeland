@@ -57,7 +57,7 @@ void LockScreen::lock()
         m_greeterProxy->lock();
 }
 
-void LockScreen::shutdown(ShutdownMenuFocus focus)
+void LockScreen::shutdown(WaylandServer::ShutdownMenuFocus focus)
 {
     // ext_session_lock_v1 does not support shutdown
     if (!m_impl) {
@@ -66,13 +66,12 @@ void LockScreen::shutdown(ShutdownMenuFocus focus)
         return;
     }
 
-    if (isVisible()) {
-        return;
-    }
-
-    // Set before the view shows: it picks the initial focus as it loads.
+    // Set before the menu shows: the view picks its initial focus as it loads.
+    // A repeat request while the menu is already up only moves that focus.
     m_greeterProxy->setShutdownMenuFocus(focus);
-    setVisible(true);
+
+    if (!isVisible())
+        setVisible(true);
 
     if (!m_greeterProxy->showShutdownView())
         m_greeterProxy->setShowShutdownView(true);
