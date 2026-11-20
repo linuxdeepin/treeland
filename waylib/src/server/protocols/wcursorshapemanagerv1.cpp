@@ -138,7 +138,7 @@ void WCursorShapeManagerV1::create(WServer *server)
 void WCursorShapeManagerV1::destroy(WServer *)
 {
     if (ownsSocket() && m_handle)
-        wlr_cursor_shape_manager_v1_destroy(nativeInterface<wlr_cursor_shape_manager_v1>());
+        wlr_cursor_shape_manager_v1_destroy(nativeInterface<wlr_cursor_shape_manager_v1>(), false);
 
     m_handle = nullptr;
 }
