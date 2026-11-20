@@ -244,7 +244,7 @@ void WForeignToplevel::create(WServer *server)
 void WForeignToplevel::destroy([[maybe_unused]] WServer *server)
 {
     if (ownsSocket() && m_handle)
-        wlr_foreign_toplevel_manager_v1_destroy(nativeInterface<wlr_foreign_toplevel_manager_v1>());
+        wlr_foreign_toplevel_manager_v1_destroy(nativeInterface<wlr_foreign_toplevel_manager_v1>(), false);
 
     m_handle = nullptr;
 }
