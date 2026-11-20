@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_TABLET_V2_H
 #define WLR_TYPES_WLR_TABLET_V2_H
 
+#include <stdbool.h>
 #include <wayland-server-core.h>
 #include <wayland-protocols/tablet-v2-enum.h>
 #include <wlr/types/wlr_seat.h>
@@ -153,11 +154,14 @@ struct wlr_tablet_manager_v2 *wlr_tablet_v2_create(struct wl_display *display);
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_tablet_v2_destroy(struct wlr_tablet_manager_v2 *manager);
+void wlr_tablet_v2_destroy(struct wlr_tablet_manager_v2 *manager, bool destroy_global_safe);
 
 void wlr_send_tablet_v2_tablet_tool_proximity_in(
 	struct wlr_tablet_v2_tablet_tool *tool,
