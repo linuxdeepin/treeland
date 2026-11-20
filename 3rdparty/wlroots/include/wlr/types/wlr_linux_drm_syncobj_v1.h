@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_LINUX_DRM_SYNCOBJ_V1_H
 #define WLR_TYPES_WLR_LINUX_DRM_SYNCOBJ_V1_H
 
+#include <stdbool.h>
 #include <wayland-server-core.h>
 #include <wlr/util/addon.h>
 
@@ -50,11 +51,15 @@ struct wlr_linux_drm_syncobj_manager_v1 *wlr_linux_drm_syncobj_manager_v1_create
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_linux_drm_syncobj_manager_v1_destroy(struct wlr_linux_drm_syncobj_manager_v1 *manager);
+void wlr_linux_drm_syncobj_manager_v1_destroy(struct wlr_linux_drm_syncobj_manager_v1 *manager,
+	bool destroy_global_safe);
 
 struct wlr_linux_drm_syncobj_surface_v1_state *wlr_linux_drm_syncobj_v1_get_surface_state(
 	struct wlr_surface *surface);
