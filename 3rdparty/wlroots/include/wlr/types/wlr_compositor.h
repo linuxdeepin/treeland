@@ -569,11 +569,14 @@ struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_compositor_destroy(struct wlr_compositor *compositor);
+void wlr_compositor_destroy(struct wlr_compositor *compositor, bool destroy_global_safe);
 
 /**
  * Set the renderer used for creating struct wlr_texture objects from client
