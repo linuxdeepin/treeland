@@ -276,7 +276,7 @@ void WOutputManagerV1::create(WServer *server)
 void WOutputManagerV1::destroy([[maybe_unused]] WServer *server)
 {
     if (ownsSocket() && m_handle)
-        wlr_output_manager_v1_destroy(nativeInterface<wlr_output_manager_v1>());
+        wlr_output_manager_v1_destroy(nativeInterface<wlr_output_manager_v1>(), false);
 
     m_handle = nullptr;
 }
