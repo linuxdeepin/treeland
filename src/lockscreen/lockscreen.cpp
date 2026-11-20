@@ -57,7 +57,7 @@ void LockScreen::lock()
         m_greeterProxy->lock();
 }
 
-void LockScreen::shutdown()
+void LockScreen::shutdown(ShutdownMenuFocus focus)
 {
     // ext_session_lock_v1 does not support shutdown
     if (!m_impl) {
@@ -70,6 +70,8 @@ void LockScreen::shutdown()
         return;
     }
 
+    // Set before the view shows: it picks the initial focus as it loads.
+    m_greeterProxy->setShutdownMenuFocus(focus);
     setVisible(true);
 
     if (!m_greeterProxy->showShutdownView())

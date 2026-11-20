@@ -117,14 +117,19 @@ void ShellActionExecutor::execute(ShellAction action)
         server->showShutdownMenu();
         break;
     case ShellAction::ShowShutdownMenuPowerOff:
+        server->showShutdownMenu(ShutdownMenuFocus::PowerOff);
+        break;
     case ShellAction::ShowShutdownMenuReboot:
+        server->showShutdownMenu(ShutdownMenuFocus::Reboot);
+        break;
     case ShellAction::ShowShutdownMenuSuspend:
+        server->showShutdownMenu(ShutdownMenuFocus::Suspend);
+        break;
     case ShellAction::ShowShutdownMenuHibernate:
+        server->showShutdownMenu(ShutdownMenuFocus::Hibernate);
+        break;
     case ShellAction::ShowShutdownMenuLogOut:
-        // TODO: implement default-focus menu variants.
-        qCWarning(lcTlShell) << "Default-focus shutdown menu variants not implemented;"
-                             << "falling back to the plain shutdown menu";
-        server->showShutdownMenu();
+        server->showShutdownMenu(ShutdownMenuFocus::LogOut);
         break;
     case ShellAction::ShowUserSwitch:
         server->showSwitchUser();
