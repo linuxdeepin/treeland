@@ -458,8 +458,9 @@ static void session_lock_manager_v1_destroy(struct wlr_session_lock_manager_v1 *
 	free(lock_manager);
 }
 
-void wlr_session_lock_manager_v1_destroy(struct wlr_session_lock_manager_v1 *lock_manager) {
-	session_lock_manager_v1_destroy(lock_manager, true);
+void wlr_session_lock_manager_v1_destroy(struct wlr_session_lock_manager_v1 *lock_manager,
+		bool destroy_global_safe) {
+	session_lock_manager_v1_destroy(lock_manager, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
