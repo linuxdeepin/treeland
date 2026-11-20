@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_DRM_H
 #define WLR_TYPES_WLR_DRM_H
 
+#include <stdbool.h>
 #include <wayland-server-protocol.h>
 #include <wlr/render/drm_format_set.h>
 #include <wlr/types/wlr_buffer.h>
@@ -59,10 +60,13 @@ struct wlr_drm *wlr_drm_create(struct wl_display *display,
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_drm_destroy(struct wlr_drm *drm);
+void wlr_drm_destroy(struct wlr_drm *drm, bool destroy_global_safe);
 
 #endif
