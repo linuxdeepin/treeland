@@ -274,8 +274,9 @@ static void xdg_decoration_manager_v1_destroy(struct wlr_xdg_decoration_manager_
 	free(manager);
 }
 
-void wlr_xdg_decoration_manager_v1_destroy(struct wlr_xdg_decoration_manager_v1 *manager) {
-	xdg_decoration_manager_v1_destroy(manager, true);
+void wlr_xdg_decoration_manager_v1_destroy(struct wlr_xdg_decoration_manager_v1 *manager,
+		bool destroy_global_safe) {
+	xdg_decoration_manager_v1_destroy(manager, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {

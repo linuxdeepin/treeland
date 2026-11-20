@@ -1,6 +1,7 @@
 #ifndef WLR_TYPES_WLR_XDG_DECORATION_V1
 #define WLR_TYPES_WLR_XDG_DECORATION_V1
 
+#include <stdbool.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_xdg_shell.h>
 
@@ -71,11 +72,15 @@ struct wlr_xdg_decoration_manager_v1 *
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_xdg_decoration_manager_v1_destroy(struct wlr_xdg_decoration_manager_v1 *manager);
+void wlr_xdg_decoration_manager_v1_destroy(struct wlr_xdg_decoration_manager_v1 *manager,
+	bool destroy_global_safe);
 
 uint32_t wlr_xdg_toplevel_decoration_v1_set_mode(
 	struct wlr_xdg_toplevel_decoration_v1 *decoration,
