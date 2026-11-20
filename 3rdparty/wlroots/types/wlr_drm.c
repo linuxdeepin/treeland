@@ -211,8 +211,8 @@ static void drm_destroy(struct wlr_drm *drm,
 	free(drm);
 }
 
-void wlr_drm_destroy(struct wlr_drm *drm) {
-	drm_destroy(drm, true);
+void wlr_drm_destroy(struct wlr_drm *drm, bool destroy_global_safe) {
+	drm_destroy(drm, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
