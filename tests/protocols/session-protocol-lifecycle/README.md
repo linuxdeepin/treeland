@@ -13,8 +13,8 @@
 - 移除 Session 且 fixture 仍保留额外共享引用时，六个带 destroy 信号的原生 manager、
   xdg-foreign manager 及其 registry 的八个 destroy 信号全部触发。
 - image-copy-capture 与 output-image-capture-source manager 没有 destroy 信号，
-  同步检查其 global 的 user data 已清空，验证显式销毁已安排 global 回收；
-  此断言不单独证明底层内存已释放。
+  只计入被观察接口数量；Session 注销时以 `destroy_global_safe == false` 立即销毁
+  global，销毁后该指针即失效，测试不再读取它的 user data。
 - Session 接口均从 WServer 列表移除，所属客户端连接断开，另一个 Session 连接仍可 roundtrip。
 - 同一账户重复创建、注销两次，验证销毁后的重新创建路径。
 
