@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_FIXES_H
 #define WLR_TYPES_WLR_FIXES_H
 
+#include <stdbool.h>
 #include <wayland-server-core.h>
 
 struct wlr_fixes {
@@ -28,10 +29,13 @@ struct wlr_fixes *wlr_fixes_create(struct wl_display *display, uint32_t version)
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_fixes_destroy(struct wlr_fixes *fixes);
+void wlr_fixes_destroy(struct wlr_fixes *fixes, bool destroy_global_safe);
 
 #endif
