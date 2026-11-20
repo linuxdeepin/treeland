@@ -443,8 +443,9 @@ static void security_context_manager_v1_destroy(struct wlr_security_context_mana
     free(manager);
 }
 
-void wlr_security_context_manager_v1_destroy(struct wlr_security_context_manager_v1 *manager) {
-    security_context_manager_v1_destroy(manager, true);
+void wlr_security_context_manager_v1_destroy(struct wlr_security_context_manager_v1 *manager,
+                                         bool destroy_global_safe) {
+    security_context_manager_v1_destroy(manager, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
@@ -535,7 +536,7 @@ void WSecurityContextManager::create(WServer *server)
 void WSecurityContextManager::destroy([[maybe_unused]] WServer *server)
 {
     if (ownsSocket() && m_handle)
-        wlr_security_context_manager_v1_destroy(nativeInterface<wlr_security_context_manager_v1>());
+        wlr_security_context_manager_v1_destroy(nativeInterface<wlr_security_context_manager_v1>(), false);
 
     m_handle = nullptr;
 }
