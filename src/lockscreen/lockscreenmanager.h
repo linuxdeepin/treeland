@@ -14,8 +14,7 @@ class LockScreenInterface;
 class ILockScreen;
 class GreeterProxy;
 class QTimer;
-class QDBusObjectPath;
-Q_MOC_INCLUDE(<QDBusObjectPath>)
+class Session;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
@@ -42,19 +41,18 @@ public:
     void showSwitchUser();
 
 Q_SIGNALS:
-    // Emitted whenever the LockScreen implementation becomes available
-    // (setLockScreenImpl with a non-null impl) or unavailable (impl destroyed
-    // or reset to null), so subscribers never keep stale availability state.
+    // Emitted when the LockScreen implementation becomes available or unavailable.
     void lockScreenAvailableChanged();
+    void sessionLockStateRequested(bool locked);
+    void sessionRelockRequested(const QString &id);
 
 private Q_SLOTS:
     // The lock screen interface asks for the menu without a focus preference.
     void onLockScreenShutdown();
-    void onSessionNew(const QString &sessionId, const QDBusObjectPath &objectPath);
-    void onSessionLock();
-    void onSessionUnlock();
 
 private:
+    void onSessionLockRequested(Session *session, bool locked);
+    void requestSwitchToGreeter();
     void onExtSessionLock(WSessionLock *lock);
 
 private:
