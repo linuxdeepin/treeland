@@ -70,9 +70,10 @@ Item {
     property var desiredSurfaces: []
     onDesiredSurfacesChanged: root.syncSurfaces()
 
-    readonly property real titleRowHeight: titleFontMetrics.height
+    readonly property real titleRowHeight: PopoverStyle.previewTitleIconSize
+    readonly property int titleTopPadding: PopoverStyle.previewTitleTopPadding
     // Chrome the thumbnail adds above its content; only it carries a header.
-    readonly property real titleRowChrome: root.titleRowHeight + PopoverStyle.previewSpacing
+    readonly property real titleRowChrome: root.titleRowHeight + PopoverStyle.previewTitleGap
 
     // Picture box of one slot: fixed short side, clamped aspect ratio.
     function previewSlotSize(wrapper, horizontal) {
@@ -230,17 +231,19 @@ Item {
     // screen, or the one that just left.
     readonly property size tooltipSize: tooltipPresent.naturalSize
 
-    function previewFrameSizeFor(contentSize, titleChrome, padding) {
+    function previewFrameSizeFor(contentSize, titleChrome, padding, topPadding) {
+        const top = topPadding ?? padding;
         const maxContentWidth = Math.max(0, root.outPutSize.width
                                             - 2 * root.screenEdgeMargin
                                             - 2 * padding);
         const maxContentHeight = Math.max(0, root.outPutSize.height
                                              - 2 * root.screenEdgeMargin
-                                             - 2 * padding
+                                             - top
+                                             - padding
                                              - titleChrome);
         return Qt.size(Math.min(contentSize.width, maxContentWidth) + 2 * padding,
                        Math.min(contentSize.height, maxContentHeight)
-                           + titleChrome + 2 * padding);
+                           + titleChrome + top + padding);
     }
 
     readonly property size targetFrameSize:
@@ -251,14 +254,17 @@ Item {
                                        PopoverStyle.listPanelPadding)
             : root.previewFrameSizeFor(root.thumbnailContentSize,
                                        root.titleRowChrome,
-                                       root.thumbnailPadding)
+                                       root.thumbnailPadding,
+                                       root.titleTopPadding)
 
     readonly property size previewViewport: {
         const frame = root.previewFrameSizeFor(root.thumbnailContentSize,
                                                root.titleRowChrome,
-                                               root.thumbnailPadding);
+                                               root.thumbnailPadding,
+                                               root.titleTopPadding);
         return Qt.size(Math.max(0, frame.width - 2 * root.thumbnailPadding),
-                       Math.max(0, frame.height - 2 * root.thumbnailPadding
+                       Math.max(0, frame.height - root.titleTopPadding
+                                        - root.thumbnailPadding
                                         - root.titleRowChrome));
     }
 
@@ -428,9 +434,9 @@ Item {
     // The rect each presentation fills: the frame minus its own padding.
     readonly property rect thumbnailContentRect: Qt.rect(
         root.thumbnailPadding,
-        root.thumbnailPadding,
+        root.titleTopPadding,
         Math.max(0, root.frameWidth - 2 * root.thumbnailPadding),
-        Math.max(0, root.frameHeight - 2 * root.thumbnailPadding))
+        Math.max(0, root.frameHeight - root.titleTopPadding - root.thumbnailPadding))
     readonly property rect listContentRect: Qt.rect(
         root.listPanelPadding,
         root.listPanelPadding,
@@ -770,12 +776,6 @@ Item {
         }
     }
     /* --- global position end --- */
-
-    // Line height of the title font, measured without a real string.
-    FontMetrics {
-        id: titleFontMetrics
-        font: PopoverStyle.titleFont
-    }
 
     // These parts take the controller as a plain QtObject: a typed reference
     // would make the popover files depend on each other's types, which the QML

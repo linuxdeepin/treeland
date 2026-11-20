@@ -71,6 +71,11 @@ QtObject {
     readonly property int previewSpacing: 10
     // Inset of the thumbnail content from every panel edge.
     readonly property int previewPanelPadding: DS.Style.popup.padding
+    // Title row: icon size, icon to text, panel top and the strip below it.
+    readonly property int previewTitleIconSize: 24
+    readonly property int previewTitleIconSpacing: 5
+    readonly property int previewTitleTopPadding: 8
+    readonly property int previewTitleGap: 8
     // Width of the highlight frame, drawn outside the slot box.
     readonly property int frameBorderWidth: 4
 
