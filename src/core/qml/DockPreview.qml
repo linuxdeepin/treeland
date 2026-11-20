@@ -77,18 +77,20 @@ Item {
 
     // Picture box of one slot: fixed short side, clamped aspect ratio.
     function previewSlotSize(wrapper, horizontal) {
+        const minSide = PopoverStyle.previewSlotMinSide;
+        const maxSide = PopoverStyle.previewSlotMaxSide;
         // Whole pixels only.
         if (horizontal) {
             if (!wrapper || !(wrapper.height > 0))
-                return Qt.size(80, 120);
-            return Qt.size(Math.round(Math.max(80, Math.min(240,
-                                                          120 * wrapper.width / wrapper.height))),
+                return Qt.size(minSide, 120);
+            return Qt.size(Math.round(Math.max(minSide, Math.min(maxSide,
+                                                                 120 * wrapper.width / wrapper.height))),
                            120);
         }
         if (!wrapper || !(wrapper.width > 0))
-            return Qt.size(240, 80);
-        return Qt.size(240, Math.round(Math.max(80, Math.min(120,
-                                                            240 * wrapper.height / wrapper.width))));
+            return Qt.size(maxSide, minSide);
+        return Qt.size(maxSide, Math.round(Math.max(minSide, Math.min(120,
+                                                                     maxSide * wrapper.height / wrapper.width))));
     }
 
     // Where an item of the given size scales from: the edge of the frame that

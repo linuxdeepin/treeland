@@ -67,6 +67,9 @@ QtObject {
     readonly property int scrollHintMargin: 3
 
     /* --- the preview slots --- */
+    // Bounds of the slot side that follows the window's aspect ratio.
+    readonly property int previewSlotMinSide: 80
+    readonly property int previewSlotMaxSide: 240
     // Spacing inside the thumbnail view.
     readonly property int previewSpacing: 10
     // Inset of the thumbnail content from every panel edge.
