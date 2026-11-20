@@ -30,8 +30,9 @@ fixture 读取到的 wrapper 必须对应这同一窗口。
 
 随后客户端对这个标准 handle 发送 `set/unset_minimized`、`set/unset_maximized` 与
 `set/unset_fullscreen`。fixture 不读取 foreign handle 的缓存，而是读取该
-`SurfaceWrapper` 的真实 shell/window state；每次几何状态变化都等待生产动画的 `finished`
-信号后才断言。`activate(wl_seat)` 还必须使同一 wrapper 成为默认 seat container 的真实
+`SurfaceWrapper` 的真实 shell/window state；fixture 关闭 maximize / fullscreen / restore
+几何动画（`AnimationConfig`），状态在请求处理时直接落地，每次只 `render` 一帧就断言，
+不等待动画完成信号。`activate(wl_seat)` 还必须使同一 wrapper 成为默认 seat container 的真实
 `keyboardFocusSurface()`。`close` 必须到达这个 mapped xdg client 的 `xdg_toplevel.close`
 listener。
 
