@@ -556,8 +556,8 @@ static void layer_shell_v1_destroy(struct wlr_layer_shell_v1 *layer_shell,
 	free(layer_shell);
 }
 
-void wlr_layer_shell_v1_destroy(struct wlr_layer_shell_v1 *layer_shell) {
-	layer_shell_v1_destroy(layer_shell, true);
+void wlr_layer_shell_v1_destroy(struct wlr_layer_shell_v1 *layer_shell, bool destroy_global_safe) {
+	layer_shell_v1_destroy(layer_shell, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
