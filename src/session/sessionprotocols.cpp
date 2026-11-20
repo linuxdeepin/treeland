@@ -45,12 +45,8 @@ protected:
     void create(WServer *server) override { m_handle = Create(server->handle()); }
     void destroy(WServer *) override
     {
-        if (ownsSocket() && m_handle) {
-            if constexpr (std::is_invocable_v<decltype(Destroy), Native *, bool>)
-                Destroy(nativeInterface<Native>(), false);
-            else
-                Destroy(nativeInterface<Native>());
-        }
+        if (ownsSocket() && m_handle)
+            Destroy(nativeInterface<Native>(), false);
 
         m_handle = nullptr;
     }
