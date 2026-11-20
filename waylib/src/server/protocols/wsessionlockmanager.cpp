@@ -101,7 +101,7 @@ void WSessionLockManager::destroy([[maybe_unused]] WServer *server)
         delete lock;
     }
     if (ownsSocket() && m_handle)
-        wlr_session_lock_manager_v1_destroy(nativeInterface<wlr_session_lock_manager_v1>());
+        wlr_session_lock_manager_v1_destroy(nativeInterface<wlr_session_lock_manager_v1>(), false);
 
     m_handle = nullptr;
 }
