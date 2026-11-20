@@ -683,8 +683,8 @@ static void ext_image_copy_capture_manager_v1_destroy(
 }
 
 void wlr_ext_image_copy_capture_manager_v1_destroy(
-		struct wlr_ext_image_copy_capture_manager_v1 *manager) {
-	ext_image_copy_capture_manager_v1_destroy(manager, true);
+		struct wlr_ext_image_copy_capture_manager_v1 *manager, bool destroy_global_safe) {
+	ext_image_copy_capture_manager_v1_destroy(manager, destroy_global_safe);
 }
 
 static void manager_handle_display_destroy(struct wl_listener *listener, void *data) {

@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_EXT_IMAGE_COPY_CAPTURE_V1_H
 #define WLR_TYPES_WLR_EXT_IMAGE_COPY_CAPTURE_V1_H
 
+#include <stdbool.h>
 #include <pixman.h>
 #include <wayland-server-protocol.h>
 #include <wayland-protocols/ext-image-copy-capture-v1-enum.h>
@@ -67,12 +68,15 @@ struct wlr_ext_image_copy_capture_manager_v1 *wlr_ext_image_copy_capture_manager
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
 void wlr_ext_image_copy_capture_manager_v1_destroy(
-	struct wlr_ext_image_copy_capture_manager_v1 *manager);
+	struct wlr_ext_image_copy_capture_manager_v1 *manager, bool destroy_global_safe);
 
 /**
  * Notify the client that the frame is ready.
