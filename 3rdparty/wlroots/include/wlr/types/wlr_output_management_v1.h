@@ -109,11 +109,14 @@ struct wlr_output_manager_v1 *wlr_output_manager_v1_create(
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_output_manager_v1_destroy(struct wlr_output_manager_v1 *manager);
+void wlr_output_manager_v1_destroy(struct wlr_output_manager_v1 *manager, bool destroy_global_safe);
 /**
  * Updates the output manager's current configuration. This will broadcast any
  * changes to all clients.

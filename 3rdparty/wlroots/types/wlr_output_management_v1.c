@@ -670,8 +670,9 @@ static void output_manager_v1_destroy(struct wlr_output_manager_v1 *manager,
 	free(manager);
 }
 
-void wlr_output_manager_v1_destroy(struct wlr_output_manager_v1 *manager) {
-	output_manager_v1_destroy(manager, true);
+void wlr_output_manager_v1_destroy(struct wlr_output_manager_v1 *manager,
+		bool destroy_global_safe) {
+	output_manager_v1_destroy(manager, destroy_global_safe);
 }
 
 static void manager_handle_display_destroy(struct wl_listener *listener,
