@@ -203,8 +203,9 @@ static void cursor_shape_manager_v1_destroy(struct wlr_cursor_shape_manager_v1 *
 	free(manager);
 }
 
-void wlr_cursor_shape_manager_v1_destroy(struct wlr_cursor_shape_manager_v1 *manager) {
-	cursor_shape_manager_v1_destroy(manager, true);
+void wlr_cursor_shape_manager_v1_destroy(struct wlr_cursor_shape_manager_v1 *manager,
+		bool destroy_global_safe) {
+	cursor_shape_manager_v1_destroy(manager, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
