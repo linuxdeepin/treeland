@@ -26,7 +26,7 @@ void WPointerGesturesV1::create(WServer *server)
 void WPointerGesturesV1::destroy(WServer *)
 {
     if (ownsSocket() && m_handle)
-        wlr_pointer_gestures_v1_destroy(nativeInterface<wlr_pointer_gestures_v1>());
+        wlr_pointer_gestures_v1_destroy(nativeInterface<wlr_pointer_gestures_v1>(), false);
 
     m_handle = nullptr;
 }

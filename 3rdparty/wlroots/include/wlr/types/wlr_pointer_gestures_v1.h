@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_POINTER_GESTURES_V1_H
 #define WLR_TYPES_WLR_POINTER_GESTURES_V1_H
 
+#include <stdbool.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
 
@@ -37,11 +38,15 @@ struct wlr_pointer_gestures_v1 *wlr_pointer_gestures_v1_create(
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_pointer_gestures_v1_destroy(struct wlr_pointer_gestures_v1 *gestures);
+void wlr_pointer_gestures_v1_destroy(struct wlr_pointer_gestures_v1 *gestures,
+	bool destroy_global_safe);
 
 void wlr_pointer_gestures_v1_send_swipe_begin(
 	struct wlr_pointer_gestures_v1 *gestures,
