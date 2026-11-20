@@ -254,14 +254,15 @@ static void xdg_output_manager_v1_destroy(struct wlr_xdg_output_manager_v1 *mana
 	free(manager);
 }
 
-void wlr_xdg_output_manager_v1_destroy(struct wlr_xdg_output_manager_v1 *manager) {
-	xdg_output_manager_v1_destroy(manager, true);
+void wlr_xdg_output_manager_v1_destroy(struct wlr_xdg_output_manager_v1 *manager,
+		bool destroy_global_safe) {
+	xdg_output_manager_v1_destroy(manager, destroy_global_safe);
 }
 
 static void handle_layout_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_xdg_output_manager_v1 *manager =
 		wl_container_of(listener, manager, layout_destroy);
-	wlr_xdg_output_manager_v1_destroy(manager);
+	wlr_xdg_output_manager_v1_destroy(manager, true);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
