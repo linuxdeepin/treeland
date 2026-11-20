@@ -53,7 +53,9 @@ public:
 Q_SIGNALS:
     void socketFileChanged();
     void sessionChanged();
+#ifndef DISABLE_XWAYLAND
     void xwaylandAuthChanged();
+#endif
 
 private:
     WallpaperManager::WallpaperLibrary wallpaperLibrary(wlr_output *excluded) const;

@@ -152,6 +152,10 @@ public:
                               const QRectF &normalGeo,
                               const QRectF &outputRect) const;
 
+    // Re-run placement of an input-method popup when the text-input surface
+    // that owns the input method moves to another window or output.
+    void retargetInputPopupSurface(SurfaceWrapper *popup, SurfaceWrapper *placementParent);
+
 Q_SIGNALS:
     void rotationOutputHandlerChanged();
     void configChanged();
@@ -205,9 +209,19 @@ private:
     // rotated at scanout, so the viewport carries the opposing rotation.
     void setViewportRotation(WOutput::Transform transform);
 
-    QPointF calculateBasePosition(SurfaceWrapper *surface, const QPointF &dPos) const;
-    void handleLayerShellPopup(SurfaceWrapper *surface, const QRectF &normalGeo);
-    void handleRegularPopup(SurfaceWrapper *surface, const QRectF &normalGeo, WOutputItem *targetOutput);
+    QPointF calculateBasePosition(SurfaceWrapper *surface,
+                                  SurfaceWrapper *placementParent,
+                                  const QPointF &dPos) const;
+    // Shared placement body; `placementParent` is the surface the popup is
+    // positioned relative to and must already be resolved by the caller.
+    void arrangePopupSurfaceWith(SurfaceWrapper *surface, SurfaceWrapper *placementParent);
+    void handleLayerShellPopup(SurfaceWrapper *surface,
+                               SurfaceWrapper *placementParent,
+                               const QRectF &normalGeo);
+    void handleRegularPopup(SurfaceWrapper *surface,
+                            SurfaceWrapper *placementParent,
+                            const QRectF &normalGeo,
+                            WOutputItem *targetOutput);
     void clearPopupCache(SurfaceWrapper *surface);
 
     QJSValue m_rotationOutputHandler;

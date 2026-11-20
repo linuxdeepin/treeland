@@ -47,6 +47,7 @@ class WAYLIB_SERVER_EXPORT WTextInputV2 : public WTextInput
 public:
     WSeat *seat() const override;
     WSurface *focusedSurface() const override;
+    WSurface *enabledSurface() const;
     QString surroundingText() const override;
     int surroundingCursor() const override;
     int surroundingAnchor() const override;
@@ -75,9 +76,9 @@ public:
     Q_ENUM(PreeditStyle)
 
 Q_SIGNALS:
-    // As protocol says, enable will be before or after enter event. This is not the same as our logic.
-    // We consider text input v2 enabled only if it emits enable and receives enter event and the focused
-    // surface is the same as enabled surface.
+    // See the protocol: enable can arrive before or after enter. The helper
+    // combines both and only activates while the enabled surface is the
+    // current text-input anchor.
     void enableOnSurface(WSurface *surface);
     void disableOnSurface(WSurface *surface);
     void stateUpdated(UpdateReason reason);
