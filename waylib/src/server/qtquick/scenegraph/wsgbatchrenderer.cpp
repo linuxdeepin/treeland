@@ -7,14 +7,20 @@
 
 #include <qmath.h>
 
+#include <QtCore/QAtomicInt>
 #include <QtCore/QElapsedTimer>
+#include <QtCore/QGlobalStatic>
+#include <QtCore/QHash>
+#include <QtCore/QMutex>
 #include <QtCore/QtNumeric>
 
 #include <QtGui/QGuiApplication>
+#include <QtQuick/QSGImageNode>
 
 #include <private/qnumeric_p.h>
 #include <private/qsgmaterialshader_p.h>
 
+#include "wsgdrawcallback_p.h"
 #include "wsgrhivisualizer_p.h"
 
 #include <algorithm>
@@ -73,6 +79,63 @@ static int qt_sg_envInt(const char *name, int defaultValue)
 
 namespace WSGBatchRenderer
 {
+
+namespace {
+
+struct TextureDrawCallbackRegistry
+{
+    QMutex mutex;
+    QHash<const QSGNode *, TextureDrawCallbackEntry> callbacks;
+    QAtomicInt count{0};
+};
+
+Q_GLOBAL_STATIC(TextureDrawCallbackRegistry, s_nodeDrawCallbacks)
+
+} // namespace
+
+void registerNodeDrawCallback(QSGNode *node,
+                              QSGTexture *texture,
+                              TextureDrawCallback callback,
+                              void *userData)
+{
+    if (!node || !texture || !callback)
+        return;
+
+    QMutexLocker locker(&s_nodeDrawCallbacks->mutex);
+    if (!s_nodeDrawCallbacks->callbacks.contains(node))
+        s_nodeDrawCallbacks->count.fetchAndAddRelaxed(1);
+    s_nodeDrawCallbacks->callbacks.insert(node, {texture, callback, userData});
+}
+
+void unregisterNodeDrawCallback(QSGNode *node, const void *userData)
+{
+    if (!node)
+        return;
+
+    QMutexLocker locker(&s_nodeDrawCallbacks->mutex);
+    auto it = s_nodeDrawCallbacks->callbacks.find(node);
+    if (it == s_nodeDrawCallbacks->callbacks.end()
+        || (userData && it->userData != userData)) {
+        return;
+    }
+
+    s_nodeDrawCallbacks->callbacks.erase(it);
+    s_nodeDrawCallbacks->count.fetchAndSubRelaxed(1);
+}
+
+bool hasNodeDrawCallbacks()
+{
+    return s_nodeDrawCallbacks->count.loadRelaxed() > 0;
+}
+
+TextureDrawCallbackEntry nodeDrawCallbackFor(const QSGNode *node)
+{
+    if (!node || !hasNodeDrawCallbacks())
+        return {};
+
+    QMutexLocker locker(&s_nodeDrawCallbacks->mutex);
+    return s_nodeDrawCallbacks->callbacks.value(node);
+}
 
 #define DECLARE_DEBUG_VAR(variable) \
     static bool debug_ ## variable() \
@@ -717,6 +780,27 @@ void Rect::map(const QMatrix4x4 &matrix)
     }
 }
 
+void Element::updateDrawCallback()
+{
+    drawCallbackNode = nullptr;
+    drawCallbackTexture = nullptr;
+    if (!WSGBatchRenderer::hasNodeDrawCallbacks())
+        return;
+
+    const auto entry = WSGBatchRenderer::nodeDrawCallbackFor(node);
+    if (!entry.callback)
+        return;
+
+    auto *imageNode = dynamic_cast<QSGImageNode *>(node);
+    if (!imageNode || imageNode->texture() != entry.texture)
+        return;
+
+    drawCallbackNode = node;
+    drawCallbackTexture = entry.texture;
+    if (batch)
+        batch->hasDrawCallbacks = true;
+}
+
 void Element::computeBounds()
 {
     Q_ASSERT(!boundsComputed);
@@ -827,6 +911,7 @@ void Batch::invalidate()
     Element *e = first;
     first = nullptr;
     root = nullptr;
+    hasDrawCallbacks = false;
     while (e) {
         e->batch = nullptr;
         Element *n = e->nextInBatch;
@@ -1502,6 +1587,7 @@ void Renderer::nodeChanged(QSGNode *node, QSGNode::DirtyState state)
         QSGGeometryNode *gn = static_cast<QSGGeometryNode *>(node);
         Element *e = shadowNode->element();
         if (e) {
+            e->updateDrawCallback();
             const quint8 nodeMutabilityGroup = wsgNodeMutabilityGroup(gn);
             if (nodeMutabilityGroup != e->mutabilityGroup) {
                 m_rebuild |= Renderer::FullRebuild;
@@ -1523,6 +1609,7 @@ void Renderer::nodeChanged(QSGNode *node, QSGNode::DirtyState state)
     if (state & QSGNode::DirtyMaterial && node->type() == QSGNode::GeometryNodeType) {
         Element *e = shadowNode->element();
         if (e) {
+            e->updateDrawCallback();
             bool blended = hasMaterialWithBlending(static_cast<QSGGeometryNode *>(node));
             if (e->isMaterialBlended != blended) {
                 m_rebuild |= Renderer::FullRebuild;
@@ -1822,6 +1909,7 @@ void Renderer::prepareOpaqueBatches()
         batch->root = ei->root;
         batch->isOpaque = true;
         batch->needsUpload = true;
+        batch->hasDrawCallbacks = ei->drawCallbackNode != nullptr;
         batch->positionAttribute = qsg_positionAttribute(ei->node->geometry());
 
         m_opaqueBatches.add(batch);
@@ -1862,6 +1950,8 @@ void Renderer::prepareOpaqueBatches()
                 ej->batch = batch;
                 next->nextInBatch = ej;
                 next = ej;
+                if (ej->drawCallbackNode)
+                    batch->hasDrawCallbacks = true;
             }
         }
 
@@ -1931,6 +2021,7 @@ void Renderer::prepareAlphaBatches()
         batch->root = ei->root;
         batch->isOpaque = false;
         batch->needsUpload = true;
+        batch->hasDrawCallbacks = ei->drawCallbackNode != nullptr;
         m_alphaBatches.add(batch);
         ei->batch = batch;
 
@@ -1982,6 +2073,8 @@ void Renderer::prepareAlphaBatches()
                     ej->batch = batch;
                     next->nextInBatch = ej;
                     next = ej;
+                    if (ej->drawCallbackNode)
+                        batch->hasDrawCallbacks = true;
                 } else {
                     /* When we come across a compatible element which hits an overlap, we
                      * need to stop the batch right away. We cannot add more elements
@@ -3409,6 +3502,19 @@ void Renderer::checkLineWidth(QSGGeometry *g)
     }
 }
 
+static void runNodeDrawCallbacks(const Batch *batch)
+{
+    for (Element *e = batch->first; e; e = e->nextInBatch) {
+        if (!e->drawCallbackNode)
+            continue;
+
+        const auto callback =
+            WSGBatchRenderer::nodeDrawCallbackFor(e->drawCallbackNode);
+        if (callback.callback && callback.texture == e->drawCallbackTexture)
+            callback.callback(callback.userData);
+    }
+}
+
 void Renderer::renderMergedBatch(PreparedRenderBatch *renderBatch, bool depthPostPass)
 {
     const Batch *batch = renderBatch->batch;
@@ -3437,6 +3543,9 @@ void Renderer::renderMergedBatch(PreparedRenderBatch *renderBatch, bool depthPos
                            m_uint32IndexForRhi ? QRhiCommandBuffer::IndexUInt32 : QRhiCommandBuffer::IndexUInt16);
         cb->drawIndexed(draw.indexCount);
     }
+
+    if (!depthPostPass && batch->hasDrawCallbacks)
+        runNodeDrawCallbacks(batch);
 }
 
 bool Renderer::prepareRenderUnmergedBatch(Batch *batch, PreparedRenderBatch *renderBatch)
@@ -3660,6 +3769,9 @@ void Renderer::renderUnmergedBatch(PreparedRenderBatch *renderBatch, bool depthP
 
         e = e->nextInBatch;
     }
+
+    if (!depthPostPass && batch->hasDrawCallbacks)
+        runNodeDrawCallbacks(batch);
 }
 
 void Renderer::setViewportAndScissors(QRhiCommandBuffer *cb, const Batch *batch)

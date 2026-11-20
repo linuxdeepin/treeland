@@ -298,7 +298,12 @@ struct Element {
         node = n;
         isMaterialBlended = hasMaterialWithBlending(n);
         mutabilityGroup = wsgNodeMutabilityGroup(n);
+        updateDrawCallback();
     }
+
+    // Refreshes the node-keyed draw callback after the node's texture or
+    // material changes. With no registered callbacks this is a cheap no-op.
+    void updateDrawCallback();
 
     inline void ensureBoundsValid() {
         if (!boundsComputed)
@@ -317,6 +322,11 @@ struct Element {
     QRhiShaderResourceBindings *srb = nullptr;
     QRhiGraphicsPipeline *ps = nullptr;
     QRhiGraphicsPipeline *depthPostPassPs = nullptr;
+    // Image node and texture used as the key for a draw callback. Null when
+    // this element has no callback; the callback itself is looked up from the
+    // renderer's node registry when the batch is drawn.
+    const QSGNode *drawCallbackNode = nullptr;
+    const QSGTexture *drawCallbackTexture = nullptr;
 
     uint boundsComputed : 1;
     uint boundsOutsideFloatRange : 1;
@@ -442,6 +452,7 @@ struct Batch
         isRenderNode = false;
         ubufDataValid = false;
         needsPurge = false;
+        hasDrawCallbacks = false;
         clipState.reset();
         blendConstant = QColor();
     }
@@ -462,6 +473,7 @@ struct Batch
     uint isRenderNode : 1;
     uint ubufDataValid : 1;
     uint needsPurge : 1;
+    uint hasDrawCallbacks : 1;
 
     mutable uint uploadedThisFrame : 1; // solely for debugging purposes
 

@@ -84,6 +84,10 @@ private:
     void releaseResources() override;
     void itemChange(ItemChange change, const ItemChangeData &data) override;
 
+    // Called by WSGTextureProvider's batch-renderer draw callback after this
+    // surface's image node was actually drawn.
+    void markContentDrawn();
+
     // Using by Qt library
     Q_SLOT void invalidateSceneGraph();
 };
