@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_XDG_FOREIGN_REGISTRY_H
 #define WLR_TYPES_WLR_XDG_FOREIGN_REGISTRY_H
 
+#include <stdbool.h>
 #include <wayland-server-core.h>
 
 #define WLR_XDG_FOREIGN_HANDLE_SIZE 37
@@ -56,11 +57,14 @@ struct wlr_xdg_foreign_registry *wlr_xdg_foreign_registry_create(
 /**
  * Destroy the foreign surface registry.
  *
+ * destroy_global_safe is ignored because the registry has no globals.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_xdg_foreign_registry_destroy(struct wlr_xdg_foreign_registry *registry);
+void wlr_xdg_foreign_registry_destroy(struct wlr_xdg_foreign_registry *registry,
+	bool destroy_global_safe);
 
 /**
  * Add the given exported surface to the registry and assign it a unique handle.

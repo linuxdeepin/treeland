@@ -47,7 +47,10 @@ void wlr_xdg_foreign_exported_finish(struct wlr_xdg_foreign_exported *surface) {
 	wl_list_init(&surface->link);
 }
 
-void wlr_xdg_foreign_registry_destroy(struct wlr_xdg_foreign_registry *registry) {
+void wlr_xdg_foreign_registry_destroy(struct wlr_xdg_foreign_registry *registry,
+		bool destroy_global_safe) {
+	(void)destroy_global_safe; // The registry has no globals.
+
 	wl_signal_emit_mutable(&registry->events.destroy, NULL);
 
 	assert(wl_list_empty(&registry->events.destroy.listener_list));
@@ -62,7 +65,7 @@ static void foreign_registry_handle_display_destroy(struct wl_listener *listener
 		void *data) {
 	struct wlr_xdg_foreign_registry *registry =
 		wl_container_of(listener, registry, display_destroy);
-	wlr_xdg_foreign_registry_destroy(registry);
+	wlr_xdg_foreign_registry_destroy(registry, false);
 }
 
 
