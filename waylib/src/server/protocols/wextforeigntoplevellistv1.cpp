@@ -147,7 +147,7 @@ void WExtForeignToplevelListV1::create(WServer *server)
 void WExtForeignToplevelListV1::destroy([[maybe_unused]] WServer *server)
 {
     if (ownsSocket() && m_handle)
-        wlr_ext_foreign_toplevel_list_v1_destroy(nativeInterface<wlr_ext_foreign_toplevel_list_v1>());
+        wlr_ext_foreign_toplevel_list_v1_destroy(nativeInterface<wlr_ext_foreign_toplevel_list_v1>(), false);
 
     m_handle = nullptr;
 }
