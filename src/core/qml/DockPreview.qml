@@ -19,6 +19,11 @@ Item {
 
     // Inset of the thumbnail content from every panel edge.
     readonly property int thumbnailPadding: PopoverStyle.previewPanelPadding
+    // Corner radii follow the system window radius: the panel uses it as is,
+    // items and the tooltip use half of it.
+    readonly property int panelRadius: desktop.config.windowRadius
+    readonly property int itemRadius: Math.floor(desktop.config.windowRadius / 2)
+    readonly property int tooltipRadius: itemRadius
     readonly property int screenEdgeMargin: 10
     property bool enableBlur: true
     property bool enableShadow: GraphicsInfo.api !== GraphicsInfo.Software
