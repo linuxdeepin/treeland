@@ -312,15 +312,16 @@ static void manager_destroy(struct way_xdg_output_manager_v1 *manager,
     free(manager);
 }
 
-static void way_xdg_output_manager_v1_destroy(struct way_xdg_output_manager_v1 *manager) {
-    manager_destroy(manager, true);
+static void way_xdg_output_manager_v1_destroy(struct way_xdg_output_manager_v1 *manager,
+        bool destroy_global_safe) {
+    manager_destroy(manager, destroy_global_safe);
 }
 
 static void handle_layout_destroy(struct wl_listener *listener, void *data) {
     UNUSED(data);
     struct way_xdg_output_manager_v1 *manager =
         W_CONTAINER_OF(listener, way_xdg_output_manager_v1, layout_destroy);
-    way_xdg_output_manager_v1_destroy(manager);
+    way_xdg_output_manager_v1_destroy(manager, true);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
@@ -456,7 +457,7 @@ void WXdgOutputManager::destroy([[maybe_unused]] WServer *server)
 {
     W_D(WXdgOutputManager);
     if (ownsSocket() && m_handle)
-        way_xdg_output_manager_v1_destroy(nativeInterface<way_xdg_output_manager_v1>());
+        way_xdg_output_manager_v1_destroy(nativeInterface<way_xdg_output_manager_v1>(), false);
 
     d->manager = nullptr;
     m_handle = nullptr;
