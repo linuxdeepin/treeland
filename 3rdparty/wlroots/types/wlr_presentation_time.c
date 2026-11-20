@@ -179,8 +179,8 @@ static void presentation_destroy(struct wlr_presentation *presentation,
 	free(presentation);
 }
 
-void wlr_presentation_destroy(struct wlr_presentation *presentation) {
-	presentation_destroy(presentation, true);
+void wlr_presentation_destroy(struct wlr_presentation *presentation, bool destroy_global_safe) {
+	presentation_destroy(presentation, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
