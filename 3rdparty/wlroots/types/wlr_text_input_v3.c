@@ -328,8 +328,9 @@ static void text_input_manager_v3_destroy(struct wlr_text_input_manager_v3 *mana
 	free(manager);
 }
 
-void wlr_text_input_manager_v3_destroy(struct wlr_text_input_manager_v3 *manager) {
-	text_input_manager_v3_destroy(manager, true);
+void wlr_text_input_manager_v3_destroy(struct wlr_text_input_manager_v3 *manager,
+		bool destroy_global_safe) {
+	text_input_manager_v3_destroy(manager, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
