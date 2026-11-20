@@ -294,8 +294,8 @@ static void tablet_manager_v2_destroy(struct wlr_tablet_manager_v2 *manager,
 	free(manager);
 }
 
-void wlr_tablet_v2_destroy(struct wlr_tablet_manager_v2 *manager) {
-	tablet_manager_v2_destroy(manager, true);
+void wlr_tablet_v2_destroy(struct wlr_tablet_manager_v2 *manager, bool destroy_global_safe) {
+	tablet_manager_v2_destroy(manager, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
