@@ -8,6 +8,7 @@
 
 #ifndef WLR_TYPES_WLR_INPUT_METHOD_V2_H
 #define WLR_TYPES_WLR_INPUT_METHOD_V2_H
+#include <stdbool.h>
 #include <stdint.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
@@ -109,11 +110,15 @@ struct wlr_input_method_manager_v2 *wlr_input_method_manager_v2_create(
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_input_method_manager_v2_destroy(struct wlr_input_method_manager_v2 *manager);
+void wlr_input_method_manager_v2_destroy(struct wlr_input_method_manager_v2 *manager,
+	bool destroy_global_safe);
 
 void wlr_input_method_v2_send_activate(
 	struct wlr_input_method_v2 *input_method);

@@ -54,7 +54,7 @@ void WInputMethodManagerV2::create(WServer *server)
 void WInputMethodManagerV2::destroy([[maybe_unused]] WServer *server)
 {
     if (ownsSocket() && m_handle)
-        wlr_input_method_manager_v2_destroy(nativeInterface<wlr_input_method_manager_v2>());
+        wlr_input_method_manager_v2_destroy(nativeInterface<wlr_input_method_manager_v2>(), false);
 
     m_handle = nullptr;
 }

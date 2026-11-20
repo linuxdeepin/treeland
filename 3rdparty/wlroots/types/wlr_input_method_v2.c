@@ -620,8 +620,9 @@ static void input_method_manager_v2_destroy(struct wlr_input_method_manager_v2 *
 	free(manager);
 }
 
-void wlr_input_method_manager_v2_destroy(struct wlr_input_method_manager_v2 *manager) {
-	input_method_manager_v2_destroy(manager, true);
+void wlr_input_method_manager_v2_destroy(struct wlr_input_method_manager_v2 *manager,
+		bool destroy_global_safe) {
+	input_method_manager_v2_destroy(manager, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
