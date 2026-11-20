@@ -81,10 +81,13 @@ struct wlr_subcompositor *wlr_subcompositor_create(struct wl_display *display);
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_subcompositor_destroy(struct wlr_subcompositor *subcompositor);
+void wlr_subcompositor_destroy(struct wlr_subcompositor *subcompositor, bool destroy_global_safe);
 
 #endif

@@ -420,8 +420,8 @@ static void subcompositor_destroy(struct wlr_subcompositor *subcompositor,
 	free(subcompositor);
 }
 
-void wlr_subcompositor_destroy(struct wlr_subcompositor *subcompositor) {
-	subcompositor_destroy(subcompositor, true);
+void wlr_subcompositor_destroy(struct wlr_subcompositor *subcompositor, bool destroy_global_safe) {
+	subcompositor_destroy(subcompositor, destroy_global_safe);
 }
 
 static void subcompositor_handle_display_destroy(
