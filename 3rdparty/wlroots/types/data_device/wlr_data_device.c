@@ -305,8 +305,9 @@ static void data_device_manager_destroy(struct wlr_data_device_manager *manager,
 	free(manager);
 }
 
-void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager) {
-	data_device_manager_destroy(manager, true);
+void wlr_data_device_manager_destroy(struct wlr_data_device_manager *manager,
+		bool destroy_global_safe) {
+	data_device_manager_destroy(manager, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
