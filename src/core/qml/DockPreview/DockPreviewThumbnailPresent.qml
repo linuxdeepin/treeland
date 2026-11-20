@@ -16,7 +16,7 @@ Item {
     property bool hovered: false
 
     // Corner radius shared by the slots and the hover frame.
-    property int radius: PopoverStyle.itemRadius
+    property int radius: preview.itemRadius
     // Topmost z of the preview slots.
     readonly property int slotZBase: 10000
     // Top of the content the title row takes for itself, in step with its own

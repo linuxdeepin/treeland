@@ -104,7 +104,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: PopoverStyle.itemRadius
+        radius: preview.itemRadius
         color: PopoverStyle.itemBackground
         visible: row.hovered
     }
