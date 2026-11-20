@@ -1362,8 +1362,8 @@ static void compositor_destroy(struct wlr_compositor *compositor,
 	free(compositor);
 }
 
-void wlr_compositor_destroy(struct wlr_compositor *compositor) {
-	compositor_destroy(compositor, true);
+void wlr_compositor_destroy(struct wlr_compositor *compositor, bool destroy_global_safe) {
+	compositor_destroy(compositor, destroy_global_safe);
 }
 
 static void compositor_handle_display_destroy(
