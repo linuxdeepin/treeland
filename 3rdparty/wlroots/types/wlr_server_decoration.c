@@ -187,8 +187,9 @@ static void server_decoration_manager_destroy(struct wlr_server_decoration_manag
 	free(manager);
 }
 
-void wlr_server_decoration_manager_destroy(struct wlr_server_decoration_manager *manager) {
-	server_decoration_manager_destroy(manager, true);
+void wlr_server_decoration_manager_destroy(struct wlr_server_decoration_manager *manager,
+		bool destroy_global_safe) {
+	server_decoration_manager_destroy(manager, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
