@@ -187,7 +187,7 @@ struct SessionForeignRegistry
             return;
 
         if (destroyNative) {
-            wlr_xdg_foreign_v2_destroy(native, false);
+            wlr_xdg_foreign_v2_destroy(native);
             wlr_xdg_foreign_registry_destroy(registry, false);
         }
 
