@@ -476,8 +476,8 @@ static void primary_selection_v1_device_manager_destroy(
 }
 
 void wlr_primary_selection_v1_device_manager_destroy(
-		struct wlr_primary_selection_v1_device_manager *manager) {
-	primary_selection_v1_device_manager_destroy(manager, true);
+		struct wlr_primary_selection_v1_device_manager *manager, bool destroy_global_safe) {
+	primary_selection_v1_device_manager_destroy(manager, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
