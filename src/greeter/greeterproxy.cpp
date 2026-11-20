@@ -178,6 +178,31 @@ void GreeterProxy::setShowShutdownView(bool show) {
     }
 }
 
+QString GreeterProxy::shutdownMenuFocus() const {
+    switch (m_shutdownMenuFocus) {
+    case ShutdownMenuFocus::PowerOff:
+        return QStringLiteral("powerOff");
+    case ShutdownMenuFocus::Reboot:
+        return QStringLiteral("reboot");
+    case ShutdownMenuFocus::Suspend:
+        return QStringLiteral("suspend");
+    case ShutdownMenuFocus::Hibernate:
+        return QStringLiteral("hibernate");
+    case ShutdownMenuFocus::LogOut:
+        return QStringLiteral("logOut");
+    case ShutdownMenuFocus::None:
+        break;
+    }
+    return QStringLiteral("none");
+}
+
+void GreeterProxy::setShutdownMenuFocus(ShutdownMenuFocus focus) {
+    if (m_shutdownMenuFocus != focus) {
+        m_shutdownMenuFocus = focus;
+        Q_EMIT shutdownMenuFocusChanged();
+    }
+}
+
 void GreeterProxy::setLock(bool isLocked)
 {
     if (isLocked && !m_isLocked) {

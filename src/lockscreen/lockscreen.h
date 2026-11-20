@@ -4,6 +4,7 @@
 #pragma once
 
 #include "surface/surfacecontainer.h"
+#include "common/shellaction.h"
 #include "wglobal.h"
 #include <QPointer>
 #include <map>
@@ -48,7 +49,7 @@ public:
     bool available() const;
     bool isLocked() const;
     void lock();
-    void shutdown();
+    void shutdown(ShutdownMenuFocus focus = ShutdownMenuFocus::None);
     void switchUser();
 
 Q_SIGNALS:
