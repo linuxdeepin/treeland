@@ -21,7 +21,6 @@
 #include "modules/decoration/decorationmanagerinterfacev1.h"
 #include "modules/region-watch/regionwatchmanagerinterfacev1.h"
 #include "common/treelandlogging.h"
-#include "modules/dde-shell/ddeshellattached.h"
 
 #include <wforeigntoplevelv1.h>
 #include <wextforeigntoplevellistv1.h>
@@ -311,8 +310,6 @@ void SurfaceProtocolController::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
     }
 
     if (!isLayer) {
-        [[maybe_unused]] auto windowOverlapChecker = new WindowOverlapChecker(wrapper, wrapper);
-
         if (m_regionWatchManagerInterfaceV1)
             m_regionWatchManagerInterfaceV1->addSurface(wrapper);
     }

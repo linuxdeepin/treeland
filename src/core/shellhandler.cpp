@@ -11,7 +11,6 @@
 #include "core/windowconfigstore.h"
 #include "layersurfacecontainer.h"
 #include "modules/snap-target/snaphandler.h"
-#include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev2.h"
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv3.h"
 #include "modules/layer-shell-extension/layershellextensionmanagerinterfacev1.h"
@@ -505,13 +504,10 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
         isNewWrapper = true; // newly created
     }
 
-    // Initialize wrapper. Prefer v2 when both are present: the deprecated v1
-    // global is kept only for the migration period and dde-shell is expected
-    // to migrate to v2; a client that binds both is not a supported case.
+    // Initialize wrapper from the dde-shell surface protocol when the client
+    // created one for this wl_surface.
     if (auto *shellSurfaceV2 = DDEShellSurfaceV2::get(surface->surface())) {
         handleDdeShellSurfaceV2Added(shellSurfaceV2, wrapper);
-    } else if (DDEShellSurfaceInterface::get(surface->surface())) {
-        handleDdeShellSurfaceAdded(surface->surface(), wrapper);
     }
     auto updateSurfaceWithParentContainer = [this, wrapper, surface] {
         if (wrapper->surfaceRole() == SurfaceWrapper::SurfaceRole::PrivilegedOverlay)
@@ -612,12 +608,9 @@ void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)
     // Remove any attached dde-shell objects before the wrapper-null early
     // return: a pending app-id resolve means no wrapper was ever created, yet
     // the wl_surface may still hold a shell-surface object. The wl_surface is
-    // going away, so these objects only need cleanup, not a protocol destroy.
+    // going away, so it only needs cleanup, not a protocol destroy.
     if (auto interfaceV2 = DDEShellSurfaceV2::get(surface->surface())) {
         delete interfaceV2;
-    }
-    if (auto interface = DDEShellSurfaceInterface::get(surface->surface())) {
-        delete interface;
     }
 
     // If async resolve still pending, cancel it. If wrapper never created, just return: server
@@ -1219,69 +1212,6 @@ void ShellHandler::setupSurfaceWindowMenu(SurfaceWrapper *wrapper)
 void ShellHandler::onWindowMenuClosed()
 {
     WaylandServer::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
-}
-
-void ShellHandler::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper *wrapper)
-{
-    wrapper->setIsDDEShellSurface(true);
-    auto ddeShellSurface = DDEShellSurfaceInterface::get(surface);
-    Q_ASSERT(ddeShellSurface);
-    auto updateLayer = [ddeShellSurface, wrapper] {
-        if (ddeShellSurface->role().value() == DDEShellSurfaceInterface::OVERLAY)
-            wrapper->setSurfaceRole(SurfaceWrapper::SurfaceRole::Overlay);
-    };
-
-    if (ddeShellSurface->role().has_value())
-        updateLayer();
-
-    connect(ddeShellSurface, &DDEShellSurfaceInterface::roleChanged, this, [updateLayer] {
-        updateLayer();
-    });
-
-    // Placement hints (set_auto_placement / set_surface_position) only affect
-    // the initial placement; apply them once here instead of tracking runtime
-    // changes with ongoing signal connections.
-    if (ddeShellSurface->yOffset().has_value())
-        wrapper->setAutoPlaceCursorOffset(QPoint(0, int(ddeShellSurface->yOffset().value())));
-
-    if (ddeShellSurface->surfacePos().has_value())
-        wrapper->setClientRequstPos(ddeShellSurface->surfacePos().value());
-
-    if (ddeShellSurface->skipSwitcher().has_value())
-        wrapper->setSkipSwitcher(ddeShellSurface->skipSwitcher().value());
-
-    if (ddeShellSurface->skipDockPreView().has_value())
-        wrapper->setSkipDockPreView(ddeShellSurface->skipDockPreView().value());
-
-    if (ddeShellSurface->skipMutiTaskView().has_value())
-        wrapper->setSkipMutiTaskView(ddeShellSurface->skipMutiTaskView().value());
-
-    updateSurfaceAcceptKeyboardFocus(wrapper, ddeShellSurface->acceptKeyboardFocus());
-
-    connect(ddeShellSurface,
-            &DDEShellSurfaceInterface::skipSwitcherChanged,
-            this,
-            [wrapper](bool skip) {
-                wrapper->setSkipSwitcher(skip);
-            });
-    connect(ddeShellSurface,
-            &DDEShellSurfaceInterface::skipDockPreViewChanged,
-            this,
-            [wrapper](bool skip) {
-                wrapper->setSkipDockPreView(skip);
-            });
-    connect(ddeShellSurface,
-            &DDEShellSurfaceInterface::skipMutiTaskViewChanged,
-            this,
-            [wrapper](bool skip) {
-                wrapper->setSkipMutiTaskView(skip);
-            });
-    connect(ddeShellSurface,
-            &DDEShellSurfaceInterface::acceptKeyboardFocusChanged,
-            this,
-            [this, wrapper](bool accept) {
-                updateSurfaceAcceptKeyboardFocus(wrapper, accept);
-            });
 }
 
 void ShellHandler::handleDdeShellSurfaceV2Added(DDEShellSurfaceV2 *shellSurface,

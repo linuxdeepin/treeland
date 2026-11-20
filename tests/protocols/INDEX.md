@@ -149,14 +149,13 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 
 ### 未纳入上述覆盖率的 XML
 
-以下 4 个 XML 仍由协议包提供，但当前没有对应的已注册生产测试 target，故不混入覆盖率
+以下 3 个 XML 仍由协议包提供，但当前没有对应的已注册生产测试 target，故不混入覆盖率
 分母，也不能被视为“已覆盖”：
 
 | XML | request / event | 当前状态与缺口 |
 | --- | --- | --- |
 | `treeland-prelaunch-splash-v1` | 2 / 0 | 已由 v2 取代；未验证 v1 compatibility global 或迁移策略 |
 | `treeland-shortcut-manager-v1` | 3 / 1 | 已由 v2 取代；未验证 v1 compatibility global、`shortcut` event |
-| `treeland-dde-shell-v1` | 27 / 7 | 已在 `deprecated/`，实现删除时协议一并移除，测试已删除（删除前 26 / 27 request）。删除到实现移除之间，锁屏 mode 切换、multitask `toggle`、checker/active 资源仍由生产提供但零协议测试；v2 XML 没有对应 request，不能由 `treeland-dde-shell-v2` 接替 |
 | `treeland-personalization-manager-v1` | 37 / 12 | 已在 `deprecated/`，实现删除时协议一并移除，测试已删除（删除前 37 / 37 request，含 manager `destroy` 的 `since=2` 兼容性边界）。cursor/font/appearance 的生产回读自此无协议测试 |
 
 ### 标准 wayland-protocols 覆盖

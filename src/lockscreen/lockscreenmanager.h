@@ -12,7 +12,6 @@
 #include <QObject>
 
 class LockScreen;
-class LockScreenInterface;
 class ILockScreen;
 class GreeterProxy;
 class QTimer;
@@ -34,7 +33,6 @@ public:
 
     void setGreeterProxy(GreeterProxy *greeter);
     void installSessionLock(WServer *server);
-    void handleLockScreen(LockScreenInterface *lockScreen);
     void setLockScreenImpl(ILockScreen *impl);
     void showLockScreen(bool switchToGreeter = true);
     bool isLockScreenAvailable() const;
@@ -50,10 +48,6 @@ Q_SIGNALS:
     void lockScreenAvailableChanged();
     void sessionLockStateRequested(bool locked);
     void sessionRelockRequested(const QString &id);
-
-private Q_SLOTS:
-    // The lock screen interface asks for the menu without a focus preference.
-    void onLockScreenShutdown();
 
 private:
     void onSessionLock(Session *session);

@@ -15,7 +15,6 @@
 #include "modules/shortcut/shortcutmanager.h"
 #include "modules/shortcut/shortcutcontroller.h"
 #include "modules/keyboard-shortcuts-inhibit/keyboardshortcutsinhibitmanager.h"
-#include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "modules/active-notify/activenotifymanagerinterfacev1.h"
 #include "common/treelandlogging.h"
 
@@ -342,12 +341,10 @@ void CompositorInputFilter::handleLeftButtonStateChanged(const QInputEvent *even
     const QMouseEvent *me = static_cast<const QMouseEvent *>(event);
     if (me->button() == Qt::LeftButton) {
         if (event->type() == QEvent::MouseButtonPress) {
-            DDEActiveInterface::sendActiveIn(DDEActiveInterface::Mouse, seat);
             ActiveNotifyV1::sendActivityChanged(ActiveNotifyV1::Mouse,
                                                 ActiveNotifyV1::Active,
                                                 seat);
         } else {
-            DDEActiveInterface::sendActiveOut(DDEActiveInterface::Mouse, seat);
             ActiveNotifyV1::sendActivityChanged(ActiveNotifyV1::Mouse,
                                                 ActiveNotifyV1::Inactive,
                                                 seat);
@@ -362,13 +359,11 @@ void CompositorInputFilter::handleWhellValueChanged(const QInputEvent *event)
     const QWheelEvent *we = static_cast<const QWheelEvent *>(event);
     QPoint delta = we->angleDelta();
     if (delta.x() + delta.y() < 0) {
-        DDEActiveInterface::sendActiveOut(DDEActiveInterface::Wheel, seat);
         ActiveNotifyV1::sendActivityChanged(ActiveNotifyV1::Wheel,
                                             ActiveNotifyV1::Inactive,
                                             seat);
     }
     if (delta.x() + delta.y() > 0) {
-        DDEActiveInterface::sendActiveIn(DDEActiveInterface::Wheel, seat);
         ActiveNotifyV1::sendActivityChanged(ActiveNotifyV1::Wheel,
                                             ActiveNotifyV1::Active,
                                             seat);
