@@ -181,8 +181,8 @@ static void keyboard_shortcuts_inhibit_manager_v1_destroy(
 }
 
 void wlr_keyboard_shortcuts_inhibit_v1_destroy(
-		struct wlr_keyboard_shortcuts_inhibit_manager_v1 *manager) {
-	keyboard_shortcuts_inhibit_manager_v1_destroy(manager, true);
+		struct wlr_keyboard_shortcuts_inhibit_manager_v1 *manager, bool destroy_global_safe) {
+	keyboard_shortcuts_inhibit_manager_v1_destroy(manager, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
