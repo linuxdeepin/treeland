@@ -70,6 +70,43 @@ void protocol_test_setup(WaylandServer *server)
 - 客户端代码只允许 C、`wayland-client` 与 scanner 生成的 C API；不要 include Qt 或 Treeland 的 C++ API。
 - `invoke_on_server_thread()` 只用于读取生产状态，或注入没有对应客户端请求的定向 fixture 激励。绝不用它伪造请求结果。
 
+### 像素测试的 fixture 条件
+
+- 框架设置 `TREELAND_DISABLE_WALLPAPER=1`。使用保留 output buffer 的软件渲染路径时，
+  需要固定的不透明场景背景来重绘窗口移走后暴露的像素；否则旧窗口残影和阴影累积会
+  污染整屏对比。先在没有被测操作时验证重复渲染稳定，再比较操作前后，不能通过
+  屏蔽区域或像素容差来掩盖未定位的差异。
+- `add_headless_output()` 会立即启用输出，可能使框架先于生产 `OutputManager` 将其加入
+  layout。需要真实渲染且发生重复 output/cursor layer 注册时，只向已有 headless backend
+  添加输出，让生产路径完成注册和启用；参考
+  `tests/protocols/wayland-ext-image-copy-capture-v1/toplevel-setup.cpp`。
+- 检查捕获/离屏渲染是否影响屏幕时，先回读已提交 buffer，再单独验证下一次重绘；
+  不要在取证前强制重绘，否则会覆盖共享 QSG 节点状态污染等瞬态问题。动画场景用
+  capture renderer 的 `beforeRendering` / `afterRendering` 比较 live 节点状态，
+  不用跨帧固定矩阵误判正常移动。
+- 整图比较需要固定光标/悬停等动态内容。指针夹具可在取基线前隐藏光标，仍保留真实
+  seat/QtQuick 输入路径；不要屏蔽差异像素。移动/还原后同时比较完整捕获图像和实际
+  output buffer，GPU 或物理 scanout 未实测时明确记录，不能用 pixman 通过代替。
+- renderer 的 preferred read format 不一定有 QImage 映射；明确选择支持的读回格式并
+  检查分配和读回结果，禁止把空图像地址交给 `wlr_texture_read_pixels()`。夹具窗口引用
+  用 `QPointer`，主动销毁前暂停“不应变化”的整屏比较，避免异步 frame 回调访问已销毁窗口。
+
+### 捕获 / 录屏类协议的资源生命周期
+
+- 服务端对象的所有者必须是请求它的客户端资源加上 session，而不是被捕获的窗口。
+  `accept` 只创建 client resource；离屏视口/副本子树在第一个 session 的 `start()` 里建，
+  最后一个 `stop()` 里同步释放，最后一个 client resource 也消失后再销毁包装对象。
+  窗口失效只负责 `finish()` → `stopped`，不能作为唯一的回收路径。
+- 清理必须延迟到下一轮事件循环：`stop()` 和 client resource 的 destroy listener 都跑在
+  wlroots 的 `session_destroy()` 里，此时直接 `finish()` 会重入同一个 session 的销毁
+  （`session_send_stopped()` 用到已释放的 resource）。
+- 用 fixture 直接计数离屏视口（`findChildren<WOutputViewport*>()` + `offscreen()`），
+  断言：创建 source 后为 0；每个 session 恰好 1；销毁 session + source 后回到 0；
+  会话期间提前销毁 source resource 仍为 1 且继续能捕获到 frame。
+- `request_frame(schedule_frame=false)` 只表示“上一个 source frame 还没被 ready 消费”，
+  适用于每帧都渲染的 output/scene source。按需渲染的离屏视口必须仍然主动调度渲染，
+  否则两次请求之间恰好发生一次合成器渲染时，客户端会永远等不到下一个 frame。
+
 ## 测试形态与证据
 - 每个语义用例都要有名字。发出请求后用 roundtrip、指定事件、信号、模型变化或 future 完成来同步；不要用随意 sleep 或跨用例的状态机。
 - 命名为 `dispatch` 的用例只能证明可分发，不能证明业务语义覆盖。

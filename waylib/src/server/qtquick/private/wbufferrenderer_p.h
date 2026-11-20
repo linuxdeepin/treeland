@@ -71,6 +71,7 @@ public:
     const QMatrix4x4 &currentWorldTransform() const;
     wlr_buffer *currentBuffer() const;
     wlr_buffer *lastBuffer() const;
+    wlr_swapchain *swapchain() const { return m_swapchain.get(); }
     QRhiTexture *currentRenderTarget() const;
     bool isColorPreserved() const;
     const wlr_damage_ring *damageRing() const;
