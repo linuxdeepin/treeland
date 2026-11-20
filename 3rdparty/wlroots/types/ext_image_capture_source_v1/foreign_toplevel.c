@@ -84,8 +84,8 @@ static void ext_foreign_toplevel_image_capture_source_manager_v1_destroy(
 }
 
 void wlr_ext_foreign_toplevel_image_capture_source_manager_v1_destroy(
-		struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *manager) {
-	ext_foreign_toplevel_image_capture_source_manager_v1_destroy(manager, true);
+		struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *manager, bool destroy_global_safe) {
+	ext_foreign_toplevel_image_capture_source_manager_v1_destroy(manager, destroy_global_safe);
 }
 
 static void foreign_toplevel_manager_handle_display_destroy(struct wl_listener *listener, void *data) {
