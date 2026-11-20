@@ -5,11 +5,10 @@
 
 #include <wglobal.h>
 
-#include "common/shellaction.h"
+#include "core/waylandserver.h"
 
 #include <QObject>
 
-class WaylandServer;
 class LockScreen;
 class LockScreenInterface;
 class ILockScreen;
@@ -38,7 +37,8 @@ public:
     void setLockScreenImpl(ILockScreen *impl);
     void showLockScreen(bool switchToGreeter = true);
     bool isLockScreenAvailable() const;
-    void showShutdownMenu(ShutdownMenuFocus focus = ShutdownMenuFocus::None);
+    void showShutdownMenu(WaylandServer::ShutdownMenuFocus focus =
+                              WaylandServer::ShutdownMenuFocus::None);
     void showSwitchUser();
 
 Q_SIGNALS:
@@ -48,6 +48,8 @@ Q_SIGNALS:
     void lockScreenAvailableChanged();
 
 private Q_SLOTS:
+    // The lock screen interface asks for the menu without a focus preference.
+    void onLockScreenShutdown();
     void onSessionNew(const QString &sessionId, const QDBusObjectPath &objectPath);
     void onSessionLock();
     void onSessionUnlock();

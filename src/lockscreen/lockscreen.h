@@ -4,7 +4,7 @@
 #pragma once
 
 #include "surface/surfacecontainer.h"
-#include "common/shellaction.h"
+#include "core/waylandserver.h"
 #include "wglobal.h"
 #include <QPointer>
 #include <map>
@@ -49,7 +49,8 @@ public:
     bool available() const;
     bool isLocked() const;
     void lock();
-    void shutdown(ShutdownMenuFocus focus = ShutdownMenuFocus::None);
+    void shutdown(WaylandServer::ShutdownMenuFocus focus =
+                      WaylandServer::ShutdownMenuFocus::None);
     void switchUser();
 
 Q_SIGNALS:

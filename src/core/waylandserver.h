@@ -5,7 +5,6 @@
 
 #include <wlr_fwd.h>
 #include "core/qmlengine.h"
-#include "common/shellaction.h"
 #include "modules/activation/activationmanagerinterfacev1.h"
 #include "modules/wallpaper/wallpapermanagerinterfacev1.h"
 #include "modules/wallpaper/wallpapernotifierinterfacev1.h"
@@ -195,6 +194,19 @@ public:
         Multitaskview
     };
     Q_ENUM(CurrentMode)
+
+    // Which button the shutdown menu gives the keyboard focus to when it
+    // opens. None leaves the choice to the menu, which focuses lock.
+    enum class ShutdownMenuFocus
+    {
+        None,
+        PowerOff,
+        Reboot,
+        Suspend,
+        Hibernate,
+        LogOut,
+    };
+    Q_ENUM(ShutdownMenuFocus)
 
     static WaylandServer *instance();
     bool isAvailable() const { return m_instance != nullptr; }

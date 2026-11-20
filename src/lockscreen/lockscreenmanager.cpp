@@ -60,9 +60,7 @@ void LockScreenManager::installSessionLock(WServer *server)
 
 void LockScreenManager::handleLockScreen(LockScreenInterface *lockScreen)
 {
-    connect(lockScreen, &LockScreenInterface::shutdown, this, [this]() {
-        showShutdownMenu();
-    });
+    connect(lockScreen, &LockScreenInterface::shutdown, this, &LockScreenManager::onLockScreenShutdown);
     connect(lockScreen, &LockScreenInterface::lock, this, [this]() {
         if (m_server->isNormalOrMultitaskview())
             showLockScreen(false);
@@ -189,7 +187,12 @@ bool LockScreenManager::isLockScreenAvailable() const
     return m_lockScreen && m_lockScreen->available();
 }
 
-void LockScreenManager::showShutdownMenu(ShutdownMenuFocus focus)
+void LockScreenManager::onLockScreenShutdown()
+{
+    showShutdownMenu();
+}
+
+void LockScreenManager::showShutdownMenu(WaylandServer::ShutdownMenuFocus focus)
 {
     if (!isLockScreenAvailable() || !m_server->isNormalOrMultitaskview()) {
         return;
