@@ -272,8 +272,9 @@ static void ext_foreign_toplevel_list_v1_destroy(struct wlr_ext_foreign_toplevel
 	free(list);
 }
 
-void wlr_ext_foreign_toplevel_list_v1_destroy(struct wlr_ext_foreign_toplevel_list_v1 *list) {
-	ext_foreign_toplevel_list_v1_destroy(list, true);
+void wlr_ext_foreign_toplevel_list_v1_destroy(struct wlr_ext_foreign_toplevel_list_v1 *list,
+		bool destroy_global_safe) {
+	ext_foreign_toplevel_list_v1_destroy(list, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
