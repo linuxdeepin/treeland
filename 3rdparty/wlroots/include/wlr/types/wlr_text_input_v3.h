@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_TEXT_INPUT_V3_H
 #define WLR_TYPES_WLR_TEXT_INPUT_V3_H
 
+#include <stdbool.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/box.h>
@@ -89,11 +90,15 @@ struct wlr_text_input_manager_v3 *wlr_text_input_manager_v3_create(
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_text_input_manager_v3_destroy(struct wlr_text_input_manager_v3 *manager);
+void wlr_text_input_manager_v3_destroy(struct wlr_text_input_manager_v3 *manager,
+	bool destroy_global_safe);
 
 // Sends enter to the surface and saves it
 void wlr_text_input_v3_send_enter(struct wlr_text_input_v3 *text_input,
