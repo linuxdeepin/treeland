@@ -233,14 +233,13 @@ int protocol_test_run(const char *socket_name)
 failed:
     read_state(&state);
     fprintf(stderr,
-            "wlr-foreign-toplevel failure at stage %u: handle=%p events=(toplevel=%u title=%u app-id=%u state=%u done=%u finished=%u) server=(output=%d wrapper=%d workspace=%d minimized=%d maximized=%d fullscreen=%d activated=%d focused=%d maximize-request=%d/%d after-request=%d/%d animation=%d)\n",
+            "wlr-foreign-toplevel failure at stage %u: handle=%p events=(toplevel=%u title=%u app-id=%u state=%u done=%u finished=%u) server=(output=%d wrapper=%d workspace=%d minimized=%d maximized=%d fullscreen=%d activated=%d focused=%d maximize-request=%d/%d after-request=%d)\n",
             stage, (void *)events.handle, events.toplevel_count, events.title_count,
             events.app_id_count, events.state_count, events.done_count, events.finished_count,
             state.output_ready, state.wrapper_created, state.wrapper_in_workspace, state.minimized,
             state.maximized, state.fullscreen, state.activated, state.focused,
             state.maximize_request_count, state.last_maximize_request,
-            state.maximized_after_last_request, state.animation_running_after_last_request,
-            state.animation_running);
+            state.maximized_after_last_request);
     if (events.handle)
         zwlr_foreign_toplevel_handle_v1_destroy(events.handle);
     xdg_toplevel_client_destroy(&xdg);

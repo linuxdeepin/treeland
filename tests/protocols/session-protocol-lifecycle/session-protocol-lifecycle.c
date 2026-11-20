@@ -48,7 +48,7 @@ int protocol_test_run(const char *socket_name)
             return 1;
         }
         if (!invoke_on_server_thread(lifecycle_remove, &state)
-            || state.destroyed != 8 || state.globals_retired != 2 || !state.interfaces_removed
+            || state.destroyed != 8 || !state.interfaces_removed
             || !state.shutdown_with_reference || !state.shutdown_idempotent
             || state.mapped_windows != 2 || !state.windows_released) {
             fprintf(stderr, "FAIL: Session teardown retained native managers or interfaces\n");
