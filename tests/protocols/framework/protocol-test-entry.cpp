@@ -10,11 +10,8 @@
 #include "test-dconfig-service.h"
 #include "core/waylandserver.h"
 #include "session/session.h"
-#include "treelandconfig.hpp"
-#include "treelanduserconfig.hpp"
 
 #include <QGuiApplication>
-#include <QAbstractItemModel>
 #include <QEventLoop>
 #include <QMetaObject>
 #include <QTimer>
@@ -129,7 +126,13 @@ private Q_SLOTS:
 
     void protocol()
     {
-        QVERIFY2(waitForFixture(), "protocol fixture did not become ready");
+        // Readiness depends on several asynchronous startup steps (output
+        // registered in the layout, primary output resolved, lock screen plugin
+        // loaded, per-user DConfig ready) and not all of them announce
+        // themselves, so poll the fixture instead of waiting for a signal that
+        // may never come. QTRY_* keeps the wait bounded and fails with the
+        // elapsed-time hint instead of being killed by the ctest timeout.
+        QTRY_VERIFY2_WITH_TIMEOUT(fixtureReady(), "protocol fixture did not become ready", 20s);
         QEventLoop loop;
         connect(this, &ProtocolTest::clientFinished, &loop, &QEventLoop::quit);
         QVERIFY2(pthread_create(&m_thread, nullptr, runClient, &m_context) == 0,
@@ -162,41 +165,6 @@ private:
     {
         return !m_server->rootSurfaceContainer()->outputs().isEmpty()
             && (!protocol_test_ready || protocol_test_ready(m_server));
-    }
-
-    bool waitForFixture()
-    {
-        if (fixtureReady())
-            return true;
-
-        QEventLoop loop;
-        const auto quitWhenReady = [this, &loop] {
-            if (fixtureReady())
-                loop.quit();
-        };
-        connect(m_server->rootSurfaceContainer()->outputModel(),
-                &QAbstractItemModel::rowsInserted,
-                &loop,
-                [quitWhenReady](const QModelIndex &, int, int) { quitWhenReady(); });
-        connect(m_server->globalConfig(),
-                &TreelandConfig::configInitializeSucceed,
-                &loop,
-                [quitWhenReady](auto *) { quitWhenReady(); });
-        connect(m_server->config(),
-                &TreelandUserConfig::configInitializeSucceed,
-                &loop,
-                [quitWhenReady](auto *) { quitWhenReady(); });
-        // The LockScreen plugin is loaded after the blocking prestart hooks
-        // finish, which none of the signals above announce. Wait for the lock
-        // screen availability signal so protocol_test_ready() gates that depend
-        // on it (e.g. ext-session-lock) wake up instead of hanging.
-        connect(m_server,
-                &WaylandServer::lockScreenAvailableChanged,
-                &loop,
-                [quitWhenReady] { quitWhenReady(); });
-
-        loop.exec();
-        return fixtureReady();
     }
 
     WaylandServer *m_server = nullptr;
