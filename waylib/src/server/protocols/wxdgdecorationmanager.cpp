@@ -178,7 +178,7 @@ void WXdgDecorationManager::destroy([[maybe_unused]] WServer *server)
     d->decorationListeners.clear();
     d->decorations.clear();
     if (ownsSocket() && m_handle)
-        wlr_xdg_decoration_manager_v1_destroy(nativeInterface<wlr_xdg_decoration_manager_v1>());
+        wlr_xdg_decoration_manager_v1_destroy(nativeInterface<wlr_xdg_decoration_manager_v1>(), false);
 
     m_handle = nullptr;
 }
