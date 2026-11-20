@@ -229,6 +229,28 @@ void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper, WSurface *par
         if (parent && parent->session() != wrapper->session())
             return;
     }
+#ifndef DISABLE_XWAYLAND
+    if (auto *x11Surface = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
+        x11Surface && x11Surface->isPopupLike()) {
+        auto *parentWrapper = parentSurface
+            ? m_rootSurfaceContainer->getSurface(parentSurface) : nullptr;
+        // Unlike xdg popups, an X11 popup's transient parent is always a
+        // toplevel in a workspace, so the popup container already stacks above
+        // it and there is no higher container to follow.
+        if (parentWrapper) {
+            parentWrapper->addSubSurface(wrapper);
+            wrapper->setOwnsOutput(parentWrapper->ownsOutput());
+        }
+        if (oldContainer != m_popupContainer) {
+            if (oldContainer)
+                oldContainer->removeSurface(wrapper);
+            m_popupContainer->addSurface(wrapper);
+        }
+        // Plain containers do not initialize surfaces like Workspace does.
+        wrapper->setHasInitializeContainer(true);
+        return;
+    }
+#endif
     if (parentSurface) {
         auto parentWrapper = m_rootSurfaceContainer->getSurface(parentSurface);
         if (!parentWrapper)
@@ -838,6 +860,10 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
     };
     QObject::connect(surface,
                      &WXWaylandSurface::parentSurfaceChanged,
+                     wrapper,
+                     updateSurfaceWithParentContainer);
+    QObject::connect(surface,
+                     &WXWaylandSurface::windowTypesChanged,
                      wrapper,
                      updateSurfaceWithParentContainer);
     updateSurfaceWithParentContainer();

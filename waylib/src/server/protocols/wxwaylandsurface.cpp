@@ -583,6 +583,16 @@ WXWaylandSurface::WindowTypes WXWaylandSurface::windowTypes() const
     return d->windowTypes;
 }
 
+bool WXWaylandSurface::isPopupLike() const
+{
+    W_DC(WXWaylandSurface);
+    constexpr auto popupTypes = NET_WM_WINDOW_TYPE_DROPDOWN_MENU
+        | NET_WM_WINDOW_TYPE_POPUP_MENU
+        | NET_WM_WINDOW_TYPE_COMBO
+        | NET_WM_WINDOW_TYPE_TOOLTIP;
+    return d->windowTypes & popupTypes;
+}
+
 WXWaylandSurface::DecorationsFlags WXWaylandSurface::decorationsFlags() const
 {
     W_DC(WXWaylandSurface);
