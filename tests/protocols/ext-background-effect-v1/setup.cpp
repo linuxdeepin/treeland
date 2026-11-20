@@ -4,7 +4,9 @@
 #include "server-bridge.h"
 #include "core/shellhandler.h"
 #include "core/waylandserver.h"
+#include "desktop/desktopenvironment.h"
 #include "surface/surfacewrapper.h"
+#include "treelanduserconfig.hpp"
 
 #include <wbackend.h>
 
@@ -41,4 +43,14 @@ void background_effect_read_server_state(void *data)
 
     state->valid = 1;
     state->blur_enabled = g_wrapper->blur() ? 1 : 0;
+}
+
+void background_effect_set_enabled(void *data)
+{
+    if (!g_wrapper || !g_wrapper->desktop())
+        return;
+    auto *config = g_wrapper->desktop()->config();
+    if (!config)
+        return;
+    config->setBackgroundEffectEnabled(*static_cast<const int *>(data) != 0);
 }

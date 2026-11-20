@@ -159,6 +159,7 @@ Multitaskview {
             Blur {
                 z: Multitaskview.Background
                 anchors.fill: parent
+                effectConfig: root.desktop.config
                 opacity: root.taskviewVal
                 radiusEnabled: false
             }
@@ -251,6 +252,7 @@ Multitaskview {
                                 Blur {
                                     z: Multitaskview.Background
                                     anchors.fill: parent
+                                    effectConfig: root.desktop.config
                                     opacity: root.taskviewVal
                                     radiusEnabled: false
                                 }

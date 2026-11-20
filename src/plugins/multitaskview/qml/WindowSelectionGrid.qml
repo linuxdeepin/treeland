@@ -389,6 +389,7 @@ Item {
                             }
                             Blur {
                                 anchors.fill: bgRect
+                                effectConfig: root.multitaskview.desktop.config
                                 radius: root.multitaskview.desktop.config.titleBoxCornerRadius
                             }
                             Border {
@@ -464,6 +465,7 @@ Item {
                     }
                     Blur {
                         anchors.fill: hintBgRect
+                        effectConfig: root.multitaskview.desktop.config
                         radius: root.multitaskview.desktop.config.titleBoxCornerRadius
                     }
                     D.BoxShadow {

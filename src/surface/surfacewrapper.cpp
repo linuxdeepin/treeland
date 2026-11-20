@@ -128,6 +128,11 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     connect(original, &SurfaceWrapper::renderingEnabledChanged, this, [this, original] {
         setRenderingEnabled(original->renderingEnabled());
     });
+    connect(original, &SurfaceWrapper::desktopChanged, this, [this, original] {
+        m_session = original->m_session;
+        bindWindowEffectsConfig();
+        Q_EMIT desktopChanged();
+    });
     m_windowTransition = std::make_unique<SurfaceWindowTransition>(this);
     QQmlEngine::setContextForObject(this, m_engine->rootContext());
     initializeFrameGeometry();
@@ -2387,17 +2392,47 @@ void SurfaceWrapper::initializeFrameGeometry()
     connect(this, &SurfaceWrapper::visibleDecorationChanged, this, &SurfaceWrapper::updateFrameGeometry);
     connect(this, &SurfaceWrapper::surfaceItemCreated, this, &SurfaceWrapper::updateFrameGeometry);
     connect(this, &SurfaceWrapper::prelaunchSplashChanged, this, &SurfaceWrapper::updateFrameGeometry);
-    updateRadiusConfig();
+    bindWindowEffectsConfig();
 }
 
-void SurfaceWrapper::updateRadiusConfig()
+void SurfaceWrapper::bindWindowEffectsConfig()
 {
-    disconnect(m_radiusConfigConnection);
-    if (auto *owner = desktop()) {
-        m_radiusConfigConnection = connect(owner->config(), &TreelandUserConfig::windowRadiusChanged,
-                                           this, &SurfaceWrapper::radiusChanged);
+    auto *owner = desktop();
+    auto *config = owner ? owner->config() : nullptr;
+    if (m_effectsConfig == config)
+        return;
+
+    for (const auto &connection : std::as_const(m_effectsConfigConnections))
+        disconnect(connection);
+    m_effectsConfigConnections.clear();
+    m_effectsConfig = config;
+
+    if (config) {
+        m_effectsConfigConnections = {
+            connect(config, &TreelandUserConfig::windowRadiusChanged,
+                    this, &SurfaceWrapper::radiusChanged),
+            connect(config, &TreelandUserConfig::windowCornerRadiusEnabledChanged,
+                    this, &SurfaceWrapper::updateCornerRadius),
+            connect(config, &TreelandUserConfig::windowShadowEnabledChanged,
+                    this, &SurfaceWrapper::shadowChanged),
+            connect(config, &TreelandUserConfig::windowBorderEnabledChanged,
+                    this, &SurfaceWrapper::borderChanged),
+            connect(config, &TreelandUserConfig::backgroundEffectEnabledChanged,
+                    this, &SurfaceWrapper::blurChanged),
+        };
     }
+
+    updateCornerRadius();
+    Q_EMIT shadowChanged();
+    Q_EMIT borderChanged();
+    Q_EMIT blurChanged();
+}
+
+void SurfaceWrapper::updateCornerRadius()
+{
     Q_EMIT radiusChanged();
+    if (m_prelaunchFrameGeometry)
+        Q_EMIT presentationFrameGeometryChanged();
 }
 
 void SurfaceWrapper::updateFrameGeometry()
@@ -2434,9 +2469,16 @@ void SurfaceWrapper::updateFrameGeometry()
         Q_EMIT presentationFrameGeometryChanged();
 }
 
+bool SurfaceWrapper::cornerRadiusEnabled() const
+{
+    const auto *owner = desktop();
+    const auto *config = owner ? owner->config() : nullptr;
+    return !config || config->windowCornerRadiusEnabled();
+}
+
 qreal SurfaceWrapper::radius() const
 {
-    if (isInputPopupLike())
+    if (!cornerRadiusEnabled() || isInputPopupLike())
         return 0;
     if (m_type == Type::XdgPopup)
         return 8;
@@ -2446,7 +2488,9 @@ qreal SurfaceWrapper::radius() const
     // Every non-negative value is explicit and applied as sent, including 0 which
     // means square corners (treeland-decoration set_corner_radius(0)).
     if (radius < 0 && m_type != Type::Layer && !m_isProxy) {
-        radius = (desktop() ? desktop()->config()->windowRadius() : 0);
+        const auto *owner = desktop();
+        const auto *config = owner ? owner->config() : nullptr;
+        radius = config ? config->windowRadius() : 0;
     }
 
     return radius < 0 ? 0 : radius;
@@ -2486,7 +2530,9 @@ QColor SurfaceWrapper::shadowColor() const
 
 bool SurfaceWrapper::shadowVisible() const
 {
-    return m_shadowVisible;
+    const auto *owner = desktop();
+    const auto *config = owner ? owner->config() : nullptr;
+    return m_shadowVisible && (!config || config->windowShadowEnabled());
 }
 
 void SurfaceWrapper::setShadowValues(qreal blur, qreal offsetX, qreal offsetY, const QColor &color)
@@ -2521,7 +2567,9 @@ QColor SurfaceWrapper::borderColor() const
 
 bool SurfaceWrapper::borderVisible() const
 {
-    return m_borderVisible;
+    const auto *owner = desktop();
+    const auto *config = owner ? owner->config() : nullptr;
+    return m_borderVisible && (!config || config->windowBorderEnabled());
 }
 
 void SurfaceWrapper::setBorderValues(qreal width, const QColor &color)
@@ -3073,7 +3121,8 @@ void SurfaceWrapper::setSession(Session *session)
     }
     if (session && (type() == Type::XdgToplevel || type() == Type::XWayland || !shellSurface()))
         session->registerWindow(this);
-    updateRadiusConfig();
+    bindWindowEffectsConfig();
+    Q_EMIT desktopChanged();
 }
 
 int SurfaceWrapper::workspaceId() const
@@ -3191,7 +3240,10 @@ SurfaceWrapper *SurfaceWrapper::findModal() const
 
 bool SurfaceWrapper::blur() const
 {
-    return m_blurPersonalization || m_blurBackgroundEffect;
+    const auto *owner = desktop();
+    const auto *config = owner ? owner->config() : nullptr;
+    return (m_blurPersonalization || m_blurBackgroundEffect)
+        && (!config || config->backgroundEffectEnabled());
 }
 
 void SurfaceWrapper::setBlurPersonalization(bool blur)

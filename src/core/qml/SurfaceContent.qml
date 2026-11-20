@@ -12,6 +12,14 @@ Item {
     required property SurfaceItem surface
     // surface?.parent maybe is a `SubsurfaceContainer`
     readonly property SurfaceWrapper wrapper: surface?.parent as SurfaceWrapper
+    readonly property QtObject effectConfig: {
+        for (let item = surface?.parent; item; item = item.parent) {
+            const owner = item as SurfaceWrapper
+            if (owner)
+                return owner.desktop?.config ?? WaylandServer.config
+        }
+        return WaylandServer.config
+    }
     readonly property XWaylandSurface xwaylandSurface: wrapper?.shellSurface as XWaylandSurface
     readonly property bool hasClipShape: xwaylandSurface?.hasClipShape ?? false
     readonly property real cornerRadius: wrapper?.frameGeometry.radius ?? 0
@@ -42,7 +50,8 @@ Item {
     }
 
     anchors.fill: parent
-    opacity: content.alphaModifier
+    opacity: (effectConfig?.windowTransparencyEnabled ?? true)
+        ? content.alphaModifier : 1
 
     function clipShapePaths() {
         if (!hasClipShape)
@@ -66,9 +75,10 @@ Item {
 
     Loader {
         anchors.fill: parent
-        active: wrapper?.blur ?? false
+        active: root.wrapper?.blur ?? false
         sourceComponent: Blur {
             anchors.fill: parent
+            effectConfig: root.effectConfig
             radiusEnabled: cornerRadius > 0
             radius: root.cornerRadius * root.frameScale
             frameRect: root.effectFrameRect

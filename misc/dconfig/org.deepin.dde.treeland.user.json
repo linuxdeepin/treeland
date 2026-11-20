@@ -68,6 +68,39 @@
             "permissions": "readwrite",
             "visibility": "public"
         },
+        "windowCornerRadiusEnabled": {
+            "value": true,
+            "serial": 0,
+            "flags": [],
+            "name": "Window rounded corners",
+            "name[zh_CN]": "窗口圆角",
+            "description": "Allow compositor-drawn window corners, including default radii, proxy thumbnails, client radius requests, and popup defaults. Takes effect immediately.",
+            "description[zh_CN]": "允许合成器绘制窗口圆角（包括默认圆角、缩略图代理圆角、客户端请求的圆角半径及弹出窗口的默认圆角）。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "windowShadowEnabled": {
+            "value": true,
+            "serial": 0,
+            "flags": [],
+            "name": "Window shadows",
+            "name[zh_CN]": "窗口阴影",
+            "description": "Allow compositor-drawn window shadows. When disabled, client shadow requests are ignored. Takes effect immediately.",
+            "description[zh_CN]": "允许合成器绘制窗口阴影。关闭时忽略客户端的阴影请求。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "windowBorderEnabled": {
+            "value": true,
+            "serial": 0,
+            "flags": [],
+            "name": "Window outlines",
+            "name[zh_CN]": "窗口描边",
+            "description": "Allow compositor-drawn window outlines. When disabled, client outline requests are ignored. Takes effect immediately.",
+            "description[zh_CN]": "允许合成器绘制窗口描边。关闭时忽略客户端的描边请求。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
         "preferDark": {
             "value": false,
             "serial": 0,
@@ -208,6 +241,17 @@
             "name[zh_CN]": "全局窗口活动色",
             "description": "Set window active color",
             "description[zh_CN]": "设置窗口活动色",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "windowTransparencyEnabled": {
+            "value": true,
+            "serial": 0,
+            "flags": [],
+            "name": "Window opacity modifiers",
+            "name[zh_CN]": "窗口透明度修饰",
+            "description": "Allow client-requested opacity multipliers. When disabled, the multiplier is forced to 1 while preserving alpha in the client buffer. Takes effect immediately.",
+            "description[zh_CN]": "允许客户端请求透明度乘数。关闭时透明度乘数固定为 1，保留客户端缓冲区自身的透明通道。实时生效。",
             "permissions": "readwrite",
             "visibility": "public"
         },
@@ -439,6 +483,17 @@
             "name[zh_CN]": "壁纸配置",
             "description": "A configuration to manage wallpapers used by the system, including desktop and lockscreen wallpapers for each screen and workspace.",
             "description[zh_CN]": "用于管理系统当前使用的壁纸配置，包括每个屏幕和工作区的桌面壁纸和锁屏壁纸。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "backgroundEffectEnabled": {
+            "value": true,
+            "serial": 0,
+            "flags": [],
+            "name": "Background effects",
+            "name[zh_CN]": "背景特效",
+            "description": "Allow backdrop blur and Liquid Glass. When disabled, the compositor skips background effects, including those requested by clients. Takes effect immediately.",
+            "description[zh_CN]": "允许背景模糊和液态玻璃。关闭时合成器停用背景特效，包括客户端请求的效果。实时生效。",
             "permissions": "readwrite",
             "visibility": "public"
         },

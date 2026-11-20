@@ -7,95 +7,121 @@ import QtQuick.Shapes
 import Waylib.Server
 import Treeland
 
-RenderBufferBlitter {
-    id: blitter
-    smooth: true
+Item {
+    id: root
 
     property real radius: 0
     property rect frameRect: Qt.rect(0, 0, width, height)
     property bool radiusEnabled: radius > 0
-    property int blurMax: WaylandServer.config.blurStrength
-    property bool blurEnabled: blurMax > 0 && blurAmount > 0
-    property real blurAmount: WaylandServer.config.blurAmount
-    property real multiplier: WaylandServer.config.blurMultiplier
+    property QtObject effectConfig: WaylandServer.config
+    readonly property bool backgroundAllowed: effectConfig?.backgroundEffectEnabled ?? true
+    property int blurMax: effectConfig?.blurStrength ?? 0
+    property bool blurEnabled: backgroundAllowed && (effectConfig?.blurStrength ?? 0) > 0
+        && blurMax > 0 && blurAmount > 0
+    property real blurAmount: effectConfig?.blurAmount ?? 0
+    property real multiplier: effectConfig?.blurMultiplier ?? 0
     property real brightness: 0.0
     property real contrast: 0.0
-    property real saturation: WaylandServer.config.glassSaturation
-    property real glassSpecular: WaylandServer.config.glassSpecular
+    property real saturation: effectConfig?.glassSaturation ?? 0
+    property real glassSpecular: effectConfig?.glassSpecular ?? 0
     property real glassTint: 0.0
-    property bool glassEnabled: WaylandServer.config.glassEnabled
-    property Item effectContent: contentLoader
+    property bool glassEnabled: effectConfig?.glassEnabled ?? false
+    property Item effectContent: blitterLoader.item?.effectContent ?? null
     property bool contentOffscreen: false
     property bool effectEnabled: true
+    readonly property Item content: blitterLoader.item?.content ?? null
+    property alias offscreen: root.contentOffscreen
+    default property alias data: contentContainer.data
 
-    z: parent.z ? parent.z - 1 : -1
+    z: parent ? (parent.z ? parent.z - 1 : -1) : -1
     anchors.fill: parent
 
-    // Dispatch between Liquid Glass and traditional blur via a Loader so only
-    // the active branch is instantiated.  Toggling the DConfig key unloads one
-    // Component and loads the other.
+    // Unload RenderBufferBlitter entirely when background effects are disabled
+    // so it neither allocates a backing texture nor blits the framebuffer.
     Loader {
-        id: contentLoader
+        id: blitterLoader
         anchors.fill: parent
-        sourceComponent: blitter.glassEnabled ? glassComponent : blurComponent
-        visible: blitter.effectEnabled && !blitter.contentOffscreen
-    }
-
-    Component {
-        id: glassComponent
-        GlassEffect {
+        active: root.backgroundAllowed && root.effectEnabled
+        sourceComponent: RenderBufferBlitter {
+            id: blitter
             anchors.fill: parent
-            source: blitter.content
-            radius: blitter.radiusEnabled ? blitter.radius : 0
-            frameRect: blitter.frameRect
-            blurEnabled: blitter.blurEnabled
-            blurMax: blitter.blurMax
-            blurAmount: blitter.blurAmount
-            blurMultiplier: blitter.multiplier
-            bezelWidth: WaylandServer.config.glassBezel
-            thickness: WaylandServer.config.glassThickness
-            ior: 1.33
-            specular: blitter.glassSpecular
-            tint: blitter.glassTint
-            brightness: blitter.brightness
-            contrast: blitter.contrast
-            saturation: blitter.saturation
-            contentEdgePull: 0.0
-            contentRampEnd: 0.0
-            refractionMaxTan: 3.3
-            profilePower: WaylandServer.config.glassProfilePower
-            innerShadow: 0.0
-        }
-    }
+            smooth: true
+            offscreen: root.contentOffscreen
 
-    Component {
-        id: blurComponent
-        Item {
-            anchors.fill: parent
+            readonly property Item effectContent: contentLoader
 
-            MultiEffect {
-                id: blur
+            // Dispatch between Liquid Glass and traditional blur via a Loader so only
+            // the active branch is instantiated.  Toggling the DConfig key unloads one
+            // Component and loads the other.
+            Loader {
+                id: contentLoader
                 anchors.fill: parent
-                layer.enabled: blitter.radiusEnabled
-                smooth: blitter.radiusEnabled
-                opacity: blitter.radiusEnabled ? 0 : blitter.opacity
-                source: blitter.content
-                autoPaddingEnabled: false
-                blurEnabled: blitter.blurEnabled
-                blur: blitter.blurAmount
-                blurMax: blitter.blurMax
-                blurMultiplier: blitter.multiplier
-                saturation: 0.2
+                sourceComponent: root.glassEnabled ? glassComponent : blurComponent
+                visible: !root.contentOffscreen
             }
 
-            Loader {
-                anchors.fill: parent
-                active: blitter.radiusEnabled
-                sourceComponent: FrameClip {
-                    source: blur
-                    geometry: ({ rect: blitter.frameRect, radius: blitter.radius })
+            Component {
+                id: glassComponent
+                GlassEffect {
+                    anchors.fill: parent
+                    source: blitter.content
+                    radius: root.radiusEnabled ? root.radius : 0
+                    frameRect: root.frameRect
+                    blurEnabled: root.blurEnabled
+                    blurMax: root.blurMax
+                    blurAmount: root.blurAmount
+                    blurMultiplier: root.multiplier
+                    bezelWidth: root.effectConfig?.glassBezel ?? 30
+                    thickness: root.effectConfig?.glassThickness ?? 30
+                    ior: 1.33
+                    specular: root.glassSpecular
+                    tint: root.glassTint
+                    brightness: root.brightness
+                    contrast: root.contrast
+                    saturation: root.saturation
+                    contentEdgePull: 0.0
+                    contentRampEnd: 0.0
+                    refractionMaxTan: 3.3
+                    profilePower: root.effectConfig?.glassProfilePower ?? 2.0
+                    innerShadow: 0.0
+                }
+            }
+
+            Component {
+                id: blurComponent
+                Item {
+                    anchors.fill: parent
+
+                    MultiEffect {
+                        id: blur
+                        anchors.fill: parent
+                        layer.enabled: root.radiusEnabled
+                        smooth: root.radiusEnabled
+                        opacity: root.radiusEnabled ? 0 : 1
+                        source: blitter.content
+                        autoPaddingEnabled: false
+                        blurEnabled: root.blurEnabled
+                        blur: root.blurAmount
+                        blurMax: root.blurMax
+                        blurMultiplier: root.multiplier
+                        saturation: 0.2
+                    }
+
+                    Loader {
+                        anchors.fill: parent
+                        active: root.radiusEnabled
+                        sourceComponent: FrameClip {
+                            source: blur
+                            geometry: ({ rect: root.frameRect, radius: root.radius })
+                        }
+                    }
                 }
             }
         }
+    }
+
+    Item {
+        id: contentContainer
+        anchors.fill: parent
     }
 }

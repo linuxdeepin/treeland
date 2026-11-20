@@ -65,6 +65,8 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
 
         m_sourceConnections << connect(m_proxySurface, &SurfaceWrapper::frameGeometryChanged,
                                        this, &SurfaceProxy::updateShadowGeometry);
+        m_sourceConnections << connect(m_proxySurface, &SurfaceWrapper::shadowChanged,
+                                       this, &SurfaceProxy::updateShadowGeometry);
         m_sourceConnections << connect(m_proxySurface, &QQuickItem::scaleChanged,
                                        this, &SurfaceProxy::updateShadowGeometry);
         m_sourceConnections << connect(m_proxySurface, &SurfaceWrapper::presentationFrameGeometryChanged,
@@ -127,6 +129,8 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
                                        &SurfaceWrapper::radiusChanged,
                                        this,
                                        &SurfaceProxy::onSourceRadiusChanged);
+        m_sourceConnections << connect(m_sourceSurface, &SurfaceWrapper::radiusChanged,
+                                       this, &SurfaceProxy::effectiveRadiusChanged);
         m_sourceConnections << connect(m_sourceSurface,
                                        &SurfaceWrapper::noDecorationChanged,
                                        this,
@@ -205,6 +209,7 @@ void SurfaceProxy::updateShadowGeometry()
     if (!m_shadow || !m_proxySurface)
         return;
     const auto geometry = m_proxySurface->frameGeometry();
+    m_shadow->setVisible(m_proxySurface->shadowVisible());
     m_shadow->setSize(geometry.rect().size() * m_proxySurface->scale());
     m_shadow->setProperty("cornerRadius", geometry.radius() * m_proxySurface->scale());
 }
@@ -272,6 +277,8 @@ bool SurfaceProxy::keepsClientSideMargins() const
 
 qreal SurfaceProxy::radius() const
 {
+    if (m_sourceSurface && !m_sourceSurface->cornerRadiusEnabled())
+        return 0;
     if (m_radius >= 0)
         return m_radius;
     if (!m_sourceSurface)
@@ -291,6 +298,8 @@ qreal SurfaceProxy::radius() const
 
 qreal SurfaceProxy::effectiveRadius() const
 {
+    if (m_sourceSurface && !m_sourceSurface->cornerRadiusEnabled())
+        return 0;
     // The outline keeps a display radius for a thumbnail whose clip contour is square.
     if (m_radius < 0 && keepsClientSideMargins())
         return kClientSideDecoratedRadius;

@@ -24,6 +24,7 @@ struct background_effect_server_state {
 /* Defined in setup.cpp; runs on the compositor thread via
  * invoke_on_server_thread() and fills *data with the blur region state. */
 void background_effect_read_server_state(void *data);
+void background_effect_set_enabled(void *data);
 
 #ifdef __cplusplus
 }

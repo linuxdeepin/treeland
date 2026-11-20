@@ -6,9 +6,11 @@
 #include "core/shellhandler.h"
 #include "modules/decoration/decorationmanagerinterfacev1.h"
 #include "core/waylandserver.h"
+#include "desktop/desktopenvironment.h"
 #include "surface/surfacewrapper.h"
 
 #include "animationconfig.hpp"
+#include "treelanduserconfig.hpp"
 
 #include <wbackend.h>
 
@@ -37,13 +39,32 @@ extern "C" void decoration_read_server_state(void *data)
 {
     auto *state = static_cast<decoration_server_state *>(data);
     *state = {};
-    if (!g_toplevel)
+    if (!g_toplevel || !g_toplevel->desktop())
         return;
 
     state->valid = 1;
     state->radius = g_toplevel->radius();
+    state->frame_radius = g_toplevel->frameGeometry().radius();
+    state->presentation_radius = g_toplevel->presentationFrameGeometry().radius();
+    state->shadow_visible = g_toplevel->shadowVisible();
+    state->border_visible = g_toplevel->borderVisible();
+    state->shadow_radius = g_toplevel->shadowBlurRadius();
+    state->border_width = g_toplevel->borderWidth();
     const QRectF maximized = g_toplevel->maximizedGeometry();
     state->maximized_width = maximized.width();
     state->maximized_height = maximized.height();
     state->titlebar_height = g_toplevel->surfaceItem()->topPadding();
+}
+
+extern "C" void decoration_set_effect_switches(void *data)
+{
+    if (!g_toplevel || !g_toplevel->desktop())
+        return;
+    auto *config = g_toplevel->desktop()->config();
+    if (!config)
+        return;
+    const auto *switches = static_cast<const decoration_effect_switches *>(data);
+    config->setWindowCornerRadiusEnabled(switches->corner_radius != 0);
+    config->setWindowShadowEnabled(switches->shadow != 0);
+    config->setWindowBorderEnabled(switches->border != 0);
 }

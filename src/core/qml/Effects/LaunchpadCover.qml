@@ -78,6 +78,7 @@ Item {
     Blur {
         anchors.fill: parent
         z: wallpaperSource.z + 1
+        effectConfig: root.wrapper.desktop?.config ?? WaylandServer.config
     }
 
     Rectangle {

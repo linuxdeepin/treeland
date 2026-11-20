@@ -90,7 +90,7 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(qreal borderWidth READ borderWidth NOTIFY borderChanged FINAL)
     Q_PROPERTY(QColor borderColor READ borderColor NOTIFY borderChanged FINAL)
     Q_PROPERTY(bool borderVisible READ borderVisible NOTIFY borderChanged FINAL)
-    Q_PROPERTY(DesktopEnvironment *desktop READ desktop CONSTANT FINAL)
+    Q_PROPERTY(DesktopEnvironment *desktop READ desktop NOTIFY desktopChanged FINAL)
     Q_PROPERTY(SurfaceContainer* container READ container NOTIFY containerChanged FINAL)
     Q_PROPERTY(QQuickItem* titleBar READ titleBar NOTIFY noTitleBarChanged FINAL)
     Q_PROPERTY(QQuickItem* decoration READ decoration NOTIFY noDecorationChanged FINAL)
@@ -302,11 +302,13 @@ public:
     // Instantly restore `this` to Normal
     void cancelTileMode();
 
+    bool cornerRadiusEnabled() const;
     qreal radius() const;
     FrameGeometry frameGeometry() const { return m_frameGeometry; }
     FrameGeometry presentationFrameGeometry() const
     {
-        return m_prelaunchFrameGeometry.value_or(m_frameGeometry);
+        const auto geometry = m_prelaunchFrameGeometry.value_or(m_frameGeometry);
+        return cornerRadiusEnabled() ? geometry : FrameGeometry(geometry.rect(), 0);
     }
     QQuickItem *frameItem() const { return m_frameItem; }
     void setRadius(qreal newRadius);
@@ -404,7 +406,7 @@ public:
     bool blur() const;
     // Personalization-driven blur (deprecated treeland-personalization-manager-v1 path).
     void setBlurPersonalization(bool blur);
-    // ext-background-effect-v1 blur. Either source alone enables blur().
+    // ext-background-effect-v1 blur. Either source can request blur.
     void setBlurBackgroundEffect(bool blur);
 
     bool coverEnabled() const;
@@ -486,6 +488,7 @@ Q_SIGNALS:
     void presentationFrameGeometryChanged();
     void shadowChanged();
     void borderChanged();
+    void desktopChanged();
     void moveRequested();
     void resizeRequested(Qt::Edges edges, bool overrideCursor);
     void windowMenuRequested(QPointF pos);
@@ -540,7 +543,8 @@ private:
     void syncTitleBarPadding();
     void updateDecoration();
     void initializeFrameGeometry();
-    void updateRadiusConfig();
+    void bindWindowEffectsConfig();
+    void updateCornerRadius();
     void updateFrameGeometry();
     void setBoundedRect(const QRectF &newBoundedRect);
     void setContainer(SurfaceContainer *newContainer);
@@ -630,7 +634,8 @@ private:
     QPointer<QQuickItem> m_frameItem;
     FrameGeometry m_frameGeometry;
     std::optional<FrameGeometry> m_prelaunchFrameGeometry;
-    QMetaObject::Connection m_radiusConfigConnection;
+    QPointer<QObject> m_effectsConfig;
+    QList<QMetaObject::Connection> m_effectsConfigConnections;
     QPointer<QQuickItem> m_titleBar;
     QPointer<QQuickItem> m_decoration;
     QPointer<QQuickItem> m_geometryAnimation;

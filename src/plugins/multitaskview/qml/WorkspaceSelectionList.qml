@@ -373,6 +373,7 @@ Item {
             }
             Blur {
                 anchors.fill: bgRect
+                effectConfig: root.multitaskview.desktop.config
                 radius: 10
             }
             Border {

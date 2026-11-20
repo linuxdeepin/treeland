@@ -25,6 +25,7 @@ Item {
     readonly property real minimizedRotation: -30
     readonly property bool showShadow: !target.noDecoration
             && target.surfaceState === SurfaceWrapper.State.Normal
+            && target.shadowVisible
 
     function start() {
         configureAnimation(direction === MinimizeAnimation.Direction.Hide

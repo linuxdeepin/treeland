@@ -185,7 +185,8 @@ treeland 在 `src/CMakeLists.txt` 中用 `dtk_add_config_to_cpp(...)` 生成类�
 
 ## 生成头文件事实
 不要在源码树里搜索生成的配置头文件，它们由 CMake/dconfig2cpp 生成到 `build/src/`。
-执行 `cmake --preset default` 后直接读生成文件，例如 `build/src/treelanduserconfig.hpp`。
+先配置，再构建生成头文件的目标。例如执行 `cmake --preset default` 后运行
+`cmake --build build --target src/treelanduserconfig.hpp`，然后读 `build/src/treelanduserconfig.hpp`。
 
 生成头文件呈现的 API 与约定、`create(...)`/`createByName(...)` 的完整签名见
 [references/generated-cpp.md](references/generated-cpp.md)。日常要记住的四条：
@@ -214,7 +215,7 @@ treeland 在 `src/CMakeLists.txt` 中用 `dtk_add_config_to_cpp(...)` 生成类�
    ```
 
 4. 把生成的变量（例如 `${NEW_SCOPE_CONFIG}`）加入 `qt_add_qml_module(libtreeland SOURCES ...)` 列表。这一步是必需的，否则生成头文件不参与 target sources，moc/autogen 看不到该 `QObject` 类。
-5. 执行 `cmake --preset default` 重新生成头文件。
+5. 执行 `cmake --preset default`，再构建 `src/<scope>config.hpp` 目标以生成头文件。
 6. 检查 `build/src/<scope>config.hpp`（不是源码树），确认：
    - `Q_CLASSINFO("DConfigFileName", "...")`
    - `Q_CLASSINFO("DConfigFileVersion", "1.0")`
@@ -278,7 +279,7 @@ Q_PROPERTY(TreelandConfig* globalConfig READ globalConfig CONSTANT FINAL)
 11. 启动阶段读取等待了 DConfig 初始化，或沿用了既有的有意回退模式。
 12. 需要实时生效的设置连接了生成的 `*Changed` 信号。
 13. 新描述文件已从 `misc/dconfig/CMakeLists.txt` 安装，并通过 `dtk_add_config_to_cpp(...)` 接入。
-14. 已构建或至少已 configure，使生成头文件反映新增键。
+14. 已构建或至少已执行生成头文件的目标，使生成头文件反映新增键。
 
 ## 验证
 改动涉及生成封装或消费方时，优先用仓库标准命令：
@@ -295,7 +296,7 @@ ctest --test-dir build --output-on-failure
 python3 -m json.tool misc/dconfig/<file>.json >/dev/null
 ```
 
-若构建耗时过高，至少执行 `cmake --preset default` 并检查 `build/src/` 中的生成头文件，确认访问器、setter、信号、创建 helper、class info 与版本宏名称。
+若完整构建耗时过高，至少配置并构建对应的生成头文件目标，再检查 `build/src/` 中的生成结果，确认访问器、setter、信号、创建 helper、class info 与版本宏名称。
 
 ## 用 dde-dconfig 调试
 `dde-dconfig` 读取的是**已安装**的配置元数据；只改源码树里的 `misc/dconfig/*.json` 不够，先安装项目（描述文件由 `misc/dconfig/CMakeLists.txt` 装到 `${CMAKE_INSTALL_DATADIR}/dsg/configs/org.deepin.dde.treeland`）。
