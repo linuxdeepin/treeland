@@ -130,8 +130,9 @@ static void idle_inhibit_manager_v1_destroy(struct wlr_idle_inhibit_manager_v1 *
 	free(manager);
 }
 
-void wlr_idle_inhibit_v1_destroy(struct wlr_idle_inhibit_manager_v1 *manager) {
-	idle_inhibit_manager_v1_destroy(manager, true);
+void wlr_idle_inhibit_v1_destroy(struct wlr_idle_inhibit_manager_v1 *manager,
+		bool destroy_global_safe) {
+	idle_inhibit_manager_v1_destroy(manager, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
