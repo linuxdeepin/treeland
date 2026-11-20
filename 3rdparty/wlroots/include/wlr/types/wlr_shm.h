@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_SHM_H
 #define WLR_TYPES_WLR_SHM_H
 
+#include <stdbool.h>
 #include <wayland-server-core.h>
 
 struct wlr_renderer;
@@ -45,11 +46,14 @@ struct wlr_shm *wlr_shm_create(struct wl_display *display, uint32_t version,
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_shm_destroy(struct wlr_shm *shm);
+void wlr_shm_destroy(struct wlr_shm *shm, bool destroy_global_safe);
 
 /**
  * Create the wl_shm global.

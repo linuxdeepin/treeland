@@ -509,8 +509,8 @@ static void shm_destroy(struct wlr_shm *shm,
 	free(shm);
 }
 
-void wlr_shm_destroy(struct wlr_shm *shm) {
-	shm_destroy(shm, true);
+void wlr_shm_destroy(struct wlr_shm *shm, bool destroy_global_safe) {
+	shm_destroy(shm, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
