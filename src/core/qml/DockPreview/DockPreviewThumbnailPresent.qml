@@ -432,7 +432,7 @@ Item {
     // The title row: the app icon and title of the highlighted slot, plus the
     // close-all button.
     RowLayout {
-        spacing: 4
+        spacing: PopoverStyle.previewTitleIconSpacing
         height: preview.titleRowHeight
         anchors {
             left: parent.left
@@ -440,7 +440,7 @@ Item {
             top: parent.top
             leftMargin: preview.thumbnailPadding
             rightMargin: preview.thumbnailPadding
-            topMargin: preview.thumbnailPadding
+            topMargin: preview.titleTopPadding
         }
 
         Loader {
@@ -478,7 +478,7 @@ Item {
             Text {
                 id: titleText
                 anchors.left: parent.left
-                anchors.top: parent.top
+                anchors.verticalCenter: parent.verticalCenter
                 width: parent.width
                 text: {
                     const wrapper = root.currentWrapper;
