@@ -261,6 +261,19 @@ Item {
     property real frameWidth: root.targetFrameSize.width
     property real frameHeight: root.targetFrameSize.height
 
+    // Set while a window is resizing: the frame snaps with the strip.
+    property bool windowResizing: false
+    function noteWindowResize() {
+        root.windowResizing = true;
+        resizeSettle.restart();
+    }
+
+    Timer {
+        id: resizeSettle
+        interval: 120
+        onTriggered: root.windowResizing = false
+    }
+
     // Fade of the shell and of the preview content it carries.
     // Tooltip layers fade on their own.
     property real shellFade: 0
@@ -392,7 +405,7 @@ Item {
     }
 
     Behavior on frameWidth {
-        enabled: root.visible && root.enableAnimation
+        enabled: root.visible && root.enableAnimation && !root.windowResizing
         NumberAnimation {
             duration: root.aniDuration
             easing.type: Easing.OutExpo
@@ -400,7 +413,7 @@ Item {
     }
 
     Behavior on frameHeight {
-        enabled: root.visible && root.enableAnimation
+        enabled: root.visible && root.enableAnimation && !root.windowResizing
         NumberAnimation {
             duration: root.aniDuration
             easing.type: Easing.OutExpo

@@ -116,8 +116,24 @@ Item {
         return slotComponent.createObject(slotLayer);
     }
 
+    // Coalesces window size changes into one layout pass.
+    property bool relayoutPending: false
+
+    function requestRelayout() {
+        if (root.relayoutPending || !root.visible)
+            return;
+        preview.noteWindowResize();
+        root.relayoutPending = true;
+        Qt.callLater(root.runPendingRelayout);
+    }
+
+    function runPendingRelayout() {
+        root.relayoutPending = false;
+        root.sync(true);
+    }
+
     // Bring the slot instances in line with the controller's window list.
-    function sync() {
+    function sync(snap) {
         const wrappers = [ ];
         const surfaces = preview.desiredSurfaces;
         for (let i = 0; i < surfaces.length; ++i) {
@@ -211,7 +227,7 @@ Item {
                     slot.revive(wrappers[i], rects[i]);
                     live.push(slot);
                 } else {
-                    slot.retarget(wrappers[i], rects[i]);
+                    slot.retarget(wrappers[i], rects[i], snap);
                     live.push(slot);
                 }
                 continue;
