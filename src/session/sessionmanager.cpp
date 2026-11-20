@@ -134,6 +134,11 @@ SessionManager::SessionManager(QObject *parent)
 
 SessionManager::~SessionManager()
 {
+    const auto sessions = m_sessions;
+    for (const auto &session : sessions) {
+        session->shutdown();
+    }
+
     m_sessions.clear();
     if (m_wallpaperLauncher) {
         delete m_wallpaperLauncher;
@@ -241,9 +246,10 @@ void SessionManager::setActiveSocketEnabled(bool newEnabled)
  */
 void SessionManager::removeSession(std::shared_ptr<Session> session)
 {
-    if (!session)
+    if (!session || session->isShuttingDown())
         return;
 
+    session->beginShutdown();
     if (m_activeSession.lock() == session) {
         const auto fallback = globalSession();
         if (fallback && fallback != session)
@@ -254,6 +260,9 @@ void SessionManager::removeSession(std::shared_ptr<Session> session)
         WaylandServer::instance()->activateSurface(nullptr);
     }
 
+    // Keep the Session registered throughout resource destruction so callbacks
+    // can still resolve its client ownership. Extra shared_ptrs must not defer it.
+    session->shutdown();
     for (auto s : std::as_const(m_sessions)) {
         if (s.get() == session.get()) {
             m_sessions.removeOne(s);
@@ -303,7 +312,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
         connect(xwayland, &WXWayland::ready, this, [this, xwayland] {
             Q_EMIT xwaylandAuthChanged();
             syncActiveSessionXWaylandPrimaryOutput();
-            if (auto session = sessionForXWayland(xwayland)) {
+            if (auto session = sessionForXWayland(xwayland); session && !session->isShuttingDown()) {
                 session->m_noTitlebarAtom =
                     internAtom(session->m_xwayland->xcbConnection(), _DEEPIN_NO_TITLEBAR, false);
                 if (!session->m_noTitlebarAtom) {
@@ -366,6 +375,8 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
 #endif
     // Check if session already exists for user
     if (auto session = sessionForUser(username)) {
+        if (session->isShuttingDown())
+            return nullptr;
         // Ensure it has a socket and xwayland
         if (!session->m_socket) {
             auto *socket = createWSocket();
@@ -672,6 +683,8 @@ WallpaperManager::WallpaperLibrary SessionManager::wallpaperLibrary(wlr_output *
 {
     WallpaperManager::WallpaperLibrary result;
     for (const auto &owner : m_sessions) {
+        if (owner->isShuttingDown())
+            continue;
         const auto used = owner->wallpaperManager()->globalValidWallpaper(excluded);
         for (auto it = used.cbegin(); it != used.cend(); ++it)
             result.insert(it.key(), it.value());
