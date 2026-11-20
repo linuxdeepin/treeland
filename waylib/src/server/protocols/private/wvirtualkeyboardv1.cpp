@@ -46,7 +46,7 @@ void WVirtualKeyboardManagerV1::create(WServer *server)
 void WVirtualKeyboardManagerV1::destroy([[maybe_unused]] WServer *server)
 {
     if (ownsSocket() && m_handle)
-        wlr_virtual_keyboard_manager_v1_destroy(nativeInterface<wlr_virtual_keyboard_manager_v1>());
+        wlr_virtual_keyboard_manager_v1_destroy(nativeInterface<wlr_virtual_keyboard_manager_v1>(), false);
 
     m_handle = nullptr;
 }
