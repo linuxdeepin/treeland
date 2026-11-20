@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 extern void output_management_read_server_state(void *data);
 extern void output_management_render(void *data);
@@ -249,6 +250,29 @@ static int read_server_state(struct output_management_server_state *state)
     return invoke_on_server_thread(output_management_read_server_state, state);
 }
 
+/*
+ * The transform is committed later than the rest of the configuration: the
+ * rotation animation stages it at its half-way point (SourceOutput.qml) and the
+ * frame it then schedules commits it. Poll the compositor until one of the
+ * requested frames has landed, so the assertion below still checks the real
+ * committed transform instead of racing the animation's 100 ms timer.
+ */
+static int wait_for_committed_transform(struct output_management_server_state *state, int transform)
+{
+    for (int attempt = 0; attempt < 100; ++attempt) {
+        invoke_on_server_thread(output_management_render, NULL);
+        if (!read_server_state(state))
+            return 0;
+        if (state->output_count == 1 && state->transform == transform)
+            return 1;
+        struct timespec delay = { 0, 20 * 1000 * 1000 };
+        nanosleep(&delay, NULL);
+    }
+    // Keep the last state for the failure diagnostic.
+    read_server_state(state);
+    return 0;
+}
+
 static struct zwlr_output_configuration_v1 *create_enabled_configuration(
     struct zwlr_output_manager_v1 *manager, struct output_events *events, int x, int y,
     int32_t transform, wl_fixed_t scale)
@@ -353,9 +377,12 @@ int protocol_test_run(const char *socket_name)
     if (wl_display_roundtrip(connection.display) < 0)
         goto done;
     stage = 8;
-    if (!read_server_state(&state) || state.output_count != 1 || !state.enabled
-        || state.x != 37 || state.y != 53 || state.transform != WL_OUTPUT_TRANSFORM_90
-        || state.scale_milli != 2000)
+    if (!wait_for_committed_transform(&state, WL_OUTPUT_TRANSFORM_90) || state.output_count != 1
+        || !state.enabled || state.x != 37 || state.y != 53 || state.scale_milli != 2000)
+        goto done;
+    // Dispatch the events the commit produced (a new serial for the next
+    // configuration) before creating it.
+    if (wl_display_roundtrip(connection.display) < 0)
         goto done;
 
     stage = 9;
@@ -376,8 +403,8 @@ int protocol_test_run(const char *socket_name)
     if (wl_display_roundtrip(connection.display) < 0)
         goto done;
     stage = 11;
-    if (!read_server_state(&state) || state.x || state.y
-        || state.transform != WL_OUTPUT_TRANSFORM_NORMAL || state.scale_milli != 1000)
+    if (!wait_for_committed_transform(&state, WL_OUTPUT_TRANSFORM_NORMAL) || state.x || state.y
+        || state.scale_milli != 1000)
         goto done;
 
     stage = 12;

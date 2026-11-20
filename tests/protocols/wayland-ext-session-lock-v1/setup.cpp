@@ -82,9 +82,10 @@ extern "C" bool protocol_test_ready(WaylandServer *server)
     // hooks finish, which happens on the event loop after initTestCase.  Until
     // then WaylandServer has no lock screen implementation and
     // onExtSessionLock() rejects every lock() with `finished`.  Defer the
-    // client until the lock screen actually exists, exactly like waitForFixture
-    // defers fixture-dependent tests; without this the client would race the
-    // plugin load and observe a spurious "compositor rejected the lock".
+    // client until the lock screen actually exists, exactly like
+    // protocol_test_ready() defers fixture-dependent tests (the framework waits
+    // for it with QTRY_VERIFY2_WITH_TIMEOUT); without this the client would race
+    // the plugin load and observe a spurious "compositor rejected the lock".
     return server->isLockScreenAvailable();
 }
 
