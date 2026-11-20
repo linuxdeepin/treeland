@@ -121,6 +121,11 @@ public:
     ConfigureFlags requestConfigureFlags() const;
 
     bool isBypassManager() const;
+    // True once the surface has performed an X11 keyboard grab (e.g. popup
+    // menus steal focus this way) during its current mapped lifetime. The flag
+    // is cleared when the surface unmaps. A grab may also arrive before the
+    // surface is mapped, so consumers should defer focus until it maps.
+    bool everGrabbedFocus() const;
     bool isAbove() const;
     bool isBelow() const;
     bool isModal() const;
@@ -160,6 +165,11 @@ Q_SIGNALS:
 
     void requestConfigure(QRect geometry, ConfigureFlags flags);
     void requestActivate();
+    // Emitted when the surface performs an X11 keyboard grab
+    // (XCB_NOTIFY_MODE_GRAB). The grab may arrive before the surface is
+    // mapped; consumers should check isMapped()/everGrabbedFocus() and defer
+    // focus until the surface maps if necessary.
+    void grabFocus();
 };
 
 WAYLIB_SERVER_END_NAMESPACE
