@@ -347,8 +347,9 @@ static void pointer_constraints_v1_destroy(struct wlr_pointer_constraints_v1 *po
 	free(pointer_constraints);
 }
 
-void wlr_pointer_constraints_v1_destroy(struct wlr_pointer_constraints_v1 *pointer_constraints) {
-	pointer_constraints_v1_destroy(pointer_constraints, true);
+void wlr_pointer_constraints_v1_destroy(struct wlr_pointer_constraints_v1 *pointer_constraints,
+		bool destroy_global_safe) {
+	pointer_constraints_v1_destroy(pointer_constraints, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {

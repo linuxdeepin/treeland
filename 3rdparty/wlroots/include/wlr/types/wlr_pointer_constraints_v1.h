@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_POINTER_CONSTRAINTS_V1_H
 #define WLR_TYPES_WLR_POINTER_CONSTRAINTS_V1_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <wayland-server-core.h>
 #include <wayland-protocols/pointer-constraints-unstable-v1-enum.h>
@@ -95,11 +96,15 @@ struct wlr_pointer_constraints_v1 *wlr_pointer_constraints_v1_create(
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_pointer_constraints_v1_destroy(struct wlr_pointer_constraints_v1 *pointer_constraints);
+void wlr_pointer_constraints_v1_destroy(struct wlr_pointer_constraints_v1 *pointer_constraints,
+	bool destroy_global_safe);
 
 struct wlr_pointer_constraint_v1 *
 	wlr_pointer_constraints_v1_constraint_for_surface(
