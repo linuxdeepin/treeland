@@ -6,7 +6,9 @@
 #include <wglobal.h>
 
 #include "core/waylandserver.h"
+#include "wallpaper/wallpapermanager.h"
 
+#include <QHash>
 #include <QObject>
 
 class LockScreen;
@@ -40,6 +42,9 @@ public:
     void showShutdownMenu(WaylandServer::ShutdownMenuFocus focus =
                               WaylandServer::ShutdownMenuFocus::None);
     void showSwitchUser();
+    void collectGreeterWallpapers(WallpaperManager::WallpaperLibrary &wallpapers) const;
+    void updateGreeterWallpapers(const QObject *item, const QString &source,
+                                 TreelandWallpaperInterfaceV1::WallpaperType type = TreelandWallpaperInterfaceV1::Image);
 
 Q_SIGNALS:
     // Emitted whenever the LockScreen implementation becomes available
@@ -61,6 +66,7 @@ private:
     WaylandServer *m_server = nullptr;
     GreeterProxy *m_greeterProxy = nullptr;
     LockScreen *m_lockScreen = nullptr;
+    QHash<const QObject *, WallpaperManager::WallpaperLibrary> m_greeterWallpapers;
 #ifdef EXT_SESSION_LOCK_V1
     QTimer *m_lockScreenGraceTimer = nullptr;
 #endif

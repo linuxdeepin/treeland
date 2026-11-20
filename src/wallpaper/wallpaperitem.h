@@ -84,6 +84,7 @@ private Q_SLOTS:
 
 protected:
     WallpaperItem(QQuickItem *parent, bool autoUpdate);
+    void setWallpaperSurface(TreelandWallpaperSurfaceInterfaceV1 *interface);
 
 private:
     const bool m_autoUpdate;

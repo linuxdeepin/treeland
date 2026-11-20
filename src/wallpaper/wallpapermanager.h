@@ -57,6 +57,7 @@ public:
     QString desktopWallpaper(WOutput *output, WorkspaceModel *workspace);
     QString currentWorkspaceWallpaper(WOutput *output);
     QString currentLockScreenWallpaper(WOutput *output);
+    static WallpaperOutputConfig currentGreeterWallpaper(const TreelandUserConfig &config, WOutput *output);
     TreelandWallpaperInterfaceV1::WallpaperType getWallpaperType(const QString &wallpaper);
 
 Q_SIGNALS:
@@ -71,7 +72,6 @@ public Q_SLOTS:
     void onVideoChanged(int workspaceIndex,
                         const QString &fileSource,
                         TreelandWallpaperInterfaceV1::WallpaperRoles roles);
-    void onWallpaperNotifierBound(wl_resource *resource);
     void handleWallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfaceV1 *interface);
 
 public:

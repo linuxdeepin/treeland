@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include <optional>
 #include <utility>
 #include "wallpapermanager.h"
 #include "dconfig/dconfigmanager.h"
@@ -12,6 +13,7 @@
 
 #include <QMimeDatabase>
 #include <QMimeType>
+#include <QFileInfo>
 
 #define DEFAULT_WALLPAPER "/usr/share/wallpapers/deepin/deepin-default.jpg"
 
@@ -51,6 +53,20 @@ static void applyDefaultWallpaper(const QString &defaultBackground,
     } else {
         type = static_cast<TreelandWallpaperInterfaceV1::WallpaperType>(detectedType);
     }
+}
+
+static std::optional<QList<WallpaperOutputConfig>> parseWallpaperConfig(const QString &json)
+{
+    const auto document = QJsonDocument::fromJson(json.toUtf8());
+    if (!document.isArray())
+        return std::nullopt;
+
+    const auto entries = document.array();
+    QList<WallpaperOutputConfig> outputs;
+    outputs.reserve(entries.size());
+    for (const auto &entry : entries)
+        outputs.append(WallpaperOutputConfig::fromJson(entry.toObject()));
+    return outputs;
 }
 
 WallpaperManager::WallpaperManager(TreelandUserConfig *config, Workspace *workspace,
@@ -108,19 +124,13 @@ WallpaperOutputConfig WallpaperManager::getOutputConfig(const QString &id)
 void WallpaperManager::loadWallpaperConfig()
 {
     m_wallpaperConfig.clear();
-    if (!m_config->wallpaperConfig().isEmpty()) {
-        QJsonDocument doc = QJsonDocument::fromJson(m_config->wallpaperConfig().toUtf8());
-        if (doc.isArray()) {
-            QJsonArray jsonArray = doc.array();
-            for (const QJsonValue& value : jsonArray) {
-                QJsonObject obj = value.toObject();
-                m_wallpaperConfig.append(WallpaperOutputConfig::fromJson(obj));
-            }
-        } else {
-            qCCritical(lcTlWallpaper) << "wallpapers config value error: Expected a JSON array, but got something else.";
-        }
-    } else {
+    const auto json = m_config->wallpaperConfig();
+    if (json.isEmpty()) {
         defaultWallpaperConfig();
+    } else if (auto outputs = parseWallpaperConfig(json)) {
+        m_wallpaperConfig = std::move(*outputs);
+    } else {
+        qCCritical(lcTlWallpaper) << "wallpapers config value error: Expected a JSON array, but got something else.";
     }
     m_wallpaperConfigUpdated = true;
 
@@ -405,13 +415,31 @@ QString WallpaperManager::currentWorkspaceWallpaper(WOutput *output)
 
 QString WallpaperManager::currentLockScreenWallpaper(WOutput *output)
 {
-    for (int i = 0; i < m_wallpaperConfig.size(); ++i) {
-        if (m_wallpaperConfig[i].outputName == Output::getOutputId(output->handle())) {
-            return m_wallpaperConfig[i].lockscreenWallpaper;
-        }
-    }
+    return getOutputConfig(output->handle()).lockscreenWallpaper;
+}
 
-    return QStringLiteral("");
+WallpaperOutputConfig WallpaperManager::currentGreeterWallpaper(const TreelandUserConfig &config, WOutput *output)
+{
+    const auto outputId = Output::getOutputId(output->handle());
+    const auto outputs = parseWallpaperConfig(config.wallpaperConfig()).value_or(QList<WallpaperOutputConfig>{});
+    WallpaperOutputConfig fallback{};
+    for (const auto &wallpaper : outputs) {
+        if (!QFileInfo(wallpaper.lockscreenWallpaper).isReadable()) {
+            if (wallpaper.outputName == outputId)
+                qCDebug(lcTlWallpaper) << "Configured greeter wallpaper is unreadable for output"
+                                      << outputId << wallpaper.lockscreenWallpaper;
+            continue;
+        }
+        if (wallpaper.outputName == outputId)
+            return wallpaper;
+        fallback = wallpaper;
+    }
+    if (fallback.lockscreenWallpaper.isEmpty())
+        applyDefaultWallpaper(config.defaultBackground(), fallback.lockscreenWallpaper, fallback.lockScreenWallpapertype);
+    qCDebug(lcTlWallpaper) << "Resolved greeter wallpaper fallback for output" << outputId
+                          << "from output" << fallback.outputName << "source" << fallback.lockscreenWallpaper
+                          << "configured output count" << outputs.size() << "config failed" << config.isInitializeFailed();
+    return fallback;
 }
 
 TreelandWallpaperInterfaceV1::WallpaperType WallpaperManager::getWallpaperType(const QString &wallpaper)
@@ -503,16 +531,6 @@ void WallpaperManager::onVideoChanged(int workspaceIndex, const QString &fileSou
         Q_EMIT updateWallpaper();
     } else {
         m_services.notifier()->sendAdd(TreelandWallpaperInterfaceV1::Video, fileSource);
-    }
-}
-
-void WallpaperManager::onWallpaperNotifierBound(wl_resource *resource)
-{
-    QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> globalWallpapers = globalValidWallpaper();
-    QMapIterator<QString, TreelandWallpaperInterfaceV1::WallpaperType> i(globalWallpapers);
-    while (i.hasNext()) {
-        i.next();
-        m_services.notifier()->sendAddForResource(resource, static_cast<TreelandWallpaperInterfaceV1::WallpaperType>(i.value()), i.key());
     }
 }
 
