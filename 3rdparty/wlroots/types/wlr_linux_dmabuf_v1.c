@@ -890,8 +890,9 @@ static void linux_dmabuf_v1_destroy(struct wlr_linux_dmabuf_v1 *linux_dmabuf,
 	free(linux_dmabuf);
 }
 
-void wlr_linux_dmabuf_v1_destroy(struct wlr_linux_dmabuf_v1 *linux_dmabuf) {
-	linux_dmabuf_v1_destroy(linux_dmabuf, true);
+void wlr_linux_dmabuf_v1_destroy(struct wlr_linux_dmabuf_v1 *linux_dmabuf,
+		bool destroy_global_safe) {
+	linux_dmabuf_v1_destroy(linux_dmabuf, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
