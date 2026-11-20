@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_EXT_IMAGE_CAPTURE_SOURCE_V1_H
 #define WLR_TYPES_WLR_EXT_IMAGE_CAPTURE_SOURCE_V1_H
 
+#include <stdbool.h>
 #include <pixman.h>
 #include <wayland-server-core.h>
 #include <wlr/render/drm_format_set.h>
@@ -123,12 +124,15 @@ struct wlr_ext_output_image_capture_source_manager_v1 *wlr_ext_output_image_capt
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
 void wlr_ext_output_image_capture_source_manager_v1_destroy(
-	struct wlr_ext_output_image_capture_source_manager_v1 *manager);
+	struct wlr_ext_output_image_capture_source_manager_v1 *manager, bool destroy_global_safe);
 
 struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *
 wlr_ext_foreign_toplevel_image_capture_source_manager_v1_create(struct wl_display *display, uint32_t version);
@@ -136,12 +140,15 @@ wlr_ext_foreign_toplevel_image_capture_source_manager_v1_create(struct wl_displa
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
 void wlr_ext_foreign_toplevel_image_capture_source_manager_v1_destroy(
-	struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *manager);
+	struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *manager, bool destroy_global_safe);
 
 bool wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request_accept(
 	struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request,
