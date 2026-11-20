@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_DRM_LEASE_V1_H
 #define WLR_TYPES_WLR_DRM_LEASE_V1_H
 
+#include <stdbool.h>
 #include <wayland-server-core.h>
 
 struct wlr_backend;
@@ -112,11 +113,15 @@ struct wlr_drm_lease_v1_manager *wlr_drm_lease_v1_manager_create(
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_drm_lease_v1_manager_destroy(struct wlr_drm_lease_v1_manager *manager);
+void wlr_drm_lease_v1_manager_destroy(struct wlr_drm_lease_v1_manager *manager,
+	bool destroy_global_safe);
 
 /**
  * Offers a wlr_output for lease.
