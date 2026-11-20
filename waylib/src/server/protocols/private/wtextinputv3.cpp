@@ -78,7 +78,7 @@ void WTextInputManagerV3::destroy([[maybe_unused]] WServer *server)
     }
     d->textInputs.clear();
     if (ownsSocket() && m_handle)
-        wlr_text_input_manager_v3_destroy(nativeInterface<wlr_text_input_manager_v3>());
+        wlr_text_input_manager_v3_destroy(nativeInterface<wlr_text_input_manager_v3>(), false);
 
     m_handle = nullptr;
 }
