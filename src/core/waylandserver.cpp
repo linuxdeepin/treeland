@@ -1168,9 +1168,9 @@ bool WaylandServer::isLockScreenAvailable() const
     return m_lockScreenManager->isLockScreenAvailable();
 }
 
-void WaylandServer::showShutdownMenu()
+void WaylandServer::showShutdownMenu(ShutdownMenuFocus focus)
 {
-    m_lockScreenManager->showShutdownMenu();
+    m_lockScreenManager->showShutdownMenu(focus);
 }
 
 void WaylandServer::showSwitchUser()

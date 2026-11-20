@@ -10,14 +10,20 @@ FocusScope {
 
     signal switchUser()
 
-    // The menu is opened from the dock, where nothing holds the keyboard focus
-    // yet: the lock button is the entry point when it is shown at all. Focus
-    // does not come back on its own when an ancestor only becomes visible later,
-    // so re-apply it then.
-    Component.onCompleted: powerList.focusItem(lockBtn)
+    // The menu focuses the button the caller asked for; with no preference and
+    // when opened from the dock it is the lock button, the entry point when it
+    // is shown at all. Focus does not come back on its own when an ancestor
+    // only becomes visible later, so re-apply it then.
+    function applyFocus() {
+        if (powerList.focusPowerButton(GreeterProxy.shutdownMenuFocus))
+            return
+        powerList.focusItem(GreeterProxy.shutdownMenuFocus === "logOut" ? logoutBtn : lockBtn)
+    }
+
+    Component.onCompleted: applyFocus()
     onVisibleChanged: {
         if (visible)
-            powerList.focusItem(lockBtn)
+            applyFocus()
     }
 
     MouseArea {

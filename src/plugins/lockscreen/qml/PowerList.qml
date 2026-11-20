@@ -32,6 +32,19 @@ FocusScope {
         focusItem(powerOffBtn)
     }
 
+    // Focus the power button the shutdown-menu focus target names. The session
+    // buttons (lock / logout) belong to the caller's scope, so the caller
+    // handles those and every target that does not resolve here.
+    function focusPowerButton(focus) {
+        switch (focus) {
+        case "powerOff": focusItem(powerOffBtn); return true
+        case "reboot":   focusItem(rebootBtn);  return true
+        case "suspend":  focusItem(suspendBtn); return true
+        case "hibernate": focusItem(hibernateBtn); return true
+        }
+        return false
+    }
+
     // The focus chain is the row's buttons in visual order: the power buttons
     // declared here, plus the session buttons (lock / switch user / logout) the
     // view injects through modelChildren. It is the ObjectModel's own children

@@ -5,6 +5,8 @@
 
 #include <wglobal.h>
 
+#include "common/shellaction.h"
+
 #include <QObject>
 
 class WaylandServer;
@@ -36,7 +38,7 @@ public:
     void setLockScreenImpl(ILockScreen *impl);
     void showLockScreen(bool switchToGreeter = true);
     bool isLockScreenAvailable() const;
-    void showShutdownMenu();
+    void showShutdownMenu(ShutdownMenuFocus focus = ShutdownMenuFocus::None);
     void showSwitchUser();
 
 Q_SIGNALS:

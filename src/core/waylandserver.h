@@ -5,6 +5,7 @@
 
 #include <wlr_fwd.h>
 #include "core/qmlengine.h"
+#include "common/shellaction.h"
 #include "modules/activation/activationmanagerinterfacev1.h"
 #include "modules/wallpaper/wallpapermanagerinterfacev1.h"
 #include "modules/wallpaper/wallpapernotifierinterfacev1.h"
@@ -293,7 +294,7 @@ public:
     void setNoAnimation(bool noAnimation);
 
     void showLockScreen(bool switchToGreeter = true);
-    void showShutdownMenu();
+    void showShutdownMenu(ShutdownMenuFocus focus = ShutdownMenuFocus::None);
     void showSwitchUser();
 
     Output* getOutputAtCursor() const;
