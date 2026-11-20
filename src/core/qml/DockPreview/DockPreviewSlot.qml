@@ -121,11 +121,20 @@ Item {
         revealAnimation.restart();
     }
 
-    function retarget(newWrapper, rect) {
-        if (newWrapper !== wrapper)
+    // `snap` places the slot without animating the move.
+    function retarget(newWrapper, rect, snap) {
+        if (newWrapper !== wrapper) {
             swapContent(newWrapper, rect);
-        else
-            setContentSize(newWrapper, rect, true);
+        } else {
+            setContentSize(newWrapper, rect, !snap);
+            if (snap) {
+                moveAnimation.stop();
+                fromRect = rect;
+                toRect = rect;
+                progress = 1;
+                return;
+            }
+        }
         // Already heading there: leave the running animation alone.
         if (equals(rect, toRect))
             return;
@@ -362,6 +371,12 @@ Item {
         function onAboutToBeInvalidated() {
             slot.wrapperAlive = false;
             preview.removeSurface(slot.wrapper);
+        }
+        function onWidthChanged() {
+            view.requestRelayout();
+        }
+        function onHeightChanged() {
+            view.requestRelayout();
         }
     }
 
