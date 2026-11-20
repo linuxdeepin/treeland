@@ -63,7 +63,7 @@ void WRelativePointerManagerV1::create(WServer *server)
 void WRelativePointerManagerV1::destroy([[maybe_unused]] WServer *server)
 {
     if (ownsSocket() && m_handle)
-        wlr_relative_pointer_manager_v1_destroy(nativeInterface<wlr_relative_pointer_manager_v1>());
+        wlr_relative_pointer_manager_v1_destroy(nativeInterface<wlr_relative_pointer_manager_v1>(), false);
 
     m_handle = nullptr;
 }
