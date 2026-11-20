@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_XDG_ACTIVATION_V1
 #define WLR_TYPES_WLR_XDG_ACTIVATION_V1
 
+#include <stdbool.h>
 #include <wayland-server-core.h>
 
 struct wlr_xdg_activation_token_v1 {
@@ -71,11 +72,15 @@ struct wlr_xdg_activation_v1 *wlr_xdg_activation_v1_create(
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_xdg_activation_v1_destroy(struct wlr_xdg_activation_v1 *activation);
+void wlr_xdg_activation_v1_destroy(struct wlr_xdg_activation_v1 *activation,
+	bool destroy_global_safe);
 
 struct wlr_xdg_activation_token_v1 *wlr_xdg_activation_token_v1_create(
 		struct wlr_xdg_activation_v1 *activation);
