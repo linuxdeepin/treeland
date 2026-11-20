@@ -1248,12 +1248,15 @@ void ShellHandler::handleDdeShellSurfaceV2Added(DDEShellSurfaceV2 *shellSurface,
             this,
             applySkipFlags);
 
-    wrapper->setAcceptKeyboardFocus(shellSurface->acceptKeyboardFocus());
+    // Refusing keyboard focus must also drop a surface that was already
+    // activated/focused, not just flip the capability bit: dde-shell sets the
+    // property after the surface is mapped and often activated.
+    updateSurfaceAcceptKeyboardFocus(wrapper, shellSurface->acceptKeyboardFocus());
     connect(shellSurface,
             &DDEShellSurfaceV2::acceptKeyboardFocusChanged,
             this,
-            [wrapper](bool accept) {
-                wrapper->setAcceptKeyboardFocus(accept);
+            [this, wrapper](bool accept) {
+                updateSurfaceAcceptKeyboardFocus(wrapper, accept);
             });
 }
 
