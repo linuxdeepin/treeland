@@ -166,8 +166,9 @@ static void content_type_manager_v1_destroy(struct wlr_content_type_manager_v1 *
 	free(manager);
 }
 
-void wlr_content_type_manager_v1_destroy(struct wlr_content_type_manager_v1 *manager) {
-	content_type_manager_v1_destroy(manager, true);
+void wlr_content_type_manager_v1_destroy(struct wlr_content_type_manager_v1 *manager,
+		bool destroy_global_safe) {
+	content_type_manager_v1_destroy(manager, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
