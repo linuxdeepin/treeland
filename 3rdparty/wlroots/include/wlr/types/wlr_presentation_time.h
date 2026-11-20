@@ -64,11 +64,14 @@ struct wlr_presentation *wlr_presentation_create(struct wl_display *display,
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_presentation_destroy(struct wlr_presentation *presentation);
+void wlr_presentation_destroy(struct wlr_presentation *presentation, bool destroy_global_safe);
 /**
  * Mark the current surface's buffer as sampled.
  *
