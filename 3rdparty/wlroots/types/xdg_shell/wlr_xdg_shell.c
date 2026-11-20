@@ -150,8 +150,8 @@ static void xdg_shell_destroy(struct wlr_xdg_shell *xdg_shell,
 	free(xdg_shell);
 }
 
-void wlr_xdg_shell_destroy(struct wlr_xdg_shell *xdg_shell) {
-	xdg_shell_destroy(xdg_shell, true);
+void wlr_xdg_shell_destroy(struct wlr_xdg_shell *xdg_shell, bool destroy_global_safe) {
+	xdg_shell_destroy(xdg_shell, destroy_global_safe);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {

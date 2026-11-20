@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_XDG_SHELL_H
 #define WLR_TYPES_WLR_XDG_SHELL_H
 
+#include <stdbool.h>
 #include <wayland-server-core.h>
 #include <wayland-protocols/xdg-shell-enum.h>
 #include <wlr/types/wlr_compositor.h>
@@ -351,11 +352,14 @@ struct wlr_xdg_shell *wlr_xdg_shell_create(struct wl_display *display,
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_xdg_shell_destroy(struct wlr_xdg_shell *xdg_shell);
+void wlr_xdg_shell_destroy(struct wlr_xdg_shell *xdg_shell, bool destroy_global_safe);
 
 /** Get the corresponding struct wlr_xdg_surface from a resource.
  *
