@@ -9,6 +9,7 @@
 #ifndef WLR_TYPES_WLR_RELATIVE_POINTER_V1_H
 #define WLR_TYPES_WLR_RELATIVE_POINTER_V1_H
 
+#include <stdbool.h>
 #include <wayland-server-core.h>
 
 /**
@@ -67,11 +68,15 @@ struct wlr_relative_pointer_manager_v1 *wlr_relative_pointer_manager_v1_create(
 /**
  * Destroy the protocol manager and remove its globals.
  *
+ * If destroy_global_safe is true, remove globals now and defer their
+ * destruction; otherwise destroy them immediately.
+ *
  * All client objects using this manager must be destroyed before calling this
  * function. The manager is also destroyed automatically when the display is
  * destroyed.
  */
-void wlr_relative_pointer_manager_v1_destroy(struct wlr_relative_pointer_manager_v1 *manager);
+void wlr_relative_pointer_manager_v1_destroy(struct wlr_relative_pointer_manager_v1 *manager,
+	bool destroy_global_safe);
 
 /**
  * Send a relative motion event to the seat. Time is given in microseconds
