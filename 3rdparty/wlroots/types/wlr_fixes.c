@@ -48,8 +48,8 @@ static void fixes_destroy_internal(struct wlr_fixes *fixes,
 	free(fixes);
 }
 
-void wlr_fixes_destroy(struct wlr_fixes *fixes) {
-	fixes_destroy_internal(fixes, true);
+void wlr_fixes_destroy(struct wlr_fixes *fixes, bool destroy_global_safe) {
+	fixes_destroy_internal(fixes, destroy_global_safe);
 }
 
 static void fixes_handle_display_destroy(struct wl_listener *listener, void *data) {
