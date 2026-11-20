@@ -9,6 +9,7 @@ extern "C" {
 
 int protocol_test_run(const char *socket_name);
 void splash_query_state(void *data);
+void splash_disconnect_clients(void *data);
 
 #include "client-connection.h"
 
@@ -35,7 +36,9 @@ struct splash_server_state {
 
 struct test_ctx {
     struct client_connection connection;
+    struct client_connection second;
     struct wl_display *display;
+    const char *socket_name;
 
     struct treeland_prelaunch_splash_manager_v2 *manager;
     struct wl_shm *shm;
@@ -43,6 +46,7 @@ struct test_ctx {
     struct treeland_prelaunch_splash_v2 *splash1;
     struct treeland_prelaunch_splash_v2 *splash2;
     struct treeland_prelaunch_splash_v2 *splash3;
+    struct treeland_prelaunch_splash_v2 *splash4;
     struct wl_buffer *icon_buffer;
 
     struct splash_server_state server;
