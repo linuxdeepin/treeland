@@ -4,12 +4,17 @@
 
 struct lifecycle_state {
     char socket_name[512];
+    char child_socket_name[512];
     int ready;
     int observed;
     int destroyed;
     int globals_retired;
     int interfaces_removed;
     int detached_once;
+    int shutdown_with_reference;
+    int shutdown_idempotent;
+    int mapped_windows;
+    int windows_released;
 };
 
 #ifdef __cplusplus

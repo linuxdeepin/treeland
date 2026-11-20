@@ -60,6 +60,9 @@ class Session : public QObject {
 public:
     ~Session();
 
+    void shutdown();
+    bool isShuttingDown() const { return m_shuttingDown; }
+
     DesktopEnvironment *desktop() const { return m_desktop; };
     const QString &id() const { return m_id; };
     uid_t uid() const { return m_uid; };
@@ -72,16 +75,16 @@ public:
     Workspace *workspace() const;
     SessionWorkspace *sessionWorkspace() const { return m_workspace; }
     SessionMultitaskView *multitaskView() const { return m_multitaskView; }
-    DesktopSurfaceModel *windows() const { return m_desktop->windows(); };
+    DesktopSurfaceModel *windows() const { return m_desktop ? m_desktop->windows() : nullptr; };
     TreelandUserConfig *config() const { return m_config; };
     SessionSeatManager *seatManager() const { return m_seatManager; };
     SessionProtocols *protocols() const { return m_protocols; };
     SessionPrelaunch *prelaunch() const { return m_prelaunch; };
     SessionScene *scene() const { return m_scene; };
     SessionOutputManager *outputManager() const { return m_outputManager; };
-    SessionSwitcher *switcher() const { return m_desktop->switcher(); };
-    InputManager *inputManager() const { return m_desktop->input(); };
-    WallpaperManager *wallpaperManager() const { return m_desktop->wallpaper(); };
+    SessionSwitcher *switcher() const { return m_desktop ? m_desktop->switcher() : nullptr; };
+    InputManager *inputManager() const { return m_desktop ? m_desktop->input() : nullptr; };
+    WallpaperManager *wallpaperManager() const { return m_desktop ? m_desktop->wallpaper() : nullptr; };
 
     ForeignToplevelManagerInterfaceV3 *windowManagement() const { return m_windowManagement; };
     WForeignToplevel *foreignToplevel() const;
@@ -100,11 +103,14 @@ Q_SIGNALS:
     void aboutToBeDestroyed();
 
 private:
+    void beginShutdown();
     void setActive(bool active);
 
 private:
     friend class SessionManager;
     friend class SurfaceProtocolController;
+
+    void closeClients();
 
     DesktopEnvironment *m_desktop = nullptr;
     SessionSeatManager *m_seatManager = nullptr;
@@ -130,4 +136,6 @@ private:
     QThread *m_settingManagerThread = nullptr;
 #endif
     bool m_active = false;
+    bool m_shuttingDown = false;
+    bool m_shutdownStarted = false;
 };

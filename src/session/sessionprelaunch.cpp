@@ -17,6 +17,7 @@
 #include <wtoplevelsurface.h>
 
 #include <QTimer>
+#include <utility>
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -31,9 +32,27 @@ SessionPrelaunch::SessionPrelaunch(Session *owner, WaylandServer *runtime)
     connect(m_protocol, &PrelaunchSplash::splashCloseRequested, this, &SessionPrelaunch::close);
 }
 
+void SessionPrelaunch::shutdown()
+{
+    m_pending.clear();
+    m_closed.clear();
+    const auto splashes = std::exchange(m_splashes, {});
+    for (const auto &splash : splashes) {
+        if (splash.wrapper)
+            m_runtime->rootSurfaceContainer()->destroyForSurface(splash.wrapper);
+    }
+}
+
 bool SessionPrelaunch::resolvePidfd(int pidfd, std::function<void(const QString &)> callback)
 {
-    return m_resolver && m_resolver->resolvePidfd(pidfd, std::move(callback));
+    if (session()->isShuttingDown() || !m_resolver)
+        return false;
+
+    return m_resolver->resolvePidfd(pidfd,
+        [owner = QPointer(session()), callback = std::move(callback)](const QString &appId) {
+            if (owner && !owner->isShuttingDown())
+                callback(appId);
+        });
 }
 
 bool SessionPrelaunch::needsResolution() const
@@ -51,7 +70,7 @@ void SessionPrelaunch::request(const QString &appId, const QString &instanceId, 
     // try_from_resource hands us a locked buffer. Both completed and cancelled
     // async requests release it, including when this Session is destroyed.
     const Icon icon(buffer, [](wlr_buffer *value) { if (value) wlr_buffer_unlock(value); });
-    if (!m_runtime->globalConfig()->enablePrelaunchSplash() || appId.isEmpty()
+    if (session()->isShuttingDown() || !m_runtime->globalConfig()->enablePrelaunchSplash() || appId.isEmpty()
         || m_pending.contains(appId)
         || std::any_of(m_splashes.cbegin(), m_splashes.cend(), [&appId](const Splash &splash) {
                return splash.wrapper && splash.wrapper->appId() == appId;
@@ -76,7 +95,7 @@ void SessionPrelaunch::create(const QString &appId, const QString &instanceId, q
                               const QString &lightPalette, qlonglong theme)
 {
     const auto pending = m_pending.constFind(appId);
-    if (pending == m_pending.cend() || pending->generation != generation)
+    if (session()->isShuttingDown() || pending == m_pending.cend() || pending->generation != generation)
         return;
 
     m_pending.remove(appId);

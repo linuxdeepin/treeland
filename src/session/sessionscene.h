@@ -18,6 +18,8 @@ public:
     ~SessionScene() override;
 
     void attach(SurfaceWrapper *surface);
+    void shutdown();
+    void finishShutdown();
 
 protected:
     void activate() override;
