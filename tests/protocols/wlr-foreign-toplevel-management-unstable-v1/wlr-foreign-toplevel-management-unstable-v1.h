@@ -19,8 +19,6 @@ struct foreign_toplevel_server_state {
     int maximize_request_count;
     int last_maximize_request;
     int maximized_after_last_request;
-    int animation_running_after_last_request;
-    int animation_running;
 };
 
 #ifdef __cplusplus

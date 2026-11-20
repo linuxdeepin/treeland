@@ -13,22 +13,27 @@
 #include <wbackend.h>
 #include <wforeigntoplevelv1.h>
 
-#include <QEventLoop>
-#include <QQuickItem>
+#include "animationconfig.hpp"
 
 namespace {
 SurfaceWrapper *g_wrapper = nullptr;
 int g_maximizeRequestCount = 0;
 int g_lastMaximizeRequest = -1;
 int g_maximizedAfterLastRequest = -1;
-int g_animationRunningAfterLastRequest = -1;
 }
 
 void protocol_test_setup(WaylandServer *server)
 {
-    // Keep production geometry transitions short, but wait for their real
-    // completion signal below instead of sampling a timing-dependent frame.
-    server->setAnimationSpeed(0.1f);
+    // This test asserts the foreign-toplevel protocol's state transitions, not
+    // the geometry animation. With the animation off every maximize /
+    // fullscreen / restore request applies its surface state directly, so the
+    // test neither paces frames nor waits for an animation completion signal
+    // (same approach as the v3 foreign-toplevel test).
+    if (auto *animationConfig = server->animationConfig()) {
+        animationConfig->setMaximize(false);
+        animationConfig->setFullscreen(false);
+        animationConfig->setRestoreWindow(false);
+    }
     add_headless_output(server->backend(), false);
     auto *foreignToplevel = server->backend()->server()->findInterface<WForeignToplevel>();
     Q_ASSERT(foreignToplevel);
@@ -39,7 +44,6 @@ void protocol_test_setup(WaylandServer *server)
                          ++g_maximizeRequestCount;
                          g_lastMaximizeRequest = maximized;
                          g_maximizedAfterLastRequest = g_wrapper && g_wrapper->isMaximized();
-                         g_animationRunningAfterLastRequest = g_wrapper && g_wrapper->isAnimationRunning();
                      });
     QObject::connect(server->shellHandler(),
                      &ShellHandler::surfaceWrapperAdded,
@@ -64,8 +68,6 @@ extern "C" void foreign_toplevel_read_server_state(void *data)
     state.maximize_request_count = g_maximizeRequestCount;
     state.last_maximize_request = g_lastMaximizeRequest;
     state.maximized_after_last_request = g_maximizedAfterLastRequest;
-    state.animation_running_after_last_request = g_animationRunningAfterLastRequest;
-    state.animation_running = g_wrapper && g_wrapper->isAnimationRunning();
     const auto *seatContainer = server->rootSurfaceContainer()->getSeatContainerOrDefault();
     state.focused = seatContainer && seatContainer->keyboardFocusSurface() == g_wrapper;
     *static_cast<foreign_toplevel_server_state *>(data) = state;
@@ -75,21 +77,9 @@ extern "C" void foreign_toplevel_render(void *)
 {
     if (!g_wrapper)
         return;
-    auto *server = WaylandServer::instance();
-    server->window()->render();
-    if (!g_wrapper->isAnimationRunning())
-        return;
 
-    QQuickItem *geometryAnimation = nullptr;
-    for (auto *item : g_wrapper->container()->childItems()) {
-        if (item->property("surface").value<SurfaceWrapper *>() == g_wrapper) {
-            geometryAnimation = item;
-            break;
-        }
-    }
-    if (!geometryAnimation)
-        return;
-    QEventLoop eventLoop;
-    QObject::connect(geometryAnimation, SIGNAL(finished()), &eventLoop, SLOT(quit()));
-    eventLoop.exec();
+    // Geometry animations are disabled in protocol_test_setup(), so the state
+    // change has already landed when the request was handled; one render lets a
+    // queued scene-graph frame apply it before the test reads it back.
+    WaylandServer::instance()->window()->render();
 }
