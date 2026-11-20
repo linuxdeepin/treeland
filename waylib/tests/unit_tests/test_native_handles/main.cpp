@@ -33,6 +33,7 @@
 #include <wxdgoutput.h>
 #include <wsecuritycontextmanager.h>
 #include <private/winputmethodv2_p.h>
+#include <private/wsecuritycontextmanager_p.h>
 #include <private/wtextinputv3_p.h>
 #include <private/wvirtualkeyboardv1_p.h>
 
@@ -408,7 +409,9 @@ private Q_SLOTS:
         QVERIFY(server.detach(manager));
         QVERIFY(!manager->isValid());
         QVERIFY(!manager->global());
-        QCOMPARE(wl_global_get_user_data(global), socketOwned ? nullptr : native);
+        // Socket-owned globals are freed synchronously on detach.
+        if (!socketOwned)
+            QCOMPARE(wl_global_get_user_data(global), native);
         QCOMPARE(wl_list_length(&layout.handle()->events.add.listener_list),
                  listeners - int(socketOwned));
 
@@ -437,15 +440,22 @@ private Q_SLOTS:
         QVERIFY(global);
         auto *native = wl_global_get_user_data(global);
         QVERIFY(native);
+        auto *securityContext = static_cast<
+            WAYLIB_SERVER_NAMESPACE::wlr_security_context_manager_v1 *>(native);
+        ManagerDestroyProbe probe(&securityContext->events.destroy);
 
         QVERIFY(server.detach(manager));
         QVERIFY(!manager->isValid());
         QVERIFY(!manager->global());
-        QCOMPARE(wl_global_get_user_data(global), socketOwned ? nullptr : native);
+        QCOMPARE(probe.destroyed, socketOwned);
+        // Socket-owned globals are freed synchronously on detach.
+        if (!socketOwned)
+            QCOMPARE(wl_global_get_user_data(global), native);
 
         server.attach(manager);
         QVERIFY(manager->isValid());
         server.stop();
+        QVERIFY(probe.destroyed);
         QVERIFY(!manager->isValid());
         server.start();
         QVERIFY(manager->isValid());
