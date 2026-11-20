@@ -12,9 +12,6 @@ QtObject {
     id: style
 
     readonly property bool isDark: D.DTK.themeType === D.ApplicationHelper.DarkType
-    readonly property int radius: DS.Style.menu.radius
-    readonly property int itemRadius: DS.Style.menu.item.radius
-    readonly property int tooltipRadius: DS.Style.control.radius
     readonly property int popupPadding: DS.Style.popup.padding
 
     readonly property color tint: isDark ? DS.Style.behindWindowBlur.darkColor
@@ -30,10 +27,6 @@ QtObject {
 
     readonly property color titleColor: D.DTK.palette.windowText
 
-    // dde-shell overrides DTK's toolTip padding horizontally (8 instead of 5),
-    readonly property int tooltipHorizontalPadding: 8
-    readonly property int tooltipVerticalPadding: DS.Style.toolTip.verticalPadding
-
     readonly property int shadowBlur: 20
     readonly property int shadowOffsetY: 6
     readonly property color shadowColor: DS.Style.arrowRectangleBlur.shadowColor
@@ -46,13 +39,15 @@ QtObject {
     readonly property int closeButtonMaxSize: DS.Style.floatingButton.size
 
     /* --- the preview list --- */
-    // Width of the list content; the frame adds the panel padding around it.
-    readonly property int listContentWidth: 200
+    // Width of the list panel, padding included.
+    readonly property int listPanelWidth: 200
+    // Inset of the list content from every panel edge.
+    readonly property int listPanelPadding: 6
     // One row of the list.
     readonly property int listRowHeight: 26
     readonly property int listRowSpacing: 0
     // Left and right padding of a row.
-    readonly property int listRowPadding: tooltipHorizontalPadding
+    readonly property int listRowPadding: 8
     // Gap between two things inside a row (icon and title, title and button)
     readonly property int listInnerSpacing: DS.Style.control.spacing
     // App icon of a row.
@@ -70,6 +65,22 @@ QtObject {
     readonly property int scrollHintLength: 46
     // Gap between the button and the viewport edge it points away from.
     readonly property int scrollHintMargin: 3
+
+    /* --- the preview slots --- */
+    // Bounds of the slot side that follows the window's aspect ratio.
+    readonly property int previewSlotMinSide: 80
+    readonly property int previewSlotMaxSide: 240
+    // Spacing inside the thumbnail view.
+    readonly property int previewSpacing: 10
+    // Inset of the thumbnail content from every panel edge.
+    readonly property int previewPanelPadding: DS.Style.popup.padding
+    // Title row: icon size, icon to text, panel top and the strip below it.
+    readonly property int previewTitleIconSize: 24
+    readonly property int previewTitleIconSpacing: 5
+    readonly property int previewTitleTopPadding: 8
+    readonly property int previewTitleGap: 8
+    // Width of the highlight frame, drawn outside the slot box.
+    readonly property int frameBorderWidth: 4
 
     // Placeholder behind a preview thumbnail. This is DPalette::ItemBackground,
     // which DTK does not export to QML in this version, so the two palette

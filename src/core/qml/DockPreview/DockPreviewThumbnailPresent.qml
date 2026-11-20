@@ -6,6 +6,7 @@ import QtQuick.Layouts
 
 import Waylib.Server
 import Treeland
+import org.deepin.dtk 1.0 as D
 
 Item {
     id: root
@@ -15,7 +16,7 @@ Item {
     property bool hovered: false
 
     // Corner radius shared by the slots and the hover frame.
-    property int radius: PopoverStyle.itemRadius
+    property int radius: preview.itemRadius
     // Topmost z of the preview slots.
     readonly property int slotZBase: 10000
     // Top of the content the title row takes for itself, in step with its own
@@ -26,8 +27,18 @@ Item {
     property var slots: []
     // List row the title follows.
     property int currentSlot: 0
-    // The slot under the pointer; it shows the border.
+    // The slot under the pointer; drives the frame's opacity.
     property var hoveredSlot: null
+    // The slot the frame is drawn on. Kept after the pointer leaves so the
+    // frame fades out in place; cleared once that slot is gone.
+    property var highlightSlot: null
+    onHoveredSlotChanged: {
+        if (root.hoveredSlot)
+            root.highlightSlot = root.hoveredSlot;
+    }
+
+    // Room the view keeps for the highlight frame; the layout ignores it.
+    readonly property int frameMargin: PopoverStyle.frameBorderWidth
 
     // The window the title row describes: the highlighted preview, clamped.
     readonly property var currentWrapper: {
@@ -56,14 +67,6 @@ Item {
             slots[i].freezePicture();
     }
 
-    // The hover border belongs to a slot, but only the slot under the pointer
-    // shows it.
-    function updateHoverBorder() {
-        const slots = root.slots;
-        for (let i = 0; i < slots.length; ++i)
-            slots[i].borderOpacity = slots[i] === root.hoveredSlot ? 1 : 0;
-    }
-
     // Pick the slot under the pointer again after the one it was on went away.
     function refreshHoveredSlot() {
         const slots = root.slots;
@@ -75,7 +78,12 @@ Item {
             }
         }
         root.hoveredSlot = hovered;
-        root.updateHoverBorder();
+    }
+
+    // Clears the frame's slot before it is destroyed.
+    function forgetSlot(slot) {
+        if (root.highlightSlot === slot)
+            root.highlightSlot = null;
     }
 
     function dropSlot(slot) {
@@ -90,6 +98,7 @@ Item {
             root.slots = next;
         }
 
+        root.forgetSlot(slot);
         slot.destroy();
     }
 
@@ -98,6 +107,7 @@ Item {
         const slots = root.slots;
         root.slots = [ ];
         root.hoveredSlot = null;
+        root.highlightSlot = null;
         for (let i = 0; i < slots.length; ++i)
             slots[i].destroy();
     }
@@ -106,8 +116,24 @@ Item {
         return slotComponent.createObject(slotLayer);
     }
 
+    // Coalesces window size changes into one layout pass.
+    property bool relayoutPending: false
+
+    function requestRelayout() {
+        if (root.relayoutPending || !root.visible)
+            return;
+        preview.noteWindowResize();
+        root.relayoutPending = true;
+        Qt.callLater(root.runPendingRelayout);
+    }
+
+    function runPendingRelayout() {
+        root.relayoutPending = false;
+        root.sync(true);
+    }
+
     // Bring the slot instances in line with the controller's window list.
-    function sync() {
+    function sync(snap) {
         const wrappers = [ ];
         const surfaces = preview.desiredSurfaces;
         for (let i = 0; i < surfaces.length; ++i) {
@@ -201,7 +227,7 @@ Item {
                     slot.revive(wrappers[i], rects[i]);
                     live.push(slot);
                 } else {
-                    slot.retarget(wrappers[i], rects[i]);
+                    slot.retarget(wrappers[i], rects[i], snap);
                     live.push(slot);
                 }
                 continue;
@@ -254,7 +280,8 @@ Item {
             root.hoveredSlot = null;
             Qt.callLater(root.refreshHoveredSlot);
         }
-        root.updateHoverBorder();
+        if (root.highlightSlot && root.slots.indexOf(root.highlightSlot) < 0)
+            root.forgetSlot(root.highlightSlot);
     }
 
     // Clip at the frame's content rect: the title row leaves the top free, and
@@ -262,10 +289,12 @@ Item {
     Item {
         id: slotClip
 
-        x: preview.contentLeft
-        y: preview.contentTop + root.titleSpace
-        width: preview.contentWidth
-        height: Math.max(0, preview.contentHeight - root.titleSpace)
+        // Clipped one frame margin wider than the content.
+        x: preview.thumbnailContentRect.x - root.frameMargin
+        y: preview.thumbnailContentRect.y + root.titleSpace - root.frameMargin
+        width: preview.thumbnailContentRect.width + 2 * root.frameMargin
+        height: Math.max(0, preview.thumbnailContentRect.height - root.titleSpace
+                            + 2 * root.frameMargin)
         clip: true
 
         // One slot instance per shown window.
@@ -276,32 +305,92 @@ Item {
 
             enabled: preview.requestedPresentation === DockPreview.Presentation.Thumbnail
             interactive: preview.requestedPresentation === DockPreview.Presentation.Thumbnail
-            width: preview.previewViewport.width
-            height: preview.previewViewport.height
-            contentWidth: preview.thumbnailContentSize.width
-            contentHeight: preview.thumbnailContentSize.height
+            // One frame margin on every side, outside the layout.
+            width: preview.previewViewport.width + 2 * root.frameMargin
+            height: preview.previewViewport.height + 2 * root.frameMargin
+            contentWidth: preview.thumbnailContentSize.width + 2 * root.frameMargin
+            contentHeight: preview.thumbnailContentSize.height + 2 * root.frameMargin
             // Only the frame clips, so a slot still moving out is not cut.
             clip: false
             boundsBehavior: Flickable.StopAtBounds
-            // A settled preview sits in the frame's content rect; while it
-            // unfolds, the slots keep their dock-facing edge.
-            x: (preview.contentPinToLeft || slotView.drawsAtOwnSize) ? 0 : slotClip.width - width
+            // A settled preview sits in the content rect; while it unfolds,
+            // the slots keep their dock-facing edge.
+            x: (preview.contentPinToLeft || slotView.drawsAtOwnSize)
+               ? 0 : slotClip.width - width
             y: slotView.drawsAtOwnSize ? 0 : slotClip.height - height
             transformOrigin: preview.contentPinToLeft ? Item.BottomLeft : Item.BottomRight
             scale: {
                 if (slotView.drawsAtOwnSize)
                     return 1;
-                if (!(width > 0) || !(height > 0))
+                const stripWidth = width - 2 * root.frameMargin;
+                const stripHeight = height - 2 * root.frameMargin;
+                if (!(stripWidth > 0) || !(stripHeight > 0))
                     return 0;
-                return Math.max(0, Math.min(1, slotClip.width / width,
-                                             slotClip.height / height));
+                return Math.max(0, Math.min(1,
+                    (slotClip.width - 2 * root.frameMargin) / stripWidth,
+                    (slotClip.height - 2 * root.frameMargin) / stripHeight));
             }
             opacity: preview.thumbnailReveal
 
             Item {
                 id: slotLayer
+                x: root.frameMargin
+                y: root.frameMargin
                 width: preview.thumbnailContentSize.width
                 height: preview.thumbnailContentSize.height
+
+                // One frame for the whole strip, drawn under the pictures.
+                Rectangle {
+                    id: hoverFrame
+
+                    readonly property var slot: root.highlightSlot
+                    // Only slide between two settled slots.
+                    readonly property bool slides: preview.enableAnimation
+                                                   && slot !== null && slot.progress === 1
+                                                   && hoverFrame.opacity > 0
+                    property rect frameRect: slot
+                        ? Qt.rect(slot.x - border.width, slot.y - border.width,
+                                  slot.width + 2 * border.width,
+                                  slot.height + 2 * border.width)
+                        : Qt.rect(0, 0, 0, 0)
+
+                    z: -1
+                    visible: slot !== null && opacity > 0
+                    opacity: root.hoveredSlot !== null ? 1 : 0
+
+                    x: frameRect.x
+                    y: frameRect.y
+                    width: frameRect.width
+                    height: frameRect.height
+                    radius: root.radius + border.width
+                    color: "transparent"
+                    border.width: PopoverStyle.frameBorderWidth
+                    property D.Palette borderPalette: D.Palette {
+                        normal {
+                            common: Qt.rgba(0, 0, 0, 0.2)
+                        }
+                        normalDark {
+                            common: Qt.rgba(1, 1, 1, 0.3)
+                        }
+                    }
+                    border.color: D.ColorSelector.borderPalette
+
+                    Behavior on opacity {
+                        enabled: preview.enableAnimation
+                        NumberAnimation {
+                            duration: preview.aniDuration
+                            easing.type: Easing.OutExpo
+                        }
+                    }
+
+                    Behavior on frameRect {
+                        enabled: hoverFrame.slides
+                        PropertyAnimation {
+                            duration: preview.aniDuration
+                            easing.type: Easing.OutExpo
+                        }
+                    }
+                }
             }
 
             HoverHandler {
@@ -312,7 +401,6 @@ Item {
                         return;
                     root.hoveredSlot = null;
                     preview.stopPreviewWindow();
-                    root.updateHoverBorder();
                 }
             }
         }
@@ -328,6 +416,7 @@ Item {
             enableAnimation: preview.enableAnimation
             opacity: preview.thumbnailReveal
             interactive: preview.thumbnailReveal === 1
+            inset: root.frameMargin
         }
     }
 
@@ -343,15 +432,15 @@ Item {
     // The title row: the app icon and title of the highlighted slot, plus the
     // close-all button.
     RowLayout {
-        spacing: 4
+        spacing: PopoverStyle.previewTitleIconSpacing
         height: preview.titleRowHeight
         anchors {
             left: parent.left
             right: parent.right
             top: parent.top
-            leftMargin: preview.panelHorizontalPadding
-            rightMargin: preview.panelHorizontalPadding
-            topMargin: preview.panelVerticalPadding
+            leftMargin: preview.thumbnailPadding
+            rightMargin: preview.thumbnailPadding
+            topMargin: preview.titleTopPadding
         }
 
         Loader {
@@ -389,7 +478,7 @@ Item {
             Text {
                 id: titleText
                 anchors.left: parent.left
-                anchors.top: parent.top
+                anchors.verticalCenter: parent.verticalCenter
                 width: parent.width
                 text: {
                     const wrapper = root.currentWrapper;
