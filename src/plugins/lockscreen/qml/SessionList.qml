@@ -11,7 +11,7 @@ import LockScreen
 Popup {
     id: popup
 
-    readonly property int sessionItemHeight: 60
+    readonly property int sessionItemHeight: 36
     readonly property int listMargin: 10
     readonly property real maxListHeight: 4 * sessionItemHeight + 3 * list.spacing
 
