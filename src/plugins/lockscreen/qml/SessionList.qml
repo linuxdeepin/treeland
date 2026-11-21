@@ -11,7 +11,7 @@ import LockScreen
 Popup {
     id: popup
 
-    readonly property int sessionItemHeight: 60
+    readonly property int sessionItemHeight: 36
     readonly property int listMargin: 10
     readonly property real maxListHeight: 4 * sessionItemHeight + 3 * list.spacing
 
@@ -73,19 +73,9 @@ Popup {
             RowLayout {
                 spacing: 5
                 anchors.fill: parent
-                Rectangle {
-                    width: 36
-                    height: 36
-                    Layout.leftMargin: 5
-                    Image {
-                        anchors.fill: parent
-                        // TODO: Provide icon for session
-                        // source: name
-                        fillMode: Image.PreserveAspectFit
-                    }
-                }
                 Text {
                     text: name
+                    Layout.leftMargin: 10
                     Layout.fillWidth: true
                 }
                 Image {
