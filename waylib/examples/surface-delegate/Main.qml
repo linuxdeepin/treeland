@@ -16,7 +16,7 @@ Item {
             id: backend
 
             onOutputAdded: function(output) {
-                if (!backend.hasDrm)
+                if (!backend.isDrm)
                     output.forceSoftwareCursor = true // Test
                 outputManager.add({waylandOutput: output})
             }

@@ -19,6 +19,11 @@ class WBackendPrivate;
 class WAYLIB_SERVER_EXPORT WBackend : public QObject, public WObject,  public WServerInterface
 {
     Q_OBJECT
+    Q_PROPERTY(bool isDrm READ isDrm FINAL)
+    Q_PROPERTY(bool isX11 READ isX11 FINAL)
+    Q_PROPERTY(bool isWayland READ isWayland FINAL)
+    Q_PROPERTY(bool isMulti READ isMulti FINAL)
+    Q_PROPERTY(bool isSessionActive READ isSessionActive FINAL)
     friend class WOutputPrivate;
     W_DECLARE_PRIVATE(WBackend)
 
@@ -31,9 +36,10 @@ public:
     QList<WOutput*> outputList() const;
     QList<WInputDevice*> inputDeviceList() const;
 
-    bool hasDrm() const;
-    bool hasX11() const;
-    bool hasWayland() const;
+    bool isDrm() const;
+    bool isX11() const;
+    bool isWayland() const;
+    bool isMulti() const;
 
     bool isSessionActive() const;
 

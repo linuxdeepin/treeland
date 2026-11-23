@@ -124,7 +124,7 @@ void WBackendPrivate::on_destroy()
     // DRM backend was removed, which tears down the multi-backend).
     // wlr_backend_finish() asserts that every listener list is empty, so
     // detach ours before the native signal storage is freed, and drop the
-    // dangling handle: handle()/hasDrm()/hasX11()/hasWayland() must not
+    // dangling handle: handle()/isDrm()/isX11()/isWayland() must not
     // dereference a backend that is going away. The wrapper objects for
     // outputs/inputs clean themselves up when the sub-backends destroy
     // their devices right after this emission.
@@ -170,45 +170,24 @@ QList<WInputDevice *> WBackend::inputDeviceList() const
     return d->inputList;
 }
 
-static bool hasBackend(wlr_backend *handle, bool (*isType)(struct wlr_backend *))
+bool WBackend::isDrm() const
 {
-    // The backend may not exist yet (before start) or anymore (after
-    // destroy / wlroots-side teardown): treat it as absent instead of
-    // dereferencing a null handle.
-    if (!handle)
-        return false;
-    if (isType(handle))
-        return true;
-    if (!wlr_backend_is_multi(handle))
-        return false;
-
-    struct BackendTypeChecker {
-        bool (*isType)(struct wlr_backend *);
-        bool exists = false;
-    } checker { isType };
-
-    wlr_multi_for_each_backend(handle, [] (struct wlr_backend *backend, void *data) {
-        auto *checker = static_cast<BackendTypeChecker*>(data);
-        if (checker->isType(backend))
-            checker->exists = true;
-    }, &checker);
-
-    return checker.exists;
+    return wlr_backend_is_drm(handle());
 }
 
-bool WBackend::hasDrm() const
+bool WBackend::isX11() const
 {
-    return hasBackend(handle(), &wlr_backend_is_drm);
+    return wlr_backend_is_x11(handle());
 }
 
-bool WBackend::hasX11() const
+bool WBackend::isWayland() const
 {
-    return hasBackend(handle(), &wlr_backend_is_x11);
+    return wlr_backend_is_wl(handle());
 }
 
-bool WBackend::hasWayland() const
+bool WBackend::isMulti() const
 {
-    return hasBackend(handle(), &wlr_backend_is_wl);
+    return wlr_backend_is_multi(handle());
 }
 
 bool WBackend::isSessionActive() const
