@@ -132,7 +132,6 @@ set(SOURCES
     kernel/wwaylandresource.cpp
 
 
-    kernel/wtypes.cpp
 
     kernel/woutputlayout.cpp
     kernel/wxcursorimage.cpp
@@ -247,7 +246,6 @@ set(HEADERS
     kernel/wserver.h
     kernel/wsurface.h
     kernel/wsubsurface.h
-    kernel/wtypes.h
     kernel/woutputlayout.h
     kernel/wxcursorimage.h
     kernel/wsocket.h

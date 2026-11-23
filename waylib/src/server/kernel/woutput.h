@@ -5,7 +5,6 @@
 
 #include <wlr_fwd.h>
 #include <wglobal.h>
-#include <wtypes.h>
 
 #include <QObject>
 #include <QSize>
@@ -46,14 +45,14 @@ class WAYLIB_SERVER_EXPORT WOutput : public QObject, public WObject
 
 public:
     enum Transform {
-        Normal = WLR::Transform::Normal,
-        R90 = WLR::Transform::R90,
-        R180 = WLR::Transform::R180,
-        R270 = WLR::Transform::R270,
-        Flipped = WLR::Transform::Flipped,
-        Flipped90 = WLR::Transform::Flipped90,
-        Flipped180 = WLR::Transform::Flipped180,
-        Flipped270 = WLR::Transform::Flipped270
+        Normal = 0,
+        R90 = 1,
+        R180 = 2,
+        R270 = 3,
+        Flipped = 4,
+        Flipped90 = 5,
+        Flipped180 = 6,
+        Flipped270 = 7
     };
     Q_ENUM(Transform)
 

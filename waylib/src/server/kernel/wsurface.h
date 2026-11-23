@@ -5,7 +5,7 @@
 
 #include <wlr_fwd.h>
 #include <wwaylandresource.h>
-#include <wtypes.h>
+#include <woutput.h>
 
 #include <QObject>
 #include <QRect>
@@ -45,7 +45,7 @@ public:
     bool mapped() const;
     QSize size() const;
     QSize bufferSize() const;
-    WLR::Transform orientation() const;
+    WOutput::Transform orientation() const;
     int bufferScale() const;
     QPoint bufferOffset() const;
     wlr_buffer *buffer() const;
