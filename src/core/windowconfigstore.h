@@ -15,7 +15,7 @@ class WindowConfigStore : public QObject
 {
     Q_OBJECT
 public:
-    explicit WindowConfigStore(QObject *parent = nullptr);
+    explicit WindowConfigStore(const QString &userName, QObject *parent = nullptr);
 
     void saveLastSize(const QString &appId, const QSize &size);
 
@@ -33,4 +33,6 @@ public:
 
 private:
     AppConfig *configForApp(const QString &appId) const;
+
+    const QString m_userName;
 };

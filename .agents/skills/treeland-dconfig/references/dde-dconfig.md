@@ -34,7 +34,7 @@ dde-dconfig set -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k showOth
 dde-dconfig get -a org.deepin.dde.treeland -r org.deepin.dde.treeland.user -s /rewine -k windowThemeType
 
 # 读取按应用 AppConfig 的键
-dde-dconfig get -a org.deepin.dde.treeland -r org.deepin.dde.treeland.app -s /deepin-screen-recorder -k enablePrelaunchSplash
+dde-dconfig get -a org.deepin.dde.treeland -r org.deepin.dde.treeland.user.app -s /rewine/deepin-screen-recorder -k enablePrelaunchSplash
 
 # 重置单个键；省略 -k 则重置该配置文件的所有缓存值
 dde-dconfig reset -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k showOtherUserOption
@@ -59,5 +59,5 @@ dde-dconfig get -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k showOth
 - `-r org.deepin.dde.treeland.user -s /<username>` 对应 `WaylandServer::config()` 使用的当前用户 subpath 模式。
 - `-r org.deepin.dde.treeland.user.seat -s /<username>/<seatName>` 对应 `SeatUserDConfig`。
 - `-r org.deepin.dde.treeland.output -s /<outputName>` 对应 `OutputConfig`。
-- `-r org.deepin.dde.treeland.app -s /<appId>` 对应 `WindowConfigStore` / `AppConfig`。
+- `-r org.deepin.dde.treeland.user.app -s /<username>/<appId>` 对应 `WindowConfigStore` / `AppConfig`。
 - `watch` 用于检查生成的 `*Changed` 信号与 `WaylandServer.config` 重连行为是否正确接通。

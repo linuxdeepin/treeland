@@ -5,6 +5,7 @@
 #include "server-bridge.h"
 #include "core/waylandserver.h"
 #include "core/shellhandler.h"
+#include "core/windowconfigstore.h"
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv3.h"
 #include "session/session.h"
 #include "desktop/desktopenvironment.h"
@@ -71,7 +72,6 @@ void protocol_test_setup(WaylandServer *server)
 {
     for (int i = server->backend()->outputList().size(); i < 3; ++i)
         add_headless_output(server->backend(), false);
-    DConfigManager::instance()->appConfig(QStringLiteral("org.deepin.session-launch-test"));
     sessionA = server->sessionManager()->globalSession();
     const auto *account = getpwuid(getuid());
     if (account && sessionA && sessionA->username() == QString::fromLocal8Bit(account->pw_name))
@@ -82,6 +82,8 @@ void protocol_test_setup(WaylandServer *server)
         QStringLiteral("protocol-session-isolation"), QString::fromLocal8Bit(account->pw_name));
     if (!sessionB || sessionA == sessionB)
         return;
+    for (auto *owner : {sessionA.get(), sessionB.get()})
+        DConfigManager::instance()->appConfig(owner->username(), QStringLiteral("org.deepin.session-launch-test"));
     // Keep the background test connection dispatchable. Visibility/authorization
     // still use the real Session identity, independently of socket suspension.
     sessionB->socket()->setEnabled(true);
@@ -103,9 +105,18 @@ extern "C" bool protocol_test_ready(WaylandServer *server)
         return true; // The C client reports the missing-account skip.
     if (server->rootSurfaceContainer()->outputs().size() != 3)
         return false;
-    auto *launchConfig = DConfigManager::instance()->appConfig(QStringLiteral("org.deepin.session-launch-test"));
-    if (!configurationReady(launchConfig))
-        return false;
+    for (auto *owner : {sessionA.get(), sessionB.get()}) {
+        auto *launchConfig = DConfigManager::instance()->appConfig(
+            owner->username(), QStringLiteral("org.deepin.session-launch-test"));
+        if (!configurationReady(launchConfig))
+            return false;
+    }
+    static bool sizesSaved = false;
+    if (!sizesSaved) {
+        sessionA->windowConfigStore()->saveLastSize(QStringLiteral("org.deepin.session-launch-test"), QSize(720, 520));
+        sessionB->windowConfigStore()->saveLastSize(QStringLiteral("org.deepin.session-launch-test"), QSize(940, 640));
+        sizesSaved = true;
+    }
     auto *a = sessionA->outputManager()->protocol()->handle();
     auto *b = sessionB->outputManager()->protocol()->handle();
     return a && b && a != b && wl_list_length(&a->heads) == 3 && wl_list_length(&b->heads) == 3;
@@ -172,6 +183,19 @@ extern "C" void isolation_read(void *data)
     }
     state->a_visible_windows = countClientWindows(sessionA.get(), true);
     state->b_visible_windows = countClientWindows(sessionB.get(), true);
+    for (auto *owner : {sessionA.get(), sessionB.get()}) {
+        for (auto *window : owner->windows()->objects()) {
+            if (window->appId() != QLatin1String("org.deepin.session-launch-test"))
+                continue;
+            if (owner == sessionA.get()) {
+                state->a_splash_width = window->implicitWidth();
+                state->a_splash_height = window->implicitHeight();
+            } else {
+                state->b_splash_width = window->implicitWidth();
+                state->b_splash_height = window->implicitHeight();
+            }
+        }
+    }
     state->a_windows = countClientWindows(sessionA.get(), false);
     state->b_windows = countClientWindows(sessionB.get(), false);
     state->independent_workspaces = sessionA->workspace() != sessionB->workspace();
@@ -222,6 +246,9 @@ extern "C" void isolation_read(void *data)
     state->independent_desktops = sessionA->scene() != sessionB->scene()
         && aDesktop && bDesktop && aDesktop != bDesktop
         && aDesktop->viewRoot() != bDesktop->viewRoot()
+        && sessionA->windowConfigStore() != sessionB->windowConfigStore()
+        && sessionA->windowConfigStore()->parent() == sessionA.get()
+        && sessionB->windowConfigStore()->parent() == sessionB.get()
         && aDesktop->input()->parent() == aDesktop
         && bDesktop->input()->parent() == bDesktop
         && aDesktop->outputs()->parent() == aDesktop

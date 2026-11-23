@@ -21,10 +21,11 @@
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-SessionPrelaunch::SessionPrelaunch(Session *owner, WaylandServer *runtime)
-    : SessionComponent(owner), m_runtime(runtime), m_store(new WindowConfigStore(this))
+SessionPrelaunch::SessionPrelaunch(Session *owner, WindowConfigStore *store, WaylandServer *runtime)
+    : SessionComponent(owner), m_runtime(runtime), m_store(store)
     , m_protocol(new PrelaunchSplash)
 {
+    Q_ASSERT(m_store);
     owner->attachInterface(m_protocol);
     m_resolver = new AppIdResolverManager;
     owner->attachInterface(m_resolver);

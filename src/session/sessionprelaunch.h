@@ -20,7 +20,7 @@ class SessionPrelaunch : public SessionComponent
 {
     Q_OBJECT
 public:
-    SessionPrelaunch(Session *owner, WaylandServer *runtime);
+    SessionPrelaunch(Session *owner, WindowConfigStore *store, WaylandServer *runtime);
 
     void shutdown();
     bool needsResolution() const;

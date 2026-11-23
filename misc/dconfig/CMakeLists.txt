@@ -1,6 +1,6 @@
 install(FILES
     "org.deepin.dde.treeland.json"
-    "org.deepin.dde.treeland.app.json"
+    "org.deepin.dde.treeland.user.app.json"
     "org.deepin.dde.treeland.animation.json"
     "org.deepin.dde.treeland.user.json"
     "org.deepin.dde.treeland.output.json"
