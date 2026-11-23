@@ -432,10 +432,10 @@ QSize WSurface::bufferSize() const
                  d->handle()->current.buffer_height);
 }
 
-WLR::Transform WSurface::orientation() const
+WOutput::Transform WSurface::orientation() const
 {
     W_DC(WSurface);
-    return static_cast<WLR::Transform>(d->handle()->current.transform);
+    return static_cast<WOutput::Transform>(d->handle()->current.transform);
 }
 
 int WSurface::bufferScale() const
