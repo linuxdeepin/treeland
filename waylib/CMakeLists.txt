@@ -23,11 +23,32 @@ option(WAYLIB_USE_PERCOMPILE_HEADERS "Use precompile headers to build waylib" OF
 # wins. See the Treeland top-level CMakeLists.txt.
 option(TREELAND_INSTALL_DEV "Install development files (headers, CMake config, pkg-config, .so symlinks)" ON)
 
+# When built as a Treeland submodule, Treeland's top-level CMakeLists already
+# defines this cache option (default OFF) and performs the fetch before
+# add_subdirectory(waylib). Standalone waylib builds may enable it to build
+# dde-wlroots in-tree instead of requiring the installed dde-wlroots-dev.
+option(TREELAND_FETCH_DDE_WLROOTS "Fetch and build dde-wlroots via FetchContent instead of requiring the installed dde-wlroots-dev package" OFF)
+
 find_package(Qt6 COMPONENTS Core Gui Quick REQUIRED)
 if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
     find_package(Qt6 REQUIRED COMPONENTS GuiPrivate QuickPrivate)
 endif()
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/WaylandScannerHelpers.cmake)
+
+if(TREELAND_FETCH_DDE_WLROOTS AND NOT TARGET Wlroots::wlroots)
+    # Build dde-wlroots from source as a subproject. It defines the
+    # Wlroots::wlroots target and exports WLR_HAVE_* / WLROOTS_VERSION into
+    # this scope, so waylib regenerates wconfig.h without an installed
+    # dde-wlroots-dev package.
+    include(FetchContent)
+    FetchContent_Declare(
+        dde_wlroots
+        GIT_REPOSITORY https://github.com/linuxdeepin/dde-wlroots.git
+        GIT_TAG master
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(dde_wlroots)
+endif()
 
 # Standalone build (e.g. waylib CI packaging): the vendored wlroots tree
 # lives next to waylib in the monorepo. Pull it in so the Wlroots::wlroots
