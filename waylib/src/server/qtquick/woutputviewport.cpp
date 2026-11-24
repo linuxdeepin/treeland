@@ -89,7 +89,7 @@ void WOutputViewportPrivate::updateRenderBufferSource()
         sources.append(extraRenderSource);
 
     forceRender = true;
-    bufferRenderer->setSourceList(sources, true);
+    bufferRenderer->setSourceList(sources, hideSource);
 }
 
 void WOutputViewportPrivate::setExtraRenderSource(QQuickItem *source)
@@ -253,7 +253,54 @@ void WOutputViewport::setOffscreen(bool newOffscreen)
     if (d->offscreen == newOffscreen)
         return;
     d->offscreen = newOffscreen;
+    d->update();
     Q_EMIT offscreenChanged();
+}
+
+bool WOutputViewport::hideSource() const
+{
+    W_DC(WOutputViewport);
+    return d->hideSource;
+}
+
+void WOutputViewport::setHideSource(bool hideSource)
+{
+    W_D(WOutputViewport);
+    if (d->hideSource == hideSource)
+        return;
+    d->hideSource = hideSource;
+    if (d->output)
+        d->updateRenderBufferSource();
+    Q_EMIT hideSourceChanged();
+}
+
+QSize WOutputViewport::bufferSize() const
+{
+    W_DC(WOutputViewport);
+    return d->bufferSize;
+}
+
+void WOutputViewport::setBufferSize(const QSize &size)
+{
+    W_D(WOutputViewport);
+    if (d->bufferSize == size)
+        return;
+    d->bufferSize = size;
+    d->update();
+    Q_EMIT bufferSizeChanged();
+}
+
+QSize WOutputViewport::effectiveBufferSize() const
+{
+    W_DC(WOutputViewport);
+    return d->bufferSize.isEmpty() ? (d->output ? d->output->size() : QSize())
+                                 : d->bufferSize;
+}
+
+wlr_swapchain *WOutputViewport::swapchain() const
+{
+    W_DC(WOutputViewport);
+    return d->bufferRenderer->swapchain();
 }
 
 bool WOutputViewport::cacheBuffer() const
@@ -388,7 +435,7 @@ QTransform WOutputViewport::sourceRectToTargetRectTransfrom() const
 {
     return WBufferRenderer::inputMapToOutput(effectiveSourceRect(),
                                              targetRect(),
-                                             output()->size(),
+                                             effectiveBufferSize(),
                                              devicePixelRatio());
 }
 
