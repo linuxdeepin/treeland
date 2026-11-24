@@ -48,6 +48,10 @@ public:
     void on_touch_frame();
     void on_touch_cancel(wlr_touch_cancel_event *event);
     void on_touch_up(wlr_touch_up_event *event);
+    void on_tablet_axis(wlr_tablet_tool_axis_event *event);
+    void on_tablet_button(wlr_tablet_tool_button_event *event);
+    void on_tablet_tip(wlr_tablet_tool_tip_event *event);
+    void on_tablet_proximity(wlr_tablet_tool_proximity_event *event);
     // end slot function
 
     void connect();
