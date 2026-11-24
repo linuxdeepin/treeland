@@ -664,10 +664,8 @@ public:
     // Owns the native destroy listener of the tooltip surface. The token is
     // its own listener target instead of the surface wrapper: the wrapper may
     // belong to another dock preview context and be released before the
-    // surface dies, and the popover still has to be closed in that case.
+    // surface dies, and the tooltip still has to lose its listener in that case.
     WListenerOwner m_tooltipDestroyListenerOwner;
-    // Whether the tooltip, and not the preview, is what the UI displays.
-    bool tooltipShown = false;
 
     void setTooltipSurface(wlr_surface *surface);
     void releaseTooltipSurface();
@@ -782,11 +780,6 @@ void DockPreviewContextV3Private::tooltipSurfaceDestroyed()
         delete tooltipSurface.data();
     }
     tooltipSurface = nullptr;
-
-    if (tooltipShown) {
-        tooltipShown = false;
-        Q_EMIT q->requestClose();
-    }
 }
 
 void DockPreviewContextV3Private::destroy_resource([[maybe_unused]] Resource *resource)
@@ -849,7 +842,6 @@ void DockPreviewContextV3Private::showPreview([[maybe_unused]] Resource *resourc
         qCCritical(lcTlProtocol) << "Got empty identifier list for dock preview!";
 
     // The preview replaces the tooltip.
-    tooltipShown = false;
     leaveTooltipOutputs();
 
     Q_EMIT q->requestShow(QPoint(x, y),
@@ -892,7 +884,6 @@ void DockPreviewContextV3Private::show_tooltip_surface(Resource *resource,
 
     setTooltipSurface(surface);
 
-    tooltipShown = true;
     enterTooltipOutputs();
     Q_EMIT q->requestShowTooltip(
         tooltipSurface.data(),
@@ -902,7 +893,6 @@ void DockPreviewContextV3Private::show_tooltip_surface(Resource *resource,
 
 void DockPreviewContextV3Private::close([[maybe_unused]] Resource *resource)
 {
-    tooltipShown = false;
     leaveTooltipOutputs();
     Q_EMIT q->requestClose();
 }

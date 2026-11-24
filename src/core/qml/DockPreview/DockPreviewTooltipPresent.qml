@@ -24,12 +24,19 @@ QtObject {
     // left: a switch never has to measure a layer that is already fading out.
     readonly property size naturalSize: liveSize.width > 0 ? liveSize : lastSize
 
-    // `surface` is the reported tooltip surface; null means it went away.
+    // `surface` is the reported tooltip surface. Null means the surface the
+    // layer shows is gone.
     function applySurface(surface) {
+        if (!surface)
+            return;
+
         const live = liveLayer;
-        if (surface)
-            createLive(surface);
+        createLive(surface);
         demote(live);
+    }
+
+    function clear() {
+        demote(liveLayer);
     }
 
     function createLive(surface) {
