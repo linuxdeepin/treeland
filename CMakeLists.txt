@@ -20,6 +20,9 @@ include(cmake/DefineTarget.cmake)
 option(WITH_SUBMODULE_WAYLIB "Use the waylib from git submodule" ON)
 add_feature_info(submodule_waylib WITH_SUBMODULE_WAYLIB "Use waylib from submodule")
 
+option(TREELAND_FETCH_DDE_WLROOTS "Fetch and build dde-wlroots via FetchContent instead of requiring the installed dde-wlroots-dev package" OFF)
+add_feature_info(fetch_dde_wlroots TREELAND_FETCH_DDE_WLROOTS "Fetch and build dde-wlroots from source")
+
 option(ADDRESS_SANITIZER "Enable address sanitizer" OFF)
 add_feature_info(ASanSupport ADDRESS_SANITIZER "https://github.com/google/sanitizers/wiki/AddressSanitizer")
 
@@ -96,6 +99,29 @@ set(LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/qt/qml")
 # PKG-CONFIG
 find_package(PkgConfig REQUIRED)
 
+# dde-wlroots (static wlroots) is resolved one of two mutually exclusive
+# ways: fetched and built from source, or discovered as the installed
+# dde-wlroots-dev package via pkg-config.
+if(TREELAND_FETCH_DDE_WLROOTS)
+    # Build dde-wlroots from source as a subproject. It defines the
+    # Wlroots::wlroots target and exports WLR_HAVE_* / WLROOTS_VERSION into
+    # this scope, so waylib (below) regenerates wconfig.h without an installed
+    # dde-wlroots-dev package.
+    include(FetchContent)
+    FetchContent_Declare(
+        dde_wlroots
+        GIT_REPOSITORY https://github.com/linuxdeepin/dde-wlroots.git
+        GIT_TAG master
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(dde_wlroots)
+else()
+    # Installed dde-wlroots-dev package: resolve the static libdde-wlroots.a
+    # via its pkg-config module and expose it as Wlroots::wlroots.
+    pkg_check_modules(WLR_INSTALLED REQUIRED IMPORTED_TARGET dde-wlroots)
+    add_library(Wlroots::wlroots ALIAS PkgConfig::WLR_INSTALLED)
+endif()
+
 if(WITH_SUBMODULE_WAYLIB)
     include(${CMAKE_CURRENT_SOURCE_DIR}/waylib/cmake/WaylandScannerHelpers.cmake)
     add_subdirectory(waylib)
@@ -103,6 +129,11 @@ if(WITH_SUBMODULE_WAYLIB)
 else()
     # Consume the wlroots library exported by the installed Waylib package
     # instead of building a second vendored copy (dual-link/ODR risk).
+    if(TREELAND_FETCH_DDE_WLROOTS)
+        message(FATAL_ERROR
+            "TREELAND_FETCH_DDE_WLROOTS=ON requires WITH_SUBMODULE_WAYLIB=ON "
+            "(it builds waylib from source in-tree).")
+    endif()
     find_package(Waylib REQUIRED Server)
     if(NOT DISABLE_XWAYLAND)
         # The installed headers can disable Xwayland independently of our
@@ -136,15 +167,6 @@ int main() { return 0; }
     # the vendored helpers so external builds do not depend on the scanner
     # helpers being exported by the installed Waylib package.
     include(${CMAKE_CURRENT_SOURCE_DIR}/waylib/cmake/WaylandScannerHelpers.cmake)
-endif()
-
-# wlroots is no longer vendored here: it comes from the installed dde-wlroots
-# development package (static libdde-wlroots.a), so nothing from it is
-# needed at runtime. Keep this after add_subdirectory(waylib): waylib resolves
-# the very same package itself when Wlroots::wlroots is not defined yet.
-if(NOT TARGET Wlroots::wlroots)
-    pkg_check_modules(WLR_INSTALLED REQUIRED IMPORTED_TARGET dde-wlroots)
-    add_library(Wlroots::wlroots ALIAS PkgConfig::WLR_INSTALLED)
 endif()
 
 # wlr-protocols ships the wlr-private Wayland protocol XMLs (wlr-layer-shell,

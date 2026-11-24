@@ -57,6 +57,9 @@ cmake --preset default -DCMAKE_BUILD_TYPE=Debug
 | `DISABLE_XWAYLAND` | `OFF` | 关闭 Treeland/waylib 的 Xwayland 路径；不构建 Xwayland helper、xwindow-control 模块及其测试 |
 | `EXT_SESSION_LOCK_V1` | `ON` | 用 ext-session-lock 作为 DDM 之外的锁屏方案 |
 | `USE_BUILD_TREE_WALLPAPER_FACTORY` | `OFF` | 直接用构建树里的 wallpaper factory |
+| `TREELAND_FETCH_DDE_WLROOTS` | `OFF` | 用 FetchContent 从源码拉取并编译 `dde-wlroots`（不要求系统安装 `dde-wlroots-dev`）|
+
+`TREELAND_FETCH_DDE_WLROOTS=ON` 与系统安装的 `dde-wlroots-dev` 是二选一关系：开启时用 FetchContent 把 `dde-wlroots` 作为子项目编译并生成 `Wlroots::wlroots` target，waylib 会用该 target 重生成 `wconfig.h`，因此不再需要系统的 `dde-wlroots-dev` 包（但 `wlr-protocols` 仍必需）；关闭时通过 pkg-config 解析已安装的 `dde-wlroots`。该选项对 treeland（`WITH_SUBMODULE_WAYLIB=ON`）和 standalone waylib 都生效。源码默认拉 `linuxdeepin/dde-wlroots` 的 `master` 分支；用 `-DFETCHCONTENT_SOURCE_DIR_DDE_WLROOTS=<本地目录>` 可指到本地 checkout，避免联网。注意：deb 打包（`dpkg-buildpackage`/`dh_auto_configure`）会强制 `FETCHCONTENT_FULLY_DISCONNECTED=true`，构建期无法联网，所以 Debian/Deepin 的 CI 仍走「克隆 + 安装 dde-wlroots-dev」而不是 FetchContent。
 
 使用系统 Waylib（`WITH_SUBMODULE_WAYLIB=OFF`）时，若其没有 Xwayland 支持，必须同时设置 `DISABLE_XWAYLAND=ON`；配置阶段会编译探测系统头文件，提前拒绝特性不匹配的组合。探测失败的其他原因见 CMake configure 日志。
 

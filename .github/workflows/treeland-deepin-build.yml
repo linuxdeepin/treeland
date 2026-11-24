@@ -52,6 +52,32 @@ jobs:
           apt-get install -y ../*.deb || dpkg -i ../*.deb || apt-get -f install -y
           cd "$TREELAND_DIR"
 
+          # dde-wlroots (static wlroots) is no longer vendored in this tree and
+          # the crimson repositories do not ship dde-wlroots-dev, so build it
+          # from source and install it before resolving treeland's own
+          # Build-Depends. Debian packaging must keep building against the
+          # installed headers instead of FetchContent: dh_auto_configure forces
+          # FETCHCONTENT_FULLY_DISCONNECTED=true, so the source tree cannot be
+          # downloaded during dpkg-buildpackage.
+          echo "🔧 Building dde-wlroots from source (master)"
+          cd /tmp
+          if [ ! -d dde-wlroots ]; then
+            git clone --depth=1 --branch master --single-branch https://github.com/linuxdeepin/dde-wlroots.git
+          fi
+          cd dde-wlroots
+          apt-get build-dep -y .
+          dpkg-buildpackage -uc -us -b
+          # `..` is /tmp, which also holds the treeland-protocols debs built
+          # above; the dde-wlroots-dev_* glob keeps them out of this install.
+          apt-get install -y ../dde-wlroots-dev_*.deb \
+            || dpkg -i --force-all ../dde-wlroots-dev_*.deb \
+            || apt-get -f install -y
+          if ! dpkg -s dde-wlroots-dev > /dev/null 2>&1; then
+            echo "❌ dde-wlroots-dev is still not installed after building dde-wlroots from source"
+            exit 1
+          fi
+          cd "$TREELAND_DIR"
+
           set +ex
           BUILD_DEP_PROBE="$(LC_ALL=C apt-get -s build-dep -y . 2>&1)"
           PROBE_RC=$?

@@ -25,15 +25,23 @@ find_package(PkgConfig REQUIRED)
 pkg_search_module(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
 set(WAYLIB_WLROOTS_INCLUDE_DIRS "")
 set(WAYLIB_WLROOTS_PUBLIC_TARGET "")
-if (NOT TARGET Wlroots::wlroots)
-    # Standalone Waylib build against an installed dde-wlroots (built by
-    # the dde-wlroots CMake scaffold, which also installs its headers and
-    # dde-wlroots.pc). Resolve the library, its public dependencies and
-    # the wconfig.h feature metadata from that pkg-config file, so
-    # no monorepo layout is assumed.
+if(TREELAND_FETCH_DDE_WLROOTS)
+    # dde-wlroots was built in-tree (Treeland/waylib via FetchContent) and
+    # exported WLR_HAVE_* / WLROOTS_VERSION. The Wlroots::wlroots target
+    # already exists and carries its include dirs and compile definitions,
+    # so nothing needs to be resolved from pkg-config.
+    set(WAYLIB_WLROOTS_PUBLIC_TARGET Wlroots::wlroots)
+else()
+    # Installed dde-wlroots-dev package: resolve the static libdde-wlroots.a
+    # via its pkg-config module and regenerate wconfig.h from the
+    # wlroots_version / wlroots_features variables it carries. The
+    # Wlroots::wlroots target may already exist (created by the parent
+    # project); only create it when missing.
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(WLR_INSTALLED REQUIRED IMPORTED_TARGET dde-wlroots)
-    add_library(Wlroots::wlroots ALIAS PkgConfig::WLR_INSTALLED)
+    if(NOT TARGET Wlroots::wlroots)
+        add_library(Wlroots::wlroots ALIAS PkgConfig::WLR_INSTALLED)
+    endif()
     set(WAYLIB_WLROOTS_PUBLIC_TARGET PkgConfig::WLR_INSTALLED)
     foreach(_dir IN LISTS WLR_INSTALLED_INCLUDE_DIRS)
         list(APPEND WAYLIB_WLROOTS_INCLUDE_DIRS "$<BUILD_INTERFACE:${_dir}>")
@@ -43,13 +51,6 @@ if (NOT TARGET Wlroots::wlroots)
     foreach(_feature IN LISTS _waylib_wlroots_features)
         set(WLR_HAVE_${_feature} 1)
     endforeach()
-else()
-    set(WAYLIB_WLROOTS_PUBLIC_TARGET Wlroots::wlroots)
-    set(_waylib_wlroots_include "${CMAKE_CURRENT_SOURCE_DIR}/../../../3rdparty/wlroots/include")
-    if (NOT EXISTS "${_waylib_wlroots_include}/wlr")
-        message(FATAL_ERROR "waylib uses vendored wlroots, but headers were not found at ${_waylib_wlroots_include}")
-    endif()
-    list(APPEND WAYLIB_WLROOTS_INCLUDE_DIRS "$<BUILD_INTERFACE:${_waylib_wlroots_include}>")
 endif()
 set(WLROOTS_TARGET Wlroots::wlroots)
 pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
