@@ -25,6 +25,7 @@
 #include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
 #include "core/shellhandler.h"
+#include "core/windowconfigstore.h"
 #include "output/output.h"
 #include "core/waylandserver.h"
 #include "treelanduserconfig.hpp"
@@ -427,6 +428,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
     session->m_username = username;
     session->m_uid = passwd->pw_uid;
     session->m_config = DConfigManager::instance()->userConfig(username);
+    session->m_windowConfigStore = new WindowConfigStore(username, session.get());
     auto *runtime = WaylandServer::instance();
     session->m_workspace = new SessionWorkspace(session.get(), runtime);
     auto *workspace = session->workspace();
@@ -447,7 +449,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
     session->desktop()->attachInputChannel(new SessionInputChannel(session.get(), runtime));
     session->m_seatManager = new SessionSeatManager(session.get());
     session->m_protocols = new SessionProtocols(session.get());
-    session->m_prelaunch = new SessionPrelaunch(session.get(), runtime);
+    session->m_prelaunch = new SessionPrelaunch(session.get(), session->m_windowConfigStore, runtime);
     auto *outputProtocol = new WOutputManagerV1;
     session->attachInterface(outputProtocol);
     auto *channel = new SessionOutputChannel(session.get(), runtime->outputHardware(), runtime->rootContainer());

@@ -44,7 +44,7 @@ public:
     TreelandUserConfig *userConfig(const QString &userName);
     SeatUserDConfig *userSeatConfig(const QString &userName, const QString &seatName);
     OutputConfig *outputConfig(const QString &outputName);
-    AppConfig *appConfig(const QString &appId);
+    AppConfig *appConfig(const QString &userName, const QString &appId);
 
     // Creates and caches the initial user's configs. Returns true only when both
     // configs have already finished successfully; callers should listen for

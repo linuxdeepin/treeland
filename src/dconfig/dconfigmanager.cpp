@@ -187,20 +187,21 @@ OutputConfig *DConfigManager::outputConfig(const QString &outputName)
     return config;
 }
 
-AppConfig *DConfigManager::appConfig(const QString &appId)
+AppConfig *DConfigManager::appConfig(const QString &userName, const QString &appId)
 {
-    if (appId.isEmpty()) {
+    if (userName.isEmpty() || appId.isEmpty()) {
         return nullptr;
     }
 
-    if (auto *config = m_appConfigs.value(appId)) {
+    const QString subpath = configSubpath(userName) + configSubpath(appId);
+    if (auto *config = m_appConfigs.value(subpath)) {
         return config;
     }
 
     auto *config = AppConfig::create(QStringLiteral("org.deepin.dde.treeland"),
-                                     configSubpath(appId),
+                                     subpath,
                                      this);
-    m_appConfigs.insert(appId, config);
+    m_appConfigs.insert(subpath, config);
     return config;
 }
 

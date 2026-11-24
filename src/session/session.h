@@ -23,6 +23,7 @@ Q_MOC_INCLUDE("wallpaper/wallpapermanager.h")
 class Workspace;
 class SurfaceWrapper;
 class TreelandUserConfig;
+class WindowConfigStore;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServerInterface;
@@ -83,6 +84,7 @@ public:
     SessionSeatManager *seatManager() const { return m_seatManager; };
     SessionProtocols *protocols() const { return m_protocols; };
     SessionPrelaunch *prelaunch() const { return m_prelaunch; };
+    WindowConfigStore *windowConfigStore() const { return m_windowConfigStore; }
     SessionScene *scene() const { return m_scene; };
     SessionOutputManager *outputManager() const { return m_outputManager; };
     SessionSwitcher *switcher() const { return m_desktop ? m_desktop->switcher() : nullptr; };
@@ -125,6 +127,7 @@ private:
     SessionSeatManager *m_seatManager = nullptr;
     SessionProtocols *m_protocols = nullptr;
     SessionPrelaunch *m_prelaunch = nullptr;
+    WindowConfigStore *m_windowConfigStore = nullptr;
     SessionScene *m_scene = nullptr;
     SessionWorkspace *m_workspace = nullptr;
     SessionMultitaskView *m_multitaskView = nullptr;

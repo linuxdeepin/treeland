@@ -738,7 +738,9 @@ static int test_prelaunch_isolation(struct client_connection *a, struct client_c
     if (!as || !bs || wl_display_roundtrip(a->display) < 0 || wl_display_roundtrip(b->display) < 0
         || !invoke_on_server_thread(isolation_read, &state)
         || state.a_windows != 1 || state.b_windows != 1 || !state.independent_protocol_domains || !state.protocol_socket_ownership
-        || state.a_visible_windows != 1 || state.b_visible_windows != 0)
+        || state.a_visible_windows != 1 || state.b_visible_windows != 0
+        || state.a_splash_width != 720 || state.a_splash_height != 520
+        || state.b_splash_width != 940 || state.b_splash_height != 640)
         goto cleanup;
     treeland_prelaunch_splash_v2_destroy(bs);
     bs = NULL;

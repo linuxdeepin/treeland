@@ -83,3 +83,8 @@ xdg-foreign 接口新增状态断言（未编译、未执行）：每个 Session
 分别对应两个 WServerInterface 对象，绑定同一所属 socket，共享 native registry。
 配合现有 C registry 断言检查各连接仅看见自己的 exporter/importer global。
 尚未覆盖创建期间的广播、restart 以及 export/import token 的完整请求链路。
+
+应用配置隔离：fixture 经各自 Session 的 WindowConfigStore 保存同 appId 的 720×520 与 940×640 历史尺寸，
+真实 C 客户端分别请求启动闪屏，断言生产 wrapper 的尺寸分别匹配所属用户。
+本次尺寸隔离断言已通过 `ctest --test-dir obj-x86_64-linux-gnu -R '^test_session_isolation$' --output-on-failure`，未跳过。
+同时检查两个会话的存储对象不同，且 QObject 父对象分别为所属 Session。
