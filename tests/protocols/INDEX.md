@@ -134,7 +134,7 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 | output-manager-v2 | 7 / 7 | `primary_output` 初值与 uuid 确认、`primary_output_failed(invalid_output)` 非致命；picture-control 初始 `brightness`/`color_temperature`、`result`（success/invalid_output）与失效后 inert、越界色温致命协议错误 | `set_color_temperature/set_brightness` 成功路径及 brightness/color_temperature 事件回读、`invalid_brightness`、`unsupported`、真实像素变化、uuid 热插拔跟随 |
 | region-watch-unstable-v1 | 4 / 4 | `set_region` 后的强制评估；真实 toplevel 映射/关闭驱动的 `enter/leave`；输出重绑、`output_removed` 与惰性语义 | `invalid_anchor/invalid_size` 致命错误路径、输出 scale/mode 变化后的重新注册、多 watcher |
 | remote-subsurface-unstable-v1 | 8 / 8 | token；真实 Remote `WSubsurface` 的父子关系、位置、Below 层级、输入上下文查找父窗口；`parent_rejected` / `invalid_sibling` | 跨 client、循环 parent、映射生命周期、sibling 间排序 |
-| prelaunch-splash-v2 | 3 / 3 | 创建、关闭；真实 splash wrapper 加入/离开 workspace | splash QML 最终可见性、纹理和像素 |
+| prelaunch-splash-v2 | 3 / 3 | 创建、关闭；真实 splash wrapper 加入/离开 workspace；`binding_rejected` 单客户端绑定、拒绝后原客户端继续可用、销毁/断开后重绑 | splash QML 最终可见性、纹理和像素 |
 | screensaver-v1 | 2 / 3 | 真实 ext-idle 被 inhibit/uninhibit 改变 | 显式 `destroy` request、实际锁屏 UI |
 | shortcut-manager-v3 | 6 / 9 | `bind_failure`、`captured`、`activated`；真实 virtual keyboard 输入链 | swipe、hold、`unbind` 的业务分支；物理键盘 |
 | output-group-manager-v1 | 25 / 25 | 分组创建/镜像/解散、`set_source`/`add_output`/`remove_output` 的 uuid 与占用校验、promotion 生命周期 | 跨进程持久化、真实显示器内容一致性 |
