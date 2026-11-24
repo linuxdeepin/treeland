@@ -4,6 +4,7 @@
 #include "sessionprotocols.h"
 #include "session.h"
 #include "sessionworkspace.h"
+#include "toplevelcapturesource.h"
 #include "core/waylandserver.h"
 #include "core/rootsurfacecontainer.h"
 #include "surface/surfacewrapper.h"
@@ -19,7 +20,6 @@
 
 #include <wextforeigntoplevellistv1.h>
 #include <wextimagecapturesourcev1impl.h>
-#include <wsurfaceitem.h>
 #include <wsocket.h>
 #include <wscoplistener.h>
 #include <wxdgshell.h>
@@ -119,40 +119,12 @@ void SessionToplevelCapture::capture(wlr_ext_foreign_toplevel_image_capture_sour
         return;
     }
 
-    WSurfaceItem *surfaceItem = surfaceWrapper->surfaceItem();
-    if (!surfaceItem) {
-        qCWarning(lcTlCapture) << "Could not get WSurfaceItem from SurfaceWrapper";
-        wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request_accept(request, nullptr);
-        return;
-    }
+    // Validate and allocate the capture pipeline when the first session starts.
+    auto *imageCaptureSource = new ToplevelCaptureSource(surfaceWrapper);
+    connect(surfaceWrapper, &SurfaceWrapper::aboutToBeInvalidated,
+            imageCaptureSource, &WExtImageCaptureSourceV1Impl::invalidate);
 
-    WSurfaceItemContent *surfaceContent = surfaceItem->findItemContent();
-    if (!surfaceContent) {
-        qCWarning(lcTlCapture) << "Could not find WSurfaceItemContent";
-        wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request_accept(request, nullptr);
-        return;
-    }
-
-    qCDebug(lcTlCapture) << "Found WSurfaceItemContent for capture:"
-             << "size=" << surfaceContent->size()
-             << "implicitSize=" << QSizeF(surfaceContent->implicitWidth(), surfaceContent->implicitHeight())
-             << "isTextureProvider=" << surfaceContent->isTextureProvider();
-
-    auto *output = surfaceWrapper->ownsOutput() ? surfaceWrapper->ownsOutput()->output() : nullptr;
-    if (!output) {
-        qCWarning(lcTlCapture) << "Could not get WOutput from SurfaceWrapper";
-        wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request_accept(request, nullptr);
-        return;
-    }
-
-    auto *imageCaptureSource = new WExtImageCaptureSourceV1Impl(surfaceContent, output);
-
-    imageCaptureSource->setParent(surfaceWrapper);
-
-    bool success = wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request_accept(
-        request, imageCaptureSource->handle());
-
-    if (!success) {
+    if (!imageCaptureSource->accept(request)) {
         qCWarning(lcTlCapture) << "Failed to accept foreign toplevel image capture request";
         delete imageCaptureSource;
     }

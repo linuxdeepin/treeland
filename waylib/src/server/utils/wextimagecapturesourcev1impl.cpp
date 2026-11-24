@@ -2,117 +2,38 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wextimagecapturesourcev1impl.h"
-#include <wpointer.h>
-#include "wsurfaceitem.h"
-#include "wsgtextureprovider.h"
+#include "woutputviewport.h"
 #include "woutputrenderwindow.h"
-#include "woutput.h"
+#include "wsgtextureprovider.h"
+#include "wpointer.h"
 #include "wtools.h"
 #include "wayliblogging.h"
 
 #include <wlr_all.h>
-#include <wcontainerof.h>
 
-#include <memory>
-
-extern "C" {
-#include <pixman.h>
+#include <QHash>
+#include <cstdlib>
+#include <time.h>
 #include <drm_fourcc.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <stdlib.h>
-}
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-// The wlr_ext_image_capture_source_v1 has no data field and
-// WExtImageCaptureSourceV1Impl is not standard-layout (QObject base), so a
-// container_of lookup is not possible; use a registry instead.
+// QObject is not standard-layout, so the native callbacks use a registry
+// instead of container_of on the capture source object.
 static QHash<wlr_ext_image_capture_source_v1 *, WExtImageCaptureSourceV1Impl *> s_captureSourceMap;
 
-// Helper for constraint building
-struct ConstraintBuilder {
-    wlr_ext_image_capture_source_v1 *source;
-    WOutput *output;
-
-    ConstraintBuilder(wlr_ext_image_capture_source_v1 *src, WOutput *out)
-        : source(src), output(out) {}
-
-    void setSize(int width, int height) {
-        source->width = width;
-        source->height = height;
-    }
-
-    void buildShmFormats() {
-        auto renderer = output->renderer();
-        auto swapchain = output->swapchain();
-        uint32_t format = DRM_FORMAT_ARGB8888; // fallback
-
-        if (renderer && swapchain) {
-            if (struct wlr_buffer *buffer = wlr_swapchain_acquire(swapchain)) {
-                WBufferUnlockPtr bufferGuard(buffer);
-                WUniquePointer<wlr_texture> texture(
-                    wlr_texture_from_buffer(renderer, buffer));
-
-                if (texture) {
-                    uint32_t shm_format = wlr_texture_preferred_read_format(texture.get());
-                    if (shm_format != DRM_FORMAT_INVALID) {
-                        format = shm_format;
-                    }
-                }
-            }
-        }
-
-        // wlroots frees shm_formats with free() (ext_image_capture_source_v1),
-        // so the allocation must use the C allocator — new[]/delete[] would be
-        // an alloc/dealloc mismatch (UB, ASan alloc-dealloc-mismatch).
-        free(source->shm_formats);
-        source->shm_formats = static_cast<uint32_t*>(malloc(sizeof(uint32_t)));
-        if (source->shm_formats) {
-            source->shm_formats[0] = format;
-            source->shm_formats_len = 1;
-        } else {
-            source->shm_formats_len = 0;
-        }
-
-        qCDebug(lcWlImageCapture) << "Set SHM format:" << format;
-    }
-
-    void buildDmabufFormats() {
-        auto renderer = output->renderer();
-        auto swapchain = output->swapchain();
-
-        if (!renderer || !swapchain) return;
-
-        int drm_fd = wlr_renderer_get_drm_fd(renderer);
-        if (swapchain->allocator &&
-            (swapchain->allocator->buffer_caps & WLR_BUFFER_CAP_DMABUF) &&
-            drm_fd >= 0) {
-
-            struct stat dev_stat;
-            if (fstat(drm_fd, &dev_stat) == 0) {
-                source->dmabuf_device = dev_stat.st_rdev;
-
-                // Clean up old DMA-BUF formats
-                wlr_drm_format_set_finish(&source->dmabuf_formats);
-                source->dmabuf_formats = (struct wlr_drm_format_set){};
-
-                // Copy DMA-BUF formats from swapchain
-                for (size_t i = 0; i < swapchain->format.len; i++) {
-                    wlr_drm_format_set_add(&source->dmabuf_formats,
-                        swapchain->format.format, swapchain->format.modifiers[i]);
-                }
-                qCDebug(lcWlImageCapture) << "Set DMA-BUF constraints";
-            }
-        }
-    }
-
-    void apply() {
-        wl_signal_emit_mutable(&source->events.constraints_update, nullptr);
-    }
+struct CaptureFrameEvent {
+    wlr_ext_image_capture_source_v1_frame_event base;
+    wlr_buffer *buffer;
+    timespec when;
 };
 
-const struct wlr_ext_image_capture_source_v1_interface WExtImageCaptureSourceV1Impl::impl = {
+struct SourceResourceDestroyListener {
+    wl_listener listener;
+    WExtImageCaptureSourceV1Impl *self;
+};
+
+const wlr_ext_image_capture_source_v1_interface WExtImageCaptureSourceV1Impl::impl = {
     .start = WExtImageCaptureSourceV1Impl::start,
     .stop = WExtImageCaptureSourceV1Impl::stop,
     .request_frame = WExtImageCaptureSourceV1Impl::request_frame,
@@ -120,109 +41,243 @@ const struct wlr_ext_image_capture_source_v1_interface WExtImageCaptureSourceV1I
     .get_pointer_cursor = WExtImageCaptureSourceV1Impl::get_pointer_cursor,
 };
 
-WExtImageCaptureSourceV1Impl::WExtImageCaptureSourceV1Impl(WSurfaceItemContent *surfaceContent, WOutput *output)
-    : QObject(surfaceContent) // TODO: Check if Qt object tree destruction timing is appropriate
-    , m_surfaceContent(surfaceContent)
-    , m_output(output)
-    , m_capturing(false)
-    , m_renderEndConnection()
+WExtImageCaptureSourceV1Impl::WExtImageCaptureSourceV1Impl(QObject *parent)
+    : QObject(parent)
 {
-    Q_ASSERT(m_surfaceContent);
-
-    // Initialize wlr_ext_image_capture_source_v1
     wlr_ext_image_capture_source_v1_init(&source, &impl);
     s_captureSourceMap.insert(&source, this);
-
-    // Get actual surface size and set constraints directly
-    auto surface = m_surfaceContent->surface();
-    if (surface && surface->handle()) {
-        auto wlr_surface = surface->handle();
-        int width = wlr_surface->current.width;
-        int height = wlr_surface->current.height;
-
-        // Validate dimensions before setting constraints
-        if (width > 0 && height > 0) {
-            // Use constraint builder helper directly
-            ConstraintBuilder builder(&source, m_output);
-            builder.setSize(width, height);
-            builder.buildShmFormats();
-            builder.buildDmabufFormats();
-            builder.apply();
-
-            qCDebug(lcWlImageCapture) << "Initial constraints set successfully:";
-            qCDebug(lcWlImageCapture) << "  - Width:" << width;
-            qCDebug(lcWlImageCapture) << "  - Height:" << height;
-        } else {
-            qCWarning(lcWlImageCapture) << "Invalid surface dimensions for constraints:" << width << "x" << height;
-        }
-    } else {
-        qCWarning(lcWlImageCapture) << "No valid surface available for setting initial constraints";
-    }
 }
 
 WExtImageCaptureSourceV1Impl::~WExtImageCaptureSourceV1Impl()
 {
-    if (m_capturing) {
-        qCDebug(lcWlImageCapture) << "WExtImageCaptureSourceV1Impl destroyed while capturing";
-    }
-    wlr_ext_image_capture_source_v1_finish(&source);
+    m_inDestructor = true;
+    invalidate();
     s_captureSourceMap.remove(&source);
 }
 
-void WExtImageCaptureSourceV1Impl::start(struct wlr_ext_image_capture_source_v1 *source, bool with_cursors)
+void WExtImageCaptureSourceV1Impl::invalidate()
+{
+    if (m_finished)
+        return;
+    m_finished = true;
+    // The client resources may outlive this object. Detach their listeners
+    // before finish() so their later destruction cannot reach freed memory.
+    detachResourceListeners();
+    // Finishing the source stops every session and makes its resources inert.
+    // Detach the viewport while the output and its render window still exist.
+    wlr_ext_image_capture_source_v1_finish(&source);
+    releaseViewport();
+    if (!m_inDestructor)
+        deleteLater();
+}
+
+WOutputViewport *WExtImageCaptureSourceV1Impl::ensureViewport()
+{
+    if (m_viewport)
+        return m_viewport.data();
+
+    auto *viewport = createViewport();
+    if (!viewport)
+        return nullptr;
+    Q_ASSERT(viewport->offscreen() && !viewport->hideSource());
+    auto *renderWindow = viewport->outputRenderWindow();
+    if (!viewport->output() || !renderWindow) {
+        qCWarning(lcWlImageCapture) << "Capture viewport is not attached to an output render window";
+        delete viewport;
+        return nullptr;
+    }
+    viewport->setParent(this);
+    viewport->setVisible(false);
+    m_viewport = viewport;
+
+    m_viewportConnections << connect(viewport, &WOutputViewport::frameRendered,
+                                    this, &WExtImageCaptureSourceV1Impl::handleFrameRendered)
+                          << connect(viewport, &WOutputViewport::frameRenderFailed,
+                                     this, &WExtImageCaptureSourceV1Impl::handleFrameRenderFailed)
+                          << connect(viewport, &WOutputViewport::bufferSizeChanged,
+                                     this, &WExtImageCaptureSourceV1Impl::updateConstraints)
+                          << connect(viewport->output(), &WOutput::beforeDestroy,
+                                     this, &WExtImageCaptureSourceV1Impl::invalidate)
+                          << connect(viewport->output(), &WOutput::enabledChanged,
+                                     this, &WExtImageCaptureSourceV1Impl::schedulePendingRender)
+                          << connect(viewport->input(), &QObject::destroyed,
+                                     this, &WExtImageCaptureSourceV1Impl::invalidate)
+                          << connect(renderWindow, &QQuickWindow::sceneGraphInvalidated,
+                                     this, &WExtImageCaptureSourceV1Impl::invalidate)
+                          << connect(renderWindow, &WOutputRenderWindow::renderEnabledChanged,
+                                     this, &WExtImageCaptureSourceV1Impl::schedulePendingRender);
+    // wlroots sends the session constraints right after start() returns, so
+    // they must be valid before the viewport has rendered anything.
+    updateConstraints();
+    return viewport;
+}
+
+void WExtImageCaptureSourceV1Impl::releaseViewport()
+{
+    m_renderPending = false;
+    m_fallbackQueued = false;
+    disconnect(m_resumeRenderConnection);
+    m_resumeRenderConnection = {};
+    if (!m_viewport)
+        return;
+
+    for (const auto &connection : std::as_const(m_viewportConnections))
+        disconnect(connection);
+    m_viewportConnections.clear();
+
+    m_viewport->setVisible(false);
+    delete m_viewport.data();
+    m_viewport = nullptr;
+    // Keep cached constraints for startup; refresh them from the next swapchain.
+    m_constraintsFromSwapchain = false;
+}
+
+bool WExtImageCaptureSourceV1Impl::accept(
+    wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request)
+{
+    if (m_finished)
+        return false;
+    // The request's new_id is private to wlroots, so the accept helper is the
+    // only supported way to create the client resource.
+    if (!wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request_accept(request, &source))
+        return false;
+
+    attachResourceListeners();
+    return true;
+}
+
+void WExtImageCaptureSourceV1Impl::attachResourceListeners()
+{
+    struct wl_resource *resource;
+    wl_resource_for_each(resource, &source.resources) {
+        if (m_resourceListeners.contains(resource))
+            continue;
+        auto *entry = static_cast<SourceResourceDestroyListener *>(
+            std::calloc(1, sizeof(SourceResourceDestroyListener)));
+        if (!entry)
+            continue;
+        entry->self = this;
+        entry->listener.notify = &WExtImageCaptureSourceV1Impl::resourceDestroyed;
+        m_resourceListeners.insert(resource, entry);
+        wl_resource_add_destroy_listener(resource, &entry->listener);
+    }
+}
+
+void WExtImageCaptureSourceV1Impl::detachResourceListeners()
+{
+    for (auto *entry : std::as_const(m_resourceListeners)) {
+        wl_list_remove(&entry->listener.link);
+        std::free(entry);
+    }
+    m_resourceListeners.clear();
+}
+
+void WExtImageCaptureSourceV1Impl::resourceDestroyed(wl_listener *listener, void *data)
+{
+    SourceResourceDestroyListener *entry;
+    entry = wl_container_of(listener, entry, listener);
+    auto *self = entry->self;
+    auto *resource = static_cast<wl_resource *>(data);
+    self->m_resourceListeners.remove(resource);
+
+    // wl_resource_destroy() notifies destroy listeners before wlroots unlinks
+    // the resource from source.resources. Unlink it now so the recycle check
+    // below sees the client's last resource as gone. wlroots' own destructor
+    // then removes an already initialized link, which is a no-op.
+    wl_list_remove(wl_resource_get_link(resource));
+    wl_list_init(wl_resource_get_link(resource));
+    std::free(entry);
+
+    self->maybeRecycle();
+}
+
+void WExtImageCaptureSourceV1Impl::maybeRecycle()
+{
+    if (m_finished || m_recycleScheduled)
+        return;
+    if (m_numStarted > 0 || !wl_list_empty(&source.resources))
+        return;
+
+    // stop() and resource destruction run inside wlroots' session teardown.
+    // Finishing the source there would re-enter session_destroy() for the
+    // session that is still on the stack, so recycle on the next event loop
+    // iteration instead.
+    m_recycleScheduled = true;
+    QMetaObject::invokeMethod(this, &WExtImageCaptureSourceV1Impl::invalidate,
+                              Qt::QueuedConnection);
+}
+
+void WExtImageCaptureSourceV1Impl::updateConstraints()
+{
+    if (m_finished || !m_viewport)
+        return;
+
+    const auto size = m_viewport->effectiveBufferSize();
+    if (size.isEmpty())
+        return;
+    auto *swapchain = m_viewport->swapchain();
+    const bool matchingSwapchain = swapchain && swapchain->width == size.width()
+        && swapchain->height == size.height();
+    const bool sizeChanged = source.width != uint32_t(size.width())
+        || source.height != uint32_t(size.height());
+    if (sizeChanged)
+        m_constraintsFromSwapchain = false;
+    if (!sizeChanged && (!matchingSwapchain || m_constraintsFromSwapchain)
+        && source.shm_formats_len > 0)
+        return;
+
+    if (matchingSwapchain) {
+        // Advertise the formats of the capture swapchain, never the screen's.
+        if (wlr_ext_image_capture_source_v1_set_constraints_from_swapchain(
+                &source, swapchain, m_viewport->output()->renderer())) {
+            m_constraintsFromSwapchain = true;
+            return;
+        }
+        qCWarning(lcWlImageCapture) << "Failed to update viewport capture constraints" << size;
+    }
+
+    source.width = size.width();
+    source.height = size.height();
+    if (source.shm_formats_len == 0) {
+        // The first render is asynchronous. SHM is usable before DMA-BUF
+        // constraints can be obtained from the viewport's own swapchain.
+        source.shm_formats = static_cast<uint32_t *>(std::malloc(sizeof(uint32_t)));
+        if (source.shm_formats) {
+            source.shm_formats[0] = DRM_FORMAT_ARGB8888;
+            source.shm_formats_len = 1;
+        }
+    }
+    wl_signal_emit_mutable(&source.events.constraints_update, nullptr);
+}
+
+void WExtImageCaptureSourceV1Impl::start(wlr_ext_image_capture_source_v1 *source, bool with_cursors)
 {
     auto *self = s_captureSourceMap.value(source);
     Q_ASSERT(self);
     self->start(with_cursors);
 }
 
-void WExtImageCaptureSourceV1Impl::start(bool with_cursors)
+void WExtImageCaptureSourceV1Impl::start([[maybe_unused]] bool with_cursors)
 {
-    // TODO: Implement cursor capture if needed
-    m_capturing = true;
-    qCDebug(lcWlImageCapture) << "WExtImageCaptureSourceV1Impl::start() with_cursors:" << with_cursors;
+    if (m_finished)
+        return;
+    ++m_numStarted;
+    if (m_numStarted > 1)
+        return;
 
-    // TODO: Optimize multiple clients capturing the same window
-    // Currently each client creates its own WExtImageCaptureSourceV1Impl instance,
-    // which means multiple render listeners for the same surface. Consider implementing
-    // a manager to share render events among multiple capture sources.
-
-    if (!m_surfaceContent) {
-        qCWarning(lcWlImageCapture) << "No surface content available for capture";
+    if (!ensureViewport()) {
+        // wlroots has not attached the session's destroy listener yet, so the
+        // failure must be reported once session creation has finished.
+        qCWarning(lcWlImageCapture) << "No capture viewport available for a new session";
+        QMetaObject::invokeMethod(this, &WExtImageCaptureSourceV1Impl::invalidate,
+                                  Qt::QueuedConnection);
         return;
     }
-
-    // Get render window
-    auto textureProvider = m_surfaceContent->wTextureProvider();
-    if (!textureProvider) {
-        qCWarning(lcWlImageCapture) << "No texture provider available for start";
-        return;
-    }
-
-    auto renderWindow = textureProvider->window();
-    if (!renderWindow) {
-        qCWarning(lcWlImageCapture) << "No render window available for start";
-        return;
-    }
-
-    // Connect to renderEnd signal
-    m_renderEndConnection = connect(renderWindow,
-                                   &WOutputRenderWindow::renderEnd,
-                                   this,
-                                   &WExtImageCaptureSourceV1Impl::handleRenderEnd,
-                                   Qt::AutoConnection);
-
-    if (!m_renderEndConnection) {
-        qCWarning(lcWlImageCapture) << "Cannot connect to render end of output render window";
-    }
-
-    // If not currently rendering, trigger immediately
-    if (!renderWindow->inRendering()) {
-        QMetaObject::invokeMethod(this, &WExtImageCaptureSourceV1Impl::handleRenderEnd, Qt::AutoConnection);
-    }
+    m_viewport->setVisible(true);
+    scheduleRender();
 }
 
-void WExtImageCaptureSourceV1Impl::stop(struct wlr_ext_image_capture_source_v1 *source)
+void WExtImageCaptureSourceV1Impl::stop(wlr_ext_image_capture_source_v1 *source)
 {
     auto *self = s_captureSourceMap.value(source);
     Q_ASSERT(self);
@@ -231,85 +286,132 @@ void WExtImageCaptureSourceV1Impl::stop(struct wlr_ext_image_capture_source_v1 *
 
 void WExtImageCaptureSourceV1Impl::stop()
 {
-    m_capturing = false;
-    qCDebug(lcWlImageCapture) << "WExtImageCaptureSourceV1Impl::stop()";
+    Q_ASSERT(m_numStarted > 0);
+    if (--m_numStarted > 0 || m_finished)
+        return;
 
-    // Disconnect render end connection
-    if (m_renderEndConnection) {
-        disconnect(m_renderEndConnection);
-        m_renderEndConnection = QMetaObject::Connection();
-    }
+    releaseViewport();
+    maybeRecycle();
 }
 
-void WExtImageCaptureSourceV1Impl::request_frame(struct wlr_ext_image_capture_source_v1 *source, bool schedule_frame)
+void WExtImageCaptureSourceV1Impl::request_frame(wlr_ext_image_capture_source_v1 *source,
+                                                [[maybe_unused]] bool schedule_frame)
 {
     auto *self = s_captureSourceMap.value(source);
     Q_ASSERT(self);
-    self->schedule_frame(schedule_frame);
+    self->scheduleRender();
 }
 
-void WExtImageCaptureSourceV1Impl::schedule_frame(bool schedule_frame)
+void WExtImageCaptureSourceV1Impl::scheduleRender()
 {
-    qCDebug(lcWlImageCapture) << "WExtImageCaptureSourceV1Impl::schedule_frame()";
-
-    if (!m_capturing) {
-        qCWarning(lcWlImageCapture) << "schedule_frame called but not capturing";
+    if (m_finished || m_numStarted == 0 || !m_viewport)
         return;
-    }
-
-    if (!m_surfaceContent) {
-        qCWarning(lcWlImageCapture) << "No surface content available for frame scheduling";
-        return;
-    }
-
-    if (schedule_frame) {
-        // Request output update to ensure next frame will be rendered
-        wlr_output_update_needs_frame(m_output->handle());
-    }
-
-    // Get render window to check if currently rendering
-    auto textureProvider = m_surfaceContent->wTextureProvider();
-    if (textureProvider) {
-        auto renderWindow = textureProvider->window();
-        if (renderWindow && !renderWindow->inRendering()) {
-            QMetaObject::invokeMethod(this, &WExtImageCaptureSourceV1Impl::handleRenderEnd, Qt::AutoConnection);
-        }
-    }
-
-    qCDebug(lcWlImageCapture) << "Scheduled frame capture";
+    // An on-demand viewport needs a new render regardless of wlroots' damage hint.
+    m_renderPending = true;
+    schedulePendingRender();
 }
 
-void WExtImageCaptureSourceV1Impl::handleRenderEnd()
+void WExtImageCaptureSourceV1Impl::schedulePendingRender()
 {
-    qCDebug(lcWlImageCapture) << "WExtImageCaptureSourceV1Impl::handleRenderEnd() - triggering frame event";
-
-    if (!m_capturing) {
-        qCWarning(lcWlImageCapture) << "handleRenderEnd called but not capturing";
+    if (m_finished || !m_renderPending || m_numStarted == 0 || !m_viewport)
+        return;
+    auto *renderWindow = m_viewport->outputRenderWindow();
+    if (!renderWindow || !m_viewport->output()) {
+        invalidate();
         return;
     }
-
-    // Get surface size and validate it
-    QSize surfaceSize = m_surfaceContent->size().toSize();
-    if (surfaceSize.width() <= 0 || surfaceSize.height() <= 0) {
-        qCWarning(lcWlImageCapture) << "Invalid surface size for damage region:" << surfaceSize;
+    if (!renderWindow->renderEnabled())
+        return;
+    if (m_viewport->output()->isEnabled()) {
+        renderWindow->update(m_viewport);
         return;
     }
+    if (m_fallbackQueued || m_resumeRenderConnection)
+        return;
+    m_fallbackQueued = true;
+    // The viewport context cancels this job when the last session releases the pipeline.
+    QMetaObject::invokeMethod(m_viewport.data(), [this] { renderFallback(); }, Qt::QueuedConnection);
+}
 
-    // Create damage region with RAII
-    WPixmanRegion fullDamage(0, 0, surfaceSize.width(), surfaceSize.height());
+void WExtImageCaptureSourceV1Impl::renderFallback()
+{
+    m_fallbackQueued = false;
+    if (m_finished || !m_renderPending || m_numStarted == 0 || !m_viewport)
+        return;
+    auto *renderWindow = m_viewport->outputRenderWindow();
+    if (!renderWindow || !m_viewport->output()) {
+        invalidate();
+        return;
+    }
+    if (!renderWindow->renderEnabled())
+        return;
+    if (m_viewport->output()->isEnabled()) {
+        schedulePendingRender();
+        return;
+    }
+    if (renderWindow->inRendering()) {
+        m_resumeRenderConnection = connect(renderWindow, &WOutputRenderWindow::renderEnd,
+                                          this, &WExtImageCaptureSourceV1Impl::resumeRender,
+                                          Qt::QueuedConnection);
+        return;
+    }
+    m_viewport->render(false);
+}
 
-    // Create frame event and emit
-    wlr_ext_image_capture_source_v1_frame_event event {
-        .damage = fullDamage.get(),
+void WExtImageCaptureSourceV1Impl::resumeRender()
+{
+    disconnect(m_resumeRenderConnection);
+    m_resumeRenderConnection = {};
+    schedulePendingRender();
+}
+
+void WExtImageCaptureSourceV1Impl::handleFrameRendered()
+{
+    if (m_finished || m_numStarted == 0 || !m_viewport)
+        return;
+
+    auto *provider = m_viewport->wTextureProvider();
+    auto *buffer = provider ? provider->wlrBuffer() : nullptr;
+    if (!buffer) {
+        handleFrameRenderFailed();
+        return;
+    }
+    WBufferUnlockPtr bufferGuard(wlr_buffer_lock(buffer));
+    sendFrame(buffer);
+}
+
+void WExtImageCaptureSourceV1Impl::handleFrameRenderFailed()
+{
+    if (m_finished || !m_renderPending || m_numStarted == 0 || !m_viewport)
+        return;
+    sendFrame(nullptr);
+}
+
+void WExtImageCaptureSourceV1Impl::sendFrame(wlr_buffer *buffer)
+{
+    m_renderPending = false;
+    disconnect(m_resumeRenderConnection);
+    m_resumeRenderConnection = {};
+    if (buffer)
+        updateConstraints();
+
+    // Non-empty damage routes failures through wlroots to every pending frame.
+    WPixmanRegion damage(0, 0,
+                        buffer ? buffer->width : qMax(1u, source.width),
+                        buffer ? buffer->height : qMax(1u, source.height));
+    CaptureFrameEvent event {
+        .base = { .damage = damage.get() },
+        .buffer = buffer,
+        .when = {},
     };
-    wl_signal_emit_mutable(&source.events.frame, &event);
-
-    qCDebug(lcWlImageCapture) << "Frame event emitted with damage region:" << surfaceSize;
+    if (buffer)
+        clock_gettime(CLOCK_MONOTONIC, &event.when);
+    wl_signal_emit_mutable(&source.events.frame, &event.base);
 }
 
-void WExtImageCaptureSourceV1Impl::copy_frame(struct wlr_ext_image_capture_source_v1 *source,
-                                              wlr_ext_image_copy_capture_frame_v1 *dst_frame,
-                                              wlr_ext_image_capture_source_v1_frame_event *frame_event)
+void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_capture_source_v1 *source,
+                                             wlr_ext_image_copy_capture_frame_v1 *dst_frame,
+                                             wlr_ext_image_capture_source_v1_frame_event *frame_event)
 {
     auto *self = s_captureSourceMap.value(source);
     Q_ASSERT(self);
@@ -317,150 +419,30 @@ void WExtImageCaptureSourceV1Impl::copy_frame(struct wlr_ext_image_capture_sourc
 }
 
 void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v1 *dst_frame,
-                                              [[maybe_unused]] wlr_ext_image_capture_source_v1_frame_event *frame_event)
+                                             wlr_ext_image_capture_source_v1_frame_event *frame_event)
 {
-    qCDebug(lcWlImageCapture) << "WExtImageCaptureSourceV1Impl::copy_frame()";
-
-    if (!m_capturing) {
-        qCWarning(lcWlImageCapture) << "copy_frame called but not capturing";
+    if (m_finished || m_numStarted == 0 || !m_viewport) {
         wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_STOPPED);
         return;
     }
 
-    if (!m_surfaceContent) {
-        qCWarning(lcWlImageCapture) << "No surface content available for frame copy";
+    // base is the first member; the event's buffer is locked throughout the
+    // synchronous frame signal, including all sessions copying this frame.
+    auto *event = reinterpret_cast<CaptureFrameEvent *>(frame_event);
+    if (!event->buffer) {
         wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
         return;
     }
-
-    // Get texture provider
-    auto textureProvider = m_surfaceContent->wTextureProvider();
-    if (!textureProvider) {
-        qCWarning(lcWlImageCapture) << "No texture provider available";
-        wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
-        return;
+    if (wlr_ext_image_copy_capture_frame_v1_copy_buffer(
+            dst_frame, event->buffer, m_viewport->output()->renderer())) {
+        wlr_ext_image_copy_capture_frame_v1_ready(dst_frame, WL_OUTPUT_TRANSFORM_NORMAL, &event->when);
     }
-
-    auto buffer = textureProvider->wlrBuffer();
-    if (!buffer) {
-        qCWarning(lcWlImageCapture) << "No internal buffer available";
-        wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
-        return;
-    }
-
-    // Lock the buffer for the duration of the copy to prevent races during resize
-    if (!wlr_buffer_lock(buffer)) {
-        qCWarning(lcWlImageCapture) << "Failed to lock internal buffer";
-        wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
-        return;
-    }
-    WBufferUnlockPtr bufferGuard(buffer);
-
-    // Get renderer
-    auto renderWindow = textureProvider->window();
-    if (!renderWindow) {
-        qCWarning(lcWlImageCapture) << "No render window available";
-        wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
-        return;
-    }
-
-    auto renderer = m_output->renderer();
-    if (!renderer) {
-        qCWarning(lcWlImageCapture) << "No renderer available";
-        wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
-        return;
-    }
-
-    // Prefer the client buffer source if present
-    wlr_buffer *src = buffer;
-    if (auto clientBuf = wlr_client_buffer_get(buffer)) {
-        src = clientBuf->source;
-    }
-
-    // Critical safety checks: validate all required pointers and buffers before copying
-    if (!src) {
-        qCWarning(lcWlImageCapture) << "Source buffer is null, cannot copy frame";
-        if (dst_frame) {
-            wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_BUFFER_CONSTRAINTS);
-        }
-        return;
-    }
-
-    if (!dst_frame || !dst_frame->buffer) {
-        qCWarning(lcWlImageCapture) << "Destination frame or buffer is null, cannot copy";
-        if (dst_frame) {
-            wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_BUFFER_CONSTRAINTS);
-        }
-        return;
-    }
-
-    // Validate buffer dimensions to prevent crashes during resize
-    if (dst_frame->buffer->width != src->width || dst_frame->buffer->height != src->height) {
-        qCWarning(lcWlImageCapture) << "Buffer size mismatch during resize (dst:" << dst_frame->buffer->width << "x" << dst_frame->buffer->height
-                                   << ", src:" << src->width << "x" << src->height << "), updating constraints";
-
-        // Update constraints when we detect a size mismatch
-        ConstraintBuilder builder(&source, m_output);
-        builder.setSize(src->width, src->height);
-        builder.buildShmFormats();
-        builder.buildDmabufFormats();
-        builder.apply();
-
-        qCDebug(lcWlImageCapture) << "Constraints updated to new size:" << src->width << "x" << src->height;
-
-        // Check again after constraints update - the client might have already provided a correctly sized buffer
-        if (dst_frame->buffer->width != src->width || dst_frame->buffer->height != src->height) {
-            qCDebug(lcWlImageCapture) << "Buffer size still mismatched after constraint update, skipping frame";
-            wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_BUFFER_CONSTRAINTS);
-            return;
-        }
-
-        qCDebug(lcWlImageCapture) << "Buffer size now matches after constraint update, proceeding with copy";
-    }
-
-    // Use wlroots image copy function with validated buffers
-    bool success = wlr_ext_image_copy_capture_frame_v1_copy_buffer(dst_frame, src, renderer);
-    qCDebug(lcWlImageCapture) << "Copy result:" << success;
-
-    if (success) {
-        // Successfully copied, mark frame as ready
-        struct timespec now;
-        clock_gettime(CLOCK_MONOTONIC, &now);
-
-        wlr_ext_image_copy_capture_frame_v1_ready(dst_frame, WL_OUTPUT_TRANSFORM_NORMAL, &now);
-        qCDebug(lcWlImageCapture) << "Frame copy successful";
-    } else {
-        qCWarning(lcWlImageCapture) << "Failed to copy frame buffer";
-        qCWarning(lcWlImageCapture) << "Possible reasons:";
-        qCWarning(lcWlImageCapture) << "  - Buffer size mismatch";
-        qCWarning(lcWlImageCapture) << "  - Unsupported buffer format";
-        qCWarning(lcWlImageCapture) << "  - Renderer issues";
-        qCWarning(lcWlImageCapture) << "  - Memory access problems";
-
-        // Check if it's a buffer constraints issue
-        if (dst_frame->buffer && buffer) {
-            if (dst_frame->buffer->width != buffer->width ||
-                dst_frame->buffer->height != buffer->height) {
-                qCWarning(lcWlImageCapture) << "Buffer size mismatch detected, using BUFFER_CONSTRAINTS failure reason";
-                wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_BUFFER_CONSTRAINTS);
-                return;
-            }
-        }
-
-        // For other failures, use UNKNOWN reason
-        wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
-    }
+    // copy_buffer already sends failed and destroys the native frame on error.
+    // Sending another failure here would use a freed frame (notably on resize).
 }
 
 wlr_ext_image_capture_source_v1_cursor *WExtImageCaptureSourceV1Impl::get_pointer_cursor(
-    [[maybe_unused]] struct wlr_ext_image_capture_source_v1 *source, [[maybe_unused]] struct wlr_seat *seat)
-{
-    auto *self = s_captureSourceMap.value(source);
-    Q_ASSERT(self);
-    return self->get_pointer_cursor(seat);
-}
-
-wlr_ext_image_capture_source_v1_cursor *WExtImageCaptureSourceV1Impl::get_pointer_cursor([[maybe_unused]] wlr_seat *seat)
+    [[maybe_unused]] wlr_ext_image_capture_source_v1 *source, [[maybe_unused]] wlr_seat *seat)
 {
     qCDebug(lcWlImageCapture) << "WExtImageCaptureSourceV1Impl::get_pointer_cursor()";
     // TODO: Implement cursor retrieval logic
