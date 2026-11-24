@@ -75,8 +75,7 @@ public:
     }
     template<typename T>
     T *getAttachedData() const {
-        const void *owner = typeid(T).name();
-        return getAttachedData<T>(owner);
+        return getAttachedData<T>(attachedDataOwner<T>());
     }
 
     template<typename T>
@@ -86,8 +85,7 @@ public:
     }
     template<typename T>
     void setAttachedData(void *data) {
-        const void *owner = typeid(T).name();
-        setAttachedData<T>(owner, data);
+        setAttachedData<T>(attachedDataOwner<T>(), data);
     }
 
     template<typename T>
@@ -98,8 +96,7 @@ public:
     }
     template<typename T>
     void removeAttachedData() {
-        const void *owner = typeid(T).name();
-        removeAttachedData<T>(owner);
+        removeAttachedData<T>(attachedDataOwner<T>());
     }
 
     // Default construction for mixin use (e.g. QObject + WObject) without a
@@ -127,6 +124,30 @@ public:
     // are WObject before WServerInterface::destroy(). ~WObject aborts if any
     // listener groups or cross-object targets remain.
     void teardown();
+
+private:
+    template<typename T>
+    static const void *attachedDataOwner() {
+        // typeid() ignored cv-qualifiers and references, so normalize them here
+        // too: get<const T>(), set<T>() and remove<volatile T>() share one key.
+        return attachedDataOwnerFor<std::remove_cv_t<std::remove_reference_t<T>>>();
+    }
+
+    template<typename Key>
+    static const void *attachedDataOwnerFor() {
+        // One address per Key per linked image. A function-local static in an
+        // inline template is merged across the image's translation units, and
+        // with default visibility across its shared libraries too, so the same
+        // type reaches the same slot everywhere inside one compositor process.
+        //
+        // Two images built with hidden visibility keep separate copies, and
+        // that is intended: attached data belongs to one WObject and the
+        // no-argument overloads are bookkeeping for the image that owns it.
+        // Sharing a slot across a library boundary is not a supported use of
+        // this key; pass an explicit owner (the overloads taking one) there.
+        static const char owner = 0;
+        return &owner;
+    }
 
 protected:
     WObject(WObjectPrivate &dd, WObject *parent = nullptr);

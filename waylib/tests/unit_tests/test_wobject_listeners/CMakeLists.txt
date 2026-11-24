@@ -1,6 +1,6 @@
 find_package(Qt6 REQUIRED COMPONENTS Core Test)
 
-add_executable(test_wobject_listeners main.cpp)
+add_executable(test_wobject_listeners main.cpp attacheddata.cpp)
 
 target_link_libraries(test_wobject_listeners
     PRIVATE
