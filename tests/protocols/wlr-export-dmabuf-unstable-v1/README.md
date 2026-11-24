@@ -2,7 +2,7 @@
 
 ## 范围
 
-- XML / interface：`3rdparty/wlroots/protocol/wlr-export-dmabuf-unstable-v1.xml`，
+- XML / interface：`dde-wlroots/protocol/wlr-export-dmabuf-unstable-v1.xml`，
   `zwlr_export_dmabuf_manager_v1` v1 与 `zwlr_export_dmabuf_frame_v1` v1。
 - 测试源码：`tests/protocols/wlr-export-dmabuf-unstable-v1/`。
 - Fixture：真实 Treeland desktop integration fixture、headless `wl_output` 与 mapped

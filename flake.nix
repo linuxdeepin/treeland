@@ -175,7 +175,7 @@
 
           devShells.default = pkgs.mkShell {
             packages = with pkgs; [
-              # For submodule waylib and vendored wlroots
+              # For submodule waylib and dde-wlroots' build dependencies
               wayland
               wayland-protocols
               wlr-protocols

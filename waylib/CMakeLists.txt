@@ -31,7 +31,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/cmake/WaylandScannerHelpers.cmake)
 
 # Standalone build (e.g. waylib CI packaging): the vendored wlroots tree
 # lives next to waylib in the monorepo. Pull it in so the Wlroots::wlroots
-# target exists instead of requiring an installed libwaylib-wlroots.
+# target exists instead of requiring an installed dde-wlroots.
 if(NOT TARGET Wlroots::wlroots AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../wlroots/CMakeLists.txt")
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../wlroots"
                      "${CMAKE_CURRENT_BINARY_DIR}/_wlroots")

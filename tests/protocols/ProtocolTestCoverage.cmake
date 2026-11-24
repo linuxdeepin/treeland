@@ -3,7 +3,8 @@
 cmake_minimum_required(VERSION 3.25.0)
 
 if(NOT DEFINED PROTOCOL_TEST_XML_LIST OR NOT DEFINED WAYLAND_PROTOCOLS_DATADIR
-        OR NOT DEFINED WLROOTS_PROTOCOL_DIR OR NOT DEFINED TREELAND_PROTOCOLS_DATA_DIR
+        OR NOT DEFINED WLROOTS_PROTOCOL_DIR OR NOT DEFINED WLR_PROTOCOLS_DATADIR
+        OR NOT DEFINED TREELAND_PROTOCOLS_DATA_DIR
         OR NOT DEFINED TREELAND_SERVED_PROTOCOL_XML_LIST)
     message(FATAL_ERROR "ProtocolTestCoverage.cmake requires test XML list and protocol paths")
 endif()
@@ -104,7 +105,11 @@ function(report_unregistered_xmls source_name protocol_names)
 endfunction()
 
 collect_protocol_names("${WAYLAND_PROTOCOLS_DATADIR}" wayland_protocol_names)
-collect_protocol_names("${WLROOTS_PROTOCOL_DIR}" wlroots_protocol_names)
+collect_protocol_names("${WLR_PROTOCOLS_DATADIR}" wlr_protocols_package_names)
+collect_protocol_names("${WLROOTS_PROTOCOL_DIR}" wlroots_vendored_protocol_names)
+set(wlroots_protocol_names ${wlr_protocols_package_names} ${wlroots_vendored_protocol_names})
+list(REMOVE_DUPLICATES wlroots_protocol_names)
+list(SORT wlroots_protocol_names)
 collect_protocol_names("${TREELAND_PROTOCOLS_DATA_DIR}" treeland_protocol_names)
 file(STRINGS "${TREELAND_SERVED_PROTOCOL_XML_LIST}" treeland_served_protocol_xmls)
 set(treeland_served_protocol_names)

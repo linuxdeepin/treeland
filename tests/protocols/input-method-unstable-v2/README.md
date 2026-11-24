@@ -2,7 +2,7 @@
 
 ## 范围
 
-- XML / interface：`3rdparty/wlroots/protocol/input-method-unstable-v2.xml` /
+- XML / interface：`dde-wlroots/protocol/input-method-unstable-v2.xml` /
   `zwp_input_method_manager_v2`、`zwp_input_method_v2`、popup surface 与 keyboard grab v2
 - 测试源码：`tests/protocols/input-method-unstable-v2/`
 - Fixture：完整生产 `Treeland` / `WaylandServer`、默认 seat 与 headless output。一个 client 作为 mapped 且
@@ -34,7 +34,7 @@ WServer::attach<WInputMethodManagerV2>() → wlr_input_method_manager_v2_create(
 同一个 seat 的第二个 IM 是由生产 `WInputMethodHelper::handleNewIMV2()` 调用
 `wlr_input_method_v2_send_unavailable()`。测试断言这个 event 是其唯一 event，而不是仅检查
 client 未崩溃。popup 与 keyboard grab 的 resource 则由
-`3rdparty/wlroots/types/wlr_input_method_v2.c` 创建和销毁。
+`dde-wlroots/types/wlr_input_method_v2.c` 创建和销毁。
 
 ### E 级证据
 

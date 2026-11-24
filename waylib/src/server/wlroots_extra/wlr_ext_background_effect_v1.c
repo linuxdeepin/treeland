@@ -12,7 +12,7 @@
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/util/addon.h>
 #include "ext-background-effect-v1-protocol.h"
-// Exported by waylib-wlroots; the corresponding util header is private.
+// Exported by dde-wlroots; the corresponding util header is private.
 void wlr_global_destroy_safe(struct wl_global *global);
 
 #define BACKGROUND_EFFECT_VERSION 1

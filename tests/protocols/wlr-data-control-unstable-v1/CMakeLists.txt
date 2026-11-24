@@ -2,7 +2,7 @@
 
 treeland_add_protocol_test(
     NAME wlr_data_control_unstable_v1
-    XML "${PROJECT_SOURCE_DIR}/3rdparty/wlroots/protocol/wlr-data-control-unstable-v1.xml"
+    XML "${WLR_PROTOCOLS_DATADIR}/unstable/wlr-data-control-unstable-v1.xml"
     SETUP "${CMAKE_CURRENT_SOURCE_DIR}/setup.cpp"
     CLIENT "${CMAKE_CURRENT_SOURCE_DIR}/wlr-data-control-unstable-v1.c"
 )

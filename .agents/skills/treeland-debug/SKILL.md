@@ -25,7 +25,7 @@ description: "检查和操控运行中的 treeland 合成器，用于定位窗�
 - `src/plugins/`（lockscreen、multitaskview）—— 插件与功能集成。
 - `src/common/treelandlogging.*` —— 集中式日志分类。
 - `waylib/` —— 底层 wlroots+QtQuick 合成器框架（output 对应 `QQuickWindow`，surface 对应 `QQuickItem`）。
-- `3rdparty/wlroots/` —— 内联的 wlroots（通过 `<wlr_all.h>` 使用原始 C API）。
+- `dde-wlroots-dev` —— 构建期的静态 wlroots，头文件在 `/usr/include/wlr`（通过 `<wlr_all.h>` 使用原始 C API），源码见 https://github.com/linuxdeepin/dde-wlroots。
 - `tools/treeland-debug/` —— 检查/控制运行中合成器的 CLI；`tools/treeland-debug/README.md` 是该工具自己的完整文档。
 
 ## 运行环境

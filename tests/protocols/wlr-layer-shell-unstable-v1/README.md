@@ -2,7 +2,7 @@
 
 ## 范围
 
-- XML / interface：`3rdparty/wlroots/protocol/wlr-layer-shell-unstable-v1.xml`，
+- XML / interface：`dde-wlroots/protocol/wlr-layer-shell-unstable-v1.xml`，
   `zwlr_layer_shell_v1` / `zwlr_layer_surface_v1` v5。
 - 测试源码：`tests/protocols/wlr-layer-shell-unstable-v1/`。
 - Fixture：完整 Treeland desktop integration fixture、真实 headless `wl_output`、默认 seat。

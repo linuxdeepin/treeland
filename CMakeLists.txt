@@ -93,11 +93,11 @@ add_definitions("-DQT_MESSAGELOGCONTEXT")
 
 set(LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/qt/qml")
 
+# PKG-CONFIG
+find_package(PkgConfig REQUIRED)
+
 if(WITH_SUBMODULE_WAYLIB)
     include(${CMAKE_CURRENT_SOURCE_DIR}/waylib/cmake/WaylandScannerHelpers.cmake)
-    # Vendored wlroots must be available before waylib consumers.
-    # Scaffold in wlroots/; upstream sources under 3rdparty/wlroots.
-    add_subdirectory(wlroots)
     add_subdirectory(waylib)
     list(APPEND LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/waylib/src/server")
 else()
@@ -129,12 +129,8 @@ int main() { return 0; }
         endif()
     endif()
     if(NOT TARGET Wlroots::wlroots)
-        if(TARGET Waylib::waylib-wlroots)
-            add_library(Wlroots::wlroots ALIAS Waylib::waylib-wlroots)
-        else()
-            pkg_check_modules(WLR_INSTALLED REQUIRED IMPORTED_TARGET waylib-wlroots)
-            add_library(Wlroots::wlroots ALIAS PkgConfig::WLR_INSTALLED)
-        endif()
+        pkg_check_modules(WLR_INSTALLED REQUIRED IMPORTED_TARGET dde-wlroots)
+        add_library(Wlroots::wlroots ALIAS PkgConfig::WLR_INSTALLED)
     endif()
     # The capture module generates protocol code with ws_generate(); load
     # the vendored helpers so external builds do not depend on the scanner
@@ -142,10 +138,28 @@ int main() { return 0; }
     include(${CMAKE_CURRENT_SOURCE_DIR}/waylib/cmake/WaylandScannerHelpers.cmake)
 endif()
 
+# wlroots is no longer vendored here: it comes from the installed dde-wlroots
+# development package (static libdde-wlroots.a), so nothing from it is
+# needed at runtime. Keep this after add_subdirectory(waylib): waylib resolves
+# the very same package itself when Wlroots::wlroots is not defined yet.
+if(NOT TARGET Wlroots::wlroots)
+    pkg_check_modules(WLR_INSTALLED REQUIRED IMPORTED_TARGET dde-wlroots)
+    add_library(Wlroots::wlroots ALIAS PkgConfig::WLR_INSTALLED)
+endif()
+
+# wlr-protocols ships the wlr-private Wayland protocol XMLs (wlr-layer-shell,
+# wlr-output-management, wlr-data-control, ...) under its pkgdatadir. A few
+# wlroots-only protocols (drm, input-method-v2, virtual-keyboard) are not in
+# wlr-protocols; those XMLs are vendored under tests/protocols/xml/.
+pkg_search_module(WLR_PROTOCOLS REQUIRED wlr-protocols)
+pkg_get_variable(WLR_PROTOCOLS_DATADIR wlr-protocols pkgdatadir)
+
+set(WLROOTS_PROTOCOL_DIR
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/protocols/xml"
+    CACHE PATH "Directory holding wlroots-private protocol XMLs")
+
 set(QML_IMPORT_PATH "${LOCAL_QML_IMPORT_PATH}" CACHE STRING "For LSP" FORCE)
 
-# PKG-CONFIG
-find_package(PkgConfig REQUIRED)
 find_package(TreelandProtocols 0.8.0 CONFIG REQUIRED)
 find_package(Qt6 CONFIG REQUIRED Core DBus Gui Qml Quick QuickControls2 LinguistTools Test QuickTest)
 

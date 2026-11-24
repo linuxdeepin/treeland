@@ -2,7 +2,7 @@
 
 treeland_add_protocol_test(
     NAME drm
-    XML "${PROJECT_SOURCE_DIR}/3rdparty/wlroots/protocol/drm.xml"
+    XML "${WLROOTS_PROTOCOL_DIR}/drm.xml"
     SETUP "${CMAKE_CURRENT_SOURCE_DIR}/setup.cpp"
     CLIENT "${CMAKE_CURRENT_SOURCE_DIR}/drm.c"
 )

@@ -2,7 +2,7 @@
 
 ## 全局认识
 - `treeland` 是基于 `wlroots` + Qt6/QtQuick（Scene Graph 渲染）的 Wayland 合成器。
-- `wlroots` 以源码内联方式引入：上游源码在 `3rdparty/wlroots`，由 `wlroots/CMakeLists.txt` 编译成 CMake 模块（目标 `Wlroots::wlroots`）。waylib 直接调用 wlroots 的 C API —— 用 `<wlr_all.h>`，不要 include 单个 `<wlr/...>` 头文件 —— 并在此之上提供 Qt/C++ 的对象与生命周期层（`WObject`/`WServerInterface`、`WPointer`、作用域化的 `wl_signal` 监听）。
+- `wlroots` 不再内联在本仓库：它由独立项目 [dde-wlroots](https://github.com/linuxdeepin/dde-wlroots) 静态编译，构建期通过已安装的 `dde-wlroots-dev`（pkg-config 模块 `dde-wlroots`，目标 `Wlroots::wlroots`）使用，运行期不依赖。waylib 直接调用 wlroots 的 C API —— 用 `<wlr_all.h>`，不要 include 单个 `<wlr/...>` 头文件 —— 并在此之上提供 Qt/C++ 的对象与生命周期层（`WObject`/`WServerInterface`、`WPointer`、作用域化的 `wl_signal` 监听）。
 - `waylib/` 建立在 `wlroots` 之上，提供对 QtQuick 友好的合成器框架（output 对应 `QQuickWindow`，surface 对应 `QQuickItem`）。
 - Treeland 自身的策略代码在 `src/`（workspace/seat/input/output、plugin/module、XWayland 集成）。
 

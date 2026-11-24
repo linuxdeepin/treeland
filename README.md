@@ -10,6 +10,7 @@ Core build dependencies:
 
 - [waylib](https://github.com/vioken/waylib): A Wayland compositor development library based on wlroots and QtQuick
   - Qt >= 6.8.0
+- [dde-wlroots](https://github.com/linuxdeepin/dde-wlroots): wlroots built as a static library, shipped as the `dde-wlroots-dev` build-only package
   - wlroots = 0.20
 - [treeland-protocols](https://github.com/linuxdeepin/treeland-protocols): Private Wayland protocols used by treeland
 
@@ -20,6 +21,8 @@ Recommended runtime dependencies:
 ## Building
 
 Treeland uses cmake for building. The WITH_SUBMODULE_WAYLIB option can force the use of the waylib code from the submodule. If you want to use the system-provided waylib, set this option to OFF.
+
+wlroots itself is no longer vendored in this repository: install the `dde-wlroots-dev` package first. It is a static archive, so treeland does not depend on it at runtime.
 
 Using the system-provided waylib:
 

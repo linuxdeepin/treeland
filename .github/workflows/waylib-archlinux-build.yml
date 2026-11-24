@@ -4,8 +4,6 @@ on:
   pull_request:
     paths:
       - 'waylib/**'
-      - 'wlroots/**'
-      - '3rdparty/wlroots/**'
       - '.github/workflows/waylib-archlinux-build.yml'
 
 jobs:
@@ -20,7 +18,7 @@ jobs:
           pacman --noconfirm --noprogressbar -Syu
       - name: Install dependencies
         run: |
-          # Vendored waylib-wlroots deps from Arch wlroots0.19 package metadata
+          # Vendored dde-wlroots deps from Arch wlroots0.19 package metadata
           # (do not install system wlroots0.19)
           pacman -S --noconfirm --noprogressbar base-devel \
             qt6-base qt6-declarative cmake pkgconfig ninja clang make git \
@@ -46,6 +44,16 @@ jobs:
           echo "✅ treeland-protocols built and installed from source"
 
       - uses: actions/checkout@v4
+
+      - name: Build and Install dde-wlroots
+        run: |
+          echo "Building dde-wlroots from source (static wlroots, no longer vendored)..."
+          git clone --depth 1 https://github.com/linuxdeepin/dde-wlroots.git
+          cd dde-wlroots
+          cmake -B build -DCMAKE_INSTALL_PREFIX=/usr
+          cmake --build build
+          cmake --install build
+          echo "✅ dde-wlroots built and installed from source"
 
       - name: Configure and Build waylib with ci preset
         working-directory: waylib

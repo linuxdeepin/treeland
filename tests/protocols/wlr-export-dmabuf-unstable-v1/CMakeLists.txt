@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 set(WLR_EXPORT_DMABUF_XML
-    "${PROJECT_SOURCE_DIR}/3rdparty/wlroots/protocol/wlr-export-dmabuf-unstable-v1.xml")
+    "${WLR_PROTOCOLS_DATADIR}/unstable/wlr-export-dmabuf-unstable-v1.xml")
 
 # The standard headless CI renderer is pixman. It cannot put a DMA-BUF in the
 # output commit, so this target exercises the real temporary-cancel path.

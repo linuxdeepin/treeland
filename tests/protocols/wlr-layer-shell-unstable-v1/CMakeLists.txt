@@ -2,7 +2,7 @@
 
 treeland_add_protocol_test(
     NAME wlr_layer_shell_unstable_v1
-    XML "${PROJECT_SOURCE_DIR}/3rdparty/wlroots/protocol/wlr-layer-shell-unstable-v1.xml"
+    XML "${WLROOTS_PROTOCOL_DIR}/wlr-layer-shell-unstable-v1.xml"
     SETUP "${CMAKE_CURRENT_SOURCE_DIR}/setup.cpp"
     CLIENT "${CMAKE_CURRENT_SOURCE_DIR}/wlr-layer-shell-unstable-v1.c"
 )

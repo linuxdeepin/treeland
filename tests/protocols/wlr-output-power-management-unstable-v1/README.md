@@ -2,7 +2,7 @@
 
 ## 范围
 
-- XML / interface：`3rdparty/wlroots/protocol/wlr-output-power-management-unstable-v1.xml` /
+- XML / interface：`dde-wlroots/protocol/wlr-output-power-management-unstable-v1.xml` /
   `zwlr_output_power_manager_v1` 与 `zwlr_output_power_v1` v1。
 - 测试源码：`tests/protocols/wlr-output-power-management-unstable-v1/`。
 - Fixture：完整 Treeland desktop integration fixture 与启动时已有的真实 headless output。

@@ -26,7 +26,7 @@ qt_generate_wayland_protocol_client_sources(${BIN_NAME}
         ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-output-manager-unstable-v2.xml
         ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-output-uuid-unstable-v1.xml
         ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-output-uuid-head-unstable-v1.xml
-        ${CMAKE_SOURCE_DIR}/3rdparty/wlroots/protocol/wlr-output-management-unstable-v1.xml
+        ${WLR_PROTOCOLS_DATADIR}/unstable/wlr-output-management-unstable-v1.xml
 )
 
 target_link_libraries(${BIN_NAME}

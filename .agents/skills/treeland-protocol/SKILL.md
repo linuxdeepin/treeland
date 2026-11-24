@@ -219,11 +219,12 @@ m_shellHandler->init(m_server, m_seat);
 ## 引用 wlr_* 接口的协议
 如果 treeland xml 的对象参数使用了 wlroots 协议定义的接口（例如 `treeland-output-uuid-head-unstable-v1.xml` 接收 `zwlr_output_head_v1`），生成的服务端代码会引用该接口的 `wl_interface` 符号，例如 `zwlr_output_head_v1_interface`。
 
-waylib-wlroots 只导出 `wlr_*`、`_wlr_*` 与 `waylib_*`（`3rdparty/wlroots/wlroots.syms`），因此所有协议符号对 `libwaylib-wlroots.so` 都是局部的，无法从 libtreeland 解析。需要在 libtreeland 中也生成该 wlr 协议，在消费模块里写：
+保证从 dde-wlroots 可达的只有 `wlr_*`、`_wlr_*` 与 `waylib_*` 符号，协议接口符号不保证可达，因此需要在 libtreeland 中也生成该 wlr 协议：需要在 libtreeland 中也生成该 wlr 协议，在消费模块里写：
 
 ```cmake
+# wlr 协议 XML 来自 wlr-protocols 包的 pkgdatadir（${WLR_PROTOCOLS_DATADIR}）
 waylib_generate_qtwayland_server_protocol(libtreeland
-    PROTOCOL ${CMAKE_SOURCE_DIR}/3rdparty/wlroots/protocol/wlr-output-management-unstable-v1.xml
+    PROTOCOL ${WLR_PROTOCOLS_DATADIR}/unstable/wlr-output-management-unstable-v1.xml
     BASENAME wlr-output-management-unstable-v1
 )
 ```

@@ -2,7 +2,7 @@
 
 ## 范围
 
-- XML / interface：`3rdparty/wlroots/protocol/wlr-virtual-pointer-unstable-v1.xml` /
+- XML / interface：`dde-wlroots/protocol/wlr-virtual-pointer-unstable-v1.xml` /
   `zwlr_virtual_pointer_manager_v1`、`zwlr_virtual_pointer_v1` v2。
 - 测试接入：该 protocol target 的 `setup.cpp` 创建 wlroots native manager；每个
   `new_virtual_pointer` 被包装为 virtual `WInputDevice` 并 attach 到生产 primary `WSeat`。这不改变

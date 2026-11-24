@@ -26,20 +26,20 @@ pkg_search_module(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
 set(WAYLIB_WLROOTS_INCLUDE_DIRS "")
 set(WAYLIB_WLROOTS_PUBLIC_TARGET "")
 if (NOT TARGET Wlroots::wlroots)
-    # Standalone Waylib build against an installed waylib-wlroots (built by
-    # the wlroots CMake scaffold, which also installs its headers and
-    # waylib-wlroots.pc). Resolve the library, its public dependencies and
+    # Standalone Waylib build against an installed dde-wlroots (built by
+    # the dde-wlroots CMake scaffold, which also installs its headers and
+    # dde-wlroots.pc). Resolve the library, its public dependencies and
     # the wconfig.h feature metadata from that pkg-config file, so
     # no monorepo layout is assumed.
     find_package(PkgConfig REQUIRED)
-    pkg_check_modules(WLR_INSTALLED REQUIRED IMPORTED_TARGET waylib-wlroots)
+    pkg_check_modules(WLR_INSTALLED REQUIRED IMPORTED_TARGET dde-wlroots)
     add_library(Wlroots::wlroots ALIAS PkgConfig::WLR_INSTALLED)
     set(WAYLIB_WLROOTS_PUBLIC_TARGET PkgConfig::WLR_INSTALLED)
     foreach(_dir IN LISTS WLR_INSTALLED_INCLUDE_DIRS)
         list(APPEND WAYLIB_WLROOTS_INCLUDE_DIRS "$<BUILD_INTERFACE:${_dir}>")
     endforeach()
-    pkg_get_variable(WLROOTS_VERSION waylib-wlroots wlroots_version)
-    pkg_get_variable(_waylib_wlroots_features waylib-wlroots wlroots_features)
+    pkg_get_variable(WLROOTS_VERSION dde-wlroots wlroots_version)
+    pkg_get_variable(_waylib_wlroots_features dde-wlroots wlroots_features)
     foreach(_feature IN LISTS _waylib_wlroots_features)
         set(WLR_HAVE_${_feature} 1)
     endforeach()
@@ -582,6 +582,6 @@ if(TREELAND_INSTALL_DEV)
 
     include(${PROJECT_SOURCE_DIR}/cmake/Helpers.cmake)
     add_pkgconfig_module(${TARGET} ${TARGET} ${WAYLIB_INCLUDE_INSTALL_DIR}
-        "waylib-wlroots, Qt6Gui, Qt6Quick"
+        "dde-wlroots, Qt6Gui, Qt6Quick"
     )
 endif()

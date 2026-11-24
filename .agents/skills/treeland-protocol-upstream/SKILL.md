@@ -31,7 +31,7 @@ description: "在 waylib 与 treeland 中封装和集成上游 Wayland 协议（
 ## 先读
 1. `waylib/src/server/protocols`
 2. `waylib/src/server/kernel`
-3. `3rdparty/wlroots/include/wlr`（wlroots 原始 C API 头文件 —— 读其中的 native `wlr_*` 类型与 `wl_signal` 事件；包含方式统一用 `<wlr_all.h>`）
+3. `/usr/include/wlr`（dde-wlroots 安装的 wlroots 原始 C API 头文件 —— 读其中的 native `wlr_*` 类型与 `wl_signal` 事件；包含方式统一用 `<wlr_all.h>`）
 4. `src/core/waylandserver.cpp` 与相关功能控制器
 
 先搜索已有封装，不要假设 treeland 应该自己在本地重新实现一个 manager。
@@ -130,7 +130,7 @@ native handle 是存在 `m_handle`（`void*`）里的 wlroots 原始 C 指针。
 判断方法：
 
 1. 读同目录下邻近的 `W...` 封装
-2. 读 `3rdparty/wlroots/include/wlr` 中对应 `wlr_*` 类型是否提供显式 `destroy()` 之类 API
+2. 读 `/usr/include/wlr` 中对应 `wlr_*` 类型是否提供显式 `destroy()` 之类 API
 3. 确认 `create()` 是否被 `if (!m_handle)` 保护；如果是，`destroy()` 必须清空 `m_handle`，否则重启后无法重新创建 global
 
 核心规则：销毁方式必须与 native handle 所有权一致。

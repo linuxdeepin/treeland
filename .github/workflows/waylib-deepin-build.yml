@@ -4,8 +4,6 @@ on:
   pull_request:
     paths:
       - 'waylib/**'
-      - 'wlroots/**'
-      - '3rdparty/wlroots/**'
       - '.github/workflows/waylib-deepin-build.yml'
 
 jobs:
@@ -44,6 +42,18 @@ jobs:
           mk-build-deps --install --remove --tool='apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes' debian/control
           dpkg-buildpackage -uc -us -b
           apt-get install -y ../*.deb || dpkg -i ../*.deb || apt-get -f install -y
+          cd "$WAYLIB_DIR"
+
+          # dde-wlroots (static wlroots) is no longer vendored in this tree
+          echo "🔧 Building dde-wlroots from source"
+          cd /tmp
+          if [ ! -d dde-wlroots ]; then
+            git clone --depth=1 --branch master --single-branch https://github.com/linuxdeepin/dde-wlroots.git
+          fi
+          cd dde-wlroots
+          mk-build-deps --install --remove --tool='apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes' debian/control
+          dpkg-buildpackage -uc -us -b
+          apt-get install -y ../dde-wlroots-dev_*.deb || dpkg -i ../dde-wlroots-dev_*.deb || apt-get -f install -y
           cd "$WAYLIB_DIR"
 
           mk-build-deps --install --remove --tool='apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes' debian/control

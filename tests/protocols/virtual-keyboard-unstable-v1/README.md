@@ -2,7 +2,7 @@
 
 ## 范围
 
-- XML / interface：`3rdparty/wlroots/protocol/virtual-keyboard-unstable-v1.xml` /
+- XML / interface：`dde-wlroots/protocol/virtual-keyboard-unstable-v1.xml` /
   `zwp_virtual_keyboard_manager_v1`、`zwp_virtual_keyboard_v1` v1
 - 测试源码：`tests/protocols/treeland-shortcut-manager-desktop-v2/`
 - Fixture：完整生产 `Treeland` / `WaylandServer`、headless output、mapped 且 keyboard-focused xdg toplevel。

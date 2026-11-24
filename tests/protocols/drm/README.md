@@ -2,7 +2,7 @@
 
 ## 范围
 
-- XML / interface：`3rdparty/wlroots/protocol/drm.xml` / `wl_drm` v2
+- XML / interface：`dde-wlroots/protocol/drm.xml` / `wl_drm` v2
 - 测试源码：`tests/protocols/drm/`
 - Fixture：完整生产 `Treeland` / `WaylandServer`、headless output 与生产 render window；`WaylandServer::init()` 直接调用 wlroots C API `wlr_drm_create()`，不添加 waylib wrapper
 - 覆盖等级：**P / V（GPU 条件）**；这是 wlroots 的 legacy native global，不存在 Treeland 业务模块
@@ -21,7 +21,7 @@
 
 测试 fixture 不重实现 `wl_drm`：它从 `WBackend` 创建 renderer 后直接调用
 `wlr_drm_create(server->handle(), renderer)`。因此所有 event、错误和 resource 生命周期均由
-`3rdparty/wlroots/types/wlr_drm.c` 的生产实现发出。
+`dde-wlroots/types/wlr_drm.c` 的生产实现发出。
 `wlr_drm_create()` 仅在 renderer 能提供 DRM FD 时创建 global；`wlr_drm` 复制创建时所需的
 format/node 数据，并监听 `wl_display` 销毁。测试不拥有或手动销毁该 native global。
 

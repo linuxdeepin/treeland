@@ -6,11 +6,11 @@ waylib_generate_qtwayland_server_protocol(libtreeland
 )
 
 # treeland-output-uuid-head-unstable-v1 takes a zwlr_output_head_v1 argument, so
-# its generated code needs zwlr_output_head_v1_interface. waylib-wlroots only
-# exports wlr_*/waylib_* (see 3rdparty/wlroots/wlroots.syms), which hides that
-# symbol, so generate the wlr-output-management protocol into libtreeland too.
+# its generated code needs zwlr_output_head_v1_interface. Only wlr_*/waylib_*
+# symbols are guaranteed to be reachable through dde-wlroots, so generate the
+# wlr-output-management protocol into libtreeland too.
 waylib_generate_qtwayland_server_protocol(libtreeland
-    PROTOCOL ${CMAKE_SOURCE_DIR}/3rdparty/wlroots/protocol/wlr-output-management-unstable-v1.xml
+    PROTOCOL ${WLR_PROTOCOLS_DATADIR}/unstable/wlr-output-management-unstable-v1.xml
     BASENAME wlr-output-management-unstable-v1
 )
 

@@ -3,7 +3,7 @@
 include(CMakeFindDependencyMacro)
 find_dependency(Qt6 COMPONENTS Core Gui Quick)
 
-# The exported Waylib::waylib-wlroots target links pkg-config imported
+# The exported Waylib::WaylibServer target links pkg-config imported
 # targets; make sure they exist for downstream consumers.
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(WAYLAND_SERVER REQUIRED IMPORTED_TARGET wayland-server)
@@ -17,17 +17,16 @@ include(${CMAKE_CURRENT_LIST_DIR}/WaylibServerTargets.cmake)
 # able to resolve the exported wlroots target (and its installed wlr/
 # include dir, carried on the target's INTERFACE_INCLUDE_DIRECTORIES). Fail
 # loudly here instead of letting downstream link errors surface later.
-# A Waylib built standalone against an installed waylib-wlroots exports
-# PkgConfig::WLR_INSTALLED instead of Waylib::waylib-wlroots.
-if(NOT TARGET Waylib::waylib-wlroots AND NOT TARGET PkgConfig::WLR_INSTALLED)
-    pkg_check_modules(WLR_INSTALLED QUIET IMPORTED_TARGET waylib-wlroots)
+# A Waylib built standalone against an installed dde-wlroots exports
+# PkgConfig::WLR_INSTALLED (the pkg-config module is dde-wlroots).
+if(NOT TARGET PkgConfig::WLR_INSTALLED)
+    pkg_check_modules(WLR_INSTALLED QUIET IMPORTED_TARGET dde-wlroots)
 endif()
-if(NOT TARGET Waylib::waylib-wlroots AND NOT TARGET PkgConfig::WLR_INSTALLED)
+if(NOT TARGET PkgConfig::WLR_INSTALLED)
     message(FATAL_ERROR
-        "WaylibServer: neither the exported target Waylib::waylib-wlroots "
-        "nor the pkg-config package waylib-wlroots is available. Reinstall "
-        "with the wlroots headers (include/wlr) and waylib-wlroots library "
-        "present.")
+        "WaylibServer: the pkg-config package dde-wlroots is not available. "
+        "Reinstall with the wlroots headers (include/wlr) and the "
+        "libdde-wlroots library present.")
 endif()
 
 check_required_components(WaylibServer)

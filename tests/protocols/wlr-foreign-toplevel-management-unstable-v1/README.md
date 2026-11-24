@@ -2,7 +2,7 @@
 
 ## 范围
 
-- XML / interface：`3rdparty/wlroots/protocol/wlr-foreign-toplevel-management-unstable-v1.xml`，
+- XML / interface：`dde-wlroots/protocol/wlr-foreign-toplevel-management-unstable-v1.xml`，
   `zwlr_foreign_toplevel_manager_v1` / `zwlr_foreign_toplevel_handle_v1` v3。
 - 测试源码：`tests/protocols/wlr-foreign-toplevel-management-unstable-v1/`。
 - Fixture：真实 Treeland desktop integration fixture、headless output、mapped xdg toplevel。

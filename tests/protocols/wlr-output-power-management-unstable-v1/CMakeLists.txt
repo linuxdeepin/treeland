@@ -2,7 +2,7 @@
 
 treeland_add_protocol_test(
     NAME wlr_output_power_management_unstable_v1
-    XML "${PROJECT_SOURCE_DIR}/3rdparty/wlroots/protocol/wlr-output-power-management-unstable-v1.xml"
+    XML "${WLR_PROTOCOLS_DATADIR}/unstable/wlr-output-power-management-unstable-v1.xml"
     SETUP "${CMAKE_CURRENT_SOURCE_DIR}/setup.cpp"
     CLIENT "${CMAKE_CURRENT_SOURCE_DIR}/wlr-output-power-management-unstable-v1.c"
 )

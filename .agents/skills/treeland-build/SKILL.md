@@ -12,7 +12,7 @@ description: "配置、编译与安装 treeland：CMake preset 与构建选项�
 - C++20、C23；GCC 或 Clang
 - Ninja（`CMakePresets.json` 里的 preset 都用它）
 - pkg-config
-- Qt ≥ 6.8（Core/Gui/Qml/Quick/QuickControls2/RemoteObjects/Network/DBus/Test…）、Dtk6、wlroots 0.20、外部 CMake 包 `TreelandProtocols`
+- Qt ≥ 6.8（Core/Gui/Qml/Quick/QuickControls2/RemoteObjects/Network/DBus/Test…）、Dtk6、`dde-wlroots-dev`（静态 wlroots 0.20）、外部 CMake 包 `TreelandProtocols`
 - DDM ≥ 0.5.0（`find_package(DDM 0.5.0 REQUIRED COMPONENTS Common)`，在 `src/CMakeLists.txt`）；`DISABLE_DDM=ON` 时不要求。系统里残留低版本 DDM 会直接在 configure 阶段报版本不兼容
 - 完整清单以 `debian/control` 为准；`apt build-dep .` 一次装齐
 
@@ -54,7 +54,7 @@ cmake --preset default -DCMAKE_BUILD_TYPE=Debug
 | `BUILD_TREELAND_EXAMPLES` | `OFF` | 示例客户端 |
 | `TREELAND_INSTALL_DEV` | `OFF` | 装开发文件（头文件、CMake config、`.so` 链接） |
 | `DISABLE_DDM` | `OFF` | 关掉 DDM 与 greeter |
-| `DISABLE_XWAYLAND` | `OFF` | 关闭 Treeland/waylib 的 Xwayland 路径，并覆盖 wlroots 的有效 `WLROOTS_XWAYLAND` 为 `OFF`；不构建 Xwayland helper、xwindow-control 模块及其测试 |
+| `DISABLE_XWAYLAND` | `OFF` | 关闭 Treeland/waylib 的 Xwayland 路径；不构建 Xwayland helper、xwindow-control 模块及其测试 |
 | `EXT_SESSION_LOCK_V1` | `ON` | 用 ext-session-lock 作为 DDM 之外的锁屏方案 |
 | `USE_BUILD_TREE_WALLPAPER_FACTORY` | `OFF` | 直接用构建树里的 wallpaper factory |
 

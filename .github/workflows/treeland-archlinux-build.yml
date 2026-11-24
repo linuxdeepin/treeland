@@ -33,7 +33,7 @@ jobs:
 
       - name: Install graphics and wayland dependencies
         run: |
-          # Vendored waylib-wlroots deps from Arch wlroots0.19 package metadata
+          # Vendored dde-wlroots deps from Arch wlroots0.19 package metadata
           # (do not install system wlroots0.19)
           pacman -S --noconfirm --noprogressbar \
             pixman wayland wayland-protocols wlr-protocols \

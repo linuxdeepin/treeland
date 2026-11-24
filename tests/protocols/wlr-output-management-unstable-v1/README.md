@@ -2,7 +2,7 @@
 
 ## 范围
 
-- XML / interface：`3rdparty/wlroots/protocol/wlr-output-management-unstable-v1.xml` /
+- XML / interface：`dde-wlroots/protocol/wlr-output-management-unstable-v1.xml` /
   `zwlr_output_manager_v1`、head、mode、configuration 与 configuration-head v4。
 - 测试源码：`tests/protocols/wlr-output-management-unstable-v1/`。
 - Fixture：完整 Treeland desktop integration fixture 与一个 `1920×1080` headless output。

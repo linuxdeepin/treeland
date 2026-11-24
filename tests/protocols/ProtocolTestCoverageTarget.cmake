@@ -42,7 +42,8 @@ set(treeland_protocol_coverage_post_command
     "\"-DPROTOCOL_TEST_XML_LIST=${treeland_protocol_test_xml_list}\""
     "\"-DTREELAND_SERVED_PROTOCOL_XML_LIST=${treeland_served_protocol_xml_list}\""
     "\"-DWAYLAND_PROTOCOLS_DATADIR=${WAYLAND_PROTOCOLS_DATADIR}\""
-    "\"-DWLROOTS_PROTOCOL_DIR=${PROJECT_SOURCE_DIR}/3rdparty/wlroots/protocol\""
+    "\"-DWLROOTS_PROTOCOL_DIR=${WLROOTS_PROTOCOL_DIR}\""
+    "\"-DWLR_PROTOCOLS_DATADIR=${WLR_PROTOCOLS_DATADIR}\""
     "\"-DTREELAND_PROTOCOLS_DATA_DIR=${TREELAND_PROTOCOLS_DATA_DIR}\""
     -P
     "\"${CMAKE_CURRENT_LIST_DIR}/ProtocolTestCoverage.cmake\""

@@ -2,7 +2,7 @@
 
 treeland_add_protocol_test(
     NAME wlr_gamma_control_unstable_v1
-    XML "${PROJECT_SOURCE_DIR}/3rdparty/wlroots/protocol/wlr-gamma-control-unstable-v1.xml"
+    XML "${WLR_PROTOCOLS_DATADIR}/unstable/wlr-gamma-control-unstable-v1.xml"
     SETUP "${CMAKE_CURRENT_SOURCE_DIR}/setup.cpp"
     CLIENT "${CMAKE_CURRENT_SOURCE_DIR}/wlr-gamma-control-unstable-v1.c"
 )
@@ -12,7 +12,7 @@ treeland_add_protocol_test(
 if(TREELAND_ENABLE_GPU_PROTOCOL_TESTS)
     treeland_add_protocol_test(
         NAME wlr_gamma_control_unstable_v1_drm
-        XML "${PROJECT_SOURCE_DIR}/3rdparty/wlroots/protocol/wlr-gamma-control-unstable-v1.xml"
+        XML "${WLR_PROTOCOLS_DATADIR}/unstable/wlr-gamma-control-unstable-v1.xml"
         SETUP "${CMAKE_CURRENT_SOURCE_DIR}/setup.cpp"
         CLIENT "${CMAKE_CURRENT_SOURCE_DIR}/wlr-gamma-control-unstable-v1.c"
     )

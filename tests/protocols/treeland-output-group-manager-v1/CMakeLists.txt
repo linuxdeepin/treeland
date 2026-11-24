@@ -4,5 +4,5 @@ treeland_add_protocol_test(
     SETUP "${CMAKE_CURRENT_SOURCE_DIR}/setup.cpp"
     CLIENT "${CMAKE_CURRENT_SOURCE_DIR}/treeland-output-group-manager-v1.c"
     EXTRA_XMLS
-        "${PROJECT_SOURCE_DIR}/3rdparty/wlroots/protocol/wlr-output-management-unstable-v1.xml"
+        "${WLR_PROTOCOLS_DATADIR}/unstable/wlr-output-management-unstable-v1.xml"
 )

@@ -2,7 +2,7 @@
 
 treeland_add_protocol_test(
     NAME virtual_keyboard_unstable_v1
-    XML "${PROJECT_SOURCE_DIR}/3rdparty/wlroots/protocol/virtual-keyboard-unstable-v1.xml"
+    XML "${WLROOTS_PROTOCOL_DIR}/virtual-keyboard-unstable-v1.xml"
     SETUP "${CMAKE_CURRENT_SOURCE_DIR}/setup.cpp"
     CLIENT "${CMAKE_CURRENT_SOURCE_DIR}/virtual-keyboard-unstable-v1.c"
 )
