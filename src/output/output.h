@@ -16,6 +16,8 @@
 #include <QQmlComponent>
 #include <QString>
 
+#include <optional>
+
 Q_MOC_INCLUDE(<woutputitem.h>)
 Q_MOC_INCLUDE("outputconfig.hpp")
 
@@ -206,6 +208,8 @@ private:
     void setViewportRotation(WOutput::Transform transform);
 
     QPointF calculateBasePosition(SurfaceWrapper *surface, const QPointF &dPos) const;
+    std::optional<QPointF> popupPosition(SurfaceWrapper *surface) const;
+    std::optional<QPointF> inputPopupFallbackPosition(SurfaceWrapper *surface) const;
     void handleLayerShellPopup(SurfaceWrapper *surface, const QRectF &normalGeo);
     void handleRegularPopup(SurfaceWrapper *surface, const QRectF &normalGeo, WOutputItem *targetOutput);
     void clearPopupCache(SurfaceWrapper *surface);
