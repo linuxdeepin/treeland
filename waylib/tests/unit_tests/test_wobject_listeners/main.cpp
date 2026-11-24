@@ -17,6 +17,7 @@ class TestObject : public WObject
 public:
     ~TestObject() { teardown(); }
 };
+void setAttachedDataFromOtherTranslationUnit(WObject *object, int *data);
 
 class TestWObjectListeners : public QObject
 {
@@ -28,7 +29,35 @@ private Q_SLOTS:
     void multipleOwnersIndependent();
     void listenerOwnerDestructorRunsTeardown();
     void teardownIdempotent();
+    void attachedDataUsesStableTypeKeyAcrossTranslationUnits();
+    void attachedDataIgnoresCvQualifiers();
 };
+
+void TestWObjectListeners::attachedDataUsesStableTypeKeyAcrossTranslationUnits()
+{
+    // Pins the intended property: one key per type inside one image, so two
+    // translation units of the same binary agree. The old RTTI key also
+    // passed here because the linker coalesces typeid() name storage; the
+    // hidden-visibility split between images is by design and is not tested.
+    TestObject object;
+    int data = 42;
+    setAttachedDataFromOtherTranslationUnit(&object, &data);
+
+    QCOMPARE(object.getAttachedData<int>(), &data);
+    object.removeAttachedData<int>();
+    QVERIFY(!object.getAttachedData<int>());
+}
+
+void TestWObjectListeners::attachedDataIgnoresCvQualifiers()
+{
+    TestObject object;
+    int data = 7;
+    object.setAttachedData<int>(&data);
+
+    QCOMPARE(object.getAttachedData<const int>(), &data);
+    object.removeAttachedData<const int>();
+    QVERIFY(!object.getAttachedData<int>());
+}
 
 void TestWObjectListeners::selfListenersStableUntilTeardown()
 {
