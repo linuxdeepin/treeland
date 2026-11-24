@@ -44,6 +44,7 @@ void alpha_modifier_read_server_state(void *data)
     state->multiplier = 0.0;
     state->has_content_item = 0;
     state->content_opacity = 0.0;
+    state->item_content_opacity = 0.0;
 
     if (!g_wrapper)
         return;
@@ -58,6 +59,8 @@ void alpha_modifier_read_server_state(void *data)
             state->has_content_item = 1;
             state->content_opacity = contentItem->opacity();
         }
+        if (auto *itemContent = surfaceItem->findItemContent())
+            state->item_content_opacity = itemContent->opacity();
     }
 
     auto *wlr_surf = wsurface->handle();

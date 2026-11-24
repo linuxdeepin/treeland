@@ -82,7 +82,7 @@ int protocol_test_run(const char *socket_name) {
 	}
 
 	/* Set multiplier to ~0.5 and verify DConfig windowTransparencyEnabled toggles
-	 * SurfaceContent opacity. */
+	 * SurfaceContent opacity without squaring SurfaceItemContent opacity. */
 	if (!failed) {
 		wp_alpha_modifier_surface_v1_set_multiplier(am_surface, 0x80000000u);
 		wl_surface_commit(tc.surface);
@@ -93,8 +93,10 @@ int protocol_test_run(const char *socket_name) {
 		} else if (srv.multiplier < 0.49 || srv.multiplier > 0.51) {
 			TEST_ERROR("alpha-modifier: expected multiplier ~0.5, got %f\n", srv.multiplier);
 			failed = 1;
-		} else if (srv.has_content_item && (srv.content_opacity < 0.49 || srv.content_opacity > 0.51)) {
-			TEST_ERROR("alpha-modifier: unexpected content opacity=%f\n", srv.content_opacity);
+		} else if (srv.has_content_item && (srv.content_opacity < 0.49 || srv.content_opacity > 0.51
+				|| (srv.item_content_opacity > 0.0 && srv.item_content_opacity != 1.0))) {
+			TEST_ERROR("alpha-modifier: unexpected content opacity=%f item_content_opacity=%f\n",
+				srv.content_opacity, srv.item_content_opacity);
 			failed = 1;
 		}
 	}

@@ -89,7 +89,7 @@ Item {
         id: content
         surface: root.surface?.surface ?? null
         anchors.fill: parent
-        opacity: (effectLoader.active || shapeLoader.active) ? 0 : parent.opacity
+        opacity: (effectLoader.active || shapeLoader.active) ? 0 : 1
         live: root.surface && (root.wrapper?.renderingEnabled ?? true)
               && !(root.surface.flags & SurfaceItem.NonLive)
         smooth: root.surface?.smooth ?? true

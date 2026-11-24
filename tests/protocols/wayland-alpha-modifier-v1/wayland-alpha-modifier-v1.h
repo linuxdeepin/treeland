@@ -25,6 +25,7 @@ struct alpha_modifier_server_state {
 	double multiplier; /* wlr_alpha_modifier_surface_v1_state::multiplier */
 	int has_content_item; /* SurfaceContent.qml root item is available */
 	double content_opacity; /* SurfaceContent.qml effective root opacity */
+	double item_content_opacity; /* SurfaceItemContent child opacity */
 };
 
 /* Defined in setup.cpp; runs on the compositor thread via
