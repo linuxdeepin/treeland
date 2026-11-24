@@ -320,6 +320,8 @@ Item {
         root.desiredSurfaces = [ ];
         root.resetPresentations();
         root.tooltipSurface = null;
+        if (tooltipPresent)
+            tooltipPresent.clear();
     }
 
     // The shell fade also owns the popover's lifetime: it hides the item (and
@@ -584,6 +586,9 @@ Item {
         root.updateReveals();
         root.setShowing(true);
         root.tooltipSurface = null;
+        // The preview replaces a tooltip that may already be frozen.
+        if (tooltipPresent)
+            tooltipPresent.clear();
     }
 
     function showTooltip(surfaceWrapper, target, pos, direction) {
@@ -613,6 +618,9 @@ Item {
         console.info(qLcDockPreview, "stop dock preview")
         root.setShowing(false);
         root.tooltipSurface = null;
+        // A tooltip frozen on its last frame has no property change left.
+        if (tooltipPresent)
+            tooltipPresent.clear();
     }
     /* --- model end --- */
 
