@@ -51,6 +51,7 @@ private:
     bool beforeHandleEvent(WSeat *seat, WSurface *watched, QObject *shellObject,
                            QObject *eventObject, QInputEvent *event) override;
     bool acceptsEvent(WSeat *seat, QInputEvent *event) const;
+    void dismissPopupGrabForPress(WSeat *seat, WSurface *watched, QInputEvent *event);
     WRelativePointerManagerV1 *m_relativePointerManager = nullptr;
     bool beforeDisposeEvent(WSeat *seat, QWindow *window, QInputEvent *event) override;
     bool afterHandleEvent(WSeat *seat, WSurface *watched, QObject *shellObject,
