@@ -824,16 +824,42 @@ int protocol_test_run(const char *socket_name)
           "capture: released restore image changed\n");
     free(reference);
 
+    // Case: stop/start in one batch keeps the source usable.
+    ext_image_copy_capture_session_v1_destroy(other.session);
+    CHECK(session_create(&connection, &other, manager, source) == 0,
+          "capture: same-batch session restart failed\n");
+    CHECK(invoke_on_server_thread(toplevel_capture_flush_source_deletions, &server)
+          && server.capture_sources == 1 && server.offscreen_viewports == 1,
+          "capture: recycle check removed a restarted source\n");
+    CHECK(capture(&connection, &other, &captured, 0) == 0
+          && check_pixels(&captured, &server, green) == 0,
+          "capture: restarted session could not capture\n");
+
     // Case: the capture pipeline belongs to the requesting client, not to the
     // toplevel. Accepting a source must not allocate one, and the last session
     // plus the client's source resource must release it again.
     ext_image_copy_capture_session_v1_destroy(other.session);
     ext_image_capture_source_v1_destroy(source);
     CHECK(wl_display_roundtrip(connection.display) >= 0, "capture: source cleanup failed\n");
-    CHECK(invoke_on_server_thread(toplevel_capture_check_screen, &server)
-          && server.offscreen_viewports == 0,
-          "capture: destroyed client kept its pipeline (%d viewports)\n", server.offscreen_viewports);
+    CHECK(invoke_on_server_thread(toplevel_capture_flush_source_deletions, &server)
+          && server.offscreen_viewports == 0 && server.capture_sources == 0,
+          "capture: destroyed client kept its pipeline (%d sources, %d viewports)\n",
+          server.capture_sources, server.offscreen_viewports);
     CHECK(check_screen(&server) == 0, "capture: released pipeline changed the output\n");
+
+    // Case: an idle source is recycled without any session stop().
+    struct ext_image_capture_source_v1 *idle_source =
+        ext_foreign_toplevel_image_capture_source_manager_v1_create_source(source_manager, foreign.target);
+    CHECK(idle_source, "capture: idle source creation failed\n");
+    CHECK(wl_display_roundtrip(connection.display) >= 0
+          && invoke_on_server_thread(toplevel_capture_flush_source_deletions, &server)
+          && server.capture_sources == 1 && server.offscreen_viewports == 0,
+          "capture: idle source allocated a viewport\n");
+    ext_image_capture_source_v1_destroy(idle_source);
+    CHECK(wl_display_roundtrip(connection.display) >= 0
+          && invoke_on_server_thread(toplevel_capture_flush_source_deletions, &server)
+          && server.capture_sources == 0 && server.offscreen_viewports == 0,
+          "capture: idle source wrapper was not recycled\n");
 
     for (int i = 0; i < 3; ++i) {
         struct ext_image_capture_source_v1 *transient =
@@ -841,9 +867,9 @@ int protocol_test_run(const char *socket_name)
         CHECK(transient, "capture: transient source failed\n");
         CHECK(wl_display_roundtrip(connection.display) >= 0, "capture: transient roundtrip failed\n");
         CHECK(invoke_on_server_thread(toplevel_capture_check_screen, &server)
-              && server.offscreen_viewports == 0,
-              "capture: accepted source allocated an idle pipeline (%d viewports)\n",
-              server.offscreen_viewports);
+              && server.offscreen_viewports == 0 && server.capture_sources == 1,
+              "capture: accepted source has unexpected objects (%d sources, %d viewports)\n",
+              server.capture_sources, server.offscreen_viewports);
 
         struct capture_session transient_session;
         CHECK(session_create(&connection, &transient_session, manager, transient) == 0,
@@ -864,10 +890,10 @@ int protocol_test_run(const char *socket_name)
             ext_image_capture_source_v1_destroy(transient);
             transient = NULL;
             CHECK(wl_display_roundtrip(connection.display) >= 0, "capture: source drop failed\n");
-            CHECK(invoke_on_server_thread(toplevel_capture_check_screen, &server)
-                  && server.offscreen_viewports == 1,
-                  "capture: dropping the source resource released the live session (%d viewports)\n",
-                  server.offscreen_viewports);
+            CHECK(invoke_on_server_thread(toplevel_capture_flush_source_deletions, &server)
+                  && server.offscreen_viewports == 1 && server.capture_sources == 1,
+                  "capture: dropping the source resource released the live session (%d sources, %d viewports)\n",
+                  server.capture_sources, server.offscreen_viewports);
             CHECK(capture(&connection, &transient_session, &captured, 0) == 0
                   && check_pixels(&captured, &server, green) == 0,
                   "capture: frame failed after source resource drop\n");
@@ -877,10 +903,10 @@ int protocol_test_run(const char *socket_name)
         if (transient)
             ext_image_capture_source_v1_destroy(transient);
         CHECK(wl_display_roundtrip(connection.display) >= 0, "capture: transient cleanup failed\n");
-        CHECK(invoke_on_server_thread(toplevel_capture_check_screen, &server)
-              && server.offscreen_viewports == 0,
-              "capture: recycled pipeline still present after request %d (%d viewports)\n",
-              i, server.offscreen_viewports);
+        CHECK(invoke_on_server_thread(toplevel_capture_flush_source_deletions, &server)
+              && server.offscreen_viewports == 0 && server.capture_sources == 0,
+              "capture: recycled pipeline still present after request %d (%d sources, %d viewports)\n",
+              i, server.capture_sources, server.offscreen_viewports);
         CHECK(check_screen(&server) == 0, "capture: recycling changed the output\n");
     }
 

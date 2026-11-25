@@ -13,6 +13,7 @@
 
 #include <wbackend.h>
 #include <wcursor.h>
+#include <wextimagecapturesourcev1impl.h>
 #include <winputdevice.h>
 #include <wseat.h>
 #include <wbufferrenderer_p.h>
@@ -27,6 +28,8 @@
 
 #include <QImage>
 #include <QAbstractItemModel>
+#include <QCoreApplication>
+#include <QEvent>
 #include <QEventLoop>
 #include <QPointer>
 #include <QQmlComponent>
@@ -295,6 +298,8 @@ void readState(void *data)
     *state = {};
     if (!g_target || !g_target->surfaceItem())
         return;
+    state->capture_sources = g_target->findChildren<WExtImageCaptureSourceV1Impl *>(
+        QString(), Qt::FindDirectChildrenOnly).size();
     auto *item = g_target->surfaceItem();
     state->valid = g_target->surface() && g_target->surface()->mapped();
     state->titlebar_height = g_target->titleBar() ? qRound(g_target->titleBar()->height()) : 0;
@@ -460,6 +465,17 @@ extern "C" void toplevel_capture_prepare(void *data)
 
 extern "C" void toplevel_capture_check_screen(void *data)
 {
+    readState(data);
+}
+
+extern "C" void toplevel_capture_flush_source_deletions(void *data)
+{
+    if (g_target) {
+        const auto sources = g_target->findChildren<WExtImageCaptureSourceV1Impl *>(
+            QString(), Qt::FindDirectChildrenOnly);
+        for (auto *source : sources)
+            QCoreApplication::sendPostedEvents(source, QEvent::DeferredDelete);
+    }
     readState(data);
 }
 

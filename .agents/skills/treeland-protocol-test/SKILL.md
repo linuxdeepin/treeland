@@ -97,13 +97,15 @@ void protocol_test_setup(WaylandServer *server)
   `accept` 只创建 client resource；离屏视口/副本子树在第一个 session 的 `start()` 里建，
   最后一个 `stop()` 里同步释放，最后一个 client resource 也消失后再销毁包装对象。
   窗口失效只负责 `finish()` → `stopped`，不能作为唯一的回收路径。
-- 清理必须延迟到下一轮事件循环：`stop()` 和 client resource 的 destroy listener 都跑在
-  wlroots 的 `session_destroy()` 里，此时直接 `finish()` 会重入同一个 session 的销毁
-  （`session_send_stopped()` 用到已释放的 resource）。
-- 用 fixture 直接计数离屏视口（`findChildren<WOutputViewport*>()` + `offscreen()`），
-  断言：创建 source 后为 0；同一 source 的首个 session 创建 1 条管线，增加 session
-  不再增加管线；销毁最后一个 session 后回到 0；
-  会话期间提前销毁 source resource 仍为 1 且继续能捕获到 frame。
+- source 回收判断与 `finish()` 必须排队到 native teardown 返回之后：`stop()` 仍在
+  wlroots 的 `session_destroy()` 里，client resource 的 destroy listener 则早于 native 摘链。
+  listener 只摘自己的监听器，不修改 `source.resources`；queued 检查入口先清除去重标志，
+  再读取 resource/session 的最新状态。最后一个 `stop()` 仍同步释放视口。
+- 用 fixture 直接计数 source 包装对象及离屏视口（`findChildren<WOutputViewport*>()` + `offscreen()`），
+  断言：只创建 source 时包装对象为 1、视口为 0；同一 source 的首个 session 创建 1 条
+  管线，增加 session 不再增加管线；销毁最后一个 session 后视口回到 0；
+  会话期间提前销毁 source resource 时包装对象与视口仍各为 1，且继续能捕获到 frame。
+  另外验证空闲 source 独立回收、同批停止/重启，以及 resource/session 都销毁后包装对象归零。
 - `request_frame` 的 `schedule_frame` 来自 session damage 是否非空，不能将它当作
   “已有待处理请求”的标志。按需渲染的离屏视口对每次请求都应主动调度，并自行记录
   待完成的渲染，不能因为 damage 为空而永远等不到下一个 frame。

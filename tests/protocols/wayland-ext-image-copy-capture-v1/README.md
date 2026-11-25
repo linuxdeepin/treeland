@@ -36,8 +36,8 @@
 | 离屏渲染失败及恢复 | 锁住真实捕获 swapchain 的全部空闲 buffer，两会话提交 frame 后执行生产离屏渲染，再释放 buffer 并重新捕获 | 每个挂起 frame 恰好收到一次 `failed(unknown)`，不收到 `ready` 或 `stopped`；共享视口保留，两会话恢复后均收到 `ready`，像素正确 | P / V |
 | 窗口 resize | 根面提交 320×260 buffer，先使用旧捕获 buffer，再使用新 buffer | 新 `buffer_size`；旧 buffer 收到 `buffer_constraints`，新 buffer 收到 `ready` 和新区域像素；屏幕和窗口几何不受捕获影响 | P / V |
 | 最大化拖动还原 | 客户端 `set_maximized`，提交 configure 指定尺寸，再通过 SSD 按下/移动/释放指针 | 最大化图像完整；拖动还原但客户端尚未提交小 buffer 时仍完整捕获旧内容；还原 buffer 到达后约束缩小，整幅图像与还原前逐像素相等；继续拖动及释放不造成 SSD 漂移/截断 | E / V / P |
-| 停止、重启及销毁 | 销毁所有 session 后重建，捕获期间销毁 toplevel | 重启后 frame 成功；窗口销毁后 session 收到 `stopped` | P / E |
-| 捕获管线生命周期 | 只创建 source 不建 session；同一窗口连续 3 次 “source → session → 捕获 → 销毁 session 和 source”；会话期间提前销毁 source resource | 空闲 source 不创建离屏视口；每次会话恰好一条管线，销毁后捕获视口数回到 0 且屏幕不变；source resource 销毁后仍存活的 session 继续收到 frame | P / V |
+| 停止、重启及销毁 | 同一批请求中销毁并重建最后一个 session，捕获期间销毁 toplevel | 重启后保留一个 source 和一个视口，frame 成功；窗口销毁后 session 收到 `stopped` | P / E |
+| 捕获管线生命周期 | 只创建并销毁空闲 source；同一窗口连续 3 次 “source → session → 捕获 → 销毁 session 和 source”；会话期间提前销毁 source resource | 空闲 source 不创建视口且包装对象可独立回收；每次会话恰好一条管线，全部销毁后 source 和视口数均回到 0 且屏幕不变；source resource 销毁后仍存活的 session 继续收到 frame，最后停止时仍能回收 source | P / V |
 | 组件定义复用 | 重建捕获会话并检查生产 capture input 的 delegate | delegate 始终为 QmlEngine 的同一个 CaptureSurfaceContent 缓存组件；具体实例及视口仍随会话释放，SSD 和整图像素不变 | P / V |
 | 请求之间的合成器渲染 | 两次捕获之间让捕获视口额外渲染一帧 | 下一次捕获仍收到 `ready`，不等待不会发生的渲染 | P / V |
 | 待处理请求遇到关屏 | 同一批请求中先 `capture`，再对原输出 `set_mode(OFF)`；窗口已移到第二块屏 | 原输出 disabled、第二块屏 enabled，待处理 frame 仍收到 `ready`，视口未重建 | P / E |
@@ -66,12 +66,16 @@ CaptureSurfaceContent 与 Border 的 QQmlComponent 定义由 QmlEngine 持有；
 
 捕获管线属于发起请求的客户端，而不是被捕获的窗口：`accept()` 只创建 client resource，
 `start()` 在第一个 session 到来时才创建离屏视口，最后一个 `stop()` 同步释放视口，
-client resource 与 session 都不存在时销毁 source 包装对象。因此空闲 source、反复截图和
+client resource 与 session 都不存在时销毁 source 包装对象。`stop()` 与 resource destroy
+listener 去重排队回收检查，检查入口清除去重标志，再读取最新状态；resource 链表由
+wlroots 的 native 析构完成摘链，捕获源只移除自己的监听器。因此空闲 source、反复截图和
 中途销毁 source resource 都不会在网络窗口生命周期内累积 `WSurfaceItem` 副本、SSD、
 swapchain 或渲染窗口的 output helper。释放后 `source.width/height` 与 SHM 格式保留，
 下个 session 在首次渲染前就能拿到正确约束；swapchain 派生的 DMA-BUF 约束在重建后由
 首帧刷新。`request_frame` 不依赖 wlroots 的 damage 调度提示，离屏视口按需渲染，
 避免请求之间发生合成器渲染时客户端永远等不到 frame。
+回收断言在请求 roundtrip 后的服务端队列同步点处理已投递的 `DeferredDelete` 事件，再
+计数包装对象和视口；夹具不主动调用 `invalidate()` / `finish()`，也不先重绘屏幕。
 输出启用时沿用输出 frame 时钟；输出关闭时排队执行 `render(false)`，不重建管线，
 也不向屏幕提交。`enabledChanged` 会重新安排尚未完成的请求，渲染重入则等当前
 `renderEnd` 后再调度；最后一个 session 停止或 source 失效时清除排队状态。
@@ -175,6 +179,16 @@ ctest --test-dir build -R '^test_wayland_ext_toplevel_image_capture_v1_gpu$' -V
   headless + pixman / GLES2 各连续 5 次通过。GLES2 实际使用 `/dev/dri/renderD128`，
   无 skip 或软件 fallback；另外 13 项相关协议回归全部通过。
 - 尚未验证物理 DRM/VT 切换；组件复用没有单独测量编译或启动耗时。
+
+### 排队回收检查
+
+- 临时删除 queued 检查入口的去重标志复位后，同批重启后的清理断言失败：仍有
+  `1 sources, 0 viewports`，证明仅计数视口不能发现包装对象泄漏。
+- 临时在 resource destroy listener 中同步检查时，空闲 source 销毁后的包装对象
+  回收断言失败。上述两项人为回归验证后均已还原最终实现。
+- `ci` preset（`-Wall -Wextra -Werror`）构建通过；完整场景在 headless + pixman /
+  GLES2 各连续 5 次通过，GPU 实际使用 `/dev/dri/renderD128`，无 skip 或软件 fallback。
+- 另外 13 项相关协议回归与装饰 manager 单测全部通过。
 
 ## 已知边界 / 下一项结果
 

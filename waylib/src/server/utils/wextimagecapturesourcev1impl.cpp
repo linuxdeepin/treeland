@@ -180,31 +180,28 @@ void WExtImageCaptureSourceV1Impl::resourceDestroyed(wl_listener *listener, void
     auto *resource = static_cast<wl_resource *>(data);
     self->m_resourceListeners.remove(resource);
 
-    // wl_resource_destroy() notifies destroy listeners before wlroots unlinks
-    // the resource from source.resources. Unlink it now so the recycle check
-    // below sees the client's last resource as gone. wlroots' own destructor
-    // then removes an already initialized link, which is a no-op.
-    wl_list_remove(wl_resource_get_link(resource));
-    wl_list_init(wl_resource_get_link(resource));
+    wl_list_remove(&entry->listener.link);
     std::free(entry);
 
-    self->maybeRecycle();
+    self->scheduleRecycleCheck();
+}
+
+void WExtImageCaptureSourceV1Impl::scheduleRecycleCheck()
+{
+    if (m_finished || m_recycleCheckQueued)
+        return;
+    m_recycleCheckQueued = true;
+    QMetaObject::invokeMethod(this, &WExtImageCaptureSourceV1Impl::maybeRecycle,
+                              Qt::QueuedConnection);
 }
 
 void WExtImageCaptureSourceV1Impl::maybeRecycle()
 {
-    if (m_finished || m_recycleScheduled)
+    m_recycleCheckQueued = false;
+    // Native teardown must finish unlinking resources before this check.
+    if (m_finished || m_numStarted > 0 || !wl_list_empty(&source.resources))
         return;
-    if (m_numStarted > 0 || !wl_list_empty(&source.resources))
-        return;
-
-    // stop() and resource destruction run inside wlroots' session teardown.
-    // Finishing the source there would re-enter session_destroy() for the
-    // session that is still on the stack, so recycle on the next event loop
-    // iteration instead.
-    m_recycleScheduled = true;
-    QMetaObject::invokeMethod(this, &WExtImageCaptureSourceV1Impl::invalidate,
-                              Qt::QueuedConnection);
+    invalidate();
 }
 
 void WExtImageCaptureSourceV1Impl::updateConstraints()
@@ -291,7 +288,7 @@ void WExtImageCaptureSourceV1Impl::stop()
         return;
 
     releaseViewport();
-    maybeRecycle();
+    scheduleRecycleCheck();
 }
 
 void WExtImageCaptureSourceV1Impl::request_frame(wlr_ext_image_capture_source_v1 *source,

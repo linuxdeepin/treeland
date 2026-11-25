@@ -13,6 +13,7 @@ struct toplevel_capture_state {
     int render_state_unchanged;
     int capture_frames_checked;
     int offscreen_viewports;
+    int capture_sources;
     int isolated_inputs;
     int shared_delegates;
     int capture_only_did_not_commit;
@@ -47,6 +48,7 @@ extern "C" {
 #endif
 void toplevel_capture_prepare(void *data);
 void toplevel_capture_check_screen(void *data);
+void toplevel_capture_flush_source_deletions(void *data);
 void toplevel_capture_repaint_screen(void *data);
 void toplevel_capture_render_offscreen(void *data);
 void toplevel_capture_hold_buffers(void *data);

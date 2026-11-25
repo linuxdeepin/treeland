@@ -60,11 +60,11 @@ private:
     void releaseViewport();
     void attachResourceListeners();
     void detachResourceListeners();
-    // Reclaims this source when no client resource and no session are left.
-    void maybeRecycle();
+    void scheduleRecycleCheck();
     static void resourceDestroyed(wl_listener *listener, void *data);
 
 private Q_SLOTS:
+    void maybeRecycle();
     void handleFrameRendered();
     void handleFrameRenderFailed();
     void updateConstraints();
@@ -83,7 +83,7 @@ private:
     bool m_fallbackQueued = false;
     bool m_constraintsFromSwapchain = false;
     bool m_finished = false;
-    bool m_recycleScheduled = false;
+    bool m_recycleCheckQueued = false;
     bool m_inDestructor = false;
 };
 

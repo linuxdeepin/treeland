@@ -83,7 +83,7 @@ xdg-shell 由共享 xdg-toplevel 夹具覆盖（多个 toplevel 测试复用）�
 | [wayland-ext-data-control-v1](wayland-ext-data-control-v1/README.md) | E | 创建 offer 并 `set_selection` 后回读真实 `wlr_seat::selection_source` 非空 |
 | [wayland-ext-foreign-toplevel-list-v1](wayland-ext-foreign-toplevel-list-v1/README.md) | E | 映射 toplevel 后回读真实 `wlr_ext_foreign_toplevel_list_v1::toplevels` 列表非空 |
 | [wayland-ext-idle-notify-v1](wayland-ext-idle-notify-v1/README.md) | E | 跨协议验证：创建 idle inhibitor 后 `idled` 不触发，销毁 inhibitor 后 `idled` 触发，证明生产 `wlr_idle_notifier_v1` inhibited 状态被修改 |
-| [wayland-ext-image-copy-capture-v1](wayland-ext-image-copy-capture-v1/README.md) | P / E / V | 输出工厂创建/销毁；独立窗口捕获的主面、递归子面、SSD、遮挡隔离及透明间隙像素，连续帧/移动整图相等、子面更新、resize、最大化 SSD 拖动还原、多会话和销毁；捕获管线随 client resource/session 创建与回收（空闲 source 不建视口、反复会话回到 0 条管线、source resource 提前销毁仍可继续捕获）、请求之间的合成器渲染不阻塞下一次 frame；真实 swapchain 槽位耗尽时多会话 frame 收到 unknown 失败、会话和视口保留且能恢复；双屏跨屏后关屏的待处理/新请求、渲染失败及恢复、复电、排队回收及新会话重选启用输出；无先行重绘的整屏像素/几何检查、逐次 render 的 live QSG 状态检查、离屏不提交；历史 pixman / GLES2 场景各连续 20 次通过，另 11 项相关回归中 10 项通过、输出管理旋转断言失败，物理 scanout 未验收 |
+| [wayland-ext-image-copy-capture-v1](wayland-ext-image-copy-capture-v1/README.md) | P / E / V | 输出工厂创建/销毁；独立窗口捕获的主面、递归子面、SSD、遮挡隔离及透明间隙像素，连续帧/移动整图相等、子面更新、resize、最大化 SSD 拖动还原、多会话和销毁；捕获管线随 client resource/session 创建与回收（空闲 source 独立回收、同批停止/重启保留 source、反复会话后 source/视口均归零、source resource 提前销毁仍可继续捕获）、请求之间的合成器渲染不阻塞下一次 frame；真实 swapchain 槽位耗尽时多会话 frame 收到 unknown 失败、会话和视口保留且能恢复；双屏跨屏后关屏的待处理/新请求、渲染失败及恢复、复电、排队回收及新会话重选启用输出；无先行重绘的整屏像素/几何检查、逐次 render 的 live QSG 状态检查、离屏不提交；历史 pixman / GLES2 场景各连续 20 次通过，另 11 项相关回归中 10 项通过、输出管理旋转断言失败，物理 scanout 未验收 |
 | [wayland-ext-session-lock-v1](wayland-ext-session-lock-v1/README.md) | E | `lock`→`locked` 后回读真实 `WSessionLock::isLocked()` 为 true；提交 lock surface buffer 后回读生产 wrapper，断言其尺寸 == `Output::geometry()`（全屏，而非去掉 exclusive zone 的工作区）、位置 == 输出原点 |
 | [wayland-fractional-scale-v1](wayland-fractional-scale-v1/README.md) | E | 回读真实 `WOutput::scale()`，断言 `preferred_scale` == round(scale×120) |
 | [wayland-idle-inhibit-unstable-v1](wayland-idle-inhibit-unstable-v1/README.md) | E | 回读真实 `wlr_idle_inhibitor_v1` 已关联 mapped `WSurface`，销毁后确认 resource 已移除 |
@@ -199,8 +199,9 @@ headless 历史死锁边界（issue #1407）仍未由窗口测试覆盖。
 **E / V / P 级测试（1 个）**——`ext-image-copy-capture-v1`：纯 C 客户端读取真实 SHM
 frame，覆盖主面、递归子面、SSD、连续帧、正/负坐标移动、resize、最大化后 SSD 拖动还原
 （还原 buffer 到达前后）、多会话及销毁；捕获管线随 client resource 与 session 创建/回收，
-空闲 source 不建离屏视口，反复请求后管线数回到 0，source resource 提前销毁不影响存活
-session。真实 swapchain 槽位耗尽时，每个挂起 frame 收到 unknown 失败，保留会话并在
+空闲 source 不建离屏视口且可独立回收，同批停止/重启保留 source，反复请求后 source 和
+视口数都回到 0；source resource 提前销毁不影响存活 session，最后停止时再次排队回收。
+真实 swapchain 槽位耗尽时，每个挂起 frame 收到 unknown 失败，保留会话并在
 释放 buffer 后恢复捕获；同样覆盖原输出关闭时的失败与恢复。fixture 在不先重绘屏幕的
 情况下检查每个提交帧整屏像素、窗口几何和逐次 capture
 render 的 live QSG 状态，离屏不提交真实输出。可选 GPU target 使用同一场景，缺 DRM render
@@ -210,6 +211,8 @@ node 时 skip；pixman / Intel UHD 630 GLES2 各连续 20 次通过，实际 Tre
 同时覆盖真实 DDM 全局暂停/恢复：原 capture 无额外请求即可恢复，关屏输出仍走
 离屏兜底；暂停时取消或窗口销毁后不再绘制旧视口。重建管线检查 CaptureSurfaceContent
 组件定义复用，并保留原有 SSD 和整图像素断言。
+排队回收检查的完整场景在 pixman / GLES2 各连续 5 次通过，另外 13 项相关协议回归与
+装饰 manager 单测通过；去重标志未复位及 resource 销毁时同步检查两项人为回归均被检出。
 
 `cursor-shape`/`relative-pointer`/`pointer-constraints` 三个 E 级测试需要 seat 指针能力，
 在 setup 中通过创建真实 `WInputDevice::Type::Pointer` 设备注入。
