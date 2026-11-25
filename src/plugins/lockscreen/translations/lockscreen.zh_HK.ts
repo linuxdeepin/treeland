@@ -48,7 +48,7 @@
     <message>
         <location filename="../qml/ShutdownView.qml" line="37"/>
         <source>switch user</source>
-        <translation>切換帳户</translation>
+        <translation>切換使用者</translation>
     </message>
     <message>
         <location filename="../qml/ShutdownView.qml" line="44"/>
