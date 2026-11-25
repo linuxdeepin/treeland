@@ -58,7 +58,7 @@
             "visibility": "private"
         },
         "showOtherUserOption": {
-            "value": false,
+            "value": true,
             "serial": 0,
             "flags": [],
             "name": "Show Other User Option",
