@@ -1,3 +1,29 @@
+treeland (0.12.1) unstable; urgency=medium
+
+  * feat(build): migrate wlroots to the dde-wlroots static package and add
+    FetchContent source builds via TREELAND_FETCH_DDE_WLROOTS
+  * feat(session): isolate workspace and multitask-view lifecycles per
+    session and preserve user Wayland sockets across desktop switches
+  * feat(session): expose ext-workspace-v1 per session and tear down
+    socket-owned protocol managers on logout
+  * feat(treeland-debug): add Tab completion and command history to the
+    shell, x11-style output and listen parity, plus source socket logging
+  * feat(render): vendor QSGBatchRenderer as WSGBatchRenderer on the RHI
+    path
+  * feat(dock-preview): keep the popover when the tooltip surface dies and
+    refine slot clipping, hover frame and system window radius
+  * feat(lockscreen): sort users by account creation time and cross-fade
+    wallpapers when switching users
+  * fix(lockscreen): restore popup list scrolling and keep the user popup
+    inside the output
+  * fix(xwayland): place X11 popup windows in the popup container
+  * fix(desktop): keep the taskbar above the multitask view
+  * fix(decoration): treat corner radius 0 as square corners
+  * fix: composite captured non-cursor layers so screencopy includes them
+  * chore: require DDM 0.5.0 and drop the 0.3.8 guard
+
+ -- rewine <luhongxu@deepin.org>  Wed, 25 Nov 2026 11:31:18 +0800
+
 treeland (0.12.0) unstable; urgency=medium
 
   * test(foreign-toplevel): disable geometry animation in protocol test
