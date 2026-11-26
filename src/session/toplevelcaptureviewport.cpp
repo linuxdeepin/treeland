@@ -8,10 +8,51 @@
 #include "surface/surfacewrapper.h"
 
 #include <wsurfaceitem.h>
+#include <woutputrenderwindow.h>
+#include <QQuickRenderControl>
 #include <private/qquickitem_p.h>
+#include <private/qquickshadereffectsource_p.h>
 #include <QtMath>
 
 namespace {
+class CaptureSurfaceObserver final : public QObject
+{
+public:
+    CaptureSurfaceObserver(WSurfaceItem *item, WOutputViewport *viewport)
+        : QObject(item), m_viewport(viewport)
+    {
+        connect(item->surface(), &WSurface::commit, this, &CaptureSurfaceObserver::committed);
+        connect(item->surface(), &WSurface::subsurfaceOrderChanged, this, &CaptureSurfaceObserver::changed);
+        connect(item, &WSurfaceItem::subsurfaceAdded, this, &CaptureSurfaceObserver::observeSubsurface);
+        connect(item, &WSurfaceItem::subsurfaceRemoved, this, &CaptureSurfaceObserver::changed);
+        connect(item, &WSurfaceItem::xChanged, this, &CaptureSurfaceObserver::changed);
+        connect(item, &WSurfaceItem::yChanged, this, &CaptureSurfaceObserver::changed);
+        connect(item, &WSurfaceItem::visibleChanged, this, &CaptureSurfaceObserver::changed);
+        const auto children = item->findChildren<WSurfaceItem *>(QString(), Qt::FindDirectChildrenOnly);
+        for (auto *child : children)
+            new CaptureSurfaceObserver(child, viewport);
+    }
+
+private:
+    void observeSubsurface(WSurfaceItem *item)
+    {
+        new CaptureSurfaceObserver(item, m_viewport);
+        changed();
+    }
+
+    void committed(quint32 state)
+    {
+        constexpr quint32 visualState = WLR_SURFACE_STATE_BUFFER | WLR_SURFACE_STATE_SURFACE_DAMAGE
+            | WLR_SURFACE_STATE_BUFFER_DAMAGE | WLR_SURFACE_STATE_TRANSFORM | WLR_SURFACE_STATE_SCALE
+            | WLR_SURFACE_STATE_VIEWPORT | WLR_SURFACE_STATE_OFFSET;
+        if (state & visualState)
+            changed();
+    }
+
+    void changed() { Q_EMIT m_viewport->contentChanged(); }
+    WOutputViewport *const m_viewport;
+};
+
 // A second view of the committed wl_surface tree, not a SurfaceWrapper proxy:
 // those can configure/activate the shared shell surface. Capture is read-only.
 class CaptureSurfaceItem final : public WSurfaceItem
@@ -65,6 +106,10 @@ ToplevelCaptureViewport::ToplevelCaptureViewport(SurfaceWrapper *wrapper, WOutpu
     QQuickItemPrivate::get(m_surfaceItem)->setCulled(true);
     setInput(m_surfaceItem);
     setOutput(output);
+    new CaptureSurfaceObserver(m_surfaceItem, this);
+    // Check after the current update batch, before a disabled output needs a frame.
+    connect(outputRenderWindow()->renderControl(), &QQuickRenderControl::sceneChanged,
+            this, &ToplevelCaptureViewport::checkContentChanges, Qt::QueuedConnection);
 
     auto *source = wrapper->surfaceItem();
     connect(source, &WSurfaceItem::widthChanged,
@@ -107,6 +152,63 @@ ToplevelCaptureViewport::ToplevelCaptureViewport(SurfaceWrapper *wrapper, WOutpu
 SurfaceWrapper *ToplevelCaptureViewport::sourceSurface() const
 {
     return m_wrapper;
+}
+
+ToplevelCaptureViewport::~ToplevelCaptureViewport()
+{
+    for (auto *source : std::as_const(m_textureSources))
+        source->disconnect(this);
+}
+
+bool ToplevelCaptureViewport::hasDirtyContent(QQuickItem *item)
+{
+    auto *d = QQuickItemPrivate::get(item);
+    quint32 dirty = d->dirtyAttributes;
+    if (auto *source = qobject_cast<QQuickShaderEffectSource *>(item)) {
+        watchTextureSource(source);
+        // A layer texture refresh marks Content even when its source is unchanged.
+        if (!source->recursive())
+            dirty &= ~QQuickItemPrivate::Content;
+    }
+    bool changed = dirty != 0;
+    for (auto *child : std::as_const(d->childItems))
+        changed |= hasDirtyContent(child);
+    return changed;
+}
+
+void ToplevelCaptureViewport::watchTextureSource(QQuickItem *item)
+{
+    auto *source = static_cast<QQuickShaderEffectSource *>(item);
+    if (m_textureSources.contains(source))
+        return;
+    m_textureSources.insert(source);
+    connect(source, &QObject::destroyed, this, [this](QObject *object) { m_textureSources.remove(object); });
+    connect(source, &QQuickShaderEffectSource::sourceItemChanged, this, &WOutputViewport::contentChanged);
+    connect(source, &QQuickShaderEffectSource::sourceRectChanged, this, &WOutputViewport::contentChanged);
+    connect(source, &QQuickShaderEffectSource::textureSizeChanged, this, &WOutputViewport::contentChanged);
+    connect(source, &QQuickShaderEffectSource::formatChanged, this, &WOutputViewport::contentChanged);
+    connect(source, &QQuickShaderEffectSource::wrapModeChanged, this, &WOutputViewport::contentChanged);
+    connect(source, &QQuickShaderEffectSource::mipmapChanged, this, &WOutputViewport::contentChanged);
+    connect(source, &QQuickShaderEffectSource::textureMirroringChanged, this, &WOutputViewport::contentChanged);
+    connect(source, &QQuickShaderEffectSource::samplesChanged, this, &WOutputViewport::contentChanged);
+    connect(source, &QQuickShaderEffectSource::recursiveChanged, this, &WOutputViewport::contentChanged);
+    connect(source, &QQuickShaderEffectSource::hideSourceChanged, this, &WOutputViewport::contentChanged);
+    connect(source, &QQuickShaderEffectSource::liveChanged, this, &WOutputViewport::contentChanged);
+    connect(source, &QQuickShaderEffectSource::scheduledUpdateCompleted,
+            this, &ToplevelCaptureViewport::textureUpdated);
+}
+
+void ToplevelCaptureViewport::textureUpdated()
+{
+    auto *source = qobject_cast<QQuickShaderEffectSource *>(sender());
+    if (source && !source->live())
+        Q_EMIT contentChanged();
+}
+
+void ToplevelCaptureViewport::checkContentChanges()
+{
+    if (hasDirtyContent(m_surfaceItem))
+        Q_EMIT contentChanged();
 }
 
 void ToplevelCaptureViewport::updateSurfaceFlags()

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <stdint.h>
+
 struct toplevel_capture_state {
     int valid;
     int titlebar_height;
@@ -12,6 +14,7 @@ struct toplevel_capture_state {
     int screen_unchanged;
     int render_state_unchanged;
     int capture_frames_checked;
+    int capture_paints;
     int offscreen_viewports;
     int capture_sources;
     int isolated_inputs;
@@ -21,6 +24,7 @@ struct toplevel_capture_state {
     int maximized;
     int dragging;
     int border_visible;
+    uint32_t border_color;
     int position_x, position_y;
 };
 
@@ -63,6 +67,9 @@ void toplevel_capture_drag_move(void *data);
 void toplevel_capture_drag_end(void *data);
 void toplevel_capture_add_output(void *data);
 void toplevel_capture_read_output_state(void *data);
+void toplevel_capture_sync_output(void *data);
+void toplevel_capture_set_border(void *data);
+void toplevel_capture_toggle_title_color(void *data);
 #ifdef __cplusplus
 }
 #endif

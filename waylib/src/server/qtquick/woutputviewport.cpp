@@ -24,10 +24,11 @@ void WOutputViewportPrivate::init()
     QQuickItemPrivate::get(bufferRenderer)->anchors()->setFill(q);
     QObject::connect(bufferRenderer, &WBufferRenderer::cacheBufferChanged,
                      q, &WOutputViewport::cacheBufferChanged);
+    QObject::connect(bufferRenderer, &WBufferRenderer::sceneGraphChanged,
+                     q, &WOutputViewport::handleSceneGraphChanged);
     QObject::connect(bufferRenderer, &WBufferRenderer::afterRendering,
-                     q, [this] {
-        forceRender = false;
-    });
+                     q, &WOutputViewport::finishRender);
+    QObject::connect(q, &WOutputViewport::frameRenderFailed, q, &WOutputViewport::finishRender);
 }
 
 void WOutputViewportPrivate::initForOutput()
@@ -50,6 +51,7 @@ void WOutputViewportPrivate::initForOutput()
 
 void WOutputViewportPrivate::update()
 {
+    Q_EMIT q_func()->contentChanged();
     if (Q_UNLIKELY(!componentComplete || !output))
         return;
 
@@ -109,6 +111,19 @@ WOutputViewport::WOutputViewport(QQuickItem *parent)
 WOutputViewport::~WOutputViewport()
 {
     invalidate();
+}
+
+void WOutputViewport::handleSceneGraphChanged()
+{
+    W_D(WOutputViewport);
+    // Painting changes renderer transforms and damage, not source content.
+    if (!d->bufferRenderer->currentBuffer())
+        Q_EMIT contentChanged();
+}
+
+void WOutputViewport::finishRender()
+{
+    d_func()->forceRender = false;
 }
 
 void WOutputViewport::invalidate()
@@ -238,6 +253,7 @@ void WOutputViewport::setDevicePixelRatio(qreal newDevicePixelRatio)
     if (d->output)
         d->updateImplicitSize();
 
+    d->update();
     Q_EMIT devicePixelRatioChanged();
 }
 
@@ -327,6 +343,7 @@ void WOutputViewport::setColorContentsMode(WGlobal::ColorContentsMode mode)
     if (d->colorContentsMode == mode)
         return;
     d->colorContentsMode = mode;
+    d->update();
     Q_EMIT colorContentsModeChanged();
 }
 
@@ -500,6 +517,7 @@ void WOutputViewport::setIgnoreViewport(bool newIgnoreViewport)
     if (d->ignoreViewport == newIgnoreViewport)
         return;
     d->ignoreViewport = newIgnoreViewport;
+    d->update();
     Q_EMIT ignoreViewportChanged();
 }
 

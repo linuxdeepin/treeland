@@ -127,6 +127,7 @@ Q_SIGNALS:
     void bufferSizeChanged();
     void frameRendered();
     void frameRenderFailed();
+    void contentChanged();
     void cacheBufferChanged();
     void colorContentsModeChanged();
     void outputRenderInitialized();
@@ -144,6 +145,8 @@ Q_SIGNALS:
     void dependsChanged();
 
 private:
+    void handleSceneGraphChanged();
+    void finishRender();
     void componentComplete() override;
     void releaseResources() override;
     void itemChange(ItemChange, const ItemChangeData &) override;

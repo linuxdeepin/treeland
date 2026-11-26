@@ -10,10 +10,12 @@
 #include <QHash>
 #include <QList>
 #include <QObject>
+#include <QSet>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutputViewport;
+class WScopedListener;
 struct SourceResourceDestroyListener;
 
 class WAYLIB_SERVER_EXPORT WExtImageCaptureSourceV1Impl : public QObject
@@ -29,6 +31,9 @@ public:
     // resource, so the source can be recycled once the client destroys it.
     bool accept(wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request);
 
+    // Connect the copy-capture manager's new_session event to this callback.
+    static void trackSession(wlr_ext_image_copy_capture_session_v1 *session);
+
 public Q_SLOTS:
     void invalidate();
 
@@ -42,7 +47,9 @@ private:
     static const struct wlr_ext_image_capture_source_v1_interface impl;
     void start(bool with_cursors);
     void stop();
-    void scheduleRender();
+    void requestFrame(bool scheduleFrame);
+    void frameDestroyed(wlr_ext_image_copy_capture_frame_v1 *frame);
+    bool needsRender() const;
     void renderFallback();
     void sendFrame(wlr_buffer *buffer);
     void copy_frame(wlr_ext_image_copy_capture_frame_v1 *dst_frame,
@@ -58,6 +65,7 @@ private:
 
     WOutputViewport *ensureViewport();
     void releaseViewport();
+    void handleContentChanged();
     void attachResourceListeners();
     void detachResourceListeners();
     void scheduleRecycleCheck();
@@ -78,8 +86,11 @@ private:
     QList<QMetaObject::Connection> m_viewportConnections;
     QMetaObject::Connection m_resumeRenderConnection;
     QHash<wl_resource *, SourceResourceDestroyListener *> m_resourceListeners;
+    QHash<wlr_ext_image_copy_capture_session_v1 *, WScopedListener *> m_sessionListeners;
+    QHash<wlr_ext_image_copy_capture_frame_v1 *, WScopedListener *> m_frameListeners;
+    QSet<wlr_ext_image_copy_capture_frame_v1 *> m_forceFrames;
     size_t m_numStarted = 0;
-    bool m_renderPending = false;
+    bool m_contentDirty = true;
     bool m_fallbackQueued = false;
     bool m_constraintsFromSwapchain = false;
     bool m_finished = false;

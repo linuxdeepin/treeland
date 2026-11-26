@@ -6,6 +6,8 @@
 #include <woutputviewport.h>
 #include <wsurfaceitem.h>
 
+#include <QSet>
+
 class SurfaceWrapper;
 Q_MOC_INCLUDE("surface/surfacewrapper.h")
 
@@ -18,6 +20,7 @@ class ToplevelCaptureViewport final : public WOutputViewport
 
 public:
     ToplevelCaptureViewport(SurfaceWrapper *wrapper, WOutput *output);
+    ~ToplevelCaptureViewport() override;
     SurfaceWrapper *sourceSurface() const;
 
 private:
@@ -25,9 +28,14 @@ private:
     void updateSurfaceFlags();
     void updateDecoration();
     void updateGeometry();
+    void checkContentChanges();
+    bool hasDirtyContent(QQuickItem *item);
+    void watchTextureSource(QQuickItem *item);
+    void textureUpdated();
 
     SurfaceWrapper *const m_wrapper;
     WSurfaceItem *const m_surfaceItem;
     QPointer<QQuickItem> m_titleBar;
     QQuickItem *m_border = nullptr;
+    QSet<QObject *> m_textureSources;
 };

@@ -28,25 +28,31 @@
 | 创建窗口源及会话 | 从真实 foreign-toplevel handle 创建 source，再 `create_session` | ARGB8888、窗口局部边界对应的 `buffer_size`、`done` | P / E |
 | SSD 与递归子面 | 提交主面、负坐标/above/below/nested 子面，申请并捕获 SHM frame | 主面、递归子面及堆叠顺序、标题栏和外边框的真实像素；间隙透明，不包含阴影、背景或遮挡窗口 | V |
 | 不改变屏幕 | 捕获后先回读生产 output buffer，不先重绘；再单独重绘和定向 `render(false)` | 每个提交帧整屏逐像素相等；每次捕获 render 前后 live QSG 节点矩阵不变；wrapper/surface 的位置、尺寸、父项、缩放、可见性和场景坐标不变；捕获 input 是独立且拒绝输入的子树；离屏渲染不增加真实输出 `commit_seq` | E / V |
-| 重复捕获 | 同一个 session 连续捕获静止窗口 | 整幅图像逐像素相等，包括透明外边框，不能累积半透明像素 | V |
-| 子面独立更新 | 仅 desynchronized nested 子面提交新 buffer，根面不 commit | 捕获到子面的新颜色 | V |
-| 部分移出屏幕 | fixture 移动窗口到 `(-150,210)` 后捕获 | 捕获图像仍完整且使用相同局部坐标；实际屏幕像素与捕获前一致、几何不变 | E / V |
-| 移动与 SSD 坐标 | 多次移动到正坐标、左上负坐标、右下超出屏幕的位置 | 捕获整幅图像与移动前逐像素相等，包括 SSD；live QSG 状态和实际屏幕无捕获副作用 | E / V |
-| 共享 source | 创建两个 session，销毁第一个后更新子面 | 第二个 session 仍收到 `ready` 和新像素 | P / V |
-| 离屏渲染失败及恢复 | 锁住真实捕获 swapchain 的全部空闲 buffer，两会话提交 frame 后执行生产离屏渲染，再释放 buffer 并重新捕获 | 每个挂起 frame 恰好收到一次 `failed(unknown)`，不收到 `ready` 或 `stopped`；共享视口保留，两会话恢复后均收到 `ready`，像素正确 | P / V |
+| 静止请求 | 首帧成功后申请 frame，同步真实输出帧，并提交空 commit / frame callback | 请求保持挂起，不绘制、不复制、不发送 ready/failed；应用的 frame callback 仍正常完成 | P / E |
+| 重复绘制 | 三次先申请 frame 等待，再重新提交声明 damage 的子面 buffer | 原请求完成；整幅图像逐像素相等，包括透明外边框，不能累积半透明像素 | V |
+| 子面独立更新 | 仅 desynchronized nested 子面提交新 buffer，根面不 commit | 捕获到子面的新颜色，并为此绘制一次 | V / E |
+| 部分移出屏幕 | fixture 移动窗口到 `(-150,210)`，重新提交相同子面内容后捕获 | 捕获图像仍完整且使用相同局部坐标；实际屏幕像素与捕获前一致、几何不变 | E / V |
+| 移动与 SSD 坐标 | 多次移动后重新提交相同子面内容并捕获 | 捕获整幅图像与移动前逐像素相等，包括 SSD；live QSG 状态和实际屏幕无捕获副作用 | E / V |
+| 共享 source | 一个 session 等待变化，另一 session 取消首帧后重新捕获；随后更新子面 | 取消不留下强制绘制，另一 session 的首帧不唤醒静止请求；子面变化后原请求完成 | P / V |
+| 单帧取消 | 只销毁等待中的 frame，保留 session，再提交子面内容 | 未请求时不绘制，管线保留；下一次请求仍能捕获此前累积的内容变化 | P / E |
+| SSD 标题变化 | 最大化窗口上先申请 frame，再用 `set_title` 改变可见标题，不提交 surface | 原请求完成且文字像素变化；恢复标题后整图相等 | P / V |
+| SSD 边框变化 | 借用输出关闭时先申请 frame，再改变边框颜色，尺寸保持不变 | 原请求收到 ready 和新边框像素，不复制旧图像 | P / V |
+| 子面结构变化 | 借用输出关闭时先申请 frame，再删除边界内的子面；随后重建该子面 | 删除后显示下层像素，重建后显示子面像素，不依赖边界变化或新的 capture 唤醒 | P / V |
+| 层内内容变化 | 静止请求期间改变私有 SSD 标题背景，不提交 surface | 原请求完成且背景像素变化；恢复后整图相等，不能因忽略层纹理刷新而漏掉真正的源内容变化 | P / V |
+| 离屏渲染失败及恢复 | 先提交新的子面 buffer，再锁住真实捕获 swapchain 的全部空闲 buffer，两会话提交 frame 后执行生产离屏渲染，再释放 buffer 并重新捕获 | 每个挂起 frame 恰好收到一次 `failed(unknown)`，不收到 `ready` 或 `stopped`；共享视口保留，两会话恢复后均收到 `ready`，像素正确 | P / V |
 | 窗口 resize | 根面提交 320×260 buffer，先使用旧捕获 buffer，再使用新 buffer | 新 `buffer_size`；旧 buffer 收到 `buffer_constraints`，新 buffer 收到 `ready` 和新区域像素；屏幕和窗口几何不受捕获影响 | P / V |
 | 最大化拖动还原 | 客户端 `set_maximized`，提交 configure 指定尺寸，再通过 SSD 按下/移动/释放指针 | 最大化图像完整；拖动还原但客户端尚未提交小 buffer 时仍完整捕获旧内容；还原 buffer 到达后约束缩小，整幅图像与还原前逐像素相等；继续拖动及释放不造成 SSD 漂移/截断 | E / V / P |
 | 停止、重启及销毁 | 同一批请求中销毁并重建最后一个 session，捕获期间销毁 toplevel | 重启后保留一个 source 和一个视口，frame 成功；窗口销毁后 session 收到 `stopped` | P / E |
 | 捕获管线生命周期 | 只创建并销毁空闲 source；同一窗口连续 3 次 “source → session → 捕获 → 销毁 session 和 source”；会话期间提前销毁 source resource | 空闲 source 不创建视口且包装对象可独立回收；每次会话恰好一条管线，全部销毁后 source 和视口数均回到 0 且屏幕不变；source resource 销毁后仍存活的 session 继续收到 frame，最后停止时仍能回收 source | P / V |
 | 组件定义复用 | 重建捕获会话并检查生产 capture input 的 delegate | delegate 始终为 QmlEngine 的同一个 CaptureSurfaceContent 缓存组件；具体实例及视口仍随会话释放，SSD 和整图像素不变 | P / V |
-| 请求之间的合成器渲染 | 两次捕获之间让捕获视口额外渲染一帧 | 下一次捕获仍收到 `ready`，不等待不会发生的渲染 | P / V |
-| 待处理请求遇到关屏 | 同一批请求中先 `capture`，再对原输出 `set_mode(OFF)`；窗口已移到第二块屏 | 原输出 disabled、第二块屏 enabled，待处理 frame 仍收到 `ready`，视口未重建 | P / E |
+| 静止内容的额外绘制 | 等待中的请求遇到一次显式捕获视口绘制，再提交子面内容 | 额外绘制不制造 damage，原请求仍等待；随后内容变化才完成原请求 | P / V |
+| 待处理请求遇到关屏 | 同一批请求中先提交新的子面 buffer 并 `capture`，再对原输出 `set_mode(OFF)`；窗口已移到第二块屏 | 原输出 disabled、第二块屏 enabled，待处理 frame 经排队兜底收到 `ready`，视口未重建 | P / E |
 | 关屏后继续捕获 | 原输出关闭后提交新的 nested 子面 buffer，再申请 frame | 收到 `ready` 和新颜色像素；兜底渲染的 `renderEnd` 不包含任何提交输出，各输出 `commit_seq` 不增加 | P / V |
-| 关屏时渲染失败及恢复 | 原输出关闭时再次耗尽捕获 swapchain，提交 frame，释放 buffer 后重试 | frame 收到 `failed(unknown)`，同一 session/视口恢复后捕获成功，输出保持关闭且未被离屏渲染提交 | P / V |
-| 复电恢复 | 对原输出 `set_mode(ON)` 后再捕获 | 通过原有输出时钟继续收到 `ready` | P / E |
-| 取消排队的兜底 | 关屏后同一批请求中申请 frame，再销毁 frame、session 和 source | 视口回到 0，已销毁的视口不再产生兜底渲染 | P / E |
+| 关屏时渲染失败及恢复 | 原输出关闭时提交新内容，再次耗尽捕获 swapchain，提交 frame，释放 buffer 后重试 | frame 收到 `failed(unknown)`，同一 session/视口恢复后捕获成功，输出保持关闭且未被离屏渲染提交 | P / V |
+| 复电恢复 | 对原输出 `set_mode(ON)` 后提交子面内容并捕获 | 通过原有输出时钟继续收到 `ready`，不重建管线 | P / E |
+| 取消排队的兜底 | 关屏后在同一批请求中提交新内容并申请 frame，再销毁 frame、session 和 source | 视口回到 0，已销毁的视口不再产生兜底渲染 | P / E |
 | 关屏后的新会话 | 原输出仍关闭、窗口位于第二块屏时，创建全新的 source/session 并捕获 | 新视口绑定当前启用输出，首次约束有效，收到 `ready` 和正确像素，销毁后视口回到 0 | P / V |
-| 全局渲染暂停与恢复 | 输出启用和关闭时分别通过 DDM `disable_render` 暂停，仅提交一次 `capture`，再 `enable_render` | 暂停时不绘制、不发送 ready/failed/stopped；恢复后原帧收到 ready，视口未重建，关屏路径仍不提交真实输出 | P / V |
+| 全局渲染暂停与恢复 | 静止请求跨暂停/恢复；输出启用和关闭时分别让有内容变化的单次请求跨暂停/恢复 | 无变化的请求继续等待；有变化时恢复后原帧收到 ready，视口未重建，关屏路径仍不提交真实输出 | P / V |
 | 暂停期间取消 | 暂停后销毁 frame/session/source，再恢复渲染 | 离屏视口归零，恢复不增加捕获渲染次数 | P / E |
 | 暂停期间窗口失效 | 暂停后提交 frame，再销毁 toplevel | frame 收到 stopped 失败、session 收到 stopped；恢复不渲染已销毁视口 | P / E |
 
@@ -72,8 +78,20 @@ wlroots 的 native 析构完成摘链，捕获源只移除自己的监听器。�
 中途销毁 source resource 都不会在网络窗口生命周期内累积 `WSurfaceItem` 副本、SSD、
 swapchain 或渲染窗口的 output helper。释放后 `source.width/height` 与 SHM 格式保留，
 下个 session 在首次渲染前就能拿到正确约束；swapchain 派生的 DMA-BUF 约束在重建后由
-首帧刷新。`request_frame` 不依赖 wlroots 的 damage 调度提示，离屏视口按需渲染，
-避免请求之间发生合成器渲染时客户端永远等不到 frame。
+首帧刷新。copy manager 的 `new_session` 注册该 source 的 native session，从公开的
+`session.frame` 记录真正等待的 frame，并在 frame 销毁时立即移除。`schedule_frame`
+表示该 session 已有累计 damage，可安排一次强制绘制；该需求按 frame 记录，取消它
+不会带着其他静止 session 继续绘制。无累计 damage、无内容变化时保持请求挂起，不
+重绘、不复制、不发送 ready。强制绘制静止内容时发送空 source damage，只有已有
+累计 damage 的 session 会复制这一帧，其他静止请求仍等待。
+视觉 commit、子面结构/位置变化、视口参数及独立 QML 子树变化均标脏捕获内容，
+已有请求会立即重新调度，未请求时只累积变化。空提交和 frame-callback-only commit
+不标脏。QML 队列检查在本批更新结束后运行，关屏时不依赖该输出产生 frame；捕获
+视口仅在需要绘制时启用 `live`。renderer 的绘制状态变化不当作内容变化，层纹理
+刷新产生的 `ShaderEffectSource.Content` 也不当作新内容；实际源项及纹理参数变化
+仍被监听。渲染失败后保留 dirty 状态，重试不复制失败前的旧图像。
+内容变化目前保守报告整窗 damage，SHM 复制也仍是整幅；本改动优化静止出帧和无请求
+时的绘制，不实现局部 damage 复制。
 回收断言在请求 roundtrip 后的服务端队列同步点处理已投递的 `DeferredDelete` 事件，再
 计数包装对象和视口；夹具不主动调用 `invalidate()` / `finish()`，也不先重绘屏幕。
 输出启用时沿用输出 frame 时钟；输出关闭时排队执行 `render(false)`，不重建管线，
@@ -94,7 +112,7 @@ swapchain 或渲染窗口的 output helper。释放后 `source.width/height` 与
 生产视口在本轮渲染清理完成、`inRendering` 为 false 后报告失败；捕获源通过现有
 wlroots frame 分发路径结束所有挂起帧，返回 `unknown`，不停止会话或重建视口。
 失败帧不发送 transform、damage 或 presentation_time 元数据，也不回传旧缓存图像。
-下一次客户端 `capture` 请求重新调度渲染。
+下一次客户端 `capture` 请求重新绘制（失败会重新标脏）。
 夹具提供无标准客户端请求的窗口定位、指针设备事件和生产屏幕/几何/QSG 回读，
 不伪造 source、frame、maximize 或 restore 结果。
 
@@ -189,6 +207,28 @@ ctest --test-dir build -R '^test_wayland_ext_toplevel_image_capture_v1_gpu$' -V
 - `ci` preset（`-Wall -Wextra -Werror`）构建通过；完整场景在 headless + pixman /
   GLES2 各连续 5 次通过，GPU 实际使用 `/dev/dri/renderD128`，无 skip 或软件 fallback。
 - 另外 13 项相关协议回归与装饰 manager 单测全部通过。
+
+### damage 驱动出帧
+
+- 之前的缓存实现仍在静止请求中复制和 ready，并漏掉边框颜色及内部子面删除。
+  关屏复现分别返回旧 `1a000000` / `ffffff00`，显式生产绘制后才得到
+  `ff00ff00` / `ffff0000`；空 commit 也会把绘制次数从 1 增至 2。
+- 新契约通过真实输出 frame / `renderEnd` 同步，静止、空提交和 frame callback 均
+  不完成捕获；后续实际提交才结束同一请求，不通过补发 capture 或固定延时唤醒。
+- 独立检查单帧取消、取消共享 source 的首帧、其他 session 的首帧、静止请求跨暂停
+  恢复，以及无请求时累积内容变化。原有失败、关屏、取消、resize 和 SSD 拖动回归保留。
+- 标题像素测试使用有可见文字区域的最大化窗口，并重排已有字形，避免增长 GPU 字形
+  atlas 干扰整图还原比较；不设置像素容差。边框及内部子面测试先等待，再改变内容，
+  不先强制绘制捕获视口。
+- GLES2 初始化时的层纹理刷新曾在像素完全相同的情况下唤醒静止请求。实现区分这种
+  刷新与真实内容变化，并通过层内 SSD 背景改色及还原验证源项变化仍可完成请求。
+- 人为让每个请求都标脏时，静止断言检出 `ready=1`、绘制次数 `1 -> 2`；人为漏掉
+  已取消首帧的强制绘制记账移除时，共享请求断言检出绘制次数 `15 -> 16`。
+  两项反向验证后均已恢复最终实现。
+- Qt 6.12.1，`ci` preset（`-Wall -Wextra -Werror`）构建通过；最终完整场景在
+  headless + pixman / GLES2 各连续 20 次通过，GPU 使用 `/dev/dri/renderD128`，无 skip
+  或软件 fallback；另外 14 项相关协议（含 Session 隔离）及装饰 manager 单测通过。
+- 物理 scanout、所有输出关闭时的应用/动画帧节奏、连续纯 QML 动画和悬停尚未单独验收。
 
 ## 已知边界 / 下一项结果
 

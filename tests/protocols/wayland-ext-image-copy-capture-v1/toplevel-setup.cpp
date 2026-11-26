@@ -60,6 +60,9 @@ qreal g_scale = 0, g_surfaceScale = 0;
 bool g_visible = false, g_surfaceVisible = false;
 bool g_tracking = false, g_screenUnchanged = true, g_renderStateUnchanged = true;
 int g_captureFramesChecked = 0;
+int g_capturePaints = 0;
+QPointer<QObject> g_titleBackground;
+QVariant g_titleColor;
 int g_captureRenderAttempts = 0;
 wlr_pointer *g_pointer = nullptr;
 uint32_t g_inputTime = 0;
@@ -198,6 +201,7 @@ private:
         if (!g_target || m_matrices.isEmpty())
             return;
         ++g_captureFramesChecked;
+        ++g_capturePaints;
         const auto current = nodeMatrices(QQuickItemPrivate::get(g_target.data())->itemNode());
         for (auto it = m_matrices.cbegin(); it != m_matrices.cend(); ++it) {
             const auto matrix = current.constFind(it.key());
@@ -320,10 +324,12 @@ void readState(void *data)
     state->screen_unchanged = g_screenUnchanged && !g_screen.isNull() && current == g_screen;
     state->render_state_unchanged = g_renderStateUnchanged;
     state->capture_frames_checked = g_captureFramesChecked;
+    state->capture_paints = g_capturePaints;
     state->maximized = g_target->isMaximized();
     state->dragging = WaylandServer::instance()->rootSurfaceContainer()->moveResizeSurface() == g_target;
     state->border_visible = !g_target->noDecoration() && g_target->visibleDecoration()
         && g_target->borderVisible();
+    state->border_color = g_target->borderColor().rgba();
     state->position_x = qRound(g_target->x());
     state->position_y = qRound(g_target->y());
     if (g_tracking && !state->geometry_unchanged) {
@@ -466,6 +472,52 @@ extern "C" void toplevel_capture_prepare(void *data)
 extern "C" void toplevel_capture_check_screen(void *data)
 {
     readState(data);
+}
+
+extern "C" void toplevel_capture_sync_output(void *data)
+{
+    auto *output = g_target->ownsOutput()->output();
+    QEventLoop loop;
+    QObject::connect(WaylandServer::instance()->window(), &WOutputRenderWindow::renderEnd,
+                     &loop, &QEventLoop::quit);
+    output->scheduleFrame();
+    loop.exec();
+    readState(data);
+}
+
+extern "C" void toplevel_capture_set_border(void *data)
+{
+    g_tracking = false;
+    g_target->setBorderValues(g_target->borderWidth(), QColor::fromRgba(*static_cast<uint32_t *>(data)));
+}
+
+extern "C" void toplevel_capture_toggle_title_color(void *data)
+{
+    *static_cast<int *>(data) = 0;
+    if (g_titleBackground) {
+        *static_cast<int *>(data) = g_titleBackground->setProperty("color", g_titleColor);
+        g_titleBackground = nullptr;
+        return;
+    }
+    const auto viewports = WaylandServer::instance()->window()->contentItem()->findChildren<WOutputViewport *>();
+    for (auto *viewport : viewports) {
+        if (!isCaptureViewport(viewport))
+            continue;
+        const auto objects = viewport->input()->findChildren<QObject *>();
+        for (auto *object : objects) {
+            if (object->property("surface").value<SurfaceWrapper *>() != g_target)
+                continue;
+            const auto children = object->findChildren<QObject *>();
+            for (auto *child : children) {
+                if (!child->property("color").isValid() || !child->findChild<QObject *>("minimizeBtn"))
+                    continue;
+                g_titleBackground = child;
+                g_titleColor = child->property("color");
+                *static_cast<int *>(data) = child->setProperty("color", QColor(0, 255, 0));
+                return;
+            }
+        }
+    }
 }
 
 extern "C" void toplevel_capture_flush_source_deletions(void *data)

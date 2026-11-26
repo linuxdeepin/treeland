@@ -79,6 +79,27 @@ wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *createToplevelCaptureS
     return wlr_ext_foreign_toplevel_image_capture_source_manager_v1_create(display, 1);
 }
 
+class SessionImageCopyCapture final
+    : public NativeSessionProtocol<createImageCopyCapture, wlr_ext_image_copy_capture_manager_v1_destroy>, public WObject
+{
+public:
+    SessionImageCopyCapture() : NativeSessionProtocol("ext_image_copy_capture_manager_v1") {}
+    ~SessionImageCopyCapture() override { teardown(); }
+protected:
+    void create(WServer *server) override
+    {
+        NativeSessionProtocol::create(server);
+        auto *manager = nativeInterface<wlr_ext_image_copy_capture_manager_v1>();
+        if (manager)
+            listeners()->add(&manager->events.new_session, this, &SessionImageCopyCapture::trackSession);
+    }
+private:
+    void trackSession(wlr_ext_image_copy_capture_session_v1 *session)
+    {
+        WExtImageCaptureSourceV1Impl::trackSession(session);
+    }
+};
+
 class SessionToplevelCapture final
     : public NativeSessionProtocol<createToplevelCaptureSource, wlr_ext_foreign_toplevel_image_capture_source_manager_v1_destroy>, public WObject
 {
@@ -219,7 +240,7 @@ SessionProtocols::SessionProtocols(Session *session)
     session->attachInterface(new SessionForeignInterface(foreignRegistry, SessionForeignInterface::Exporter));
     session->attachInterface(new SessionForeignInterface(foreignRegistry, SessionForeignInterface::Importer));
     session->attachInterface(new NativeSessionProtocol<wlr_screencopy_manager_v1_create, wlr_screencopy_manager_v1_destroy>("zwlr_screencopy_manager_v1"));
-    session->attachInterface(new NativeSessionProtocol<createImageCopyCapture, wlr_ext_image_copy_capture_manager_v1_destroy>("ext_image_copy_capture_manager_v1"));
+    session->attachInterface(new SessionImageCopyCapture);
     session->attachInterface(new NativeSessionProtocol<createOutputCaptureSource, wlr_ext_output_image_capture_source_manager_v1_destroy>("ext_output_image_capture_source_manager_v1"));
     session->attachInterface(new SessionToplevelCapture(session));
 

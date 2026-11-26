@@ -4,6 +4,7 @@
 #include "wextimagecapturesourcev1impl.h"
 #include "woutputviewport.h"
 #include "woutputrenderwindow.h"
+#include "wscoplistener.h"
 #include "wsgtextureprovider.h"
 #include "wpointer.h"
 #include "wtools.h"
@@ -66,6 +67,7 @@ void WExtImageCaptureSourceV1Impl::invalidate()
     // Finishing the source stops every session and makes its resources inert.
     // Detach the viewport while the output and its render window still exist.
     wlr_ext_image_capture_source_v1_finish(&source);
+    Q_ASSERT(m_sessionListeners.isEmpty() && m_frameListeners.isEmpty());
     releaseViewport();
     if (!m_inDestructor)
         deleteLater();
@@ -88,6 +90,7 @@ WOutputViewport *WExtImageCaptureSourceV1Impl::ensureViewport()
     }
     viewport->setParent(this);
     viewport->setVisible(false);
+    viewport->setLive(false);
     m_viewport = viewport;
 
     m_viewportConnections << connect(viewport, &WOutputViewport::frameRendered,
@@ -104,8 +107,10 @@ WOutputViewport *WExtImageCaptureSourceV1Impl::ensureViewport()
                                      this, &WExtImageCaptureSourceV1Impl::invalidate)
                           << connect(renderWindow, &QQuickWindow::sceneGraphInvalidated,
                                      this, &WExtImageCaptureSourceV1Impl::invalidate)
-                          << connect(renderWindow, &WOutputRenderWindow::renderEnabledChanged,
-                                     this, &WExtImageCaptureSourceV1Impl::schedulePendingRender);
+                           << connect(renderWindow, &WOutputRenderWindow::renderEnabledChanged,
+                                      this, &WExtImageCaptureSourceV1Impl::schedulePendingRender)
+                           << connect(viewport, &WOutputViewport::contentChanged,
+                                      this, &WExtImageCaptureSourceV1Impl::handleContentChanged);
     // wlroots sends the session constraints right after start() returns, so
     // they must be valid before the viewport has rendered anything.
     updateConstraints();
@@ -114,7 +119,8 @@ WOutputViewport *WExtImageCaptureSourceV1Impl::ensureViewport()
 
 void WExtImageCaptureSourceV1Impl::releaseViewport()
 {
-    m_renderPending = false;
+    m_forceFrames.clear();
+    m_contentDirty = true;
     m_fallbackQueued = false;
     disconnect(m_resumeRenderConnection);
     m_resumeRenderConnection = {};
@@ -130,6 +136,27 @@ void WExtImageCaptureSourceV1Impl::releaseViewport()
     m_viewport = nullptr;
     // Keep cached constraints for startup; refresh them from the next swapchain.
     m_constraintsFromSwapchain = false;
+}
+
+void WExtImageCaptureSourceV1Impl::handleContentChanged()
+{
+    if (m_finished || !m_viewport)
+        return;
+    m_contentDirty = true;
+    schedulePendingRender();
+}
+
+void WExtImageCaptureSourceV1Impl::trackSession(wlr_ext_image_copy_capture_session_v1 *session)
+{
+    auto *self = s_captureSourceMap.value(session->source);
+    if (!self || self->m_finished)
+        return;
+    Q_ASSERT(!self->m_sessionListeners.contains(session));
+    auto *listener = new WScopedListener;
+    self->m_sessionListeners.insert(session, listener);
+    listener->init(&session->events.destroy, [self, session] {
+        delete self->m_sessionListeners.take(session);
+    });
 }
 
 bool WExtImageCaptureSourceV1Impl::accept(
@@ -271,7 +298,6 @@ void WExtImageCaptureSourceV1Impl::start([[maybe_unused]] bool with_cursors)
         return;
     }
     m_viewport->setVisible(true);
-    scheduleRender();
 }
 
 void WExtImageCaptureSourceV1Impl::stop(wlr_ext_image_capture_source_v1 *source)
@@ -292,25 +318,53 @@ void WExtImageCaptureSourceV1Impl::stop()
 }
 
 void WExtImageCaptureSourceV1Impl::request_frame(wlr_ext_image_capture_source_v1 *source,
-                                                [[maybe_unused]] bool schedule_frame)
+                                                bool schedule_frame)
 {
     auto *self = s_captureSourceMap.value(source);
     Q_ASSERT(self);
-    self->scheduleRender();
+    self->requestFrame(schedule_frame);
 }
 
-void WExtImageCaptureSourceV1Impl::scheduleRender()
+void WExtImageCaptureSourceV1Impl::requestFrame(bool scheduleFrame)
 {
     if (m_finished || m_numStarted == 0 || !m_viewport)
         return;
-    // An on-demand viewport needs a new render regardless of wlroots' damage hint.
-    m_renderPending = true;
+    for (auto it = m_sessionListeners.cbegin(); it != m_sessionListeners.cend(); ++it) {
+        auto *frame = it.key()->frame;
+        if (!frame || !frame->capturing || m_frameListeners.contains(frame))
+            continue;
+        auto *listener = new WScopedListener;
+        m_frameListeners.insert(frame, listener);
+        if (scheduleFrame)
+            m_forceFrames.insert(frame);
+        listener->init(&frame->events.destroy, [this, frame] { frameDestroyed(frame); });
+    }
     schedulePendingRender();
+}
+
+void WExtImageCaptureSourceV1Impl::frameDestroyed(wlr_ext_image_copy_capture_frame_v1 *frame)
+{
+    m_forceFrames.remove(frame);
+    delete m_frameListeners.take(frame);
+    if (m_viewport)
+        m_viewport->setLive(needsRender());
+    if (!needsRender()) {
+        disconnect(m_resumeRenderConnection);
+        m_resumeRenderConnection = {};
+    }
+}
+
+bool WExtImageCaptureSourceV1Impl::needsRender() const
+{
+    return !m_frameListeners.isEmpty() && (!m_forceFrames.isEmpty() || m_contentDirty);
 }
 
 void WExtImageCaptureSourceV1Impl::schedulePendingRender()
 {
-    if (m_finished || !m_renderPending || m_numStarted == 0 || !m_viewport)
+    if (m_finished || m_numStarted == 0 || !m_viewport)
+        return;
+    m_viewport->setLive(needsRender());
+    if (!needsRender())
         return;
     auto *renderWindow = m_viewport->outputRenderWindow();
     if (!renderWindow || !m_viewport->output()) {
@@ -333,7 +387,7 @@ void WExtImageCaptureSourceV1Impl::schedulePendingRender()
 void WExtImageCaptureSourceV1Impl::renderFallback()
 {
     m_fallbackQueued = false;
-    if (m_finished || !m_renderPending || m_numStarted == 0 || !m_viewport)
+    if (m_finished || !needsRender() || m_numStarted == 0 || !m_viewport)
         return;
     auto *renderWindow = m_viewport->outputRenderWindow();
     if (!renderWindow || !m_viewport->output()) {
@@ -379,23 +433,29 @@ void WExtImageCaptureSourceV1Impl::handleFrameRendered()
 
 void WExtImageCaptureSourceV1Impl::handleFrameRenderFailed()
 {
-    if (m_finished || !m_renderPending || m_numStarted == 0 || !m_viewport)
+    if (m_finished || m_numStarted == 0 || !m_viewport)
         return;
-    sendFrame(nullptr);
+    m_contentDirty = true;
+    if (!m_frameListeners.isEmpty())
+        sendFrame(nullptr);
 }
 
 void WExtImageCaptureSourceV1Impl::sendFrame(wlr_buffer *buffer)
 {
-    m_renderPending = false;
+    // A forced first frame must not manufacture damage for quiet sessions.
+    WPixmanRegion damage;
+    if (m_contentDirty || !buffer) {
+        pixman_region32_union_rect(damage.get(), damage.get(), 0, 0,
+                                  buffer ? buffer->width : qMax(1u, source.width),
+                                  buffer ? buffer->height : qMax(1u, source.height));
+    }
+    m_forceFrames.clear();
+    m_contentDirty = !buffer;
+    m_viewport->setLive(false);
     disconnect(m_resumeRenderConnection);
     m_resumeRenderConnection = {};
     if (buffer)
         updateConstraints();
-
-    // Non-empty damage routes failures through wlroots to every pending frame.
-    WPixmanRegion damage(0, 0,
-                        buffer ? buffer->width : qMax(1u, source.width),
-                        buffer ? buffer->height : qMax(1u, source.height));
     CaptureFrameEvent event {
         .base = { .damage = damage.get() },
         .buffer = buffer,

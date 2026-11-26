@@ -316,6 +316,20 @@ static int capture(struct client_connection *connection, struct capture_session 
     return finish_capture(connection, session, frame, &state, expect_failure);
 }
 
+static int check_waiting(struct client_connection *connection, struct capture_session *session,
+                         struct frame_state *frame, struct toplevel_capture_state *server, int paints)
+{
+    CHECK(wl_display_roundtrip(connection->display) >= 0
+          && invoke_on_server_thread(toplevel_capture_sync_output, server)
+          && wl_display_roundtrip(connection->display) >= 0
+          && invoke_on_server_thread(toplevel_capture_check_screen, server),
+          "capture: waiting-frame synchronization failed\n");
+    CHECK(!frame->ready && !frame->failed && !session->stopped && server->capture_paints == paints,
+          "capture: quiet frame completed or rendered (ready=%d failed=%d paints=%d -> %d)\n",
+          frame->ready, frame->failed, paints, server->capture_paints);
+    return 0;
+}
+
 struct power_state {
     uint32_t mode;
     int failed;
@@ -348,22 +362,22 @@ static const struct treeland_ddm_v1_listener ddm_listener = {
     .acquire_vt = ddm_vt,
 };
 
-static void render_disabled(void *data, struct wl_callback *callback, uint32_t serial)
+static void callback_done(void *data, struct wl_callback *callback, uint32_t serial)
 {
     (void)serial;
     ++*(int *)data;
     wl_callback_destroy(callback);
 }
 
-static const struct wl_callback_listener render_disabled_listener = {
-    .done = render_disabled,
+static const struct wl_callback_listener callback_listener = {
+    .done = callback_done,
 };
 
 static int pause_rendering(struct client_connection *connection, struct treeland_ddm_v1 *ddm)
 {
     int done = 0;
     struct wl_callback *callback = treeland_ddm_v1_disable_render(ddm);
-    wl_callback_add_listener(callback, &render_disabled_listener, &done);
+    wl_callback_add_listener(callback, &callback_listener, &done);
     CHECK(wl_display_roundtrip(connection->display) >= 0 && done == 1,
           "capture: DDM did not acknowledge rendering pause\n");
     return 0;
@@ -455,11 +469,11 @@ static int check_screen(struct toplevel_capture_state *state)
 {
     CHECK(invoke_on_server_thread(toplevel_capture_check_screen, state), "capture: screen read failed\n");
     CHECK(state->geometry_unchanged && state->screen_unchanged && state->render_state_unchanged
-          && state->capture_frames_checked > 0 && state->offscreen_viewports == state->isolated_inputs
+          && state->capture_paints > 0 && state->offscreen_viewports == state->isolated_inputs
           && state->shared_delegates == state->offscreen_viewports,
-          "capture: real window changed (geometry=%d pixels=%d QSG=%d frames=%d isolated=%d/%d cached=%d)\n",
+          "capture: real window changed (geometry=%d pixels=%d QSG=%d paints=%d isolated=%d/%d cached=%d)\n",
           state->geometry_unchanged, state->screen_unchanged, state->render_state_unchanged,
-          state->capture_frames_checked, state->isolated_inputs, state->offscreen_viewports,
+          state->capture_paints, state->isolated_inputs, state->offscreen_viewports,
           state->shared_delegates);
     // Check first without repainting, then separately prove the next screen
     // render also remains correct. A repaint must never repair the evidence.
@@ -658,35 +672,101 @@ int protocol_test_run(const char *socket_name)
     // or change its actual output pixels, including the occluding other window.
     CHECK(check_screen(&server) == 0 && server.offscreen_viewports == 1,
           "capture: screen changed after initial capture\n");
-    // Case: translucent outer SSD pixels cannot accumulate on repeated frames,
-    // including the top-left stroke outside the negative sourceRect origin.
+    // Case: quiet requests wait, including across empty/frame-callback commits.
+    // Declared content updates then exercise repeated translucent SSD painting.
     uint32_t *reference = malloc(captured.size);
     CHECK(reference, "capture: repeated-frame reference allocation failed\n");
     memcpy(reference, captured.pixels, captured.size);
+    CHECK(invoke_on_server_thread(toplevel_capture_check_screen, &server),
+          "capture: static baseline read failed\n");
+    struct frame_state waiting;
+    struct ext_image_copy_capture_frame_v1 *waiting_frame;
     for (int i = 0; i < 3; ++i) {
-        CHECK(capture(&connection, &session, &captured, 0) == 0 && same_pixels(&captured, reference),
+        const int paints = server.capture_paints;
+        waiting_frame = begin_capture(&session, &captured, &waiting);
+        CHECK(check_waiting(&connection, &session, &waiting, &server, paints) == 0,
+              "capture: unchanged content did not wait\n");
+        wl_surface_commit(target.surface);
+        CHECK(check_waiting(&connection, &session, &waiting, &server, paints) == 0,
+              "capture: empty commit woke a quiet frame\n");
+        int callbacks = 0;
+        struct wl_callback *callback = wl_surface_frame(target.surface);
+        wl_callback_add_listener(callback, &callback_listener, &callbacks);
+        wl_surface_commit(target.surface);
+        CHECK(check_waiting(&connection, &session, &waiting, &server, paints) == 0 && callbacks == 1,
+              "capture: frame callback commit woke a quiet frame or lost its callback\n");
+        attach(sub_surfaces[1], &sub_buffers[1]);
+        CHECK(finish_capture(&connection, &session, waiting_frame, &waiting, 0) == 0
+              && same_pixels(&captured, reference),
               "capture: repeated frame accumulated translucent SSD pixels\n");
         CHECK(check_screen(&server) == 0, "capture: repeated frame changed actual output\n");
     }
     free(reference);
-    // Case: a compositor render between two capture requests (for example an
-    // animated titlebar) must not leave the next request waiting for a frame.
-    CHECK(capture(&connection, &session, &captured, 0) == 0, "capture: frame before extra render failed\n");
+
+    // Case: an explicit paint without content changes must not manufacture damage.
+    CHECK(invoke_on_server_thread(toplevel_capture_check_screen, &server), "capture: extra render baseline failed\n");
+    const int extra_paints = server.capture_paints;
+    waiting_frame = begin_capture(&session, &captured, &waiting);
+    CHECK(check_waiting(&connection, &session, &waiting, &server, extra_paints) == 0,
+          "capture: request before extra paint did not wait\n");
     CHECK(invoke_on_server_thread(toplevel_capture_render_offscreen, &server), "capture: extra render failed\n");
-    CHECK(capture(&connection, &session, &captured, 0) == 0, "capture: frame after extra render stalled\n");
-    CHECK(invoke_on_server_thread(toplevel_capture_render_offscreen, &server), "capture: offscreen render failed\n");
     CHECK(server.capture_only_did_not_commit && server.geometry_unchanged && server.screen_unchanged
           && server.render_state_unchanged,
           "capture: offscreen viewport committed to or altered the real output\n");
+    CHECK(check_waiting(&connection, &session, &waiting, &server, extra_paints + 1) == 0,
+          "capture: extra paint manufactured damage\n");
+    attach(sub_surfaces[1], &sub_buffers[1]);
+    CHECK(finish_capture(&connection, &session, waiting_frame, &waiting, 0) == 0,
+          "capture: content update after extra paint did not wake the original request\n");
 
-    // Case: only a desynchronized nested subsurface changes; root does not commit.
+    // Case: cancelling only the frame keeps the session, but no longer paints updates.
+    CHECK(invoke_on_server_thread(toplevel_capture_check_screen, &server), "capture: cancel baseline failed\n");
+    const int cancelled_paints = server.capture_paints;
+    waiting_frame = begin_capture(&session, &captured, &waiting);
+    CHECK(check_waiting(&connection, &session, &waiting, &server, cancelled_paints) == 0,
+          "capture: cancellable frame did not wait\n");
+    ext_image_copy_capture_frame_v1_destroy(waiting_frame);
+    attach(sub_surfaces[1], &sub_buffers[1]);
+    CHECK(wl_display_roundtrip(connection.display) >= 0
+          && invoke_on_server_thread(toplevel_capture_sync_output, &server)
+          && server.capture_paints == cancelled_paints && server.offscreen_viewports == 1,
+          "capture: cancelled frame rendered or destroyed its session pipeline\n");
+    CHECK(capture(&connection, &session, &captured, 0) == 0,
+          "capture: accumulated content change was lost between requests\n");
+
+    // Case: genuine layer content still wakes requests despite ignoring texture refreshes.
+    uint32_t *texture_reference = malloc(captured.size);
+    CHECK(texture_reference, "capture: texture reference allocation failed\n");
+    memcpy(texture_reference, captured.pixels, captured.size);
+    CHECK(invoke_on_server_thread(toplevel_capture_check_screen, &server), "capture: texture baseline failed\n");
+    waiting_frame = begin_capture(&session, &captured, &waiting);
+    CHECK(check_waiting(&connection, &session, &waiting, &server, server.capture_paints) == 0,
+          "capture: texture request did not wait\n");
+    int recolored = 0;
+    CHECK(invoke_on_server_thread(toplevel_capture_toggle_title_color, &recolored) && recolored,
+          "capture: no private title background available\n");
+    CHECK(finish_capture(&connection, &session, waiting_frame, &waiting, 0) == 0
+          && pixel_is(&captured, 20 + 60, 1 + 10, 0xff00ff00, "layered title color") == 0,
+          "capture: title background change did not wake the request or change its pixels\n");
+    CHECK(invoke_on_server_thread(toplevel_capture_toggle_title_color, &recolored) && recolored
+          && capture(&connection, &session, &captured, 0) == 0
+          && same_pixels(&captured, texture_reference), "capture: title background restore failed\n");
+    free(texture_reference);
+
+    // Case: only a desynchronized nested subsurface changes; root does not
+    // commit. Changed content must be painted before it is copied.
     struct shm_buffer nested_update = {0};
     CHECK(buffer_create(target.shm, &nested_update, 50, 25, WL_SHM_FORMAT_ARGB8888, teal),
           "capture: nested update failed\n");
     CHECK(invoke_on_server_thread(toplevel_capture_pause_checks, NULL), "capture: pause screen comparison failed\n");
+    CHECK(invoke_on_server_thread(toplevel_capture_check_screen, &server), "capture: update baseline read failed\n");
+    const int update_paints = server.capture_frames_checked;
     attach(sub_surfaces[1], &nested_update);
     CHECK(capture(&connection, &session, &captured, 0) == 0, "capture: subsurface-only frame failed\n");
     CHECK(check_pixels(&captured, &server, teal) == 0, "capture: subsurface-only update missing\n");
+    CHECK(invoke_on_server_thread(toplevel_capture_check_screen, &server)
+          && server.capture_frames_checked > update_paints,
+          "capture: changed subsurface reused a stale image\n");
 
     reference = malloc(captured.size);
     CHECK(reference, "capture: reference allocation failed\n");
@@ -694,6 +774,7 @@ int protocol_test_run(const char *socket_name)
 
     // Case: moving partly outside the output neither clips nor changes capture coordinates.
     CHECK(invoke_on_server_thread(toplevel_capture_move_partly_offscreen, &server), "capture: fixture move failed\n");
+    attach(sub_surfaces[1], &nested_update);
     CHECK(capture(&connection, &session, &captured, 0) == 0, "capture: moved frame failed\n");
     CHECK(check_pixels(&captured, &server, teal) == 0 && same_pixels(&captured, reference),
           "capture: move changed isolated image or SSD local coordinates\n");
@@ -706,6 +787,7 @@ int protocol_test_run(const char *socket_name)
         server = move.state;
         CHECK(server.position_x == move.x && server.position_y == move.y,
               "capture: target did not move to %d,%d\n", move.x, move.y);
+        attach(sub_surfaces[1], &nested_update);
         CHECK(capture(&connection, &session, &captured, 0) == 0, "capture: moving frame failed\n");
         CHECK(same_pixels(&captured, reference),
               "capture: window/SSD drifted after move to %d,%d\n", move.x, move.y);
@@ -715,9 +797,26 @@ int protocol_test_run(const char *socket_name)
 
     // Case: independent sessions share the source; stopping one must not freeze the other.
     struct capture_session other;
+    const int shared_paints = server.capture_paints;
+    waiting_frame = begin_capture(&session, &captured, &waiting);
+    CHECK(check_waiting(&connection, &session, &waiting, &server, shared_paints) == 0,
+          "capture: shared quiet frame did not wait\n");
     CHECK(session_create(&connection, &other, manager, source) == 0, "capture: second session failed\n");
+    struct frame_state cancelled_first;
+    struct ext_image_copy_capture_frame_v1 *cancelled_frame = begin_capture(&other, &captured, &cancelled_first);
+    ext_image_copy_capture_frame_v1_destroy(cancelled_frame);
+    CHECK(check_waiting(&connection, &session, &waiting, &server, shared_paints) == 0,
+          "capture: cancelled first frame left a shared render scheduled\n");
     CHECK(capture(&connection, &other, &captured, 0) == 0, "capture: second session initial frame failed\n");
-    // Case: a real swapchain acquire failure ends every pending frame, not the sessions.
+    CHECK(wl_display_roundtrip(connection.display) >= 0 && !waiting.ready && !waiting.failed,
+          "capture: another session's first frame manufactured damage\n");
+    attach(sub_surfaces[1], &nested_update);
+    CHECK(finish_capture(&connection, &session, waiting_frame, &waiting, 0) == 0,
+          "capture: shared content did not wake the quiet session\n");
+    // Case: a real swapchain acquire failure ends every pending frame, not the
+    // sessions. The new commit makes the request require a paint; otherwise the
+    // current image is copied without touching the exhausted swapchain.
+    attach(sub_surfaces[1], &nested_update);
     CHECK(check_render_failure(&connection, &session, &other, &captured, &server) == 0
           && check_pixels(&captured, &server, teal) == 0 && check_screen(&server) == 0,
           "capture: shared sessions did not recover from render failure\n");
@@ -779,6 +878,27 @@ int protocol_test_run(const char *socket_name)
           "capture: maximized image incomplete\n");
     CHECK(check_screen(&server) == 0, "capture: maximized capture changed screen\n");
 
+    // Case: a visible SSD title wakes the pending request without a surface commit.
+    CHECK(server.width > 8 * server.titlebar_height, "capture: title text has no visible area\n");
+    uint32_t *title_reference = malloc(captured.size);
+    CHECK(title_reference, "capture: title reference allocation failed\n");
+    memcpy(title_reference, captured.pixels, captured.size);
+    CHECK(invoke_on_server_thread(toplevel_capture_pause_checks, NULL), "capture: title fixture failed\n");
+    waiting_frame = begin_capture(&other, &captured, &waiting);
+    CHECK(check_waiting(&connection, &other, &waiting, &server, server.capture_paints) == 0,
+          "capture: title frame did not wait\n");
+    // Reorder existing glyphs rather than grow the GPU glyph atlas.
+    xdg_toplevel_set_title(target.toplevel, "target Capture");
+    CHECK(finish_capture(&connection, &other, waiting_frame, &waiting, 0) == 0
+          && memcmp(captured.pixels, title_reference, captured.size) != 0,
+          "capture: title change returned a stale image\n");
+    xdg_toplevel_set_title(target.toplevel, "Capture target");
+    CHECK(capture(&connection, &other, &captured, 0) == 0
+          && same_pixels(&captured, title_reference)
+          && invoke_on_server_thread(toplevel_capture_save_screen, &server),
+          "capture: title restore failed\n");
+    free(title_reference);
+
     CHECK(invoke_on_server_thread(toplevel_capture_drag_begin, &server), "capture: SSD drag failed\n");
     CHECK(wl_display_roundtrip(connection.display) >= 0 && !server.maximized && server.dragging
           && !target.configure_maximized && target.configure_width == 320 && target.configure_height == 260,
@@ -812,6 +932,7 @@ int protocol_test_run(const char *socket_name)
         CHECK(move.state.position_x != server.position_x || move.state.position_y != server.position_y,
               "capture: pointer motion did not move the restored window\n");
         server = move.state;
+        attach(sub_surfaces[1], &sub_buffers[1]);
         CHECK(capture(&connection, &other, &captured, 0) == 0
               && same_pixels(&captured, reference),
               "capture: restored window/SSD drifted while dragging to %d,%d\n", move.x, move.y);
@@ -819,6 +940,7 @@ int protocol_test_run(const char *socket_name)
     }
     CHECK(invoke_on_server_thread(toplevel_capture_drag_end, &server) && !server.dragging,
           "capture: pointer release did not end drag\n");
+    attach(sub_surfaces[1], &sub_buffers[1]);
     CHECK(capture(&connection, &other, &captured, 0) == 0
           && same_pixels(&captured, reference) && check_screen(&server) == 0,
           "capture: released restore image changed\n");
@@ -894,6 +1016,7 @@ int protocol_test_run(const char *socket_name)
                   && server.offscreen_viewports == 1 && server.capture_sources == 1,
                   "capture: dropping the source resource released the live session (%d sources, %d viewports)\n",
                   server.capture_sources, server.offscreen_viewports);
+            attach(sub_surfaces[1], &sub_buffers[1]);
             CHECK(capture(&connection, &transient_session, &captured, 0) == 0
                   && check_pixels(&captured, &server, green) == 0,
                   "capture: frame failed after source resource drop\n");
@@ -937,11 +1060,33 @@ int protocol_test_run(const char *socket_name)
                                              &treeland_ddm_v1_interface, 1);
     CHECK(ddm, "capture: DDM global missing\n");
     treeland_ddm_v1_add_listener(ddm, &ddm_listener, NULL);
+
+    // Case: pause/resume alone must not manufacture damage for a quiet request.
+    CHECK(invoke_on_server_thread(toplevel_capture_check_screen, &server), "capture: quiet pause baseline failed\n");
+    const int quiet_paints = server.capture_paints;
+    waiting_frame = begin_capture(&session, &captured, &waiting);
+    CHECK(check_waiting(&connection, &session, &waiting, &server, quiet_paints) == 0,
+          "capture: quiet pause frame did not wait\n");
+    CHECK(pause_rendering(&connection, ddm) == 0
+          && invoke_on_server_thread(toplevel_capture_read_output_state, &outputs)
+          && !outputs.render_enabled && !waiting.ready && !waiting.failed,
+          "capture: quiet request did not remain paused\n");
+    treeland_ddm_v1_enable_render(ddm);
+    CHECK(check_waiting(&connection, &session, &waiting, &server, quiet_paints) == 0,
+          "capture: resume manufactured damage\n");
+    attach(sub_surfaces[1], &sub_buffers[1]);
+    CHECK(finish_capture(&connection, &session, waiting_frame, &waiting, 0) == 0,
+          "capture: content change after resume did not wake the original request\n");
+
     // Case: resume wakes a single request without new captures or fixture renders.
+    attach(sub_surfaces[1], &sub_buffers[1]);
     CHECK(check_render_pause(&connection, ddm, &session, &captured, &outputs, 0) == 0
           && check_pixels(&captured, &server, green) == 0,
           "capture: enabled-output pause/resume failed\n");
     struct frame_state pending;
+    // Commit first so the request needs a paint; a request on unchanged content
+    // is answered from the current image and never reaches the output clock.
+    attach(sub_surfaces[1], &nested_update);
     struct ext_image_copy_capture_frame_v1 *pending_frame = begin_capture(&session, &captured, &pending);
     zwlr_output_power_v1_set_mode(power, ZWLR_OUTPUT_POWER_V1_MODE_OFF);
     CHECK(finish_capture(&connection, &session, pending_frame, &pending, 0) == 0
@@ -953,6 +1098,39 @@ int protocol_test_run(const char *socket_name)
           && outputs.disabled_frames > 0 && outputs.disabled_frames_did_not_commit,
           "capture: disabled-output fallback recreated the pipeline or committed an output\n");
 
+    // Case: late SSD and subtree changes wake quiet requests on a disabled output.
+    CHECK(invoke_on_server_thread(toplevel_capture_check_screen, &server), "capture: SSD baseline failed\n");
+    uint32_t old_border = server.border_color;
+    uint32_t new_border = 0xff00ff00;
+    waiting_frame = begin_capture(&session, &captured, &waiting);
+    CHECK(check_waiting(&connection, &session, &waiting, &server, server.capture_paints) == 0,
+          "capture: disabled-output SSD request did not wait\n");
+    CHECK(invoke_on_server_thread(toplevel_capture_set_border, &new_border), "capture: border change failed\n");
+    CHECK(finish_capture(&connection, &session, waiting_frame, &waiting, 0) == 0
+          && pixel_is(&captured, 20 + server.width, 1 + server.titlebar_height + 80,
+                      new_border, "updated SSD border") == 0,
+          "capture: disabled-output border change returned stale pixels\n");
+    CHECK(invoke_on_server_thread(toplevel_capture_set_border, &old_border)
+          && capture(&connection, &session, &captured, 0) == 0, "capture: border restore failed\n");
+    CHECK(invoke_on_server_thread(toplevel_capture_check_screen, &server), "capture: removal baseline failed\n");
+    waiting_frame = begin_capture(&session, &captured, &waiting);
+    CHECK(check_waiting(&connection, &session, &waiting, &server, server.capture_paints) == 0,
+          "capture: subsurface removal request did not wait\n");
+    wl_subsurface_destroy(subs[2]);
+    CHECK(finish_capture(&connection, &session, waiting_frame, &waiting, 0) == 0
+          && pixel_is(&captured, 20 + 30, 1 + server.titlebar_height + 55, red,
+                      "removed interior subsurface") == 0,
+          "capture: interior subsurface removal returned stale pixels\n");
+    subs[2] = wl_subcompositor_get_subsurface(subcompositor, sub_surfaces[2], target.surface);
+    wl_subsurface_set_desync(subs[2]);
+    wl_subsurface_set_position(subs[2], sub_x[2], sub_y[2]);
+    attach(sub_surfaces[2], &sub_buffers[2]);
+    wl_surface_commit(target.surface);
+    CHECK(capture(&connection, &session, &captured, 0) == 0
+          && pixel_is(&captured, 20 + 30, 1 + server.titlebar_height + 55, yellow,
+                      "recreated interior subsurface") == 0,
+          "capture: new subsurface was not observed\n");
+
     // Case: later requests still copy new committed content, not the last frame
     // rendered before the old output stopped producing frame events.
     attach(sub_surfaces[1], &nested_update);
@@ -963,15 +1141,18 @@ int protocol_test_run(const char *socket_name)
           && outputs.disabled_frames >= 2 && outputs.disabled_frames_did_not_commit
           && outputs.viewport_unchanged && outputs.offscreen_viewports == 1,
           "capture: repeated fallback changed the output or leaked a pipeline\n");
+    attach(sub_surfaces[1], &nested_update);
     CHECK(check_render_pause(&connection, ddm, &session, &captured, &outputs, 0) == 0
           && check_pixels(&captured, &server, teal) == 0
           && outputs.disabled_frames_did_not_commit,
           "capture: disabled-output pause/resume failed\n");
     // The fallback is queued before disable_render in the same request batch.
+    attach(sub_surfaces[1], &nested_update);
     CHECK(check_render_pause(&connection, ddm, &session, &captured, &outputs, 1) == 0
           && check_pixels(&captured, &server, teal) == 0 && outputs.disabled_frames_did_not_commit,
           "capture: queued fallback did not survive rendering pause\n");
     // Case: render failure and recovery also work without an enabled capture output.
+    attach(sub_surfaces[1], &nested_update);
     CHECK(check_render_failure(&connection, &session, NULL, &captured, &server) == 0
           && check_pixels(&captured, &server, teal) == 0,
           "capture: disabled-output session did not recover from render failure\n");
@@ -981,8 +1162,10 @@ int protocol_test_run(const char *socket_name)
           "capture: failed fallback changed the output or capture pipeline\n");
     zwlr_output_power_v1_set_mode(power, ZWLR_OUTPUT_POWER_V1_MODE_ON);
     CHECK(wl_display_roundtrip(connection.display) >= 0
-          && power_state.mode == ZWLR_OUTPUT_POWER_V1_MODE_ON && !power_state.failed
-          && capture(&connection, &session, &captured, 0) == 0,
+          && power_state.mode == ZWLR_OUTPUT_POWER_V1_MODE_ON && !power_state.failed,
+          "capture: output enable failed\n");
+    attach(sub_surfaces[1], &nested_update);
+    CHECK(capture(&connection, &session, &captured, 0) == 0,
           "capture: regular scheduling did not resume after output enable\n");
 
     // Case: a queued fallback must not render a viewport that stop() released.
@@ -991,6 +1174,7 @@ int protocol_test_run(const char *socket_name)
           && invoke_on_server_thread(toplevel_capture_read_output_state, &outputs)
           && !outputs.capture_output_enabled, "capture: second output disable failed\n");
     const int disabled_frames = outputs.disabled_frames;
+    attach(sub_surfaces[1], &nested_update);
     pending_frame = begin_capture(&session, &captured, &pending);
     ext_image_copy_capture_frame_v1_destroy(pending_frame);
     ext_image_copy_capture_session_v1_destroy(session.session);

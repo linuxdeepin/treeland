@@ -106,9 +106,19 @@ void protocol_test_setup(WaylandServer *server)
   管线，增加 session 不再增加管线；销毁最后一个 session 后视口回到 0；
   会话期间提前销毁 source resource 时包装对象与视口仍各为 1，且继续能捕获到 frame。
   另外验证空闲 source 独立回收、同批停止/重启，以及 resource/session 都销毁后包装对象归零。
-- `request_frame` 的 `schedule_frame` 来自 session damage 是否非空，不能将它当作
-  “已有待处理请求”的标志。按需渲染的离屏视口对每次请求都应主动调度，并自行记录
-  待完成的渲染，不能因为 damage 为空而永远等不到下一个 frame。
+- `request_frame` 的 `schedule_frame` 只表示该 session 自上次 frame 后累积了 damage，
+  不能作为是否存在待处理请求的标志。copy manager 的 `new_session` 接到
+  `WExtImageCaptureSourceV1Impl::trackSession()`，从公开的 `session.frame` 跟踪 capturing
+  frame，并在其 destroy 事件中移除；强制出帧需求也必须按 frame 记录，取消首帧不能
+  带着另一条静止请求继续绘制。无累计 damage、无内容变化的请求保持挂起，不重绘、不复制。
+- 捕获视口只在需要绘制时启用 `live`。视觉 commit、子面新增/删除/堆叠/位置、视口参数
+  与独立 QML 子树变化都要标脏，并唤醒已有请求，包括借用输出关闭的情况。空提交与
+  frame-callback-only commit 不标脏；绘制产生的 renderer 状态变化与非递归
+  `ShaderEffectSource` 的层纹理刷新不能当作新内容，真正的纹理参数变化仍须通知。
+  强制绘制静止内容时发送空 source damage，避免给其他静止 session 制造 damage。
+- 以真实输出 frame / `renderEnd` 同步静止断言，不加 sleep 或轮询。覆盖请求之后才发生
+  的主面/子面/SSD 变化、静止请求跨暂停恢复、单帧取消、不同 session 的首帧，以及
+  关屏兜底与失败恢复。像素断言的刺激必须可见，例如标题区域应有足够宽度。
 - disabled output 不发送 frame，借用其时钟的离屏捕获需要独立的排队渲染兜底。
   用真实 power-management 请求覆盖：先发 capture 再在同一批请求中关屏、关屏后
   提交新内容并再次捕获、复电和取消排队请求；关闭原输出后重建会话，应解析窗口当前
