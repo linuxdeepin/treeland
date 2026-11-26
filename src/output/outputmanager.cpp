@@ -54,11 +54,6 @@ bool hasSavedOutputState(OutputConfig *config)
                       || !config->adaptiveSyncEnabledIsDefaultValue());
 }
 
-bool outputConfigInitializationFinished(OutputConfig *config)
-{
-    return config && (config->isInitializeSucceeded() || config->isInitializeFailed());
-}
-
 bool outputMatchesId(Output *output, const QString &outputId)
 {
     return output && output->output() && output->output()->isEnabled()
@@ -347,7 +342,7 @@ void OutputManager::outputAdded(WOutput *output)
     auto *configManager = DConfigManager::instance();
 
     auto *config = configManager->outputConfig(Output::getOutputId(output->handle()));
-    if (outputConfigInitializationFinished(config)) {
+    if (configurationReady(config)) {
         processOutputAdded(output);
         finishInitialOutputScanIfReady();
         return;

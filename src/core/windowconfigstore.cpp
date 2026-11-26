@@ -10,8 +10,9 @@
 
 #include <QPointer>
 
-WindowConfigStore::WindowConfigStore(QObject *parent)
+WindowConfigStore::WindowConfigStore(uint uid, QObject *parent)
     : QObject(parent)
+    , m_uid(uid)
 {
 }
 
@@ -23,7 +24,7 @@ AppConfig *WindowConfigStore::configForApp(const QString &appId) const
 
     auto *configManager = DConfigManager::instance();
     Q_ASSERT(configManager);
-    return configManager->appConfig(appId);
+    return configManager->appConfig(m_uid, appId);
 }
 
 void WindowConfigStore::saveLastSize(const QString &appId, const QSize &size)

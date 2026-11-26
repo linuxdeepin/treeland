@@ -68,7 +68,6 @@ class QQuickWindow;
 QT_END_NAMESPACE
 
 class AppIdResolverManager; // forward declare new protocol manager
-class WindowConfigStore;    // forward declare config store
 class TreelandWallpaperShellInterfaceV1;
 class TreelandWallpaperSurfaceInterfaceV1;
 class LayerShellExtensionManagerInterfaceV1;
@@ -201,6 +200,5 @@ private:
     // only if the pointer remains in this list
     QList<WAYLIB_SERVER_NAMESPACE::WToplevelSurface *> m_pendingAppIdResolveToplevels;
     LayerShellExtensionManagerInterfaceV1 *m_layerShellExtensionManagerInterfaceV1 = nullptr;
-    WindowConfigStore *m_windowConfigStore = nullptr;
     SnapTargetV1 *m_snapTarget = nullptr;
 };

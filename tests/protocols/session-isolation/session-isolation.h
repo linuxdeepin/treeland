@@ -18,6 +18,10 @@ struct isolation_state {
     int b_panel_at_bottom;
     int a_visible_windows;
     int b_visible_windows;
+    int a_splash_width;
+    int a_splash_height;
+    int b_splash_width;
+    int b_splash_height;
     int a_windows;
     int b_windows;
     int independent_workspaces;

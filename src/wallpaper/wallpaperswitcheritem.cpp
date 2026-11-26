@@ -17,6 +17,8 @@
 
 #ifndef DISABLE_DDM
 #include "greeter/usermodel.h"
+
+#include <unistd.h>
 #endif
 
 #include <woutput.h>
@@ -204,10 +206,9 @@ void WallpaperSwitcherItem::handleWallpaperUpdate()
     // Startup and shutdown can also show the lock screen item outside LockScreen mode.
     if (!m_workspace && userModel
         && (server->currentMode() == WaylandServer::CurrentMode::LockScreen || m_play)) {
-        QString user = userModel->currentUserName();
-        if (user.isEmpty())
-            user = QStringLiteral("dde");
-        userConfig = DConfigManager::instance()->userConfig(user);
+        const auto user = userModel->currentUser();
+        const uint uid = user ? static_cast<uint>(user->UID()) : static_cast<uint>(getuid());
+        userConfig = DConfigManager::instance()->userConfig(uid);
     }
     if (m_greeterConfig != userConfig) {
         if (m_greeterConfig)
