@@ -5,7 +5,7 @@ description: "新增、修改、评审与调试 treeland 的 DConfig 配置：�
 
 # Treeland DConfig 配置
 
-> **铁律**：用户业务对象通过构造时注入的固定配置访问设置，不查询 Session 或活动用户。Session/DesktopEnvironment 组装边界负责解析配置与按用户名 subpath 隔离的 provider；仅共享运行时的活动桌面兼容入口使用 `WaylandServer::config()`（动画开关为该入口上的 `WaylandServer::animationConfig()`）。不要因为全局模式以 `dde` 运行就把用户偏好写进 `TreelandConfig`。显示模式、主屏、复制/单屏配置为系统级；各 Session 的窗口、协议资源和专属区域仍独立。
+> **铁律**：用户业务对象通过构造时注入的固定配置访问设置，不查询 Session 或活动用户。Session/DesktopEnvironment 组装边界负责解析配置与按目标 UID 隔离的 provider；仅共享运行时的活动桌面兼容入口使用 `WaylandServer::config()`（动画开关为该入口上的 `WaylandServer::animationConfig()`）。不要因为全局模式以 `dde` 运行就把用户偏好写进 `TreelandConfig`。显示模式、主屏、复制/单屏配置为系统级；各 Session 的窗口、协议资源和专属区域仍独立。
 
 ## 范围
 本 skill 用于由 Desktop Spec Group 配置元数据描述、并通过 DTK DConfig 生成的 C++ 封装类消费的 treeland 配置。
@@ -47,6 +47,14 @@ treeland 有两种运行模式，DConfig 归属必须同时考虑两者：
 
 `DConfigManager` 解析用户与 seat 配置对象，并等待两者都初始化完成；用户切换后丢弃过期的完成通知。`initializeActiveUserConfig()` 观察用户变化；`stopActiveUserConfig()` 在桌面销毁时解绑桌面侧监听。其 `configReady` 信号驱动 `WaylandServer::applyCurrentUserConfig`，后者在当前指针变化时发出 `configChanged()`，更新个性化用户 id，并同步光标、输入、壁纸与工作区设置。`WaylandServer::config()` 与 `WaylandServer::globalConfig()` 直接暴露这些配置对象。DesktopEnvironment 所属的 Workspace、WallpaperManager、InputManager 和 SessionOutputManager 使用构造时注入的固定配置或配置 provider；`WaylandServer::config()` 仅作当前桌面的兼容入口，而不是后台用户对象的配置来源。用户级设置不使用 `m_globalConfig`；配置对象由 `DConfigManager` 复用，不由 `WaylandServer` 自己重建。
 
+## 指定 UID 的 D-Bus 后端
+
+`src/dconfig/userconfigbackend.*` 实现 `DConfigBackend`。`DConfigManager` 的用户配置接口显式接收 UID，并按 UID 缓存对象；seat/app 缓存再按 seatName/appId 区分。Session 组装处传递 `Session::uid()`，活动用户兼容路径从目标 `User::UID()` 获取身份。初始配置在 `TreelandPrivate::init` 按编译分支选择身份：启用 DDM 且存在当前 User 时使用其 UID；当前 User 缺失或禁用 DDM 时，使用 `getuid()` 作为初始配置身份（全局服务以 dde 运行），保持启动兜底，不查询 dde 账户或提供通用用户名解析 helper。指定 UID 后 V2 获取失败时不改用其他 UID。
+
+后端在 `DConfig::globalThread()` 访问 system bus；配置对象由 DConfig 持有并销毁。生成类的 `configInitializeSucceed` 连接到后端的 `subscribe`，在配置线程订阅 Manager.valueChanged 并转发给 DConfig，订阅后刷新所有键以覆盖初始化期间的变更。
+
+用户偏好、动画的 subpath 为空，seat 为 `/<seatName>`，应用为 `/<appId>`；用户隔离由 UID 实现。全局和物理输出配置保留默认后端。旧 `dde` UID 下的用户名 subpath 数据不自动迁移。后端的隔离、通知、复杂值、重置及释放通过独立 D-Bus mock 测试验证，不操作系统配置。
+
 ## 描述文件格式
 DConfig 描述文件是 JSON 元数据文件。treeland 中它们位于 `misc/dconfig/`，顶层结构如下：
 
@@ -84,10 +92,10 @@ DConfig 描述文件是 JSON 元数据文件。treeland 中它们位于 `misc/dc
 
 - `org.deepin.dde.treeland.json` → 不随当前用户变化的合成器全局设置；生成 `TreelandConfig` / `treelandconfig.hpp`；通常通过 `WaylandServer::globalConfig()` 访问。
 - `org.deepin.dde.treeland.user.json` → 当前用户会话、个性化、工作区、光标、主题等设置；生成 `TreelandUserConfig` / `treelanduserconfig.hpp`；通过 `WaylandServer::config()` 访问，用户切换时从 DConfigManager 缓存中选取。
-- `org.deepin.dde.treeland.animation.json` → 当前用户的动画开关；生成 `AnimationConfig` / `animationconfig.hpp`；由 `DConfigManager::animationConfig(userName)` 缓存，通过 `WaylandServer::animationConfig()` 访问并监听 `animationConfigChanged()`。键名直接用 `windowOpen`、`workspaceSwitch` 等效果名，不重复 `AnimationEnabled`。初始化完成前使用默认启用状态，初始化完成或用户切换时重新绑定并刷新效果。
+- `org.deepin.dde.treeland.animation.json` → 当前用户的动画开关；生成 `AnimationConfig` / `animationconfig.hpp`；由 `DConfigManager::animationConfig(uid)` 缓存，通过 `WaylandServer::animationConfig()` 访问并监听 `animationConfigChanged()`。键名直接用 `windowOpen`、`workspaceSwitch` 等效果名，不重复 `AnimationEnabled`。初始化完成前使用默认启用状态，初始化完成或用户切换时重新绑定并刷新效果。
 - `org.deepin.dde.treeland.output.json` → 按 output 的设置；生成 `OutputConfig` / `outputconfig.hpp`；当前代码使用 `OutputConfig::createByName(...)` 和 `/<outputName>`，保存系统级物理身份、分辨率、刷新率、缩放、位置、旋转、颜色等参数。所有 Session 注入同一个 output 配置对象，不增加用户名 subpath。
 - `org.deepin.dde.treeland.user.seat.json` → 当前用户的输入/seat 设置；生成 `SeatUserDConfig` / `seatuserconfig.hpp`；每个 Session 持有独立 InputManager，固定读取所属用户名的 seat 配置；活动 manager 才连接硬件应用路径。`keyboardNumLock` 也位于该用户 seat 配置；旧全局键保留兼容，但新输入管理路径不再读写它。
-- `org.deepin.dde.treeland.app.json` → 按应用的设置；生成 `AppConfig` / `appconfig.hpp`；`WindowConfigStore` 使用 subpath `"/" + appId`。
+- `org.deepin.dde.treeland.user.app.json` → 按应用的设置；生成 `AppConfig` / `appconfig.hpp`；Session 持有组装层创建的 `WindowConfigStore`，后者在构造时固定绑定所属 UID，并显式注入 SessionPrelaunch，通过 `acquireManagerV2(uid, ...)` 选择用户 cache，subpath 仅为 `"/" + appId`。
 
 新增描述文件前，先确认上述某个作用域已经合适。确实需要新文件时，按下面“新增描述文件”一节执行。
 
@@ -105,7 +113,7 @@ DConfig 描述文件是 JSON 元数据文件。treeland 中它们位于 `misc/dc
 
 - `value`：默认值。使用常规 JSON 类型。该类型决定生成的 C++ 访问器类型。
 - `serial`：单调递增整数，新键通常为 `0`。
-- `flags`：数组。用户级设置用 `[]`。treeland 在全局模式下以 `dde` 用户运行，用户隔离靠描述文件名加 `"/" + userName` subpath，而不是进程 uid，因此这里不需要 `global`。规范对 `global` 的定义是“读写时忽略用户身份，所有用户拿到同一份数据”；只有当某项在所有用户间确实完全相同时才加，且绝不用它替代 subpath。需要禁止 OEM/域管覆盖时用 `["nooverride"]`。
+- `flags`：数组。用户偏好、动画、seat、应用配置使用 `["user-public"]`，允许 `dde` 跨 UID 访问；该标记不改变数据所属 UID，目标用户由 `acquireManagerV2` 指定。只有确实需要共享存储的项使用 `global`；禁止 override 时加 `nooverride`。
 - `name` 与 `name[zh_CN]`：简短的用户可见名称。
 - `description` 与 `description[zh_CN]`：运维含义、有效范围、枚举值、单位与副作用。
 - `permissions`：`readonly` 或 `readwrite`。
@@ -115,7 +123,7 @@ DConfig 描述文件是 JSON 元数据文件。treeland 中它们位于 `misc/dc
 
 | 场景 | `flags` |
 | --- | --- |
-| 用户级设置 | `[]`，靠 `"/" + userName` subpath 区分用户 |
+| 用户级设置 | `["user-public"]`，通过 V2 指定目标 UID |
 | 所有用户共享同一份数据 | `["global"]` |
 | 不允许 OEM/域管覆盖 | `["nooverride"]`（可与其他标记组合） |
 
@@ -227,11 +235,11 @@ Desktop Spec 支持 `subpath` 查找。treeland 中保持既有构造方式：
 
 当前 treeland 的 subpath 模式：
 
-- 当前用户配置：`"/" + currentUserName`
-- 用户选定前的初始/默认用户配置：`"/dde"`
-- seat 用户配置：`"/" + userName + "/" + seatName`（`DConfigManager::userSeatConfig(...)`，由固定 Session 的 `InputManager::seatUserConfig(...)` 进入）
+- 当前用户偏好和动画配置：subpath 为空，V2 显式指定所属 UID
+- 用户选定前的初始/默认用户配置：使用初始用户名解析的 UID，subpath 为空
+- seat 用户配置：`"/" + seatName`，V2 指定所属 UID（`DConfigManager::userSeatConfig(...)`，由固定 Session 的 `InputManager::seatUserConfig(...)` 进入）
 - 系统 output 配置：`"/" + outputName`，保存硬件 UUID 和显示参数；旧 `/<username>/outputs/<outputName>` 路径不再读取或写入
-- 应用配置：`"/" + appId`
+- 用户应用配置：`"/" + appId`，V2 指定所属 UID；DConfigManager 的对象缓存键使用 UID，WindowConfigStore 固定保存所属 UID。旧 `dde` UID 下的用户名 subpath 数据不自动迁移
 
 QML 与 C++ 的实时监听要注意 `WaylandServer` 上的实际属性：
 
@@ -252,7 +260,7 @@ Q_PROPERTY(TreelandConfig* globalConfig READ globalConfig CONSTANT FINAL)
 - 代码必须容忍 `permissions: readonly`；setter 可能失败或被忽略，取决于 DConfig 实现。
 - 该状态可用时，UI 或协议写入路径不应展示可写控件。
 - 不得被 OEM/域管策略覆盖的不变量使用 `nooverride`。
-- 不要用 `global` 标志来区分用户。用户级描述文件保持 `flags: []` 并依赖 `"/" + userName` subpath；`global` 会让存储忽略用户身份。
+- 不要用 `global` 标志来区分用户。用户级描述文件使用 `flags: ["user-public"]` 并通过 V2 指定所属 UID；`global` 会让存储忽略用户身份。
 
 ## 评审清单
 评审 DConfig 改动时逐项确认：
@@ -265,7 +273,7 @@ Q_PROPERTY(TreelandConfig* globalConfig READ globalConfig CONSTANT FINAL)
 6. 默认值的 JSON 类型与预期的生成 C++ 类型、消费方假设一致。
 7. 描述中写明了范围、单位、枚举值与特殊值。
 8. 该设置在用户模式与全局模式下行为都正确。
-9. 用户级设置走当前用户配置/subpath 路径，没有被错误地只存到 `dde` 进程用户名下。
+9. 用户级设置通过 V2 指定所属 UID，没有被错误地只存到 `dde` 进程用户名下。
 10. 消费方 include 了正确的生成头文件并使用生成的类型化访问器。
 11. 启动阶段读取等待了 DConfig 初始化，或沿用了既有的有意回退模式。
 12. 需要实时生效的设置连接了生成的 `*Changed` 信号。
@@ -297,7 +305,7 @@ python3 -m json.tool misc/dconfig/<file>.json >/dev/null
 ```bash
 dde-dconfig get   -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k <key>
 dde-dconfig set   -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k <key> -v <value>
-dde-dconfig watch -a org.deepin.dde.treeland -r org.deepin.dde.treeland.user -s /<username> -k <key>
+dde-dconfig watch -u <uid> -a org.deepin.dde.treeland -r org.deepin.dde.treeland.user -k <key>
 ```
 
 参数映射（`-a`/`-r`/`-s`/`-k`/`-v`/`-u`）、按 output/app/seat 作用域的完整命令、`-m` 元数据查询与取值注意事项见 [references/dde-dconfig.md](references/dde-dconfig.md)。

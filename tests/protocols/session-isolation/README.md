@@ -87,6 +87,12 @@ xdg-foreign 接口新增状态断言（未编译、未执行）：每个 Session
 同账户重登回归连续使用三个新 session ID。测试延迟清理旧 Session，检查新桌面仍是
 唯一活动桌面，并通过两个新建的真实 Wayland 连接核对 shell、数据传输、输入法和捕获协议的 registry。
 
+应用配置隔离：fixture 经各自 Session 的 WindowConfigStore 保存同 appId 的 720×520 与 940×640 历史尺寸，
+真实 C 客户端分别请求启动闪屏，断言生产 wrapper 的尺寸分别匹配所属用户。
+启动客户端前，在配置线程回读 DConfig 服务端的配置值，并等待生成类属性同步到相同尺寸，避免异步写入及初始化刷新尚未完成就发送闪屏请求。
+本次尺寸隔离断言已通过 `ctest --test-dir obj-x86_64-linux-gnu -R '^test_session_isolation$' --output-on-failure`，未跳过。
+同时检查两个会话的存储对象不同，且 QObject 父对象分别为所属 Session。
+
 ## 用户 socket 生命周期
 
 `test_session_socket_lifecycle` 单独运行，不依赖窗口隔离或缩放检查。隔离 D-Bus 上的两个调用方

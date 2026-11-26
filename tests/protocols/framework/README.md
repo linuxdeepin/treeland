@@ -11,6 +11,10 @@ event、生产对象状态或渲染读回中取得可观察结果。CTest 负责
 `Treeland`、`WaylandServer`、`ShellHandler`、workspace、seat、headless backend 与 QML scene；
 `setup.cpp` 只配置 fixture 并取得生产启动路径已经创建的协议对象。
 
+Accounts fixture 使用 NSS 中实际存在的账户：默认优先 UID 1000，不存在时使用运行账户。
+`TREELAND_PROTOCOL_TEST_USE_RUNNING_ACCOUNT=1` 始终选择运行账户。UID、用户名、GID 和
+home 保持一致，因为真实 DConfig 服务还会独立检查目标 UID 是否存在，不能仅在 Accounts mock 中虚构用户。
+
 ## 总体数据流
 
 ```mermaid
