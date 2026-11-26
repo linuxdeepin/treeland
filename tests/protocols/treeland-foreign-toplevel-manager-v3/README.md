@@ -17,6 +17,7 @@
 | 全屏 | 对 handle 发 `set_fullscreen(NULL)`、`unset_fullscreen` | 同一真实 `SurfaceWrapper` 进入、退出 `Fullscreen` 状态 |
 | 布局与最小化正交 | `set_maximized`/`set_fullscreen` 后发 `set_minimized`、`unset_minimized`，再 `unset_maximized`/`unset_fullscreen` | 最小化期间 `SurfaceWrapper::surfaceState()` 保持布局状态且窗口不可见；恢复后仍为该布局状态并重新可见；取消布局状态后回到 `Normal` 且不再最小化 |
 | 激活 | 对 handle 发 `activate(wl_seat)` | `WaylandServer` 将 wrapper 设为 activated，且它成为该 seat 的真实 keyboard focus surface |
+| 全屏与前台 | 对已激活 handle 发 `set_fullscreen`，然后最小化（失焦）或创建第二个普通窗口并激活它 | state event 的 fullscreen 位仅在窗口同时全屏且持有焦点时置位；失焦时清除，重新激活后恢复 |
 | 窗口代表区域 | 对 handle 的 mapped xdg `wl_surface` 发 `set_icon_geometry(11,12,130,140)` | production rectangle handler 将局部坐标换算为 wrapper 的 `iconGeometry`：`wrapper.position + QRect(11,12,130,140)` |
 
 ## 已证明的生产链路
@@ -69,6 +70,6 @@ mapped wrapper。`set_icon_geometry` 则
 handle 请求，仍未被组合覆盖。
 
 仍未验证 dock UI 或 preview 的渲染像素；`output_enter` / `output_leave`、title、app-id、pid、
-parent 和 foreign handle 对 state event 的线上内容也尚未逐项断言。`set_fullscreen` 当前传
+parent 和 foreign handle 对 state event 的线上内容中 fullscreen 位已覆盖断言，其余位尚未逐项断言。`set_fullscreen` 当前传
 `NULL` output，因此未覆盖“指定 `wl_output` 是 fullscreen hint”这一分支。fixture 关闭了几何
 动画，只读取最终 wrapper 状态，不构成对动画插值或最终帧像素的验证。

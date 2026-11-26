@@ -86,6 +86,8 @@ struct test_ctx {
     int handle_count;
     int handle_closed_count;
     uint32_t handle_identifier;
+    int      handle_fullscreen_in_state;
+    struct treeland_foreign_toplevel_handle_v3 *state_track_handle;
 
     struct test_result *results;
     int                 result_count;

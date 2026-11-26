@@ -134,9 +134,15 @@ static void handle_output_leave(void *data, struct treeland_foreign_toplevel_han
 static void handle_state(void *data, struct treeland_foreign_toplevel_handle_v3 *handle,
                          struct wl_array *state)
 {
-    (void)data;
-    (void)handle;
-    (void)state;
+    struct test_ctx *ctx = data;
+    if (ctx->state_track_handle && handle != ctx->state_track_handle)
+        return;
+    ctx->handle_fullscreen_in_state = 0;
+    uint32_t *value;
+    wl_array_for_each(value, state) {
+        if (*value == 3) /* TREELAND_FOREIGN_TOPLEVEL_HANDLE_V3_STATE_FULLSCREEN */
+            ctx->handle_fullscreen_in_state = 1;
+    }
 }
 
 static void handle_done(void *data, struct treeland_foreign_toplevel_handle_v3 *handle)
@@ -181,6 +187,8 @@ static void manager_toplevel(void *data, struct treeland_foreign_toplevel_manage
     (void)manager;
     struct test_ctx *ctx = data;
     ctx->handle = toplevel;
+    if (!ctx->state_track_handle)
+        ctx->state_track_handle = toplevel;
     ++ctx->handle_count;
     treeland_foreign_toplevel_handle_v3_add_listener(toplevel, &handle_listener, ctx);
 }
@@ -722,6 +730,118 @@ static int stop_manager(struct test_ctx *ctx)
     return ctx->manager_finished_received;
 }
 
+static int reset_toplevel_state(struct test_ctx *ctx)
+{
+    if (!ctx->handle)
+        return 0;
+    treeland_foreign_toplevel_handle_v3_unset_minimized(ctx->handle);
+    treeland_foreign_toplevel_handle_v3_unset_maximized(ctx->handle);
+    treeland_foreign_toplevel_handle_v3_unset_fullscreen(ctx->handle);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    struct ftm_server_state state;
+    if (!render_ack_and_read_server_state(ctx, &state))
+        return 0;
+    return state.wrapper_state == FTM_WRAPPER_STATE_NORMAL
+           && !state.wrapper_self_minimized
+           && state.wrapper_visible;
+}
+
+static int fullscreen_state_follows_activation(struct test_ctx *ctx)
+{
+    if (!ctx->handle || !ctx->seat)
+        return 0;
+
+    if (!reset_toplevel_state(ctx))
+        return 0;
+
+    /* Activate and enter fullscreen: state should include fullscreen. */
+    treeland_foreign_toplevel_handle_v3_activate(ctx->handle, ctx->seat);
+    treeland_foreign_toplevel_handle_v3_set_fullscreen(ctx->handle, NULL);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    struct ftm_server_state state;
+    if (!render_ack_and_read_server_state(ctx, &state) || !state.wrapper_fullscreen)
+        return 0;
+    if (!ctx->handle_fullscreen_in_state)
+        return 0;
+
+    /* Minimize: window loses activation, fullscreen bit should clear. */
+    treeland_foreign_toplevel_handle_v3_set_minimized(ctx->handle);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    if (ctx->handle_fullscreen_in_state)
+        return 0;
+
+    /* Restore: activate again, fullscreen bit should return. */
+    treeland_foreign_toplevel_handle_v3_unset_minimized(ctx->handle);
+    treeland_foreign_toplevel_handle_v3_activate(ctx->handle, ctx->seat);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    if (!render_ack_and_read_server_state(ctx, &state) || !state.wrapper_fullscreen)
+        return 0;
+    if (!ctx->handle_fullscreen_in_state)
+        return 0;
+
+    /* Clean up to Normal for subsequent tests. */
+    return reset_toplevel_state(ctx);
+}
+
+static int fullscreen_state_clears_behind_normal_window(struct test_ctx *ctx)
+{
+    if (!ctx->handle || !ctx->seat)
+        return 0;
+
+    if (!reset_toplevel_state(ctx))
+        return 0;
+
+    struct treeland_foreign_toplevel_handle_v3 *test_handle = ctx->handle;
+
+    /* Activate and enter fullscreen: state should include fullscreen. */
+    treeland_foreign_toplevel_handle_v3_activate(test_handle, ctx->seat);
+    treeland_foreign_toplevel_handle_v3_set_fullscreen(test_handle, NULL);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    struct ftm_server_state state;
+    if (!render_ack_and_read_server_state(ctx, &state) || !state.wrapper_fullscreen)
+        return 0;
+    if (!ctx->handle_fullscreen_in_state)
+        return 0;
+
+    /* Create a second normal window and activate it. */
+    struct xdg_toplevel_client second;
+    if (!xdg_toplevel_client_create(&ctx->connection, &second))
+        return 0;
+    if (wl_display_roundtrip(ctx->display) < 0 || !second.configured)
+        return 0;
+    if (!xdg_toplevel_client_ack_latest_configure(&ctx->connection, &second))
+        return 0;
+
+    /* ctx->handle is now the second window's handle; activate it. */
+    treeland_foreign_toplevel_handle_v3_activate(ctx->handle, ctx->seat);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+
+    /* Test window lost focus: fullscreen bit should be cleared. */
+    if (ctx->handle_fullscreen_in_state)
+        return 0;
+
+    /* Focus back to the fullscreen window: fullscreen bit should return. */
+    treeland_foreign_toplevel_handle_v3_activate(test_handle, ctx->seat);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    if (!ctx->handle_fullscreen_in_state)
+        return 0;
+
+    /* Clean up: destroy second window, restore handle. */
+    xdg_toplevel_client_destroy(&second);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    ctx->handle = test_handle;
+
+    return reset_toplevel_state(ctx);
+}
+
 static const struct test_case cases[] = {
     { "client.create_xdg_toplevel", create_xdg_toplevel },
     { "manager.get_dock_preview_context", create_context },
@@ -741,6 +861,8 @@ static const struct test_case cases[] = {
     { "handle.minimize_keeps_maximized_state", minimize_keeps_maximized_state },
     { "handle.minimize_keeps_fullscreen_state", minimize_keeps_fullscreen_state },
     { "handle.activate_focuses_wrapper", activate_real_toplevel },
+    { "handle.fullscreen_state_follows_activation", fullscreen_state_follows_activation },
+    { "handle.fullscreen_state_clears_behind_normal_window", fullscreen_state_clears_behind_normal_window },
     { "handle.set_icon_geometry_changes_icon_geometry", set_icon_geometry_changes_icon_geometry },
     { "handle.close_requests_xdg_close", request_close },
     { "context.destroy", destroy_context },

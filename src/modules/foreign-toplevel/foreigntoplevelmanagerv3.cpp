@@ -480,7 +480,7 @@ void ForeignToplevelManagerInterfaceV3::initializeToplevelHandle(SurfaceWrapper 
     handle->set_app_id(wrapper->appId());
     handle->set_minimized(surface->isMinimized());
     handle->set_maximized(surface->isMaximized());
-    handle->set_fullscreen(surface->isFullScreen());
+    handle->set_fullscreen(surface->isFullScreen() && wrapper->isActivated());
     handle->set_activated(surface->isActivated());
     handle->set_attention(wrapper->attention());
 
@@ -496,12 +496,13 @@ void ForeignToplevelManagerInterfaceV3::initializeToplevelHandle(SurfaceWrapper 
         handle->set_maximized(surface->isMaximized());
     });
 
-    QObject::connect(surface, &WToplevelSurface::fullscreenChanged, handle, [handle, surface] {
-        handle->set_fullscreen(surface->isFullScreen());
+    QObject::connect(surface, &WToplevelSurface::fullscreenChanged, handle, [handle, surface, wrapper] {
+        handle->set_fullscreen(surface->isFullScreen() && wrapper->isActivated());
     });
 
-    QObject::connect(surface, &WToplevelSurface::activateChanged, handle, [handle, surface] {
-        handle->set_activated(surface->isActivated());
+    QObject::connect(wrapper, &SurfaceWrapper::isActivatedChanged, handle, [handle, surface, wrapper] {
+        handle->set_fullscreen(surface->isFullScreen() && wrapper->isActivated());
+        handle->set_activated(wrapper->isActivated());
     });
 
     connect(wrapper, &SurfaceWrapper::attentionChanged, handle, [handle, wrapper] {
