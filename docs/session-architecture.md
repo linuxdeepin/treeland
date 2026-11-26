@@ -127,8 +127,9 @@ SessionPrelaunch 为每用户持有独立的预启动协议、appId 解析协议
 记录。ShellHandler 仅根据真实 surface 客户端所属 Session 路由；不能按全局 appId 查找、
 关闭或转换其他用户窗口。配置初始化回调固定使用请求所属 Session，附带请求代次；
 旧请求回调、重复请求和旧闪屏超时不得删除新请求或已转换的正常窗口。协议 close 使用
-appId 与 instanceId 匹配本用户请求。应用历史配置的持久化仍使用现有 WindowConfigStore
-路径，本轮未改变其 appId 级存储归属。
+appId 与 instanceId 匹配本用户请求。应用历史配置使用 `org.deepin.dde.treeland.user.app`，
+Session 持有组装层创建的 WindowConfigStore，后者在构造时固定绑定所属 UID，并显式注入 SessionPrelaunch，通过 `acquireManagerV2(uid, ...)` 选择所属用户的 cache，subpath 仅为 `/<appId>`；窗口关闭保存
+使用窗口所属 Session，不取活动用户。旧共享记录及 `dde` UID 下的用户名 subpath 数据不自动迁移。
 
 窗口可见性缓存固定监听所属 Session 的根 WSocket，而不是 XWayland 的子 socket。
 后台完成创建的窗口在根 socket 恢复时必须更新，纯闪屏也使用同一条通知路径。

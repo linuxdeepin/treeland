@@ -41,3 +41,5 @@ static ClassName *createByName(const QString &name,
 
 生成的描述文件名已足够时用 `create(...)`；现有 treeland 代码显式传入描述文件名与 app id 时（用户、output、seat 配置路径）用 `createByName(...)`。
 
+
+用户级配置通过 `createByName(DConfigBackend *backend, name, appId, subpath, parent, thread)` 注入 `UserConfigBackend`；backend 由 DConfig 持有，创建后将生成类的 `configInitializeSucceed` 连接到 `UserConfigBackend::subscribe`。后端与 DConfig 均使用默认全局工作线程，不能为该后端指定另一条生成类工作线程。

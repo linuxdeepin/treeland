@@ -63,6 +63,7 @@ void protocol_test_setup(WaylandServer *server)
 ```
 
 - 不要重复注册 Treeland 启动路径已经提供的 global。
+- Accounts fixture 中的 UID 必须在 NSS 中实际存在；真实 DConfig 服务会独立校验目标 UID，仅在 Accounts mock 中声明用户无法通过该校验。配置 setter 异步执行时，发送依赖该配置的协议请求前应确认服务端读回值及生成类属性均已同步。
 - 只有在 fixture 需要检查已存在的服务端接口时才用 `find_server_interface<T>(server)`；并断言该生产对象确实存在。
 - 请求需要客户端可绑定的 `wl_output` 时，添加 headless output。
 - 在 C 客户端中实现 `int protocol_test_run(const char *socket_name);`。

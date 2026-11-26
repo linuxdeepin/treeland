@@ -12,10 +12,10 @@ treeland 的参数映射：
 
 - `-a org.deepin.dde.treeland`：treeland DConfig 封装使用的 app id。
 - `-r <resource>`：描述文件/配置 id，通常是描述文件名去掉 `.json`。
-- `-s <subpath>`：当前用户、output 或应用作用域配置的 subpath。
+- `-s <subpath>`：seat、output 或应用作用域配置的 subpath。
 - `-k <key>`：配置键。
 - `-v <value>`：`set` 使用的值。
-- `-u <uid>`：需要时针对特定用户的配置操作。
+- `-u <uid>`：用户偏好、动画、seat 和应用配置必须指定其所属用户 UID。
 
 常用命令：
 
@@ -31,16 +31,16 @@ dde-dconfig get -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k showOth
 dde-dconfig set -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k showOtherUserOption -v true
 
 # 读取当前用户 TreelandUserConfig 的键
-dde-dconfig get -a org.deepin.dde.treeland -r org.deepin.dde.treeland.user -s /rewine -k windowThemeType
+dde-dconfig get -a org.deepin.dde.treeland -u 1000 -r org.deepin.dde.treeland.user -k cursorSize
 
 # 读取按应用 AppConfig 的键
-dde-dconfig get -a org.deepin.dde.treeland -r org.deepin.dde.treeland.app -s /deepin-screen-recorder -k enablePrelaunchSplash
+dde-dconfig get -a org.deepin.dde.treeland -u 1000 -r org.deepin.dde.treeland.user.app -s /deepin-screen-recorder -k enablePrelaunchSplash
 
 # 重置单个键；省略 -k 则重置该配置文件的所有缓存值
 dde-dconfig reset -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k showOtherUserOption
 
 # 验证实时信号处理时监听某个键
-dde-dconfig watch -a org.deepin.dde.treeland -r org.deepin.dde.treeland.user -s /rewine -k windowThemeType
+dde-dconfig watch -a org.deepin.dde.treeland -u 1000 -r org.deepin.dde.treeland.user -k cursorSize
 ```
 
 查看元数据用带 `-m` 的 `get`：
@@ -56,8 +56,8 @@ dde-dconfig get -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k showOth
 
 - 值由 `dde-dconfig` 解析；使用 JSON 风格取值（`true`、`false`、数字，必要时用带引号的字符串）。不要写 `ture` 这类拼写错误，即使某个本地工具版本看起来会强制接受。
 - `-r org.deepin.dde.treeland` 对应 `TreelandConfig`。
-- `-r org.deepin.dde.treeland.user -s /<username>` 对应 `WaylandServer::config()` 使用的当前用户 subpath 模式。
-- `-r org.deepin.dde.treeland.user.seat -s /<username>/<seatName>` 对应 `SeatUserDConfig`。
+- `-u <uid> -r org.deepin.dde.treeland.user` 对应指定用户的 `TreelandUserConfig`；动画配置同样使用 UID，subpath 为空。
+- `-u <uid> -r org.deepin.dde.treeland.user.seat -s /<seatName>` 对应 `SeatUserDConfig`。
 - `-r org.deepin.dde.treeland.output -s /<outputName>` 对应 `OutputConfig`。
-- `-r org.deepin.dde.treeland.app -s /<appId>` 对应 `WindowConfigStore` / `AppConfig`。
-- `watch` 用于检查生成的 `*Changed` 信号与 `WaylandServer.config` 重连行为是否正确接通。
+- `-u <uid> -r org.deepin.dde.treeland.user.app -s /<appId>` 对应 `WindowConfigStore` / `AppConfig`。
+- `watch` 输出发生变化的键名，不会直接输出新值；新值需用 `get` 查询。它验证配置服务的变更通知；生成类的 `*Changed`、用户切换重连与实际设置生效还需结合 Treeland 的运行效果检查。
