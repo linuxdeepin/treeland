@@ -26,11 +26,11 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class Q_DECL_HIDDEN WOutputHelperPrivate : public WObjectPrivate
 {
 public:
-    WOutputHelperPrivate(WOutput *output, WOutputHelper *qq, bool c /*contentIsDirty*/)
+    WOutputHelperPrivate(WOutput *output, WOutputHelper *qq, bool contentIsDirty)
         : WObjectPrivate(qq)
         , output(output)
         , outputWindow(new QW::Window)
-        , contentIsDirty(c)
+        , contentIsDirty(contentIsDirty)
     {
         wlr_output_state_init(&state);
 
@@ -65,13 +65,7 @@ public:
     }
 
     void setContentIsDirty(bool newValue);
-
     wlr_buffer *acquireBuffer(wlr_swapchain **sc);
-
-    inline void update() {
-        setContentIsDirty(true);
-        wlr_output_schedule_frame(qwoutput());
-    }
 
     W_DECLARE_PUBLIC(WOutputHelper)
     WOutput *output;
@@ -79,8 +73,7 @@ public:
     wlr_output_layer_state_array layersCache;
     QWindow *outputWindow;
     WRenderHelper *renderHelper = nullptr;
-
-    uint contentIsDirty:1;
+    bool contentIsDirty;
 
     struct CommitJobEntry {
         std::function<void(bool, WOutputHelper::ExtraState)> jobWithState;
@@ -108,16 +101,15 @@ wlr_buffer *WOutputHelperPrivate::acquireBuffer(wlr_swapchain **sc)
     return wlr_swapchain_acquire(*sc);
 }
 
+WOutputHelper::WOutputHelper(WOutput *output, QObject *parent)
+    : WOutputHelper(output, true, parent)
+{
+}
+
 WOutputHelper::WOutputHelper(WOutput *output, bool contentIsDirty, QObject *parent)
     : QObject(parent)
     , WObject(*new WOutputHelperPrivate(output, this, contentIsDirty))
 {
-}
-
-WOutputHelper::WOutputHelper(WOutput *output, QObject *parent)
-    : WOutputHelper(output, true, parent)
-{
-
 }
 
 WOutput *WOutputHelper::output() const
@@ -215,16 +207,19 @@ bool WOutputHelper::commit()
     wlr_output_state state = d->state;
     wlr_output_state_init(&d->state);
 
+    bool stateReady = true;
     if (Q_UNLIKELY(d->extraState)) {
-        // State-only commit: Use only extraState (no buffer/damage from internal state)
-        // Finish the internal state as we're not using it
-        wlr_output_state_finish(&state);
-        wlr_output_state_copy(&state, d->extraState.get());
+        // wlr_output_state_copy() finishes the destination before replacing it.
+        stateReady = wlr_output_state_copy(&state, d->extraState.get());
+        if (!stateReady)
+            wlr_output_state_init(&state);
     }
 
-    bool ok = wlr_output_commit_state(d->qwoutput(), &state);
+    bool ok = stateReady && wlr_output_commit_state(d->qwoutput(), &state);
     if (!ok) {
-        qCCritical(lcWlOutputHelper, "commit failed on output %s", d->qwoutput()->name);
+        qCCritical(lcWlOutputHelper, stateReady ? "commit failed on output %s"
+                                                : "failed to copy output state for %s",
+                   d->qwoutput()->name);
     }
     wlr_output_state_finish(&state);
     ExtraState committedExtraState = d->extraState;
@@ -365,12 +360,13 @@ void WOutputHelper::resetState()
 void WOutputHelper::update()
 {
     W_D(WOutputHelper);
-    d->update();
+    d->setContentIsDirty(true);
+    wlr_output_schedule_frame(d->qwoutput());
 }
 
 void WOutputHelper::scheduleFrame()
 {
-    W_D(WOutputHelper);
+    W_DC(WOutputHelper);
     wlr_output_schedule_frame(d->qwoutput());
 }
 

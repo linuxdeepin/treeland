@@ -586,7 +586,8 @@ bool Helper::startDemoClient()
 #ifdef START_DEMO
     QProcess waylandClientDemo;
 
-    waylandClientDemo.setProgram(PROJECT_BINARY_DIR"/examples/animationclient/animationclient");
+    waylandClientDemo.setProgram("qtcreator");
+    // waylandClientDemo.setProgram(PROJECT_BINARY_DIR"/examples/animationclient/animationclient");
     waylandClientDemo.setArguments({"-platform", "wayland"});
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     env.insert("WAYLAND_DISPLAY", m_socket->fullServerName());

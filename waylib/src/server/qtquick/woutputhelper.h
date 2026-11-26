@@ -45,7 +45,6 @@ public:
     void setBuffer(wlr_buffer *buffer);
     wlr_buffer *buffer() const;
 
-
     void setDamage(const pixman_region32 *damage);
     const pixman_region32 *damage() const;
     void setLayers(const wlr_output_layer_state_array &layers);
@@ -97,6 +96,7 @@ protected:
 
 Q_SIGNALS:
     void contentIsDirtyChanged();
+
 };
 
 WAYLIB_SERVER_END_NAMESPACE

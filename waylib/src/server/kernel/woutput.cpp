@@ -11,6 +11,7 @@
 #include "wtools.h"
 #include "platformplugin/qwlrootscreen.h"
 #include "private/wglobal_p.h"
+#include "private/woutput_p.h"
 #include "wayliblogging.h"
 
 #include <wlr_all.h>
@@ -24,44 +25,13 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class Q_DECL_HIDDEN WOutputPrivate : public WObjectPrivate
+WOutputPrivate::WOutputPrivate(WOutput *qq, wlr_output *handle)
+    : WObjectPrivate(qq)
+    , m_handle(handle)
 {
-public:
-    WOutputPrivate(WOutput *qq, wlr_output *handle)
-        : WObjectPrivate(qq)
-        , m_handle(handle)
-    {
-        Q_ASSERT(handle);
-        handle->data = qq;
-    }
-
-    inline wlr_output *handle() const {
-        return m_handle;
-    }
-
-    inline QSize size() const {
-        Q_ASSERT(handle());
-        return QSize(handle()->width, handle()->height);
-    }
-
-    inline WOutput::Transform orientation() const {
-        return static_cast<WOutput::Transform>(handle()->transform);
-    }
-
-    W_DECLARE_PUBLIC(WOutput)
-    bool forceSoftwareCursor = false;
-
-    QWlrootsScreen *screen = nullptr;
-    QQuickWindow *window = nullptr;
-
-    WBackend *backend = nullptr;
-    WOutputLayout *layout = nullptr;
-
-private:
-    // The backend owns this handle and destroys it after notifying the
-    // wrapper. Keep the address stable through that callback.
-    wlr_output *m_handle = nullptr;
-};
+    Q_ASSERT(handle);
+    handle->data = qq;
+}
 
 WOutput::WOutput(wlr_output *handle, WBackend *backend)
     : QObject(nullptr)

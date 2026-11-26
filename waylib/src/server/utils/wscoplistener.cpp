@@ -11,6 +11,7 @@ WScopedListener::WScopedListener(WScopedListener &&other) noexcept
     , m_callback(other.m_callback)
     , m_deleter(other.m_deleter)
     , m_context(other.m_context)
+    , m_obj(other.m_obj)
     , m_connected(std::exchange(other.m_connected, false))
 {
     if (m_connected) {
@@ -27,6 +28,7 @@ WScopedListener::WScopedListener(WScopedListener &&other) noexcept
     other.m_callback = nullptr;
     other.m_deleter = nullptr;
     other.m_context = nullptr;
+    other.m_obj = nullptr;
     other.m_listener = {};
 }
 
@@ -41,6 +43,7 @@ WScopedListener &WScopedListener::operator=(WScopedListener &&other) noexcept
     m_callback = other.m_callback;
     m_deleter = other.m_deleter;
     m_context = other.m_context;
+    m_obj = other.m_obj;
     m_connected = std::exchange(other.m_connected, false);
     if (m_connected) {
         if (other.m_listener.link.next)
@@ -54,6 +57,7 @@ WScopedListener &WScopedListener::operator=(WScopedListener &&other) noexcept
     other.m_callback = nullptr;
     other.m_deleter = nullptr;
     other.m_context = nullptr;
+    other.m_obj = nullptr;
     other.m_listener = {};
     return *this;
 }

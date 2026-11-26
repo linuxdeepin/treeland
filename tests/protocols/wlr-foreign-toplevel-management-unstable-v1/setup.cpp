@@ -8,8 +8,10 @@
 #include "surface/surfacewrapper.h"
 #include "wlr-foreign-toplevel-management-unstable-v1.h"
 #include "workspace/workspace.h"
+#include "output/output.h"
 
 #include <woutputrenderwindow.h>
+#include <woutputviewport.h>
 #include <wbackend.h>
 #include <wforeigntoplevelv1.h>
 

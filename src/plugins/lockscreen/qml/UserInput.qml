@@ -237,6 +237,7 @@ Item {
                 }
 
                 background: RoundBlur {
+                    objectName: "passwordBlur"
                     color: Qt.rgba(1, 1, 1, 0.4)
                     radius: 6
                 }
@@ -280,6 +281,7 @@ Item {
         enabled: passwordField.length != 0 && !GreeterProxy.authPending
         font: D.DTK.fontManager.t8
         background: RoundBlur {
+            objectName: "loginBtnBlur"
             anchors.fill: parent
             color: Qt.rgba(1.0, 1.0, 1.0, 0.4)
             radius: parent.height / 2
