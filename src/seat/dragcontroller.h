@@ -29,7 +29,7 @@ public:
     explicit DragController(SeatManager *seatManager, QObject *parent = nullptr);
     ~DragController() override;
 
-    void initialize(bool notifyDdeShell);
+    void initialize();
 
 private:
     void trackSeat(WSeat *seat);
@@ -41,6 +41,5 @@ private:
         std::unique_ptr<WListenerOwner> owner;
     };
     SeatManager *m_seatManager = nullptr;
-    bool m_notifyDdeShell = false;
     std::vector<SeatDragEntry> seatDragEntries;
 };

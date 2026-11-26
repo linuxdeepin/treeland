@@ -101,7 +101,6 @@ class PointerConstraintsManager;
 WAYLIB_SERVER_USE_NAMESPACE
 
 class CaptureSourceSelector;
-class DDEShellManagerInterfaceV1;
 class DDEShellManagerInterfaceV2;
 class DDMInterfaceV1;
 class ForeignToplevelManagerInterfaceV3;
@@ -112,7 +111,6 @@ class ILockScreen;
 class IMultitaskView;
 class IMultitaskViewFactory;
 class LockScreen;
-class LockScreenInterface;
 class Multitaskview;
 class Output;
 class OutputManager;
@@ -472,7 +470,6 @@ private:
 #ifndef DISABLE_XWAYLAND
     XWindowControlInterfaceV1 *m_xWindowControlInterfaceV1 = nullptr;
 #endif
-    DDEShellManagerInterfaceV1 *m_ddeShellV1 = nullptr;
     DDEShellManagerInterfaceV2 *m_ddeShellV2 = nullptr;
     DDMInterfaceV1 *m_ddmInterfaceV1 = nullptr;
     ScreensaverInterfaceV2 *m_screensaverInterfaceV2 = nullptr;

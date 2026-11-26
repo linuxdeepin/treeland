@@ -30,8 +30,6 @@
 #include "inputmanager.h"
 #include "interfaces/multitaskviewinterface.h"
 #include "modules/capture/capture.h"
-#include "modules/dde-shell/ddeshellattached.h"
-#include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev2.h"
 #include "modules/ddm/ddminterfacev1.h"
 #include "modules/input-manager/inputmanagerinterfacev1.h"
@@ -1213,19 +1211,7 @@ WXdgOutputManager *WaylandServer::installDesktopProtocols(QmlEngine *engine)
 
     m_outputManager->setBackend(backend());
 
-    m_ddeShellV1 = server()->attach<DDEShellManagerInterfaceV1>();
-
     m_surfaceProtocols->installRegionWatch(server());
-
-    connect(m_ddeShellV1, &DDEShellManagerInterfaceV1::toggleMultitaskview, this, [this] {
-        if (auto *view = multitaskView()) {
-            view->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
-        }
-    });
-    connect(m_ddeShellV1,
-            &DDEShellManagerInterfaceV1::lockScreenCreated,
-            m_lockScreenManager,
-            &LockScreenManager::handleLockScreen);
 
     m_ddeShellV2 = server()->attach<DDEShellManagerInterfaceV2>();
 
@@ -1267,11 +1253,6 @@ WXdgOutputManager *WaylandServer::installDesktopProtocols(QmlEngine *engine)
                                                 "Personalization",
                                                 "Only for Enum");
 
-    qmlRegisterUncreatableType<DDEShellHelper>("Treeland.Protocols",
-                                               1,
-                                               0,
-                                               "DDEShellHelper",
-                                               "Only for attached");
     qmlRegisterUncreatableType<CaptureSource>("Treeland.Protocols",
                                               1,
                                               0,
@@ -1310,7 +1291,7 @@ bool WaylandServer::initializeSeatsAndShell()
                                     seat());
     });
 
-    m_dragController->initialize(m_ddeShellV1 != nullptr);
+    m_dragController->initialize();
 
     // Assign existing devices
     m_seatManager->assignExistingDevices(backend());

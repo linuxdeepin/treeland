@@ -8,7 +8,6 @@
 #include "greeter/greeterproxy.h"
 #include "session/sessionmanager.h"
 #include "interfaces/lockscreeninterface.h"
-#include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "utils/cmdline.h"
 #include "common/treelandlogging.h"
 
@@ -100,16 +99,6 @@ void LockScreenManager::installSessionLock(WServer *server)
 #else
     Q_UNUSED(server)
 #endif
-}
-
-void LockScreenManager::handleLockScreen(LockScreenInterface *lockScreen)
-{
-    connect(lockScreen, &LockScreenInterface::shutdown, this, &LockScreenManager::onLockScreenShutdown);
-    connect(lockScreen, &LockScreenInterface::lock, this, [this]() {
-        if (m_server->isNormalOrMultitaskview())
-            showLockScreen(false);
-    });
-    connect(lockScreen, &LockScreenInterface::switchUser, this, &LockScreenManager::showSwitchUser);
 }
 
 void LockScreenManager::onSessionLock(Session *session)
@@ -245,11 +234,6 @@ void LockScreenManager::showLockScreen(bool switchToGreeter)
 bool LockScreenManager::isLockScreenAvailable() const
 {
     return m_lockScreen && m_lockScreen->available();
-}
-
-void LockScreenManager::onLockScreenShutdown()
-{
-    showShutdownMenu();
 }
 
 void LockScreenManager::showShutdownMenu(WaylandServer::ShutdownMenuFocus focus)

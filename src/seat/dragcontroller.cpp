@@ -3,7 +3,6 @@
 
 #include "dragcontroller.h"
 #include "seatmanager.h"
-#include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "modules/active-notify/activenotifymanagerinterfacev1.h"
 
 #include <wcursor.h>
@@ -18,9 +17,8 @@ DragController::DragController(SeatManager *seatManager, QObject *parent)
 
 DragController::~DragController() = default;
 
-void DragController::initialize(bool notifyDdeShell)
+void DragController::initialize()
 {
-    m_notifyDdeShell = notifyDdeShell;
     connect(m_seatManager, &SeatManager::seatAdded, this, &DragController::trackSeat);
     for (auto *seat : m_seatManager->seats())
         trackSeat(seat);
@@ -47,9 +45,7 @@ void DragController::handleRequestDrag(WSeat *seat, WSurface *)
     entry.drag = drag;
     entry.owner = std::make_unique<WListenerOwner>();
     auto *dragOwner = entry.owner.get();
-    seat->listeners(dragOwner)->add(&drag->events.drop, this, [this, seat] (void *) {
-        if (m_notifyDdeShell)
-            DDEActiveInterface::sendDrop(seat);
+    seat->listeners(dragOwner)->add(&drag->events.drop, this, [seat] (void *) {
         ActiveNotifyV1::sendDragChanged(ActiveNotifyV1::Dropped, seat);
     });
 
@@ -97,7 +93,5 @@ void DragController::handleRequestDrag(WSeat *seat, WSurface *)
     // Move the bundle into the list only after dndAction/updateCursor above.
     seatDragEntries.push_back(std::move(entry));
 
-    if (m_notifyDdeShell)
-        DDEActiveInterface::sendStartDrag(seat);
     ActiveNotifyV1::sendDragChanged(ActiveNotifyV1::Started, seat);
 }

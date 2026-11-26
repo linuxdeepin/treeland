@@ -149,8 +149,6 @@ private:
     void updateLayerSurfaceContainer(SurfaceWrapper *surface);
     void registerSurfaceToForeignToplevel(SurfaceWrapper *wrapper);
     bool checkAndApplySnapMask(SurfaceWrapper *wrapper);
-    void handleDdeShellSurfaceAdded(WAYLIB_SERVER_NAMESPACE::WSurface *surface,
-                                    SurfaceWrapper *wrapper);
     void handleDdeShellSurfaceV2Added(class DDEShellSurfaceV2 *shellSurface,
                                       SurfaceWrapper *wrapper);
 #ifndef DISABLE_XWAYLAND
