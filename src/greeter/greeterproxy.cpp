@@ -456,6 +456,7 @@ void GreeterProxy::onSessionRemoved(const QString &id, const QDBusObjectPath &pa
         // Update before showing the greeter, so the lockscreen is not painted
         // as locked for one frame.
         syncHasActiveSession();
+        Q_EMIT userLoggedOut(username);
         if (wasActive)
             updateLockState(true);
     }

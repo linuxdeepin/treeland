@@ -364,7 +364,9 @@ Item {
     /*****************************/
 
     function resetHint() {
-        hintText.text = loginGroup.noPasswdLogin ? "" : normalHint
+        hintText.text = Qt.binding(function() {
+            return loginGroup.noPasswdLogin ? "" : loginGroup.normalHint
+        })
     }
 
     // A closing popup hands the focus back to the button that opened it, so
@@ -443,10 +445,6 @@ Item {
 
     Connections {
         target: UserModel
-
-        function onUpdateTranslations(locale) {
-            updateUser()
-        }
 
         function onCurrentUserNameChanged(name) {
             updateUser()

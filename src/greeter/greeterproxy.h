@@ -304,6 +304,7 @@ Q_SIGNALS:
 
     void socketDisconnected();
     void initialUserSelected();
+    void userLoggedOut(const QString &username);
 
     /////////////////////////////
     // Property change signals //
