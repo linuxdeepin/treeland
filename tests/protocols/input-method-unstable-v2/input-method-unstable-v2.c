@@ -21,6 +21,11 @@
 
 #include <xkbcommon/xkbcommon.h>
 
+extern int protocol_test_activate_toplevel(int index);
+// Suspend the seat's input-method helper the way a session switch does, then
+// churn the keyboard focus; returns 1 when the composition stayed cleared.
+extern int protocol_test_input_method_suspension(void);
+
 // input-method-v2 references zwp_text_input_v3.change_cause, whose
 // input_method value is specified as zero. The v3 XML is not a test input.
 #define INPUT_METHOD_CHANGE_CAUSE_INPUT_METHOD 0u
@@ -362,6 +367,7 @@ int protocol_test_run(const char *socket_name)
     struct client_connection app = {0};
     struct client_connection im_connection = {0};
     struct xdg_toplevel_client toplevel = {0};
+    struct xdg_toplevel_client other_toplevel = {0};
     struct input_method_events first_events = {0};
     struct input_method_events second_events = {0};
     struct text_input_events text_events = {0};
@@ -390,7 +396,12 @@ int protocol_test_run(const char *socket_name)
     virtual_keyboard_manager = client_bind(&app, "zwp_virtual_keyboard_manager_v1",
                                                   &zwp_virtual_keyboard_manager_v1_interface, 1);
     if (!app_seat || !text_manager || !virtual_keyboard_manager
-        || !xdg_toplevel_client_create(&app, &toplevel))
+        || !xdg_toplevel_client_create(&app, &toplevel)
+        || !xdg_toplevel_client_create(&app, &other_toplevel))
+        goto failed;
+    // Mapping the second toplevel may steal activation; make the text-input
+    // window the focused one before exercising the input method.
+    if (!protocol_test_activate_toplevel(0) || wl_display_roundtrip(app.display) < 0)
         goto failed;
     text_input = zwp_text_input_manager_v2_get_text_input(text_manager, app_seat);
     if (!text_input)
@@ -502,6 +513,57 @@ int protocol_test_run(const char *socket_name)
         || grab_events.last_key_state != WL_KEYBOARD_KEY_STATE_RELEASED
         || grab_events.modifiers != 2 || grab_events.last_modifiers != 1)
         goto failed;
+
+    // An xdg-popup keyboard grab owns the seat keyboard. While it is active the
+    // compositor must stop diverting physical keys into the input method,
+    // otherwise a menu or combo box opened over a text field never sees them.
+    // A popup anchored to the focused text input must not end the input-method
+    // session either: its composition and candidate window belong to the
+    // parent, so deactivate must stay at its pre-popup count.
+    const unsigned int deactivateBeforePopup = first_events.deactivate;
+    struct xdg_positioner *positioner = xdg_wm_base_create_positioner(toplevel.wm_base);
+    if (!positioner)
+        goto failed;
+    xdg_positioner_set_size(positioner, 32, 32);
+    xdg_positioner_set_anchor_rect(positioner, 0, 0, 1, 1);
+    xdg_positioner_set_anchor(positioner, XDG_POSITIONER_ANCHOR_BOTTOM_RIGHT);
+    xdg_positioner_set_gravity(positioner, XDG_POSITIONER_GRAVITY_BOTTOM_RIGHT);
+    struct wl_surface *popup_wl_surface = wl_compositor_create_surface(toplevel.compositor);
+    struct xdg_surface *popup_xdg_surface = popup_wl_surface
+        ? xdg_wm_base_get_xdg_surface(toplevel.wm_base, popup_wl_surface) : NULL;
+    struct xdg_popup *xdg_popup = popup_xdg_surface
+        ? xdg_surface_get_popup(popup_xdg_surface, toplevel.xdg_surface, positioner) : NULL;
+    if (!popup_wl_surface || !popup_xdg_surface || !xdg_popup)
+        goto failed;
+    // The grab has to be requested before the popup is mapped; wlroots does not
+    // validate the serial for it.
+    xdg_popup_grab(xdg_popup, app_seat, 0);
+    wl_surface_commit(popup_wl_surface);
+    if (wl_display_roundtrip(app.display) < 0 || wl_display_roundtrip(im_connection.display) < 0)
+        goto failed;
+    zwp_virtual_keyboard_v1_key(virtual_keyboard, 3, 60, WL_KEYBOARD_KEY_STATE_PRESSED);
+    zwp_virtual_keyboard_v1_key(virtual_keyboard, 4, 60, WL_KEYBOARD_KEY_STATE_RELEASED);
+    if (wl_display_roundtrip(app.display) < 0 || wl_display_roundtrip(im_connection.display) < 0
+        || grab_events.key != 2 || first_events.deactivate != deactivateBeforePopup)
+        goto failed;
+    stage = 6;
+
+    // Closing the popup ends the grab through wlroots, so key delivery returns
+    // to the input method for the same focused text input.
+    xdg_popup_destroy(xdg_popup);
+    xdg_surface_destroy(popup_xdg_surface);
+    wl_surface_destroy(popup_wl_surface);
+    xdg_positioner_destroy(positioner);
+    if (wl_display_roundtrip(app.display) < 0 || wl_display_roundtrip(im_connection.display) < 0)
+        goto failed;
+    zwp_virtual_keyboard_v1_key(virtual_keyboard, 5, 61, WL_KEYBOARD_KEY_STATE_PRESSED);
+    zwp_virtual_keyboard_v1_key(virtual_keyboard, 6, 61, WL_KEYBOARD_KEY_STATE_RELEASED);
+    if (wl_display_roundtrip(app.display) < 0 || wl_display_roundtrip(im_connection.display) < 0
+        || grab_events.key != 4 || grab_events.last_key != 61
+        || first_events.deactivate != deactivateBeforePopup)
+        goto failed;
+    stage = 7;
+
     zwp_input_method_keyboard_grab_v2_release(grab);
     grab = NULL;
 
@@ -513,7 +575,7 @@ int protocol_test_run(const char *socket_name)
         || second_events.activate || second_events.deactivate || second_events.surrounding_text
         || second_events.text_change_cause || second_events.content_type || second_events.done)
         goto failed;
-    stage = 6;
+    stage = 8;
 
     zwp_input_method_manager_v2_destroy(manager);
     manager = NULL;
@@ -521,7 +583,7 @@ int protocol_test_run(const char *socket_name)
     zwp_input_method_v2_commit(first, input_method_serial);
     if (wl_display_roundtrip(im_connection.display) < 0 || wl_display_roundtrip(app.display) < 0)
         goto failed;
-    stage = 7;
+    stage = 9;
 
     // Regression: the client disables while it is still focused. The compositor
     // must report that transition to the input method, otherwise the helper keeps
@@ -530,13 +592,40 @@ int protocol_test_run(const char *socket_name)
     if (wl_display_roundtrip(app.display) < 0 || wl_display_roundtrip(im_connection.display) < 0
         || first_events.deactivate != 1 || first_events.done != 2)
         goto failed;
-    stage = 8;
+    stage = 10;
 
     zwp_text_input_v2_enable(text_input, toplevel.surface);
     if (wl_display_roundtrip(app.display) < 0 || wl_display_roundtrip(im_connection.display) < 0
         || first_events.activate != 2 || first_events.deactivate != 1 || first_events.done != 3)
         goto failed;
-    stage = 9;
+    stage = 11;
+
+    // A focus move to another window of the same client must leave the text
+    // input and deactivate the input method; returning to the text field must
+    // re-enter it and activate the input method again.
+    const unsigned int leavesBeforeSwitch = text_events.leave;
+    const unsigned int entersBeforeSwitch = text_events.enter;
+    const unsigned int preeditsBeforeSwitch = text_events.preedit_string;
+    const unsigned int activationsBeforeSwitch = first_events.activate;
+    const unsigned int deactivationsBeforeSwitch = first_events.deactivate;
+    if (!protocol_test_activate_toplevel(1))
+        goto failed;
+    if (wl_display_roundtrip(app.display) < 0 || wl_display_roundtrip(im_connection.display) < 0
+        || text_events.leave != leavesBeforeSwitch + 1
+        || text_events.preedit_string != preeditsBeforeSwitch + 1
+        || text_events.preedit[0] != '\0'
+        || first_events.deactivate != deactivationsBeforeSwitch + 1)
+        goto failed;
+    stage = 12;
+
+    if (!protocol_test_activate_toplevel(0))
+        goto failed;
+    if (wl_display_roundtrip(app.display) < 0 || wl_display_roundtrip(im_connection.display) < 0
+        || text_events.enter != entersBeforeSwitch + 1
+        || text_events.leave != leavesBeforeSwitch + 1
+        || first_events.activate != activationsBeforeSwitch + 1)
+        goto failed;
+    stage = 13;
 
     zwp_input_method_v2_destroy(second);
     zwp_input_method_v2_destroy(first);
@@ -544,10 +633,21 @@ int protocol_test_run(const char *socket_name)
     // same sendLeave() path as a keyboard focus move to another window, and the
     // client must be told to drop its composing text before it loses focus.
     if (wl_display_roundtrip(im_connection.display) < 0 || wl_display_roundtrip(app.display) < 0
-        || text_events.preedit_string != 4 || text_events.preedit[0] != '\0'
-        || text_events.leave != 1 || text_events.preedit_string_at_leave != 4)
+        || text_events.preedit_string != 5 || text_events.preedit[0] != '\0'
+        || text_events.leave != 2 || text_events.preedit_string_at_leave != 5)
         goto failed;
-    stage = 10;
+    stage = 15;
+
+    // Last check: suspending the helper (what a user/session switch does) must
+    // drop the composition and keep it dropped while the focus is churned the
+    // way a closing popup or a window switch does. Before the suspension latch,
+    // that churn re-ran text-input reconciliation and re-activated the input
+    // method of a session that was no longer on screen. This runs last because
+    // it is server-side state only and must not perturb the client-side event
+    // counts asserted above.
+    if (!protocol_test_input_method_suspension())
+        goto failed;
+    stage = 16;
 
     zwp_text_input_v2_destroy(text_input);
     zwp_text_input_manager_v2_destroy(text_manager);
@@ -555,6 +655,7 @@ int protocol_test_run(const char *socket_name)
     wl_seat_destroy(im_seat);
     wl_compositor_destroy(im_compositor);
     wl_seat_destroy(app_seat);
+    xdg_toplevel_client_destroy(&other_toplevel);
     xdg_toplevel_client_destroy(&toplevel);
     client_disconnect(&im_connection);
     client_disconnect(&app);

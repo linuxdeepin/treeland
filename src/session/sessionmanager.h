@@ -55,7 +55,9 @@ Q_SIGNALS:
     void sessionChanged();
     void sessionLock(Session *session);
     void sessionUnlock(Session *session);
+#ifndef DISABLE_XWAYLAND
     void xwaylandAuthChanged();
+#endif
 
 private:
     std::weak_ptr<Session> m_activeSession;

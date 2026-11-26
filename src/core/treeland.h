@@ -44,10 +44,18 @@ public:
 Q_SIGNALS:
     void socketDisconnected();
     void SessionChanged();
+#ifndef DISABLE_XWAYLAND
     void XWaylandAuthChanged();
+#endif
+    // UID-scoped: true when any seat of that user's session has an input
+    // method, false when the last one is destroyed.  The session daemon uses
+    // the false edge to hand a fresh Wayland socket to a surviving
+    // input-method process after a replacement race.
+    void InputMethodChanged(uint uid, bool connected);
 
 public Q_SLOTS:
     bool ActivateWayland(QDBusUnixFileDescriptor fd);
+    bool InputMethodState(uint uid);
 #ifndef DISABLE_XWAYLAND
     void XWaylandName();
 #endif
