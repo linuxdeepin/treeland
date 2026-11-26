@@ -503,9 +503,8 @@ void WaylandServer::initializeWallpaper()
 
     m_wallpaperInitialized = true;
 #ifndef DISABLE_DDM
-    const QString userName = m_userModel->currentUserName();
-    if (!userName.isEmpty()
-        && DConfigManager::instance()->userConfig(userName) != m_config) {
+    const auto user = m_userModel->currentUser();
+    if (user && DConfigManager::instance()->userConfig(static_cast<uint>(user->UID())) != m_config) {
         // LastLogin selected another user whose configuration is still loading.
         // applyCurrentUserConfig() will update the wallpaper once it is ready.
         return;
@@ -520,7 +519,7 @@ void WaylandServer::applyActiveSessionConfig()
     auto *session = activeSession();
     if (!session || !session->config()->isInitializeSucceeded())
         return;
-    auto *seatConfig = DConfigManager::instance()->userSeatConfig(session->username(), seat()->name());
+    auto *seatConfig = DConfigManager::instance()->userSeatConfig(session->uid(), seat()->name());
     applyCurrentUserConfig(session->username(), session->config(),
                            seatConfig->isInitializeSucceeded() ? seatConfig : nullptr);
 }
@@ -538,7 +537,7 @@ void WaylandServer::applyCurrentUserConfig(const QString &userName,
     }
 
     if (auto *manager = DConfigManager::instance())
-        setAnimationConfig(manager->animationConfig(userName));
+        setAnimationConfig(manager->animationConfig(session->uid()));
 
     const bool configPointerChanged = config != m_config;
     if (configPointerChanged) {

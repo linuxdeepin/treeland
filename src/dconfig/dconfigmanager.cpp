@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "dconfigmanager.h"
+#include "userconfigbackend.h"
 #include "core/waylandserver.h"
 #include "greeter/usermodel.h"
 
@@ -19,30 +20,32 @@
 
 #include <DConfig>
 
+
 namespace {
 
-static bool userConfigInitializationFinished(TreelandUserConfig *config)
+template<class T>
+T *createUserConfig(uint uid, const QString &name, const QString &subpath, QObject *parent)
 {
-    return config && (config->isInitializeSucceeded() || config->isInitializeFailed());
+    auto *backend = new UserConfigBackend(uid, name, subpath);
+    auto *config = T::createByName(backend,
+                                 name,
+                                 QStringLiteral("org.deepin.dde.treeland"),
+                                 subpath,
+                                 parent);
+    QObject::connect(config,
+                     &T::configInitializeSucceed,
+                     backend,
+                     &UserConfigBackend::subscribe,
+                     Qt::SingleShotConnection);
+    return config;
 }
-
-static bool seatConfigInitializationFinished(SeatUserDConfig *config)
-{
-    return config && (config->isInitializeSucceeded() || config->isInitializeFailed());
-}
-
 
 QString configSubpath(const QString &name)
 {
     return QStringLiteral("/") + name;
 }
 
-QString seatConfigSubpath(const QString &userName, const QString &seatName)
-{
-    return configSubpath(userName) + QStringLiteral("/") + seatName;
-}
-
-}
+} // namespace
 
 DConfigManager *DConfigManager::s_instance = nullptr;
 
@@ -110,19 +113,14 @@ TreelandConfig *DConfigManager::globalConfig() const
     return m_globalConfig;
 }
 
-AnimationConfig *DConfigManager::animationConfig(const QString &userName)
+AnimationConfig *DConfigManager::animationConfig(uint uid)
 {
-    if (userName.isEmpty())
-        return nullptr;
-
-    if (auto *config = m_animationConfigs.value(userName))
+    if (auto *config = m_animationConfigs.value(uid))
         return config;
 
-    auto *config = AnimationConfig::createByName(QStringLiteral("org.deepin.dde.treeland.animation"),
-                                                QStringLiteral("org.deepin.dde.treeland"),
-                                                configSubpath(userName),
-                                                this);
-    m_animationConfigs.insert(userName, config);
+    auto *config = createUserConfig<AnimationConfig>(
+        uid, QStringLiteral("org.deepin.dde.treeland.animation"), QString(), this);
+    m_animationConfigs.insert(uid, config);
     return config;
 }
 
@@ -131,41 +129,32 @@ AnimationConfig *DConfigManager::initialAnimationConfig() const
     return m_initialAnimationConfig;
 }
 
-TreelandUserConfig *DConfigManager::userConfig(const QString &userName)
+TreelandUserConfig *DConfigManager::userConfig(uint uid)
 {
-    if (userName.isEmpty()) {
-        return nullptr;
-    }
-
-    if (auto *config = m_userConfigs.value(userName)) {
+    if (auto *config = m_userConfigs.value(uid)) {
         return config;
     }
 
-    auto *config = TreelandUserConfig::createByName(QStringLiteral("org.deepin.dde.treeland.user"),
-                                                    QStringLiteral("org.deepin.dde.treeland"),
-                                                    configSubpath(userName),
-                                                    this);
-    m_userConfigs.insert(userName, config);
+    auto *config = createUserConfig<TreelandUserConfig>(
+        uid, QStringLiteral("org.deepin.dde.treeland.user"), QString(), this);
+    m_userConfigs.insert(uid, config);
     return config;
 }
 
-SeatUserDConfig *DConfigManager::userSeatConfig(const QString &userName, const QString &seatName)
+SeatUserDConfig *DConfigManager::userSeatConfig(uint uid, const QString &seatName)
 {
-    if (userName.isEmpty() || seatName.isEmpty()) {
+    if (seatName.isEmpty()) {
         return nullptr;
     }
 
-    const auto key = seatConfigSubpath(userName, seatName);
-    if (auto *config = m_seatUserConfigs.value(key)) {
+    auto &configs = m_seatUserConfigs[uid];
+    if (auto *config = configs.value(seatName)) {
         return config;
     }
 
-    auto *config = SeatUserDConfig::createByName(
-        QStringLiteral("org.deepin.dde.treeland.user.seat"),
-        QStringLiteral("org.deepin.dde.treeland"),
-        seatConfigSubpath(userName, seatName),
-        this);
-    m_seatUserConfigs.insert(key, config);
+    auto *config = createUserConfig<SeatUserDConfig>(
+        uid, QStringLiteral("org.deepin.dde.treeland.user.seat"), configSubpath(seatName), this);
+    configs.insert(seatName, config);
     return config;
 }
 
@@ -187,33 +176,33 @@ OutputConfig *DConfigManager::outputConfig(const QString &outputName)
     return config;
 }
 
-AppConfig *DConfigManager::appConfig(const QString &appId)
+AppConfig *DConfigManager::appConfig(uint uid, const QString &appId)
 {
     if (appId.isEmpty()) {
         return nullptr;
     }
 
-    if (auto *config = m_appConfigs.value(appId)) {
+    auto &configs = m_appConfigs[uid];
+    if (auto *config = configs.value(appId)) {
         return config;
     }
 
-    auto *config = AppConfig::create(QStringLiteral("org.deepin.dde.treeland"),
-                                     configSubpath(appId),
-                                     this);
-    m_appConfigs.insert(appId, config);
+    auto *config = createUserConfig<AppConfig>(
+        uid, QStringLiteral("org.deepin.dde.treeland.user.app"), configSubpath(appId), this);
+    configs.insert(appId, config);
     return config;
 }
 
-bool DConfigManager::initializeUserConfigs(const QString &userName)
+bool DConfigManager::initializeUserConfigs(uint uid)
 {
-    m_initialAnimationConfig = animationConfig(userName);
-    m_initialUserConfig = userConfig(userName);
+    m_initialAnimationConfig = animationConfig(uid);
+    m_initialUserConfig = userConfig(uid);
     if (!m_initialUserConfig || !m_initialUserConfig->isInitializeSucceeded())
         return false;
 
     const auto seats = WaylandServer::instance()->seatManager()->seats();
     for (WSeat *seat : seats) {
-        const auto *seatConfig = userSeatConfig(userName, seat->name());
+        const auto *seatConfig = userSeatConfig(uid, seat->name());
         if (!seatConfig || !seatConfig->isInitializeSucceeded())
             return false;
     }
@@ -253,11 +242,16 @@ void DConfigManager::updateCurrentUser()
         return;
 
     const QString userName = m_server->userModel()->currentUserName();
-    auto *configManager = DConfigManager::instance();
-    auto *userConfig = configManager ? configManager->userConfig(userName) : m_server->config();
+    const auto user = m_server->userModel()->getUser(userName);
+    if (!user) {
+        qCWarning(lcTlConfig) << "Cannot select configuration for unknown user" << userName;
+        return;
+    }
+    const auto uid = static_cast<uint>(user->UID());
+    auto *userConfig = this->userConfig(uid);
     WSeat *defaultSeat = m_server->seatManager()->getSeat(DEFAULT_SEAT_NAME);
     const QString seatName = defaultSeat ? defaultSeat->name() : QStringLiteral(DEFAULT_SEAT_NAME);
-    auto *seatConfig = configManager ? configManager->userSeatConfig(userName, seatName) : nullptr;
+    auto *seatConfig = userSeatConfig(uid, seatName);
     if (!userConfig) {
         qCWarning(lcTlConfig) << "Cannot switch to user" << userName
                               << "because its DConfig object is unavailable";
@@ -286,7 +280,7 @@ void DConfigManager::updateCurrentUser()
     m_pendingUserConfig = userConfig;
     m_pendingSeatConfig = seatConfig;
 
-    if (!userConfigInitializationFinished(userConfig)) {
+    if (!configurationReady(userConfig)) {
         connect(userConfig,
                 &TreelandUserConfig::configInitializeSucceed,
                 this,
@@ -298,7 +292,7 @@ void DConfigManager::updateCurrentUser()
                 &DConfigManager::onPendingUserConfigInitialized,
                 Qt::SingleShotConnection);
     }
-    if (seatConfig && !seatConfigInitializationFinished(seatConfig)) {
+    if (seatConfig && !configurationReady(seatConfig)) {
         connect(seatConfig,
                 &SeatUserDConfig::configInitializeSucceed,
                 this,
@@ -325,8 +319,8 @@ void DConfigManager::onPendingUserConfigInitialized()
         return;
     }
 
-    if (!userConfigInitializationFinished(m_pendingUserConfig)
-        || (m_pendingSeatConfig && !seatConfigInitializationFinished(m_pendingSeatConfig))) {
+    if (!configurationReady(m_pendingUserConfig)
+        || (m_pendingSeatConfig && !configurationReady(m_pendingSeatConfig))) {
         return;
     }
 

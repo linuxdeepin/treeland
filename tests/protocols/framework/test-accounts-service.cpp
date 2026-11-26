@@ -85,16 +85,19 @@ TestAccountsService::~TestAccountsService() = default;
 
 bool TestAccountsService::registerObjects()
 {
-    if (qEnvironmentVariableIsSet("TREELAND_PROTOCOL_TEST_USE_RUNNING_ACCOUNT")) {
-        const auto *account = getpwuid(getuid());
-        if (!account)
-            return false;
-        d->user.uid = account->pw_uid;
-        d->user.gid = account->pw_gid;
-        d->user.userName = QString::fromLocal8Bit(account->pw_name);
-        d->user.homeDir = QString::fromLocal8Bit(account->pw_dir);
-        d->manager.userPath = QStringLiteral("/org/freedesktop/Accounts/User%1").arg(d->user.uid);
-    }
+    // DConfig validates the target UID against NSS, independently of this
+    // Accounts mock. Containers do not necessarily have an account with UID 1000.
+    const auto *account = getpwuid(
+        qEnvironmentVariableIsSet("TREELAND_PROTOCOL_TEST_USE_RUNNING_ACCOUNT") ? getuid() : 1000);
+    if (!account)
+        account = getpwuid(getuid());
+    if (!account)
+        return false;
+    d->user.uid = account->pw_uid;
+    d->user.gid = account->pw_gid;
+    d->user.userName = QString::fromLocal8Bit(account->pw_name);
+    d->user.homeDir = QString::fromLocal8Bit(account->pw_dir);
+    d->manager.userPath = QStringLiteral("/org/freedesktop/Accounts/User%1").arg(d->user.uid);
     auto connection = QDBusConnection::systemBus();
     constexpr auto exportOptions = QDBusConnection::ExportAllSlots
         | QDBusConnection::ExportAllProperties;

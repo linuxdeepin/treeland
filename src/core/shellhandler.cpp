@@ -87,7 +87,6 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, [[maybe_unused]]
     , m_popupContainer(new SurfaceContainer(rootContainer))
     , m_privilegedOverlayContainer(new SurfaceContainer(rootContainer))
     , m_snapMaskContainer(new SurfaceContainer(rootContainer))
-    , m_windowConfigStore(new WindowConfigStore(this))
 {
     qmlRegisterUncreatableType<ForeignToplevelManagerInterfaceV3>(
         "Treeland.Protocols", 1, 0, "ForeignToplevelManagerInterfaceV3",
@@ -630,14 +629,14 @@ void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)
         return;
     }
     // Persist the last size of a normal window (prefer normalGeometry) when an appId is present
-    if (m_windowConfigStore && !wrapper->appId().isEmpty()) {
+    if (wrapper->session() && !wrapper->appId().isEmpty()) {
         QSizeF sz = wrapper->normalGeometry().size();
         if ((!sz.isValid() || sz.isEmpty()) && wrapper->isNormal()) {
             sz = wrapper->geometry().size();
         }
         const QSize s = sz.toSize();
         if (s.isValid() && s.width() > 0 && s.height() > 0) {
-            m_windowConfigStore->saveLastSize(wrapper->appId(), s);
+            wrapper->session()->windowConfigStore()->saveLastSize(wrapper->appId(), s);
         }
     }
     Q_EMIT surfaceWrapperAboutToRemove(wrapper);
@@ -754,14 +753,14 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
             return; // never created
         }
         // Persist XWayland window size
-        if (m_windowConfigStore && !wrapper->appId().isEmpty()) {
+        if (wrapper->session() && !wrapper->appId().isEmpty()) {
             QSizeF sz = wrapper->normalGeometry().size();
             if (!sz.isValid() || sz.isEmpty()) {
                 sz = wrapper->geometry().size();
             }
             const QSize s = sz.toSize();
             if (s.isValid() && s.width() > 0 && s.height() > 0) {
-                m_windowConfigStore->saveLastSize(wrapper->appId(), s);
+                wrapper->session()->windowConfigStore()->saveLastSize(wrapper->appId(), s);
             }
         }
         Q_EMIT surfaceWrapperAboutToRemove(wrapper);

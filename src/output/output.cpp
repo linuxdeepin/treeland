@@ -1164,7 +1164,7 @@ void Output::applyOutputColorConfig()
                            : 0);
     };
 
-    if (outputConfig->isInitializeSucceeded() || outputConfig->isInitializeFailed()) {
+    if (configurationReady(outputConfig)) {
         applyConfig();
         return;
     }
