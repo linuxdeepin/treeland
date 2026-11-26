@@ -152,6 +152,8 @@ qt_add_qml_module(libtreeland
         common/windowdecorations.h
         dconfig/dconfigmanager.cpp
         dconfig/dconfigmanager.h
+        dconfig/userconfigbackend.cpp
+        dconfig/userconfigbackend.h
         core/layersurfacecontainer.cpp
         core/layersurfacecontainer.h
         core/qmlengine.cpp

@@ -4,6 +4,7 @@ Maintainer: rewine <luhongxu@deepin.org>
 Build-Depends: cmake (>= 3.25.0),
                debhelper-compat (= 13),
                ninja-build,
+               dbus-daemon,
                extra-cmake-modules (>= 1.4.0~),
                libddm-dev (>= 0.5.0),
                libdtk6core-bin,
