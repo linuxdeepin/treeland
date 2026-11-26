@@ -60,6 +60,10 @@ User::User(AccountsUserPtr ptr)
         d->icon = icon;
     });
 
+    connect(d->inter.data(), &DAccountsUser::localeChanged, this, [this]([[maybe_unused]] const QByteArray &locale) {
+        d->locale = QLocale{ d->inter->locale() };
+    });
+
     d->updateUserData();
     const auto createdTime = d->inter->createdTime();
     if (createdTime.isValid())

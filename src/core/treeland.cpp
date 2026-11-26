@@ -108,11 +108,11 @@ public:
             server->init(q);
 
 #ifndef DISABLE_DDM
-            connect(server,
-                    &WaylandServer::configChanged,
+            connect(userModelForTranslations(),
+                    &UserModel::currentUserNameChanged,
                     this,
-                    &TreelandPrivate::onCurrentUserChanged);
-            onCurrentUserChanged();
+                    &TreelandPrivate::updateCurrentUserTranslations);
+            updateCurrentUserTranslations();
 #endif
             onInitialized();
         };
@@ -195,8 +195,10 @@ public:
         plugins.clear();
 
         for (auto it = pluginTs.begin(); it != pluginTs.end();) {
-            QCoreApplication::removeTranslator(it->second);
-            it->second->deleteLater();
+            if (it->second) {
+                QCoreApplication::removeTranslator(it->second);
+                delete it->second;
+            }
             pluginTs.erase(it++);
         }
         // UserModel must be deleted before WaylandServer, to remove client surfaces before rendering ends.
@@ -206,74 +208,52 @@ public:
     }
 
 #ifndef DISABLE_DDM
-    void onCurrentUserChanged()
+    UserModel *userModelForTranslations() const
     {
-        auto userModel =
-            qmlEngine->singletonInstance<UserModel *>("Treeland", "UserModel");
-        auto user = userModel->currentUser();
-        onCurrentChanged(user ? user->UID() : getuid());
+        return qmlEngine->singletonInstance<UserModel *>("Treeland", "UserModel");
     }
 
-    void onCurrentChanged(uid_t uid)
+    void replaceTranslator(QTranslator *&translator, const QLocale &locale, const QString &scope)
     {
-        auto userModel =
-            server->qmlEngine()->singletonInstance<UserModel *>("Treeland", "UserModel");
-        auto user = userModel->getUser(uid);
-        if (!user) {
-            qCWarning(lcTlDBus) << "user " << uid << " has been added but couldn't find it.";
-            return;
+        if (translator) {
+            QCoreApplication::removeTranslator(translator);
+            delete translator;
+            translator = nullptr;
         }
+        if (scope.isEmpty())
+            return;
 
-        auto locale = user->locale();
-        qCInfo(lcTlDBus) << "current locale:" << locale.language();
+        auto *replacement = new QTranslator(this);
+        if (replacement->load(locale, scope, ".", TREELAND_COMPONENTS_TRANSLATION_DIR, ".qm")) {
+            translator = replacement;
+            QCoreApplication::installTranslator(translator);
+        } else {
+            // Missing catalogs fall back to the source text, never the previous user's language.
+            qCWarning(lcTlDBus) << "Failed to load translation catalog for" << scope
+                               << "with locale" << locale.name()
+                               << "from" << TREELAND_COMPONENTS_TRANSLATION_DIR;
+            delete replacement;
+        }
+    }
 
-        do {
-            auto *newTrans = new QTranslator{ this };
-            if (newTrans
-                    ->load(locale, "treeland", ".", TREELAND_COMPONENTS_TRANSLATION_DIR, ".qm")) {
-                if (lastTrans) {
-                    QCoreApplication::removeTranslator(lastTrans);
-                    lastTrans->deleteLater();
-                }
-                lastTrans = newTrans;
-                QCoreApplication::installTranslator(lastTrans);
-                qmlEngine->retranslate();
-                break;
-            }
-            newTrans->deleteLater();
-            qCWarning(lcTlDBus) << "failed to load new translator";
-        } while (false);
+    void updateCurrentUserTranslations()
+    {
+        const auto user = userModelForTranslations()->currentUser();
+        const auto locale = user ? user->locale() : QLocale::system();
+        replaceTranslator(lastTrans, locale, QStringLiteral("treeland"));
+        for (const auto &[plugin, scope] : pluginTranslationScopes)
+            replaceTranslator(pluginTs[plugin], locale, scope);
+        qmlEngine->retranslate();
     }
 
     void updatePluginTs(PluginInterface *plugin, const QString &scope)
     {
-        auto userModel =
-            server->qmlEngine()->singletonInstance<UserModel *>("Treeland", "UserModel");
-        auto user = userModel->currentUser();
-        if (!user) {
-            return;
-        }
-
-        auto locale = userModel->currentUser()->locale();
-        qCInfo(lcTlDBus) << "current locale:" << locale.language();
-        QTranslator *newTrans = new QTranslator;
-
-        if (newTrans->load(locale, scope, ".", TREELAND_COMPONENTS_TRANSLATION_DIR, ".qm")) {
-            for (auto it = pluginTs.begin(); it != pluginTs.end(); ++it) {
-                if (it->first == plugin) {
-                    QCoreApplication::removeTranslator(it->second);
-                    pluginTs.erase(it);
-                    break;
-                }
-            }
-
-            pluginTs[plugin] = newTrans;
-            QCoreApplication::installTranslator(pluginTs[plugin]);
-            qmlEngine->retranslate();
-        } else {
-            qCWarning(lcTlDBus) << "failed to load plugin translator: " << scope;
-        }
+        pluginTranslationScopes[plugin] = scope;
+        const auto user = userModelForTranslations()->currentUser();
+        replaceTranslator(pluginTs[plugin], user ? user->locale() : QLocale::system(), scope);
+        qmlEngine->retranslate();
     }
+
 #endif
 
     void loadPlugin(const QString &path)
@@ -317,13 +297,6 @@ public:
             qCDebug(lcTlPlugin) << "Plugin translate scope:" << scope;
 
 #ifndef DISABLE_DDM
-            connect(server->qmlEngine()->singletonInstance<UserModel *>("Treeland", "UserModel"),
-                    &UserModel::currentUserNameChanged,
-                    pluginInstance,
-                    [this, plugin, scope] {
-                        updatePluginTs(plugin, scope);
-                    });
-
             updatePluginTs(plugin, scope);
 #endif
 
@@ -361,6 +334,7 @@ private:
     ScriptRunner *m_scriptRunner{ nullptr };
     std::vector<QAction *> shortcuts;
     std::map<PluginInterface *, QTranslator *> pluginTs;
+    std::map<PluginInterface *, QString> pluginTranslationScopes;
 };
 
 
@@ -534,6 +508,7 @@ void Treeland::continueStartup()
     }
 #ifndef DISABLE_DDM
     auto *greeter = d->qmlEngine->singletonInstance<GreeterProxy *>("Treeland", "GreeterProxy");
+    connect(greeter, &GreeterProxy::userLoggedOut, d, &TreelandPrivate::updateCurrentUserTranslations);
     greeter->enableHandshake();
 #else
     d->server->initializeWallpaper();

@@ -50,7 +50,6 @@ struct UserModelPrivate
     QString lastUserName;
     QString currentUserName;
     DAccountsManager manager;
-    QTranslator *lastTrans{ nullptr };
     QList<UserPtr> users;
 };
 

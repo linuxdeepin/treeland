@@ -87,7 +87,6 @@ Q_SIGNALS:
     void currentUserNameChanged();
     void lastIndexChanged();
     void lastUserChanged();
-    void updateTranslations(const QLocale &locale);
     void countChanged();
     void userLoggedIn(const QString &username, const QString &sessionId);
 
