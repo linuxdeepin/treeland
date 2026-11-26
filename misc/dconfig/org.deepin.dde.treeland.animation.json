@@ -5,7 +5,7 @@
         "lockscreen": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Login and lock screen",
             "name[zh_CN]": "登录与锁屏界面",
             "description": "Control content slides, background transitions and control button resizing on login and lock screens.",
@@ -16,7 +16,7 @@
         "windowOpen": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Window open animation",
             "name[zh_CN]": "窗口打开动画",
             "description": "Animate normal window opening. Disabling opens the window immediately.",
@@ -27,7 +27,7 @@
         "windowClose": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Window close animation",
             "name[zh_CN]": "窗口关闭动画",
             "description": "Animate normal window closing. Disabling closes the window immediately.",
@@ -38,7 +38,7 @@
         "launchpadOpenFullscreen": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Launcher open animation",
             "name[zh_CN]": "启动器打开动画",
             "description": "Animate launcher layer surface opening. Disabling shows it immediately.",
@@ -49,7 +49,7 @@
         "launchpadCloseFullscreen": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Launcher close animation",
             "name[zh_CN]": "启动器关闭动画",
             "description": "Animate launcher layer surface closing. Disabling hides it immediately.",
@@ -60,7 +60,7 @@
         "layerShellOpen": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Layer shell open animation",
             "name[zh_CN]": "图层窗口打开动画",
             "description": "Animate anchored layer shell surfaces opening. Disabling shows them immediately.",
@@ -71,7 +71,7 @@
         "layerShellClose": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Layer shell close animation",
             "name[zh_CN]": "图层窗口关闭动画",
             "description": "Animate anchored layer shell surfaces closing. Disabling hides them immediately.",
@@ -82,7 +82,7 @@
         "maximize": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Maximize animation",
             "name[zh_CN]": "最大化动画",
             "description": "Animate the geometry change when maximizing. Disabling applies the maximized geometry immediately.",
@@ -93,7 +93,7 @@
         "fullscreen": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Fullscreen animation",
             "name[zh_CN]": "全屏动画",
             "description": "Animate the geometry change when entering fullscreen. Disabling applies the fullscreen geometry immediately.",
@@ -104,7 +104,7 @@
         "restoreWindow": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Restore window animation",
             "name[zh_CN]": "窗口还原动画",
             "description": "Animate the geometry change when restoring from maximized or fullscreen. Disabling applies the restored geometry immediately.",
@@ -115,7 +115,7 @@
         "minimize": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Minimize animation",
             "name[zh_CN]": "最小化动画",
             "description": "Animate minimizing a window. Disabling minimizes immediately without the shrink transition.",
@@ -126,7 +126,7 @@
         "restoreMinimized": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Restore minimized animation",
             "name[zh_CN]": "最小化恢复动画",
             "description": "Animate restoring a minimized window. Disabling restores immediately.",
@@ -137,7 +137,7 @@
         "showDesktop": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Show desktop animation",
             "name[zh_CN]": "显示桌面动画",
             "description": "Animate hiding windows when showing the desktop. Disabling hides them immediately.",
@@ -148,7 +148,7 @@
         "restoreShowDesktop": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Restore from desktop animation",
             "name[zh_CN]": "退出显示桌面动画",
             "description": "Animate restoring windows when leaving show-desktop. Disabling restores them immediately.",
@@ -159,7 +159,7 @@
         "launchpadCover": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Launcher cover animation",
             "name[zh_CN]": "启动器覆盖动画",
             "description": "Animate the launcher cover wallpaper zoom and fade. Disabling applies the final state immediately.",
@@ -170,7 +170,7 @@
         "wallpaperScale": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Wallpaper scale animation",
             "name[zh_CN]": "壁纸缩放动画",
             "description": "Animate wallpaper scaling on launcher and lock screen transitions. Disabling applies the target scale immediately.",
@@ -181,7 +181,7 @@
         "workspaceSwitch": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Workspace switch animation",
             "name[zh_CN]": "工作区切换动画",
             "description": "Animate sliding between workspaces. Disabling switches workspaces immediately.",
@@ -192,7 +192,7 @@
         "workspaceVisibility": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Workspace visibility animation",
             "name[zh_CN]": "工作区显隐动画",
             "description": "Animate the workspace scale and opacity on lock screen entry and exit. Disabling applies the final scale and opacity immediately.",
@@ -203,7 +203,7 @@
         "workspaceBounce": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Workspace edge bounce animation",
             "name[zh_CN]": "工作区边界回弹动画",
             "description": "Animate the bounce when switching past the first or last workspace. Disabling skips the bounce.",
@@ -214,7 +214,7 @@
         "taskSwitcher": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Task switcher",
             "name[zh_CN]": "任务切换",
             "description": "Control mask, panel, thumbnails, highlight and window restoration transitions for the task switcher.",
@@ -225,7 +225,7 @@
         "multitaskview": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Multitask view",
             "name[zh_CN]": "多任务视图",
             "description": "Control entry, exit, window layout, empty hint and workspace thumbnail reordering transitions. Gesture following is preserved.",
@@ -236,7 +236,7 @@
         "outputRotation": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Output rotation animation",
             "name[zh_CN]": "主输出旋转动画",
             "description": "Animate rotating the primary output. Disabling applies the rotation and transform immediately.",
@@ -247,7 +247,7 @@
         "mirrorOutputRotation": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Mirror output rotation animation",
             "name[zh_CN]": "镜像输出旋转动画",
             "description": "Animate rotating a mirror output. Disabling applies the rotation and transform immediately.",
@@ -258,7 +258,7 @@
         "wallpaperCrossFade": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Wallpaper cross fade animation",
             "name[zh_CN]": "壁纸交叉渐变动画",
             "description": "Cross fade between wallpapers. Disabling switches as soon as the new wallpaper is ready.",
@@ -269,7 +269,7 @@
         "dockPreview": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Dock preview",
             "name[zh_CN]": "Dock 预览",
             "description": "Animate dock preview. Disabled transitions apply their final state directly.",
@@ -280,7 +280,7 @@
         "captureToolbar": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Capture toolbar",
             "name[zh_CN]": "截图工具条",
             "description": "Animate capture toolbar. Disabled transitions apply their final state directly.",
@@ -291,7 +291,7 @@
         "edgeTilePreview": {
             "value": true,
             "serial": 0,
-            "flags": [],
+            "flags": ["user-public"],
             "name": "Edge tile preview",
             "name[zh_CN]": "边缘平铺预览",
             "description": "Animate edge tile preview. Disabled transitions apply their final state directly.",
