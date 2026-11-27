@@ -157,10 +157,13 @@ bool CompositorInputFilter::beforeDisposeEvent(WSeat *seat, QWindow *targetWindo
 
         if (event->type() == QEvent::KeyRelease && !m_captureManager->isSelecting()) {
             auto kevent = static_cast<QKeyEvent *>(event);
-            const int key = kevent->key();
-            if (key == Qt::Key_Alt || key == Qt::Key_Control || key == Qt::Key_Shift
-                || key == Qt::Key_Meta) {
-                Q_EMIT modifierKeyReleased(kevent);
+            auto *inputDevice = event->device() ? WInputDevice::from(event->device()) : nullptr;
+            if (!kevent->isAutoRepeat() && (!inputDevice || !inputDevice->isVirtual())) {
+                const int key = kevent->key();
+                if (key == Qt::Key_Alt || key == Qt::Key_Control || key == Qt::Key_Shift
+                    || key == Qt::Key_Meta) {
+                    Q_EMIT modifierKeyReleased(kevent);
+                }
             }
         }
     }

@@ -150,9 +150,7 @@ void ShortcutRunner::stop()
     disconnect(m_controller, nullptr, this, nullptr);
     disconnect(m_inputFilter, &CompositorInputFilter::modifierKeyReleased,
                this, &ShortcutRunner::onModifierReleased);
-    m_quickSwitchTimer->stop();
-    m_quickSwitchPending = false;
-    m_taskAltCount = 0;
+    resetQuickSwitch();
     m_slideEnable = false;
 }
 
@@ -182,18 +180,9 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
     case ShortcutAction::TaskSwitchNext:
     case ShortcutAction::TaskSwitchPrev:
     case ShortcutAction::TaskSwitchSameAppNext:
-    case ShortcutAction::TaskSwitchSameAppPrev: {
-        if (keyFlags.testFlag(ShortcutController::Repeat)
-            && server->currentMode() == WaylandServer::CurrentMode::Normal
-            && !m_quickSwitchPending) {
-            return;
-        }
-
-        const bool isSameApp = (action == ShortcutAction::TaskSwitchSameAppNext || action == ShortcutAction::TaskSwitchSameAppPrev);
-        const bool isPrev = (action == ShortcutAction::TaskSwitchPrev || action == ShortcutAction::TaskSwitchSameAppPrev);
-        taskswitchAction(keyFlags.testFlag(ShortcutController::Repeat), isSameApp, isPrev);
+    case ShortcutAction::TaskSwitchSameAppPrev:
+        taskswitchAction(action, keyFlags.testFlag(ShortcutController::Repeat));
         break;
-    }
     default:
         break;
     }
@@ -341,77 +330,84 @@ void ShortcutRunner::finishWorkspaceSwipe()
     m_workspace->switchTo(m_toId, false);
 }
 
-void ShortcutRunner::taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev)
+void ShortcutRunner::resetQuickSwitch()
 {
-    auto *server = m_runtime;
-    const auto modeBefore = server->currentMode();
-    if (modeBefore != WaylandServer::CurrentMode::Normal && modeBefore != WaylandServer::CurrentMode::WindowSwitch)
-        return;
+    m_quickSwitchTimer->stop();
+    m_quickSwitchPending = false;
+    m_taskAltCount = 0;
+}
 
-    if (!isRepeat && !isSameApp && modeBefore == WaylandServer::CurrentMode::Normal) {
-        auto *current = m_workspace->current();
-        if (current) {
-            auto nextSurface = current->findNextActivedSurface();
-            if (nextSurface)
-                server->forceActivateSurface(nextSurface, Qt::TabFocusReason);
-        }
-        m_quickSwitchTimer->start(server->globalConfig()->quickSwitchTimeout());
-        m_quickSwitchPending = true;
-        return;
-    }
+void ShortcutRunner::stepTaskSwitcher(bool isSameApp, bool isPrev)
+{
+    if (m_runtime->currentMode() == WaylandServer::CurrentMode::Normal && m_switcher->taskSwitcher())
+        m_switcher->close();
 
     if (!m_switcher->taskSwitcher()) {
-        auto *output = server->rootSurfaceContainer()->cursorOutput();
+        auto *output = m_runtime->rootSurfaceContainer()->cursorOutput();
         if (!output)
-            output = server->rootSurfaceContainer()->primaryOutput();
+            output = m_runtime->rootSurfaceContainer()->primaryOutput();
         m_switcher->ensureTaskSwitcher(output);
-        server->restoreFromShowDesktop();
+        m_runtime->restoreFromShowDesktop();
     }
 
-    if (isRepeat) {
-        m_taskAltCount++;
-    } else {
-        m_taskAltCount = 3;
-    }
+    m_runtime->setCurrentMode(WaylandServer::CurrentMode::WindowSwitch);
+    QMetaObject::invokeMethod(m_switcher->taskSwitcher(),
+                              isPrev ? "previous" : "next",
+                              Q_ARG(QVariant, isSameApp));
+}
 
-    if (m_taskAltCount < 3)
+void ShortcutRunner::performQuickSwitch()
+{
+    if (m_switcher->taskSwitcher())
+        m_switcher->close();
+
+    if (auto *current = m_workspace->current()) {
+        if (auto *next = current->findNextActivedSurface())
+            m_runtime->forceActivateSurface(next, Qt::TabFocusReason);
+    }
+}
+
+void ShortcutRunner::taskswitchAction(ShortcutAction action, bool isRepeat)
+{
+    const auto mode = m_runtime->currentMode();
+    if (mode != WaylandServer::CurrentMode::Normal && mode != WaylandServer::CurrentMode::WindowSwitch)
         return;
 
+    if (mode == WaylandServer::CurrentMode::Normal && !m_quickSwitchPending) {
+        if (isRepeat)
+            return;
+        if (action == ShortcutAction::TaskSwitchNext) {
+            m_quickSwitchPending = true;
+            m_quickSwitchTimer->start(m_runtime->globalConfig()->quickSwitchTimeout());
+            return;
+        }
+    }
+
+    if (isRepeat && ++m_taskAltCount < 3)
+        return;
     m_taskAltCount = 0;
-    server->setCurrentMode(WaylandServer::CurrentMode::WindowSwitch);
 
     if (m_quickSwitchPending) {
-        m_quickSwitchTimer->stop();
-        m_quickSwitchPending = false;
+        resetQuickSwitch();
+        stepTaskSwitcher(false, false);
     }
 
-    if (isSameApp) {
-        QMetaObject::invokeMethod(m_switcher->taskSwitcher(), isPrev ? "previousSameApp" : "nextSameApp");
-    } else {
-        auto filter = m_workspace->currentFilter();
-        filter->setFilterAppId({});
-        QMetaObject::invokeMethod(m_switcher->taskSwitcher(), isPrev ? "previous" : "next");
-    }
+    const bool isSameApp = (action == ShortcutAction::TaskSwitchSameAppNext
+                            || action == ShortcutAction::TaskSwitchSameAppPrev);
+    const bool isPrev = (action == ShortcutAction::TaskSwitchPrev
+                         || action == ShortcutAction::TaskSwitchSameAppPrev);
+    stepTaskSwitcher(isSameApp, isPrev);
 }
 
 void ShortcutRunner::onQuickSwitchTimeout()
 {
-    auto *server = m_runtime;
-    if (server->currentMode() != WaylandServer::CurrentMode::Normal) {
-        m_quickSwitchPending = false;
+    if (!m_quickSwitchPending || m_runtime->currentMode() != WaylandServer::CurrentMode::Normal) {
+        resetQuickSwitch();
         return;
     }
 
-    if (!m_switcher->taskSwitcher()) {
-        auto *output = server->rootSurfaceContainer()->cursorOutput();
-        if (!output)
-            output = server->rootSurfaceContainer()->primaryOutput();
-        m_switcher->ensureTaskSwitcher(output);
-        server->restoreFromShowDesktop();
-    }
-    server->setCurrentMode(WaylandServer::CurrentMode::WindowSwitch);
-
-    QMetaObject::invokeMethod(m_switcher->taskSwitcher(), "show");
+    resetQuickSwitch();
+    stepTaskSwitcher(false, false);
 }
 
 void ShortcutRunner::onModifierReleased(QKeyEvent *event)
@@ -457,16 +453,14 @@ void ShortcutRunner::onModifierReleased(QKeyEvent *event)
             return;
 
         if (m_quickSwitchPending && server->currentMode() == WaylandServer::CurrentMode::Normal) {
-            m_quickSwitchTimer->stop();
-            m_quickSwitchPending = false;
+            resetQuickSwitch();
+            performQuickSwitch();
             return;
         }
 
         if (server->currentMode() == WaylandServer::CurrentMode::WindowSwitch && m_switcher->taskSwitcher()) {
-            auto filter = m_workspace->currentFilter();
-            filter->setFilterAppId("");
             server->setCurrentMode(WaylandServer::CurrentMode::Normal);
-            m_quickSwitchPending = false;
+            resetQuickSwitch();
             QMetaObject::invokeMethod(m_switcher->taskSwitcher(), "exit");
         }
     }

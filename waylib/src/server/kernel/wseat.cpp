@@ -315,7 +315,7 @@ public:
 
         if (cursor->eventWindow()) {
             QWindowSystemInterface::handleTouchEvent(cursor->eventWindow(), qwDevice, state->m_points,
-                                                     keyModifiers);
+                                                     currentModifiers());
         }
 
         for (int i = state->m_points.size() - 1; i >= 0; --i) {
@@ -372,7 +372,7 @@ public:
         const Qt::MouseButtons buttons = handle()->drag ? Qt::NoButton : cursor->state();
 
         QMouseEvent e(QEvent::MouseMove, local, global, Qt::NoButton,
-                      buttons, keyModifiers, device);
+                      buttons, currentModifiers(), device);
         Q_ASSERT(e.isUpdateEvent());
         e.setTimestamp(timestamp);
 
@@ -460,8 +460,11 @@ public:
         return index < 0 ? nullptr : &pendingEvents[index];
     }
 
-    // for event data
-    Qt::KeyboardModifiers keyModifiers = Qt::NoModifier;
+    inline Qt::KeyboardModifiers currentModifiers() const {
+        if (group && group->keyboard.xkb_state)
+            return QXkbCommon::modifiers(group->keyboard.xkb_state);
+        return Qt::NoModifier;
+    }
 
     // for touch event
     struct DeviceState {
@@ -609,6 +612,7 @@ void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *
     auto code = event->keycode + 8; // map to wl_keyboard::keymap_format::keymap_format_xkb_v1
     auto et = event->state == WL_KEYBOARD_KEY_STATE_PRESSED ? QEvent::KeyPress : QEvent::KeyRelease;
     xkb_keysym_t sym = xkb_state_key_get_one_sym(keyboard->xkb_state, code);
+    const auto modifiers = QXkbCommon::modifiers(keyboard->xkb_state);
 
     // Qt doesn't support XF86Switch_VT_1 to XF86Switch_VT_12, so convert them to
     // Ctrl+Alt+F1 to Ctrl+Alt+F12
@@ -622,15 +626,15 @@ void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *
     );
     if (sym >= XKB_KEY_XF86Switch_VT_1 && sym <= XKB_KEY_XF86Switch_VT_12) {
         constexpr auto ctrlAlt = Qt::ControlModifier | Qt::AltModifier;
-        if ((keyModifiers & ctrlAlt) == ctrlAlt) {
+        if ((modifiers & ctrlAlt) == ctrlAlt) {
             sym = XKB_KEY_F1 + (sym - XKB_KEY_XF86Switch_VT_1);
         }
     }
 
-    int qtkey = QXkbCommon::keysymToQtKey(sym, keyModifiers, keyboard->xkb_state, code);
+    int qtkey = QXkbCommon::keysymToQtKey(sym, modifiers, keyboard->xkb_state, code);
     const QString &text = QXkbCommon::lookupString(keyboard->xkb_state, code);
 
-    QKeyEvent e(et, qtkey, keyModifiers, code, event->keycode, wlr_keyboard_get_modifiers(keyboard),
+    QKeyEvent e(et, qtkey, modifiers, code, event->keycode, wlr_keyboard_get_modifiers(keyboard),
                 text, false, 1, device->qtDevice());
     e.setTimestamp(event->time_msec);
 
@@ -645,7 +649,7 @@ void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *
             if (m_repeatKey) {
                 m_repeatTimer.stop();
             }
-            m_repeatKey = std::make_unique<QKeyEvent>(et, qtkey, keyModifiers, code, event->keycode, wlr_keyboard_get_modifiers(keyboard),
+            m_repeatKey = std::make_unique<QKeyEvent>(et, qtkey, modifiers, code, event->keycode, wlr_keyboard_get_modifiers(keyboard),
                 text, false, 1, device->qtDevice());
             m_repeatKey->setTimestamp(event->time_msec);
             m_repeatTimer.setInterval(keyboard->repeat_info.delay);
@@ -666,8 +670,6 @@ void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *
 
 void WSeatPrivate::on_keyboard_modifiers(WInputDevice *device)
 {
-    auto keyboard = wlr_keyboard_from_input_device(device->handle());
-    keyModifiers = QXkbCommon::modifiers(keyboard->xkb_state);
     doNotifyModifiers(device);
 }
 void WSeatPrivate::connect()
@@ -1393,7 +1395,7 @@ void WSeat::notifyButton(WCursor *cursor, WInputDevice *device, Qt::MouseButton 
     auto et = state == WLR_BUTTON_PRESSED ? QEvent::MouseButtonPress : QEvent::MouseButtonRelease;
 
     QMouseEvent e(et, local, global, button,
-                  cursor->state(), d->keyModifiers, qwDevice);
+                  cursor->state(), d->currentModifiers(), qwDevice);
     if (et == QEvent::MouseButtonPress)
         Q_ASSERT(e.isBeginEvent());
     else
@@ -1432,7 +1434,7 @@ void WSeat::notifyAxis(WCursor *cursor, WInputDevice *device, wl_pointer_axis_so
     }
     WSeatWheelEvent e(static_cast<wl_pointer_axis_source>(source), delta, orientation,
                       static_cast<wl_pointer_axis_relative_direction>(rd),
-                      local, global, QPoint(), angleDelta, Qt::NoButton, d->keyModifiers,
+                      local, global, QPoint(), angleDelta, Qt::NoButton, d->currentModifiers(),
                       Qt::NoScrollPhase, false, Qt::MouseEventNotSynthesized, qwDevice);
     e.setTimestamp(timestamp);
 
@@ -1676,7 +1678,7 @@ void WSeat::notifyTouchCancel(WCursor *cursor, WInputDevice *device, int32_t tou
         << ", discard the following state: " << state->m_points;
 
     if (cursor->eventWindow()) {
-        QWindowSystemInterface::handleTouchCancelEvent(cursor->eventWindow(), time_msec, qwDevice, d->keyModifiers);
+        QWindowSystemInterface::handleTouchCancelEvent(cursor->eventWindow(), time_msec, qwDevice, d->currentModifiers());
     }
 }
 

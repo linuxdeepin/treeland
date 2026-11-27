@@ -527,10 +527,7 @@ Item {
         if (updateTimestamp)
             root.lastSwitchTimestamp = Date.now()
 
-        if (previewWindows.animationRunning) {
-            previewWindows.finishAnimation(true)
-            showTask(false)
-        }
+        cancelExitAnimation()
 
         if (switchView.count <= 1) {
             if (switchView.count === 1) {
@@ -544,7 +541,17 @@ Item {
         return true;
     }
 
-    function previous() {
+    function applyAppFilter(sameApp) {
+        if (sameApp === true) {
+            if (switchView.currentItem && switchView.currentItem.surface)
+                root.model.setFilterAppId(switchView.currentItem.surface.appId)
+        } else if (sameApp === false) {
+            root.model.setFilterAppId("")
+        }
+    }
+
+    function previous(sameApp) {
+        applyAppFilter(sameApp)
         if (!prejudgment(true))
             return;
 
@@ -558,7 +565,8 @@ Item {
         switchIndex(nextIndex)
     }
 
-    function next() {
+    function next(sameApp) {
+        applyAppFilter(sameApp)
         if (!prejudgment(true))
             return;
 
@@ -572,29 +580,15 @@ Item {
         switchIndex(nextIndex)
     }
 
-    function previousSameApp() {
-        if (switchView.currentItem && switchView.currentItem.surface)
-            root.model.setFilterAppId(switchView.currentItem.surface.appId)
-
-        previous()
+    function cancelExitAnimation() {
+        if (previewWindows.animationRunning) {
+            previewWindows.finishAnimation(true)
+            showTask(false)
+        }
     }
 
-    function nextSameApp() {
-        if (switchView.currentItem && switchView.currentItem.surface)
-            root.model.setFilterAppId(switchView.currentItem.surface.appId)
-
-        next()
-    }
-
-    function show() {
-        if (!prejudgment(true))
-            return;
-
-        var nextIndex = switchView.currentIndex;
-        switchView.positionViewAtIndex(nextIndex, ListView.End)
-
-        focusReason = Qt.ActiveWindowFocusReason
-        switchIndex(nextIndex)
+    function clearAppFilter() {
+        root.model.setFilterAppId("")
     }
 
     function switchIndex(next) {
