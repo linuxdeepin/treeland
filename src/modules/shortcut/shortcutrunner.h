@@ -37,7 +37,10 @@ private Q_SLOTS:
 private:
     void updateWorkspaceSwipe(qreal cb);
     void finishWorkspaceSwipe();
-    void taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev);
+    void taskswitchAction(ShortcutAction action, bool isRepeat);
+    void resetQuickSwitch();
+    void stepTaskSwitcher(bool isSameApp, bool isPrev);
+    void performQuickSwitch();
 
     // dynamic bounce check: true when cb pushes beyond workspace boundary
     inline bool isWorkspaceBounce(qreal cb, int currentIndex, int wsCount) const

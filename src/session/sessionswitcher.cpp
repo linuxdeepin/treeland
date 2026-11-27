@@ -52,6 +52,8 @@ void SessionSwitcher::close()
         return;
 
     disconnect(m_taskSwitcher, nullptr, this, nullptr);
+    QMetaObject::invokeMethod(m_taskSwitcher, "cancelExitAnimation");
+    QMetaObject::invokeMethod(m_taskSwitcher, "clearAppFilter");
     m_taskSwitcher->setVisible(false);
     m_taskSwitcher->deleteLater();
     m_taskSwitcher = nullptr;
