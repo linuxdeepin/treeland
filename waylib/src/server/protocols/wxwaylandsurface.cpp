@@ -54,11 +54,19 @@ void WXWaylandSurfacePrivate::init()
         Q_ASSERT(!WSurface::fromHandle(handle()->surface));
         surface = new WSurface(handle()->surface);
         surface->setAttachedData<WXWaylandSurface>(q);
+        // A grab only covers the current mapped lifetime: clear the latch on
+        // unmap so that a later map without a new grab does not take keyboard
+        // focus again.
+        QObject::connect(surface, &WSurface::mappedChanged, q, [this] {
+            if (!surface->mapped())
+                setEverGrabbedFocus(false);
+        });
         Q_EMIT q->surfaceChanged();
         Q_EMIT q->associated();
     });
     q->listeners()->add(&m_handle->events.dissociate, this, [this, q] (void *) {
         Q_ASSERT(surface);
+        setEverGrabbedFocus(false);
         Q_EMIT q->aboutToDissociate();
         delete surface;
         surface = nullptr;
@@ -121,11 +129,28 @@ void WXWaylandSurfacePrivate::init()
     q->listeners()->add(&m_handle->events.set_decorations, q, &WXWaylandSurface::decorationsFlagsChanged);
     q->listeners()->add(&m_handle->events.set_title, q, &WXWaylandSurface::titleChanged);
     q->listeners()->add(&m_handle->events.set_class, q, &WXWaylandSurface::appIdChanged);
+    q->listeners()->add(&m_handle->events.grab_focus, this, &WXWaylandSurfacePrivate::onGrabFocus);
     updateChildren();
     updateParent();
     updateSizeHints();
     updateWindowTypes();
     updateClipShape();
+}
+
+void WXWaylandSurfacePrivate::setEverGrabbedFocus(bool grabbed)
+{
+    if (everGrabbedFocus == grabbed)
+        return;
+    everGrabbedFocus = grabbed;
+    W_Q(WXWaylandSurface);
+    Q_EMIT q->everGrabbedFocusChanged();
+}
+
+void WXWaylandSurfacePrivate::onGrabFocus()
+{
+    setEverGrabbedFocus(true);
+    W_Q(WXWaylandSurface);
+    Q_EMIT q->grabFocus();
 }
 
 void WXWaylandSurfacePrivate::updateSizeHints()
@@ -407,10 +432,14 @@ bool WXWaylandSurface::hasCapability(Capability cap) const
                     | NET_WM_WINDOW_TYPE_NOTIFICATION | NET_WM_WINDOW_TYPE_SPLASH));
     // TODO(xwayland): To implement ICCCM focus model, refer to
     // https://github.com/labwc/labwc/blob/9ba3303246b1b1bf4dbf13793faa62ec74872e3b/src/xwayland.c#L108
-    case Activate: [[fallthrough]];
-    case Focus:
+    case Activate:
         return !isBypassManager()
             && wlr_xwayland_surface_override_redirect_wants_focus(d->handle())
+            && wlr_xwayland_surface_icccm_input_model(d->handle()) != WLR_ICCCM_INPUT_MODEL_NONE;
+    case Focus:
+        if (isBypassManager())
+            return everGrabbedFocus();
+        return wlr_xwayland_surface_override_redirect_wants_focus(d->handle())
             && wlr_xwayland_surface_icccm_input_model(d->handle()) != WLR_ICCCM_INPUT_MODEL_NONE;
     case FullScreen:
         return !isBypassManager();
@@ -557,6 +586,12 @@ bool WXWaylandSurface::isBypassManager() const
 {
     W_DC(WXWaylandSurface);
     return d->handle()->override_redirect;
+}
+
+bool WXWaylandSurface::everGrabbedFocus() const
+{
+    W_DC(WXWaylandSurface);
+    return d->everGrabbedFocus;
 }
 
 bool WXWaylandSurface::isAbove() const
