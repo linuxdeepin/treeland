@@ -478,10 +478,240 @@ void ShellHandler::onXWaylandSurfaceRemoved(WXWaylandSurface *surface)
     auto *wrapper = m_rootSurfaceContainer->getSurface(surface);
     if (!wrapper || wrapper->isAboutToRemove())
         return;
+    // Hand the keyboard back before the popup wrapper that grabbed it goes away.
+    releaseXWaylandGrabFocus(wrapper);
     if (auto *xwayland = surface->xwayland())
         xwayland->cancelAsyncProperties(surface->handle()->window_id);
     Q_EMIT surfaceWrapperAboutToRemove(wrapper);
     m_rootSurfaceContainer->destroyForSurface(wrapper);
+}
+
+void ShellHandler::onXWaylandSurfaceGrabFocus()
+{
+    auto *surface = qobject_cast<WXWaylandSurface *>(sender());
+    if (!surface)
+        return;
+    // X11 clients use keyboard grabs to steal focus, most commonly for popup
+    // menus and combos. The grab may arrive before the wrapper/surface is
+    // mapped; grantXWaylandGrabFocus() checks that and the watcher retries on
+    // map.
+    auto *wrapper = m_rootSurfaceContainer->getSurface(surface);
+    if (!wrapper)
+        return;
+    grantXWaylandGrabFocus(wrapper);
+}
+
+static bool hasInternalQmlFocus(WaylandServer *server, RootSurfaceContainer *rootContainer)
+{
+    auto *win = server->window();
+    auto *focusItem = win ? win->activeFocusItem() : nullptr;
+    return focusItem && focusItem != win->contentItem() && focusItem != rootContainer;
+}
+
+void ShellHandler::grantXWaylandGrabFocus(SurfaceWrapper *wrapper)
+{
+    if (!wrapper || wrapper->isAboutToRemove())
+        return;
+    if (wrapper->type() != SurfaceWrapper::Type::XWayland)
+        return;
+    if (wrapper->isIMCandidatePanel() || !wrapper->hasFocusCapability())
+        return;
+
+    auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
+    if (!xwaylandSurface)
+        return;
+
+    // Only grabbed override-redirect surfaces take keyboard focus without
+    // changing the activated window. Managed toplevels already hold the
+    // keyboard when they grab and must not jump the activation/workspace gates.
+    if (!xwaylandSurface->isBypassManager())
+        return;
+
+    auto *server = WaylandServer::instance();
+    if (!server->sessionManager()->isActiveWindow(wrapper))
+        return;
+    if (server->showDesktopState() == ShowDesktop::State::Show)
+        return;
+    if (server->currentMode() != WaylandServer::CurrentMode::Normal
+        || server->blockActivateSurface())
+        return;
+    // TODO(xwayland): updateWrapperContainer() moves isPopupLike() surfaces out
+    // of Workspace into m_popupContainer, which resets workspaceId to -1 and
+    // makes showOnWorkspace() return false for grabs/maps arriving after
+    // ensureXwaylandWrapper() (including reused menu reopens); conversely,
+    // setupXWaylandGrabFocusWatcher() currently runs before parent/container
+    // placement. Deferred until focus management is refactored to stop
+    // depending strongly on workspace membership.
+    if (!wrapper->showOnWorkspace(m_workspace->current()->id()))
+        return;
+
+    WSeat *seat = xwaylandSurface->xwayland() ? xwaylandSurface->xwayland()->seat() : nullptr;
+    auto *seatContainer = server->rootContainer()->getSeatContainerOrDefault(seat);
+    if (!seatContainer)
+        return;
+    if (!seatContainer->keyboardFocusSurface()
+        && hasInternalQmlFocus(server, m_rootSurfaceContainer))
+        return;
+
+    // Remember the current holder for the whole grab chain: a submenu grabbing
+    // from a menu only replaces the immediate restore target.
+    if (auto *current = seatContainer->keyboardFocusSurface(); current && current != wrapper)
+        m_xwaylandGrabRestoreTarget = current;
+    m_xwaylandGrabSeat = seat;
+    m_xwaylandGrabFocusSurface = wrapper;
+
+    // Give the underlying XWayland seat keyboard focus without changing the
+    // activated window; grabbed OR surfaces do not have Capability::Activate.
+    seatContainer->setKeyboardFocusSurface(wrapper, Qt::ActiveWindowFocusReason);
+}
+
+void ShellHandler::releaseXWaylandGrabFocus(SurfaceWrapper *wrapper)
+{
+    if (!wrapper || m_xwaylandGrabFocusSurface != wrapper)
+        return;
+
+    m_xwaylandGrabFocusSurface.clear();
+
+    auto *server = WaylandServer::instance();
+    auto *seatContainer = server->rootContainer()->getSeatContainerOrDefault(m_xwaylandGrabSeat.data());
+    auto *target = m_xwaylandGrabRestoreTarget.data();
+    m_xwaylandGrabRestoreTarget.clear();
+    m_xwaylandGrabSeat.clear();
+
+    if (!seatContainer)
+        return;
+
+    // Focus already moved elsewhere (the user clicked another window, or a
+    // nested popup took over): keep it where it is. An empty focus means the
+    // seat cleared it on unmap, which is exactly the case to restore from.
+    auto *current = seatContainer->keyboardFocusSurface();
+    if (current && current != wrapper)
+        return;
+
+    // While showing the desktop the keyboard belongs to the desktop layer; an
+    // X11 popup must not pull it back into a hidden window.
+    if (server->showDesktopState() == ShowDesktop::State::Show)
+        return;
+    if (server->currentMode() != WaylandServer::CurrentMode::Normal
+        || server->blockActivateSurface())
+        return;
+    if (!current && hasInternalQmlFocus(server, m_rootSurfaceContainer))
+        return;
+
+    auto isUsable = [this, server](SurfaceWrapper *surface) {
+        return surface && !surface->isAboutToRemove() && !surface->isMinimized()
+            && surface->surface() && surface->surface()->mapped()
+            && server->sessionManager()->isActiveWindow(surface)
+            && surface->showOnWorkspace(m_workspace->current()->id())
+            && surface->hasFocusCapability();
+    };
+
+    if (!isUsable(target))
+        target = seatContainer->activatedSurface();
+    if (!isUsable(target))
+        return;
+
+    seatContainer->setKeyboardFocusSurface(target, Qt::ActiveWindowFocusReason);
+}
+
+void ShellHandler::onXWaylandSurfaceFocusCapabilityChanged()
+{
+    auto *wrapper = qobject_cast<SurfaceWrapper *>(sender());
+    if (!wrapper)
+        return;
+    if (!wrapper->hasFocusCapability()) {
+        releaseXWaylandGrabFocus(wrapper);
+        return;
+    }
+    if (auto *xs = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
+        xs && xs->isBypassManager())
+        grantXWaylandGrabFocus(wrapper);
+}
+
+void ShellHandler::setupXWaylandGrabFocusWatcher(SurfaceWrapper *wrapper)
+{
+    Q_ASSERT(wrapper);
+    if (wrapper->type() != SurfaceWrapper::Type::XWayland)
+        return;
+    // The same surface can reach wrapper creation more than once (async appId
+    // resolution, prelaunch takeover); install the watcher only once.
+    if (wrapper->property("tlXWaylandGrabFocusWatched").toBool())
+        return;
+
+    auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
+    if (!xwaylandSurface)
+        return;
+
+    wrapper->setProperty("tlXWaylandGrabFocusWatched", true);
+
+    // Focus capability aggregates mapped, unminimized, acceptKeyboardFocus,
+    // and everGrabbedFocus (for OR surfaces), so pre-map grabs automatically
+    // take focus when the surface maps and release it when capability is lost.
+    QObject::connect(wrapper, &SurfaceWrapper::hasFocusCapabilityChanged,
+                     this, &ShellHandler::onXWaylandSurfaceFocusCapabilityChanged,
+                     Qt::UniqueConnection);
+
+    // Replay immediately if the grab and map completed before this watcher was
+    // installed (e.g. prelaunch takeover).
+    if (xwaylandSurface->isBypassManager() && wrapper->hasFocusCapability())
+        grantXWaylandGrabFocus(wrapper);
+}
+
+void ShellHandler::onXWaylandSurfaceRequestActivate()
+{
+    auto *surface = qobject_cast<WXWaylandSurface *>(sender());
+    if (!surface)
+        return;
+    auto *wrapper = m_rootSurfaceContainer->getSurface(surface);
+    if (!wrapper || wrapper->isAboutToRemove())
+        return;
+
+    auto *server = WaylandServer::instance();
+
+    // Managed toplevels go through activateSurface(), which requires the
+    // surface to belong to the active session, sit on the current workspace,
+    // and have ActiveCapability (setActivatedSurface() asserts
+    // showOnWorkspace(current), cancels ShowDesktop, and logs qCCritical when
+    // ActiveCapability is missing). Gate those preconditions explicitly and
+    // surface off-workspace/minimized/show-desktop requests as attention
+    // instead of stealing focus.
+    if (!surface->isBypassManager()) {
+        if (!server->sessionManager()->isActiveWindow(wrapper))
+            return;
+        if (!wrapper->surface() || !wrapper->surface()->mapped())
+            return;
+        if (wrapper->isIMCandidatePanel() || !wrapper->acceptKeyboardFocus())
+            return;
+        if (!wrapper->hasCapability(WToplevelSurface::Capability::Activate))
+            return;
+
+        if (server->showDesktopState() == ShowDesktop::State::Show
+            || wrapper->isMinimized()
+            || !wrapper->showOnWorkspace(m_workspace->current()->id())) {
+            if (!wrapper->isActivated())
+                wrapper->setAttention(true);
+            return;
+        }
+        if (!wrapper->hasActiveCapability())
+            return;
+
+        server->activateSurface(wrapper, Qt::ActiveWindowFocusReason);
+        return;
+    }
+
+    // Override-redirect surfaces (menus, combos) have no Activate capability by
+    // design. _NET_ACTIVE_WINDOW is not authenticated, so only honor it when the
+    // requester belongs to the process that already owns the active window.
+    if (!surface->surface() || !surface->surface()->mapped())
+        return;
+
+    auto *active = server->activatedSurface();
+    const pid_t reqPid = surface->pid();
+    if (reqPid <= 0 || !active || !active->shellSurface()
+        || active->shellSurface()->pid() != reqPid)
+        return;
+
+    grantXWaylandGrabFocus(wrapper);
 }
 #endif
 
@@ -690,6 +920,10 @@ void ShellHandler::onXdgPopupSurfaceRemoved(WXdgPopupSurface *surface)
 #ifndef DISABLE_XWAYLAND
 void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
 {
+    QObject::connect(surface, &WXWaylandSurface::grabFocus,
+                     this, &ShellHandler::onXWaylandSurfaceGrabFocus);
+    QObject::connect(surface, &WXWaylandSurface::requestActivate,
+                     this, &ShellHandler::onXWaylandSurfaceRequestActivate);
     QObject::connect(surface, &WXWaylandSurface::associated,
                          this,
                          [this, surface = QPointer<WXWaylandSurface>(surface)] {
@@ -764,6 +998,8 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
                 m_windowConfigStore->saveLastSize(wrapper->appId(), s);
             }
         }
+        // Hand the keyboard back before the popup wrapper that grabbed it goes away.
+        releaseXWaylandGrabFocus(wrapper);
         Q_EMIT surfaceWrapperAboutToRemove(wrapper);
         m_rootSurfaceContainer->destroyForSurface(wrapper);
     });
@@ -842,6 +1078,11 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
         Q_EMIT surfaceWrapperAdded(wrapper);
         return;
     }
+
+    // Installed for prelaunch takeovers too: the grab may have been latched
+    // before the splash surface became this wrapper. Placed after IM candidate
+    // panel detection so candidate panels never register a grab focus watcher.
+    setupXWaylandGrabFocusWatcher(wrapper);
 
     // Initialize wrapper
     wrapper->setModal(surface->isModal());

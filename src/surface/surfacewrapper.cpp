@@ -630,6 +630,10 @@ void SurfaceWrapper::setup()
                     updateFocusCapability();
                 });
         connect(xwaylandSurface,
+                &WXWaylandSurface::everGrabbedFocusChanged,
+                this,
+                &SurfaceWrapper::updateFocusCapability);
+        connect(xwaylandSurface,
                 &WXWaylandSurface::windowTypesChanged,
                 this,
                 [this, updateX11SkipFlags]() {
