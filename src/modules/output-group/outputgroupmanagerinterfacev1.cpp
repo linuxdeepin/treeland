@@ -390,12 +390,7 @@ void OutputGroupManagerInterfaceV1Private::loadPersistedGroupsIfReady()
         return;
     }
 
-    auto *manager = DConfigManager::instance();
-    if (!manager || !manager->globalConfig()) {
-        return;
-    }
-
-    auto *global = manager->globalConfig();
+    auto *global = DConfigManager::instance()->globalConfig();
     if (global->isInitializeSucceeded()) {
         loadPersistedGroups();
         return;
@@ -426,16 +421,13 @@ void OutputGroupManagerInterfaceV1Private::loadPersistedGroups()
     }
     groupsLoaded = true;
 
-    auto *manager = DConfigManager::instance();
-    if (!manager || !manager->globalConfig()) {
-        return;
-    }
+    auto *global = DConfigManager::instance()->globalConfig();
 
     // The registry is the single authority on which groups exist. Membership
     // is restored lazily: recomputeEffectiveState() groups the connected
     // outputs by their own persisted groupName, and clears membership records
     // that point at a group which is no longer registered.
-    const auto names = manager->globalConfig()->outputGroups().split(kGroupNameSeparator, Qt::SkipEmptyParts);
+    const auto names = global->outputGroups().split(kGroupNameSeparator, Qt::SkipEmptyParts);
     for (const auto &name : names) {
         if (name.isEmpty()) {
             continue;
@@ -461,12 +453,7 @@ void OutputGroupManagerInterfaceV1Private::loadPersistedGroups()
 
 void OutputGroupManagerInterfaceV1Private::persistGroupRegistry()
 {
-    auto *manager = DConfigManager::instance();
-    if (!manager || !manager->globalConfig()) {
-        return;
-    }
-
-    manager->globalConfig()->setOutputGroups(groupNames.join(kGroupNameSeparator));
+    DConfigManager::instance()->globalConfig()->setOutputGroups(groupNames.join(kGroupNameSeparator));
 }
 
 OutputGroupInterfaceV1Private *OutputGroupManagerInterfaceV1Private::createHandle(
