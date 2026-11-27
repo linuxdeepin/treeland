@@ -10,7 +10,6 @@
 #include <DConfig>
 
 class WaylandServer;
-class AnimationConfig;
 class AppConfig;
 class OutputConfig;
 class SeatUserDConfig;
@@ -39,8 +38,6 @@ public:
     bool isInitializeFailed() const;
 
     TreelandConfig *globalConfig() const;
-    AnimationConfig *animationConfig(uint uid);
-    AnimationConfig *initialAnimationConfig() const;
     TreelandUserConfig *userConfig(uint uid);
     SeatUserDConfig *userSeatConfig(uint uid, const QString &seatName);
     OutputConfig *outputConfig(const QString &outputName);
@@ -71,8 +68,6 @@ private:
     static DConfigManager *s_instance;
 
     TreelandConfig *m_globalConfig = nullptr;
-    QHash<uint, AnimationConfig *> m_animationConfigs;
-    AnimationConfig *m_initialAnimationConfig = nullptr;
     QHash<uint, TreelandUserConfig *> m_userConfigs;
     QHash<uint, QHash<QString, SeatUserDConfig *>> m_seatUserConfigs;
     QHash<QString, OutputConfig *> m_outputConfigs;

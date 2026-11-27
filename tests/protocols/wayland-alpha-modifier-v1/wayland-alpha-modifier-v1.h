@@ -23,11 +23,17 @@ struct alpha_modifier_server_state {
 	int valid; /* a mapped SurfaceWrapper was captured */
 	int has_modifier; /* alpha modifier state found on the surface */
 	double multiplier; /* wlr_alpha_modifier_surface_v1_state::multiplier */
+	int has_content_item; /* SurfaceContent.qml root item is available */
+	double content_opacity; /* SurfaceContent.qml effective root opacity */
+	int has_item_content; /* SurfaceItemContent child item is available */
+	double item_content_opacity; /* SurfaceItemContent child opacity */
 };
 
 /* Defined in setup.cpp; runs on the compositor thread via
  * invoke_on_server_thread() and fills *data with the multiplier. */
 void alpha_modifier_read_server_state(void *data);
+void alpha_modifier_set_transparency_enabled(void *data);
+void alpha_modifier_set_effect_level(void *data);
 
 #ifdef __cplusplus
 }

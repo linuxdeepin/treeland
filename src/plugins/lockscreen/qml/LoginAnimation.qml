@@ -20,7 +20,8 @@ Item {
     property int state: LoginAnimation.Show
     required property var target
 
-    readonly property bool animationEnabled: WaylandServer.animationConfig.lockscreen
+    readonly property bool animationEnabled: WaylandServer.isEffectEnabled(
+        WaylandServer.effectLevel, WaylandServer.config.lockscreen)
 
     function start(pos, to) {
         if (GreeterProxy.showAnimation && animationEnabled) {

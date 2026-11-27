@@ -94,7 +94,7 @@ OutputItem {
         function rotationOutput(orientation) {
             setTransform.stop()
 
-            if (!WaylandServer.animationConfig.outputRotation) {
+            if (!WaylandServer.isEffectEnabled(WaylandServer.effectLevel, WaylandServer.config.outputRotation)) {
                 // Apply the visual value and the real transform together instead
                 // of waiting for the half-way timer.
                 rotationAnimator.complete()
@@ -116,7 +116,8 @@ OutputItem {
         anchors.fill: parent
         WallpaperSwitcher {
             id: wallpaper
-            readonly property bool enableAnimation: WaylandServer.animationConfig.wallpaperScale
+            readonly property bool enableAnimation: WaylandServer.isEffectEnabled(
+                WaylandServer.effectLevel, WaylandServer.config.wallpaperScale)
 
             clip: true
             anchors.fill: parent

@@ -5,6 +5,7 @@
 
 #include <wlr_fwd.h>
 #include "core/qmlengine.h"
+#include "dconfig/effectlevel.h"
 #include "modules/activation/activationmanagerinterfacev1.h"
 #include "modules/wallpaper/wallpapermanagerinterfacev1.h"
 #include "modules/wallpaper/wallpapernotifierinterfacev1.h"
@@ -49,7 +50,6 @@ Q_MOC_INCLUDE("surface/surfacewrapper.h")
 Q_MOC_INCLUDE("workspace/workspace.h")
 Q_MOC_INCLUDE("treelandconfig.hpp")
 Q_MOC_INCLUDE("treelanduserconfig.hpp")
-Q_MOC_INCLUDE("animationconfig.hpp")
 
 QT_BEGIN_NAMESPACE
 class QDBusObjectPath;
@@ -133,7 +133,6 @@ class ShortcutRunner;
 class SurfaceContainer;
 class SurfaceWrapper;
 class TreelandConfig;
-class AnimationConfig;
 class TreelandUserConfig;
 class TreelandRemoteSource;
 class Session;
@@ -166,7 +165,7 @@ class WaylandServer : public QObject, public WAYLIB_SERVER_NAMESPACE::WObject
     Q_PROPERTY(OutputMode outputMode READ outputMode WRITE setOutputMode NOTIFY outputModeChanged FINAL)
     Q_PROPERTY(SurfaceWrapper* activatedSurface READ activatedSurface NOTIFY activatedSurfaceChanged FINAL)
     Q_PROPERTY(Workspace* workspace READ workspace NOTIFY workspaceChanged FINAL)
-    Q_PROPERTY(AnimationConfig* animationConfig READ animationConfig NOTIFY animationConfigChanged FINAL)
+    Q_PROPERTY(int effectLevel READ effectLevel NOTIFY effectLevelChanged FINAL)
     Q_PROPERTY(TreelandUserConfig* config READ config NOTIFY configChanged FINAL)
     Q_PROPERTY(TreelandConfig* globalConfig READ globalConfig CONSTANT FINAL)
     Q_PROPERTY(bool blockActivateSurface READ blockActivateSurface WRITE setBlockActivateSurface NOTIFY blockActivateSurfaceChanged FINAL)
@@ -210,7 +209,16 @@ public:
 
     static WaylandServer *instance();
     bool isAvailable() const { return m_instance != nullptr; }
-    AnimationConfig *animationConfig() const;
+    int effectLevel() const { return static_cast<int>(m_effectLevel); }
+    EffectLevel::Level effectLevelEnum() const { return m_effectLevel; }
+    bool isEffectEnabled(qlonglong minLevel) const
+    {
+        return effectEnabledForLevel(m_effectLevel, minLevel);
+    }
+    Q_INVOKABLE bool isEffectEnabled(int currentLevel, qlonglong minLevel) const
+    {
+        return minLevel > EffectLevel::None && currentLevel >= minLevel;
+    }
     TreelandUserConfig *config();
     TreelandConfig *globalConfig();
 
@@ -367,7 +375,7 @@ Q_SIGNALS:
     void activeSessionChanged();
     void workspaceChanged();
     void workspaceAdded();
-    void animationConfigChanged();
+    void effectLevelChanged();
     void configChanged();
     void primaryOutputChanged();
     void activatedSurfaceChanged();
@@ -437,8 +445,8 @@ private:
     friend class ShellActionExecutor;
 
     static WaylandServer *m_instance;
-    void setAnimationConfig(AnimationConfig *config);
-    AnimationConfig *m_animationConfig = nullptr;
+    void updateEffectLevel();
+    EffectLevel::Level m_effectLevel = EffectLevel::High;
     TreelandUserConfig *m_config = nullptr;
     TreelandConfig *m_globalConfig = nullptr;
     Treeland::Treeland *m_treeland = nullptr;

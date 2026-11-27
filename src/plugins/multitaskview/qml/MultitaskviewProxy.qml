@@ -23,7 +23,8 @@ Multitaskview {
     property real taskviewVal: 0
     property bool inProgress: false
 
-    readonly property bool enableAnimation: WaylandServer.animationConfig.multitaskview
+    readonly property bool enableAnimation: WaylandServer.isEffectEnabled(
+        WaylandServer.effectLevel, root.desktop.config.multitaskview)
 
     onActionFinished: {
         if (root.status === Multitaskview.Exited) {
@@ -159,6 +160,7 @@ Multitaskview {
             Blur {
                 z: Multitaskview.Background
                 anchors.fill: parent
+                effectConfig: root.desktop.config
                 opacity: root.taskviewVal
                 radiusEnabled: false
             }
@@ -251,6 +253,7 @@ Multitaskview {
                                 Blur {
                                     z: Multitaskview.Background
                                     anchors.fill: parent
+                                    effectConfig: root.desktop.config
                                     opacity: root.taskviewVal
                                     radiusEnabled: false
                                 }

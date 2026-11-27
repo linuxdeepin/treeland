@@ -6,13 +6,13 @@
 #include "wallpaperitem.h"
 #include "core/waylandserver.h"
 #include "dconfig/dconfigmanager.h"
+#include "dconfig/effectlevel.h"
 #include "lockscreen/lockscreenmanager.h"
 #include "workspace/workspacemodel.h"
 #include "wallpapershellinterfacev1.h"
 #include "wallpapermanager.h"
 #include "workspace.h"
 #include "shellhandler.h"
-#include "animationconfig.hpp"
 #include "treelanduserconfig.hpp"
 
 #ifndef DISABLE_DDM
@@ -247,8 +247,10 @@ void WallpaperSwitcherItem::handleWallpaperUpdate()
         return;
     }
 
-    auto *config = WaylandServer::instance()->animationConfig();
-    presentSlot(newSlot, m_play && (!config || config->wallpaperCrossFade()));
+    auto *server = WaylandServer::instance();
+    auto *config = server ? server->config() : nullptr;
+    presentSlot(newSlot,
+                m_play && (!server || !config || server->isEffectEnabled(config->wallpaperCrossFade())));
 }
 
 void WallpaperSwitcherItem::updateGreeterWallpaper()
@@ -282,9 +284,11 @@ void WallpaperSwitcherItem::updateGreeterWallpaper()
     newSlot->setPlay(m_play);
     lockScreenManager->updateGreeterWallpapers(this, {});
 
-    auto *config = server->animationConfig();
+    auto *config = server->config();
     const bool animated = m_play && m_currentSlot->surface()
-        && (!config || (config->lockscreen() && config->wallpaperCrossFade()));
+        && (!config
+            || (server->isEffectEnabled(config->lockscreen())
+                && server->isEffectEnabled(config->wallpaperCrossFade())));
     presentSlot(newSlot, animated);
 }
 

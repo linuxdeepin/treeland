@@ -25,6 +25,7 @@ Item {
     // finishes instead of following it. Mirror MinimizeAnimation/GeometryAnimation
     // and render a shadow that fades together with the captured content.
     readonly property bool showShadow: target.visibleDecoration && !target.noDecoration
+        && target.shadowVisible
 
     function start() {
         animation.start();

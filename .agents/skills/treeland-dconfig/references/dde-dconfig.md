@@ -15,7 +15,7 @@ treeland 的参数映射：
 - `-s <subpath>`：seat、output 或应用作用域配置的 subpath。
 - `-k <key>`：配置键。
 - `-v <value>`：`set` 使用的值。
-- `-u <uid>`：用户偏好、动画、seat 和应用配置必须指定其所属用户 UID。
+- `-u <uid>`：用户偏好（含动画/特效档位阈值）、seat 和应用配置必须指定其所属用户 UID。
 
 常用命令：
 
@@ -26,12 +26,15 @@ dde-dconfig list
 # 列出合成器全局 TreelandConfig 的键
 dde-dconfig get -a org.deepin.dde.treeland -r org.deepin.dde.treeland
 
-# 读写合成器全局键
+# 读写合成器全局键（含系统动效档位 effectLevel：none/low/medium/high）
 dde-dconfig get -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k showOtherUserOption
 dde-dconfig set -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k showOtherUserOption -v true
+dde-dconfig set -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k effectLevel -v '"medium"'
 
-# 读取当前用户 TreelandUserConfig 的键
+# 读写指定用户 TreelandUserConfig 的键（含 0=none 1=low 2=medium 3=high 动画/特效阈值）
 dde-dconfig get -a org.deepin.dde.treeland -u 1000 -r org.deepin.dde.treeland.user -k cursorSize
+dde-dconfig get -a org.deepin.dde.treeland -u 1000 -r org.deepin.dde.treeland.user -k windowOpen
+dde-dconfig set -a org.deepin.dde.treeland -u 1000 -r org.deepin.dde.treeland.user -k windowOpen -v 2
 
 # 读取按应用 AppConfig 的键
 dde-dconfig get -a org.deepin.dde.treeland -u 1000 -r org.deepin.dde.treeland.user.app -s /deepin-screen-recorder -k enablePrelaunchSplash
@@ -55,8 +58,8 @@ dde-dconfig get -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k showOth
 说明：
 
 - 值由 `dde-dconfig` 解析；使用 JSON 风格取值（`true`、`false`、数字，必要时用带引号的字符串）。不要写 `ture` 这类拼写错误，即使某个本地工具版本看起来会强制接受。
-- `-r org.deepin.dde.treeland` 对应 `TreelandConfig`。
-- `-u <uid> -r org.deepin.dde.treeland.user` 对应指定用户的 `TreelandUserConfig`；动画配置同样使用 UID，subpath 为空。
+- `-r org.deepin.dde.treeland` 对应 `TreelandConfig`（含系统级 `effectLevel`）。
+- `-u <uid> -r org.deepin.dde.treeland.user` 对应指定用户的 `TreelandUserConfig`（含动画/特效阈值，subpath 为空）。
 - `-u <uid> -r org.deepin.dde.treeland.user.seat -s /<seatName>` 对应 `SeatUserDConfig`。
 - `-r org.deepin.dde.treeland.output -s /<outputName>` 对应 `OutputConfig`。
 - `-u <uid> -r org.deepin.dde.treeland.user.app -s /<appId>` 对应 `WindowConfigStore` / `AppConfig`。

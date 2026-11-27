@@ -12,8 +12,8 @@
 #include "output/output.h"
 #include "core/waylandserver.h"
 #include "surface/surfacewindowtransition.h"
+#include "dconfig/effectlevel.h"
 #include "treelanduserconfig.hpp"
-#include "animationconfig.hpp"
 #include "workspace/workspace.h"
 #include "wtoplevelsurface.h"
 #include "wxdgtoplevelsurface.h"
@@ -128,6 +128,11 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     connect(original, &SurfaceWrapper::renderingEnabledChanged, this, [this, original] {
         setRenderingEnabled(original->renderingEnabled());
     });
+    connect(original, &SurfaceWrapper::desktopChanged, this, [this, original] {
+        m_session = original->m_session;
+        bindWindowEffectsConfig();
+        Q_EMIT desktopChanged();
+    });
     m_windowTransition = std::make_unique<SurfaceWindowTransition>(this);
     QQmlEngine::setContextForObject(this, m_engine->rootContext());
     initializeFrameGeometry();
@@ -226,8 +231,9 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
 bool SurfaceWrapper::windowAnimationEnabled(uint direction) const
 {
     auto *server = WaylandServer::instance();
-    auto *config = server ? server->animationConfig() : nullptr;
-    if (!config)
+    const auto *owner = desktop();
+    const auto *config = owner ? owner->config() : (server ? server->config() : nullptr);
+    if (!server || !config)
         return true;
 
     const bool open = direction == OPEN_ANIMATION;
@@ -235,15 +241,19 @@ bool SurfaceWrapper::windowAnimationEnabled(uint direction) const
     case Type::SplashScreen:
     case Type::XdgToplevel:
     case Type::XWayland:
-        return open ? config->windowOpen() : config->windowClose();
+        return server->isEffectEnabled(open ? config->windowOpen() : config->windowClose());
     case Type::Layer: {
         auto *layerSurface = qobject_cast<WLayerSurface *>(m_shellSurface.data());
         if (!layerSurface)
             return true;
-        if (isLaunchpad())
-            return open ? config->launchpadOpenFullscreen() : config->launchpadCloseFullscreen();
-        if (layerSurface->getExclusiveZoneEdge() != WLayerSurface::AnchorType::None)
-            return open ? config->layerShellOpen() : config->layerShellClose();
+        if (isLaunchpad()) {
+            return server->isEffectEnabled(
+                open ? config->launchpadOpenFullscreen() : config->launchpadCloseFullscreen());
+        }
+        if (layerSurface->getExclusiveZoneEdge() != WLayerSurface::AnchorType::None) {
+            return server->isEffectEnabled(
+                open ? config->layerShellOpen() : config->layerShellClose());
+        }
         return true;
     }
     default:
@@ -254,18 +264,19 @@ bool SurfaceWrapper::windowAnimationEnabled(uint direction) const
 bool SurfaceWrapper::geometryAnimationEnabled(State state) const
 {
     auto *server = WaylandServer::instance();
-    auto *config = server ? server->animationConfig() : nullptr;
-    if (!config)
+    const auto *owner = desktop();
+    const auto *config = owner ? owner->config() : (server ? server->config() : nullptr);
+    if (!server || !config)
         return true;
 
     switch (state) {
     case State::Maximized:
-        return config->maximize();
+        return server->isEffectEnabled(config->maximize());
     case State::Fullscreen:
-        return config->fullscreen();
+        return server->isEffectEnabled(config->fullscreen());
     case State::Normal:
     case State::Tiling:
-        return config->restoreWindow();
+        return server->isEffectEnabled(config->restoreWindow());
     default:
         return true;
     }
@@ -2285,8 +2296,12 @@ void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint dir
 
     // The minimize/restore state and visibility are already committed by the
     // caller; disabling the animation only skips the shrink/expand transition.
-    auto *config = WaylandServer::instance()->animationConfig();
-    if (config && !(direction == OPEN_ANIMATION ? config->restoreMinimized() : config->minimize())) {
+    auto *server = WaylandServer::instance();
+    const auto *owner = desktop();
+    const auto *config = owner ? owner->config() : (server ? server->config() : nullptr);
+    if (server && config
+        && !server->isEffectEnabled(direction == OPEN_ANIMATION ? config->restoreMinimized()
+                                                                : config->minimize())) {
         // A transition started by the opposite request would keep its snapshot
         // over the real window (hideSource) until it ends; release it so the
         // committed state shows right away.
@@ -2363,8 +2378,11 @@ void SurfaceWrapper::startShowDesktopAnimation(bool show)
 
     // The final visibility is driven by m_hideByshowDesk, so the disabled path
     // finishes exactly like the animation's finished handler.
-    auto *config = WaylandServer::instance()->animationConfig();
-    if (config && !(show ? config->restoreShowDesktop() : config->showDesktop())) {
+    auto *server = WaylandServer::instance();
+    const auto *owner = desktop();
+    const auto *config = owner ? owner->config() : (server ? server->config() : nullptr);
+    if (server && config
+        && !server->isEffectEnabled(show ? config->restoreShowDesktop() : config->showDesktop())) {
         updateVisible();
         return;
     }
@@ -2387,17 +2405,59 @@ void SurfaceWrapper::initializeFrameGeometry()
     connect(this, &SurfaceWrapper::visibleDecorationChanged, this, &SurfaceWrapper::updateFrameGeometry);
     connect(this, &SurfaceWrapper::surfaceItemCreated, this, &SurfaceWrapper::updateFrameGeometry);
     connect(this, &SurfaceWrapper::prelaunchSplashChanged, this, &SurfaceWrapper::updateFrameGeometry);
-    updateRadiusConfig();
+    if (auto *server = WaylandServer::instance()) {
+        connect(server, &WaylandServer::effectLevelChanged,
+                this, &SurfaceWrapper::onEffectLevelChanged);
+    }
+    bindWindowEffectsConfig();
 }
 
-void SurfaceWrapper::updateRadiusConfig()
+void SurfaceWrapper::onEffectLevelChanged()
 {
-    disconnect(m_radiusConfigConnection);
-    if (auto *owner = desktop()) {
-        m_radiusConfigConnection = connect(owner->config(), &TreelandUserConfig::windowRadiusChanged,
-                                           this, &SurfaceWrapper::radiusChanged);
+    updateCornerRadius();
+    Q_EMIT shadowChanged();
+    Q_EMIT borderChanged();
+    Q_EMIT blurChanged();
+}
+
+void SurfaceWrapper::bindWindowEffectsConfig()
+{
+    auto *owner = desktop();
+    auto *config = owner ? owner->config() : nullptr;
+    if (m_effectsConfig == config)
+        return;
+
+    for (const auto &connection : std::as_const(m_effectsConfigConnections))
+        disconnect(connection);
+    m_effectsConfigConnections.clear();
+    m_effectsConfig = config;
+
+    if (config) {
+        m_effectsConfigConnections.append(
+            connect(config, &TreelandUserConfig::windowRadiusChanged,
+                    this, &SurfaceWrapper::radiusChanged));
+        m_effectsConfigConnections.append(
+            connect(config, &TreelandUserConfig::windowCornerRadiusEnabledChanged,
+                    this, &SurfaceWrapper::updateCornerRadius));
+        m_effectsConfigConnections.append(
+            connect(config, &TreelandUserConfig::windowShadowEnabledChanged,
+                    this, &SurfaceWrapper::shadowChanged));
+        m_effectsConfigConnections.append(
+            connect(config, &TreelandUserConfig::windowBorderEnabledChanged,
+                    this, &SurfaceWrapper::borderChanged));
+        m_effectsConfigConnections.append(
+            connect(config, &TreelandUserConfig::backgroundEffectEnabledChanged,
+                    this, &SurfaceWrapper::blurChanged));
     }
+
+    onEffectLevelChanged();
+}
+
+void SurfaceWrapper::updateCornerRadius()
+{
     Q_EMIT radiusChanged();
+    if (m_prelaunchFrameGeometry)
+        Q_EMIT presentationFrameGeometryChanged();
 }
 
 void SurfaceWrapper::updateFrameGeometry()
@@ -2434,9 +2494,19 @@ void SurfaceWrapper::updateFrameGeometry()
         Q_EMIT presentationFrameGeometryChanged();
 }
 
+bool SurfaceWrapper::cornerRadiusEnabled() const
+{
+    const auto *server = WaylandServer::instance();
+    const auto *owner = desktop();
+    const auto *config = owner ? owner->config() : nullptr;
+    const qlonglong minLevel = config ? config->windowCornerRadiusEnabled() : EffectLevel::Medium;
+    return server ? server->isEffectEnabled(minLevel)
+                  : effectEnabledForLevel(EffectLevel::High, minLevel);
+}
+
 qreal SurfaceWrapper::radius() const
 {
-    if (isInputPopupLike())
+    if (!cornerRadiusEnabled() || isInputPopupLike())
         return 0;
     if (m_type == Type::XdgPopup)
         return 8;
@@ -2446,7 +2516,9 @@ qreal SurfaceWrapper::radius() const
     // Every non-negative value is explicit and applied as sent, including 0 which
     // means square corners (treeland-decoration set_corner_radius(0)).
     if (radius < 0 && m_type != Type::Layer && !m_isProxy) {
-        radius = (desktop() ? desktop()->config()->windowRadius() : 0);
+        const auto *owner = desktop();
+        const auto *config = owner ? owner->config() : nullptr;
+        radius = config ? config->windowRadius() : 0;
     }
 
     return radius < 0 ? 0 : radius;
@@ -2486,7 +2558,13 @@ QColor SurfaceWrapper::shadowColor() const
 
 bool SurfaceWrapper::shadowVisible() const
 {
-    return m_shadowVisible;
+    const auto *server = WaylandServer::instance();
+    const auto *owner = desktop();
+    const auto *config = owner ? owner->config() : nullptr;
+    const qlonglong minLevel = config ? config->windowShadowEnabled() : EffectLevel::Medium;
+    const bool allowed = server ? server->isEffectEnabled(minLevel)
+                                : effectEnabledForLevel(EffectLevel::High, minLevel);
+    return m_shadowVisible && allowed;
 }
 
 void SurfaceWrapper::setShadowValues(qreal blur, qreal offsetX, qreal offsetY, const QColor &color)
@@ -2521,7 +2599,13 @@ QColor SurfaceWrapper::borderColor() const
 
 bool SurfaceWrapper::borderVisible() const
 {
-    return m_borderVisible;
+    const auto *server = WaylandServer::instance();
+    const auto *owner = desktop();
+    const auto *config = owner ? owner->config() : nullptr;
+    const qlonglong minLevel = config ? config->windowBorderEnabled() : EffectLevel::Medium;
+    const bool allowed = server ? server->isEffectEnabled(minLevel)
+                                : effectEnabledForLevel(EffectLevel::High, minLevel);
+    return m_borderVisible && allowed;
 }
 
 void SurfaceWrapper::setBorderValues(qreal width, const QColor &color)
@@ -3073,7 +3157,8 @@ void SurfaceWrapper::setSession(Session *session)
     }
     if (session && (type() == Type::XdgToplevel || type() == Type::XWayland || !shellSurface()))
         session->registerWindow(this);
-    updateRadiusConfig();
+    bindWindowEffectsConfig();
+    Q_EMIT desktopChanged();
 }
 
 int SurfaceWrapper::workspaceId() const
@@ -3191,7 +3276,13 @@ SurfaceWrapper *SurfaceWrapper::findModal() const
 
 bool SurfaceWrapper::blur() const
 {
-    return m_blurPersonalization || m_blurBackgroundEffect;
+    const auto *server = WaylandServer::instance();
+    const auto *owner = desktop();
+    const auto *config = owner ? owner->config() : nullptr;
+    const qlonglong minLevel = config ? config->backgroundEffectEnabled() : EffectLevel::Medium;
+    const bool allowed = server ? server->isEffectEnabled(minLevel)
+                                : effectEnabledForLevel(EffectLevel::High, minLevel);
+    return (m_blurPersonalization || m_blurBackgroundEffect) && allowed;
 }
 
 void SurfaceWrapper::setBlurPersonalization(bool blur)

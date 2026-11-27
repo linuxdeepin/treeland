@@ -13,7 +13,7 @@
 #include <wbackend.h>
 #include <wforeigntoplevelv1.h>
 
-#include "animationconfig.hpp"
+#include "treelandconfig.hpp"
 
 namespace {
 SurfaceWrapper *g_wrapper = nullptr;
@@ -29,11 +29,9 @@ void protocol_test_setup(WaylandServer *server)
     // fullscreen / restore request applies its surface state directly, so the
     // test neither paces frames nor waits for an animation completion signal
     // (same approach as the v3 foreign-toplevel test).
-    if (auto *animationConfig = server->animationConfig()) {
-        animationConfig->setMaximize(false);
-        animationConfig->setFullscreen(false);
-        animationConfig->setRestoreWindow(false);
-    }
+    // Medium disables animations while preserving window effects.
+    if (auto *globalConfig = server->globalConfig())
+        globalConfig->setEffectLevel(QStringLiteral("medium"));
     add_headless_output(server->backend(), false);
     auto *foreignToplevel = server->backend()->server()->findInterface<WForeignToplevel>();
     Q_ASSERT(foreignToplevel);
@@ -48,7 +46,7 @@ void protocol_test_setup(WaylandServer *server)
     QObject::connect(server->shellHandler(),
                      &ShellHandler::surfaceWrapperAdded,
                      server,
-                     [server](SurfaceWrapper *wrapper) {
+                     [](SurfaceWrapper *wrapper) {
                          if (wrapper->type() == SurfaceWrapper::Type::XdgToplevel)
                              g_wrapper = wrapper;
                      });

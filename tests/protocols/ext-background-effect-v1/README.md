@@ -17,6 +17,7 @@
 | 关联表面 | `get_background_effect(surface)` | 返回非 NULL 的 `ext_background_effect_surface_v1` | P |
 | 设置区域 | `set_blur_region(10,10 40x40)` + `commit` | 回读真实 `SurfaceWrapper::blur()` 为 true（非空区域启用整面 blur） | E |
 | 双缓冲保持 | 不再 `set_blur_region`，直接再 `commit` | `blur()` 仍为 true（pending 状态不会在 commit 间被清空） | E |
+| DConfig 关闭/恢复 | 关闭 `backgroundEffectEnabled` 并提交新 region，随后重新开启 | 关闭期间 `SurfaceWrapper::blur()` 为 false，重开后恢复为 true | E |
 | NULL 移除 | `set_blur_region(NULL)` + `commit` | 回读 `blur()` 为 false | E |
 | 重新启用 | `set_blur_region(0,0 128x128)` + `commit` | 回读 `blur()` 为 true | E |
 | 销毁对象 | `ext_background_effect_surface_v1.destroy` + `commit` | 回读 `blur()` 为 false | E |

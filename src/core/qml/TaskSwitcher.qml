@@ -26,7 +26,7 @@ Item {
     property bool enableShadows: GraphicsInfo.api !== GraphicsInfo.Software
     property bool enableRadius: true
     property bool enableAnimation: GraphicsInfo.api !== GraphicsInfo.Software
-                                   && WaylandServer.animationConfig.taskSwitcher
+                                   && WaylandServer.isEffectEnabled(WaylandServer.effectLevel, root.desktop.config.taskSwitcher)
     readonly property int leftpreferredMargin: 20
     readonly property int rightpreferredMargin: 20
     readonly property int mouseExitInterval: 400
@@ -210,8 +210,8 @@ Item {
             Blur {
                 anchors.fill: parent
                 visible: root.enableBlur
+                effectConfig: root.desktop.config
                 radius: root.radius
-                blurEnabled: root.enableBlur
             }
 
             Rectangle {

@@ -10,7 +10,8 @@ Item {
     id: root
     required property DesktopEnvironment desktop
     property int aniDuration: 350
-    property bool enableAnimation: aniDuration > 0 && WaylandServer.animationConfig.dockPreview
+    property bool enableAnimation: aniDuration > 0
+        && WaylandServer.isEffectEnabled(WaylandServer.effectLevel, root.desktop.config.dockPreview)
     // How long the closing window's picture takes to disappear. Every slot and
     // layer around it keeps using aniDuration; only the picture goes early.
     property int closeContentDuration: 100

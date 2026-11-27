@@ -6,8 +6,8 @@
 
 #include <cmath>
 #include "core/waylandserver.h"
+#include "dconfig/effectlevel.h"
 #include "treelanduserconfig.hpp"
-#include "animationconfig.hpp"
 
 WorkspaceAnimationController::WorkspaceAnimationController(QObject *parent)
     : QObject{ parent }
@@ -53,15 +53,15 @@ void WorkspaceAnimationController::setConfig(TreelandUserConfig *config)
 bool WorkspaceAnimationController::slideEnabled() const
 {
     auto *server = WaylandServer::instance();
-    auto *config = server ? server->animationConfig() : nullptr;
-    return !config || config->workspaceSwitch();
+    auto *config = server ? server->config() : nullptr;
+    return !server || !config || server->isEffectEnabled(config->workspaceSwitch());
 }
 
 bool WorkspaceAnimationController::bounceEnabled() const
 {
     auto *server = WaylandServer::instance();
-    auto *config = server ? server->animationConfig() : nullptr;
-    return !config || config->workspaceBounce();
+    auto *config = server ? server->config() : nullptr;
+    return !server || !config || server->isEffectEnabled(config->workspaceBounce());
 }
 
 qreal WorkspaceAnimationController::refWidth() const

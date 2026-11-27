@@ -17,6 +17,7 @@
 #include "seatuserconfig.hpp"
 #include "seat/seatmanager.h"
 #include "session/session.h"
+#include "treelandconfig.hpp"
 #include "treelanduserconfig.hpp"
 #include "utils/cmdline.h"
 #include "utils/scriptrunner.h"
@@ -127,10 +128,12 @@ public:
         qCInfo(lcTlConfig) << "Waiting for initial user DConfig initialization for UID"
                            << initialUid;
 
+        auto *globalConfig = configManager->globalConfig();
         auto *userConfig = configManager->initialUserConfig();
         auto *seatConfig = configManager->userSeatConfig(initialUid, QStringLiteral(DEFAULT_SEAT_NAME));
         auto initialized = std::make_shared<bool>(false);
         auto initializeWhenReady = [initializeTreeland,
+                                    globalConfig,
                                     userConfig,
                                     seatConfig,
                                     initialized,
@@ -139,24 +142,39 @@ public:
                 return;
             }
 
+            const bool globalSucceeded = globalConfig && globalConfig->isInitializeSucceeded();
             const bool userSucceeded = userConfig && userConfig->isInitializeSucceeded();
             const bool seatSucceeded = seatConfig && seatConfig->isInitializeSucceeded();
+            const bool globalFinished = !globalConfig || configurationReady(globalConfig);
             const bool userFinished = !userConfig || configurationReady(userConfig);
             const bool seatFinished = !seatConfig || configurationReady(seatConfig);
-            if (!userFinished || !seatFinished) {
+            if (!globalFinished || !userFinished || !seatFinished) {
                 return;
             }
 
             *initialized = true;
-            if (!userSucceeded || !seatSucceeded) {
+            if (!globalSucceeded || !userSucceeded || !seatSucceeded) {
                 qCWarning(lcTlConfig)
-                    << "Initial user DConfig initialization failed; Treeland will continue with generated defaults.";
+                    << "Initial DConfig initialization failed; Treeland will continue with generated defaults.";
             } else {
                 qCInfo(lcTlConfig) << "Initial user DConfig initialization completed for UID"
                                    << initialUid;
             }
             initializeTreeland();
         };
+
+        if (globalConfig) {
+            connect(globalConfig,
+                    &TreelandConfig::configInitializeSucceed,
+                    this,
+                    initializeWhenReady,
+                    Qt::SingleShotConnection);
+            connect(globalConfig,
+                    &TreelandConfig::configInitializeFailed,
+                    this,
+                    initializeWhenReady,
+                    Qt::SingleShotConnection);
+        }
 
         if (userConfig) {
             connect(userConfig,

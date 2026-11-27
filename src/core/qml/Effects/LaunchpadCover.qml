@@ -8,7 +8,9 @@ import Waylib.Server
 
 Item {
     id: root
-    readonly property bool enableAnimation: WaylandServer.animationConfig.launchpadCover
+    readonly property bool enableAnimation: WaylandServer.isEffectEnabled(
+        WaylandServer.effectLevel,
+        (root.wrapper.desktop?.config ?? WaylandServer.config).launchpadCover)
     clip: true
 
     required property SurfaceWrapper wrapper
@@ -78,6 +80,7 @@ Item {
     Blur {
         anchors.fill: parent
         z: wallpaperSource.z + 1
+        effectConfig: root.wrapper.desktop?.config ?? WaylandServer.config
     }
 
     Rectangle {

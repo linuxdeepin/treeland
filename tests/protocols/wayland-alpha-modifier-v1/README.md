@@ -16,6 +16,7 @@
 | 设置透明度 0 | `set_multiplier(0)` + `commit` | 无协议错误 | P |
 | 设置不透明度 | `set_multiplier(UINT32_MAX)` + `commit` | 无协议错误 | P |
 | 真实乘数 0 | 回读真实 `wlr_alpha_modifier_surface_v1_state::multiplier` | == 0.0 | E |
+| DConfig 透明度开关 | `set_multiplier(0x80000000)` + 切换 `windowTransparencyEnabled` | 开启时 `SurfaceContent` `opacity` 约 0.5（且子项 `SurfaceItemContent` 不二次累乘）；关闭时 `content_opacity == 1.0`；重开后恢复约 0.5 | E |
 | 真实乘数 1 | 回读真实 `wlr_alpha_modifier_surface_v1_state::multiplier` | == 1.0 | E |
 
 ## 生产结果

@@ -5,7 +5,9 @@
         "showOnLock": {
             "value": false,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Show on lock screen",
             "name[zh_CN]": "显示在锁屏之上",
             "description": "Allow show context on lock screen",
@@ -16,7 +18,9 @@
         "lostScreen": {
             "value": "MoveToPrimary",
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Behaivor when lost screen",
             "name[zh_CN]": "丢失屏幕的行为",
             "description": "Behaivor when lost screen, allow value: MoveToPrimary、Minimize",
@@ -27,7 +31,9 @@
         "font": {
             "value": "Source Han Sans SC",
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Font",
             "name[zh_CN]": "字体",
             "description": "Font Family",
@@ -38,7 +44,9 @@
         "monoFont": {
             "value": "Noto Mono",
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Mono Font",
             "name[zh_CN]": "等宽字体",
             "description": "Mono Font Family",
@@ -49,7 +57,9 @@
         "fontSize": {
             "value": 105,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Font Size",
             "name[zh_CN]": "字体大小",
             "description": "Font Size",
@@ -60,7 +70,9 @@
         "windowRadius": {
             "value": 12,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Round Corner Radius",
             "name[zh_CN]": "窗口圆角大小",
             "description": "Window Corner Round Radius",
@@ -71,7 +83,9 @@
         "preferDark": {
             "value": false,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Prefer Dark",
             "name[zh_CN]": "倾向暗色",
             "description": "Color scheme is prefer dark",
@@ -82,7 +96,9 @@
         "iconThemeName": {
             "value": "nirvana",
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Icon Theme Name",
             "name[zh_CN]": "图标主题名称",
             "description": "Icon Theme Name",
@@ -93,7 +109,9 @@
         "cursorThemeName": {
             "value": "bloom",
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Cursor Theme Name",
             "name[zh_CN]": "光标主题名称",
             "description": "Cursor Theme Name",
@@ -104,7 +122,9 @@
         "cursorSize": {
             "value": 24,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Cursor Size",
             "name[zh_CN]": "光标大小",
             "description": "Cursor Size",
@@ -115,7 +135,9 @@
         "cursorBlink": {
             "value": true,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Cursor Blink",
             "name[zh_CN]": "光标闪烁",
             "description": "Whether the cursor should blink",
@@ -126,7 +148,9 @@
         "cursorBlinkTime": {
             "value": 1200,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Cursor Blink Time",
             "name[zh_CN]": "光标闪烁时间",
             "description": "Length of the cursor blink cycle, in milleseconds",
@@ -137,7 +161,9 @@
         "doubleClickTime": {
             "value": 250,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Double Click Time",
             "name[zh_CN]": "双击时间",
             "description": "Maximum time allowed between two clicks for them to be considered a double click (in milliseconds)",
@@ -148,7 +174,9 @@
         "doubleClickDistance": {
             "value": 5,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Double Click Distance",
             "name[zh_CN]": "双击距离",
             "description": "Maximum distance allowed between two clicks for them to be considered a double click (in pixels)",
@@ -159,7 +187,9 @@
         "dndDragThreshold": {
             "value": 8,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Dnd Drag Threshold",
             "name[zh_CN]": "拖动阈值",
             "description": "Number of pixels the cursor can move before dragging",
@@ -170,7 +200,9 @@
         "maxWorkspace": {
             "value": 6,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Max Workspace Count",
             "name[zh_CN]": "工作区最大数量",
             "description": "Maximum number of workspaces",
@@ -181,7 +213,9 @@
         "numWorkspace": {
             "value": 2,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Number of workspaces",
             "name[zh_CN]": "工作区数量",
             "description": "Current number of workspaces",
@@ -192,7 +226,9 @@
         "currentWorkspace": {
             "value": 0,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Current workspace",
             "name[zh_CN]": "当前工作区",
             "description": "Current index of workspace",
@@ -203,7 +239,9 @@
         "activeColor": {
             "value": "#1F6EE7",
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Global Window Active Color",
             "name[zh_CN]": "全局窗口活动色",
             "description": "Set window active color",
@@ -214,7 +252,9 @@
         "windowOpacity": {
             "value": 40,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Global Window Opacity",
             "name[zh_CN]": "全局窗口不透明度",
             "description": "Set all window opacity",
@@ -225,7 +265,9 @@
         "windowColorScheme": {
             "value": 0,
             "serial": 1,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Global Window Color Scheme",
             "name[zh_CN]": "全局窗口配色",
             "description": "Color scheme hint: 0 light, 1 dark",
@@ -236,7 +278,9 @@
         "windowTitlebarHeight": {
             "value": 40,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Global Window titlebar height",
             "name[zh_CN]": "全局标题栏高度",
             "description": "Set all window default titlebar height",
@@ -247,7 +291,9 @@
         "defaultBackground": {
             "value": "/usr/share/backgrounds/default_background.jpg",
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Default background",
             "name[zh_CN]": "默认壁纸",
             "description": "Set the default displayed wallpaper, when no wallpaper is set",
@@ -258,7 +304,9 @@
         "workspaceThumbHeight": {
             "value": 144,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Workspace thumbnail height",
             "name[zh_CN]": "工作区缩略图高度",
             "description": "Workspace thumbnail height",
@@ -269,7 +317,9 @@
         "workspaceThumbMargin": {
             "value": 20,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Workspace thumbnail margin",
             "name[zh_CN]": "工作区缩略图边距",
             "description": "Workspace thumbnail margin",
@@ -280,7 +330,9 @@
         "workspaceThumbCornerRadius": {
             "value": 8,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Workspace thumbnail corner radius",
             "name[zh_CN]": "工作区缩略图圆角弧度",
             "description": "Workspace thumbnail corner radius",
@@ -291,7 +343,9 @@
         "highlightBorderWidth": {
             "value": 4,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Highlight border width",
             "name[zh_CN]": "高亮边框宽度",
             "description": "Highlight border width",
@@ -302,7 +356,9 @@
         "minMultitaskviewSurfaceHeight": {
             "value": 232,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Multitask view surface minimal height",
             "name[zh_CN]": "多任务视图表面最小高度",
             "description": "Multitask view surface minimal height",
@@ -313,7 +369,9 @@
         "titleBoxCornerRadius": {
             "value": 8,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Title box corner radius",
             "name[zh_CN]": "标题框圆角弧度",
             "description": "Title box corner radius",
@@ -324,7 +382,9 @@
         "normalWindowHeight": {
             "value": 720,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Normal window height",
             "name[zh_CN]": "正常窗口高度",
             "description": "Normal window height",
@@ -335,7 +395,9 @@
         "windowHeightStep": {
             "value": 15,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Window height step",
             "name[zh_CN]": "窗口高度梯度",
             "description": "Window height step",
@@ -346,7 +408,9 @@
         "multitaskviewPaddingOpacity": {
             "value": 0.1,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Multitaskview padding opacity",
             "name[zh_CN]": "多任务视图内边距不透明度",
             "description": "Multitask view padding opacity",
@@ -357,7 +421,9 @@
         "multitaskviewAnimationDuration": {
             "value": 300,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Multitaskview animation duration",
             "name[zh_CN]": "多任务视图动画时长",
             "description": "Multitaskview animation duration",
@@ -368,7 +434,9 @@
         "multitaskviewEasingCurveType": {
             "value": 22,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Multitaskview easing curve type",
             "name[zh_CN]": "多任务视图缓动曲线类型",
             "description": "Multitaskview easing curve type, enumerate value of QEasingCurve::Type",
@@ -379,7 +447,9 @@
         "multitaskviewTopContentMargin": {
             "value": 40,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Multitaskview top content margin",
             "name[zh_CN]": "多任务视图内容顶边距",
             "description": "Multitaskview top content margin",
@@ -390,7 +460,9 @@
         "multitaskviewBottomContentMargin": {
             "value": 60,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Multitaskview bottom content margin",
             "name[zh_CN]": "多任务视图内容底边距",
             "description": "Multitaskview bottom content margin",
@@ -401,7 +473,9 @@
         "multitaskviewHorizontalMargin": {
             "value": 20,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Multitaskview horizontal margin",
             "name[zh_CN]": "多任务视图横向边距",
             "description": "Multitaskview horizontal margin",
@@ -412,7 +486,9 @@
         "multitaskviewCellPadding": {
             "value": 12,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Multitaskview cell padding",
             "name[zh_CN]": "多任务视图单元格间距",
             "description": "Multitaskview cell padding",
@@ -423,7 +499,9 @@
         "multitaskviewLoadFactor": {
             "value": 0.6,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Multitaskview load factor",
             "name[zh_CN]": "多任务视图加载因子",
             "description": "Multitaskview load factor",
@@ -434,7 +512,9 @@
         "wallpaperConfig": {
             "value": "",
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Wallpaper Config",
             "name[zh_CN]": "壁纸配置",
             "description": "A configuration to manage wallpapers used by the system, including desktop and lockscreen wallpapers for each screen and workspace.",
@@ -445,7 +525,9 @@
         "glassEnabled": {
             "value": false,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Glass Effect Enabled",
             "name[zh_CN]": "液态玻璃效果开关",
             "description": "Use the Liquid Glass effect for backdrop blur regions instead of the plain blur. When disabled, the traditional Gaussian blur is used with no side effects.",
@@ -456,7 +538,9 @@
         "blurStrength": {
             "value": 60,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Blur Strength",
             "name[zh_CN]": "模糊强度",
             "description": "Maximum blur strength (in pixels) applied to the backdrop blur regions. When set to 0, blur is completely disabled. Range: 0-128.",
@@ -467,7 +551,9 @@
         "glassBezel": {
             "value": 30,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Glass Bezel Width",
             "name[zh_CN]": "玻璃边缘厚度",
             "description": "The rounded edge bevel width in pixels for the Liquid Glass effect. Range: 2-60.",
@@ -478,7 +564,9 @@
         "glassThickness": {
             "value": 30,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Glass Base Thickness",
             "name[zh_CN]": "玻璃基础厚度",
             "description": "The glass thickness in pixels for Liquid Glass refraction. Range: 10.0-200.0.",
@@ -489,7 +577,9 @@
         "blurAmount": {
             "value": 0.6,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Blur Amount",
             "name[zh_CN]": "模糊量",
             "description": "Normalized blur amount applied by Qt MultiEffect. 0 disables the blur contribution while keeping the effect item alive; default 0.6 uses 60% of the configured blur strength. Range: 0.0-1.0.",
@@ -500,7 +590,9 @@
         "blurMultiplier": {
             "value": 0.0,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Blur Multiplier",
             "name[zh_CN]": "模糊倍率",
             "description": "Multiplier applied to extend the backdrop blur radius. 0 keeps Qt MultiEffect's default-quality blur radius; larger values extend the radius but reduce quality. Range: 0.0-4.0.",
@@ -511,7 +603,9 @@
         "glassSaturation": {
             "value": 0.0,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Glass Saturation",
             "name[zh_CN]": "玻璃饱和度",
             "description": "Saturation adjustment applied by Qt MultiEffect before Liquid Glass refraction. Range: -1.0-1.0.",
@@ -522,7 +616,9 @@
         "glassSpecular": {
             "value": 0.0,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Glass Specular",
             "name[zh_CN]": "玻璃高光强度",
             "description": "Specular highlight intensity for the Liquid Glass rim and Fresnel response. 0 disables specular highlights. Range: 0.0-1.0.",
@@ -533,7 +629,9 @@
         "glassProfilePower": {
             "value": 2.0,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Glass Profile Power",
             "name[zh_CN]": "玻璃轮廓幂次",
             "description": "Surface profile exponent controlling the super-ellipse shape. 2 produces a rounder profile; higher values sharpen the bezel transition. Range: 1.0-10.0.",
@@ -544,7 +642,9 @@
         "lockscreenWallpaperDimEnabled": {
             "value": true,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Lock Screen Wallpaper Dim",
             "name[zh_CN]": "锁屏壁纸压暗",
             "description": "Dim the lock screen and shutdown menu wallpaper so the login UI stays legible. When disabled the wallpaper is drawn untouched. The strength is controlled by lockscreenWallpaperDimRatio.",
@@ -555,7 +655,9 @@
         "lockscreenWallpaperDimRatio": {
             "value": 0.25,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Lock Screen Wallpaper Dim Ratio",
             "name[zh_CN]": "锁屏壁纸压暗比例",
             "description": "Maximum dimming ratio applied to the lock screen and shutdown menu wallpaper when lockscreenWallpaperDimEnabled is on. The wallpaper is scaled by (1 - ratio * luma), so highlights are dimmed while hue and saturation are preserved. Set to 0 to disable dimming entirely. Range: 0.0-1.0.",
@@ -566,7 +668,9 @@
         "edgeSideTriggerDistance": {
             "value": 20,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Edge Side Trigger Distance",
             "name[zh_CN]": "左右边缘触发距离",
             "description": "Distance in pixels from the left/right screen edge at which half-screen tiling triggers",
@@ -577,7 +681,9 @@
         "edgeTopTriggerDistance": {
             "value": 5,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Edge Top Trigger Distance",
             "name[zh_CN]": "顶部边缘触发距离",
             "description": "Distance in pixels from the top screen edge at which maximize triggers",
@@ -588,7 +694,9 @@
         "edgeQuadrantZoneRatio": {
             "value": 0.25,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Edge Quadrant Zone Ratio",
             "name[zh_CN]": "四分之一屏触发区域比例",
             "description": "Ratio of the edge length forming the corner (quadrant) tiling zone. Cursor within this ratio of the top/bottom of a side edge tiles to the corner quadrant, the middle zone keeps half-screen tiling. Range: 0.0-0.5",
@@ -599,7 +707,9 @@
         "edgeInnerDelayMs": {
             "value": 250,
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "Edge Inner Delay",
             "name[zh_CN]": "内边延迟",
             "description": "Delay in milliseconds before activating edge tiling on an inner edge between screens",
@@ -610,11 +720,429 @@
         "x11GtkIMModule": {
             "value": "fcitx",
             "serial": 0,
-            "flags": ["user-public"],
+            "flags": [
+                "user-public"
+            ],
             "name": "GTK Input Method Module (X11)",
             "name[zh_CN]": "GTK 输入法模块（X11）",
             "description": "GTK input method module published through the XSettings Gtk/IMModule property, applied by GTK2/3/4 applications running on X11, including XWayland. Wayland GTK applications pick their input method through the Wayland text-input protocol and ignore this value. A colon separated list of modules is allowed. An empty value does not remove the property: GTK then falls back to locale based automatic selection and ignores gtk-im-module from the user's settings.ini.",
             "description[zh_CN]": "通过 XSettings 的 Gtk/IMModule 属性发布的 GTK 输入法模块，作用于运行在 X11（含 XWayland）上的 GTK2/3/4 应用。Wayland 下的 GTK 应用通过 text-input 协议获取输入法，不使用该值。允许以冒号分隔多个模块。空字符串并不会移除该属性：此时 GTK 回退为按 locale 自动选择，用户 settings.ini 中的 gtk-im-module 不会生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "lockscreen": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Login and lock screen",
+            "name[zh_CN]": "登录与锁屏界面",
+            "description": "Control content slides, background transitions and control button resizing on login and lock screens. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "统一控制登录与锁屏界面的内容滑动、背景过渡和控制按钮尺寸变化。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "windowOpen": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Window open animation",
+            "name[zh_CN]": "窗口打开动画",
+            "description": "Animate normal window opening. Disabling opens the window immediately. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制普通窗口打开动画；关闭时窗口立即显示。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "windowClose": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Window close animation",
+            "name[zh_CN]": "窗口关闭动画",
+            "description": "Animate normal window closing. Disabling closes the window immediately. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制普通窗口关闭动画；关闭时窗口立即关闭。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "launchpadOpenFullscreen": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Launcher open animation",
+            "name[zh_CN]": "启动器打开动画",
+            "description": "Animate launcher layer surface opening. Disabling shows it immediately. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制启动器图层打开动画；关闭时立即显示。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "launchpadCloseFullscreen": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Launcher close animation",
+            "name[zh_CN]": "启动器关闭动画",
+            "description": "Animate launcher layer surface closing. Disabling hides it immediately. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制启动器图层关闭动画；关闭时立即隐藏。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "layerShellOpen": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Layer shell open animation",
+            "name[zh_CN]": "图层窗口打开动画",
+            "description": "Animate anchored layer shell surfaces opening. Disabling shows them immediately. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制贴边图层窗口打开动画；关闭时立即显示。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "layerShellClose": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Layer shell close animation",
+            "name[zh_CN]": "图层窗口关闭动画",
+            "description": "Animate anchored layer shell surfaces closing. Disabling hides them immediately. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制贴边图层窗口关闭动画；关闭时立即隐藏。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "maximize": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Maximize animation",
+            "name[zh_CN]": "最大化动画",
+            "description": "Animate the geometry change when maximizing. Disabling applies the maximized geometry immediately. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制最大化几何变化动画；关闭时立即应用最大化几何。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "fullscreen": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Fullscreen animation",
+            "name[zh_CN]": "全屏动画",
+            "description": "Animate the geometry change when entering fullscreen. Disabling applies the fullscreen geometry immediately. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制进入全屏的几何变化动画；关闭时立即应用全屏几何。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "restoreWindow": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Restore window animation",
+            "name[zh_CN]": "窗口还原动画",
+            "description": "Animate the geometry change when restoring from maximized or fullscreen. Disabling applies the restored geometry immediately. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制从最大化或全屏还原的几何变化动画；关闭时立即应用还原几何。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "minimize": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Minimize animation",
+            "name[zh_CN]": "最小化动画",
+            "description": "Animate minimizing a window. Disabling minimizes immediately without the shrink transition. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制窗口最小化动画；关闭时立即最小化，不播放缩小过渡。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "restoreMinimized": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Restore minimized animation",
+            "name[zh_CN]": "最小化恢复动画",
+            "description": "Animate restoring a minimized window. Disabling restores immediately. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制最小化窗口的恢复动画；关闭时立即恢复。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "showDesktop": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Show desktop animation",
+            "name[zh_CN]": "显示桌面动画",
+            "description": "Animate hiding windows when showing the desktop. Disabling hides them immediately. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制显示桌面时隐藏窗口的动画；关闭时立即隐藏。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "restoreShowDesktop": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Restore from desktop animation",
+            "name[zh_CN]": "退出显示桌面动画",
+            "description": "Animate restoring windows when leaving show-desktop. Disabling restores them immediately. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制退出显示桌面时恢复窗口的动画；关闭时立即恢复。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "launchpadCover": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Launcher cover animation",
+            "name[zh_CN]": "启动器覆盖动画",
+            "description": "Animate the launcher cover wallpaper zoom and fade. Disabling applies the final state immediately. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制启动器覆盖层的壁纸缩放与淡入淡出；关闭时立即应用最终状态。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "wallpaperScale": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Wallpaper scale animation",
+            "name[zh_CN]": "壁纸缩放动画",
+            "description": "Animate wallpaper scaling on launcher and lock screen transitions. Disabling applies the target scale immediately. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制启动器和锁屏切换时的壁纸缩放动画；关闭时立即应用目标缩放。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "workspaceSwitch": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Workspace switch animation",
+            "name[zh_CN]": "工作区切换动画",
+            "description": "Animate sliding between workspaces. Disabling switches workspaces immediately. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制工作区之间的滑动切换动画；关闭时立即切换。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "workspaceVisibility": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Workspace visibility animation",
+            "name[zh_CN]": "工作区显隐动画",
+            "description": "Animate the workspace scale and opacity on lock screen entry and exit. Disabling applies the final scale and opacity immediately. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制锁屏进入和退出时工作区的缩放与透明度动画；关闭时立即应用最终缩放和透明度。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "workspaceBounce": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Workspace edge bounce animation",
+            "name[zh_CN]": "工作区边界回弹动画",
+            "description": "Animate the bounce when switching past the first or last workspace. Disabling skips the bounce. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制切换到首个或最后一个工作区时的边界回弹动画；关闭时不播放回弹。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "taskSwitcher": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Task switcher",
+            "name[zh_CN]": "任务切换",
+            "description": "Control mask, panel, thumbnails, highlight and window restoration transitions for the task switcher. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "统一控制任务切换的遮罩、面板、缩略图、高亮和窗口恢复过渡。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "multitaskview": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Multitask view",
+            "name[zh_CN]": "多任务视图",
+            "description": "Control entry, exit, window layout, empty hint and workspace thumbnail reordering transitions. Gesture following is preserved. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "统一控制多任务视图进入、退出、窗口布局、空窗口提示和工作区缩略图重排过渡，保留手势跟随。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "outputRotation": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Output rotation animation",
+            "name[zh_CN]": "主输出旋转动画",
+            "description": "Animate rotating the primary output. Disabling applies the rotation and transform immediately. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制主输出旋转动画；关闭时立即应用旋转和实际 transform。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "mirrorOutputRotation": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Mirror output rotation animation",
+            "name[zh_CN]": "镜像输出旋转动画",
+            "description": "Animate rotating a mirror output. Disabling applies the rotation and transform immediately. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制镜像输出旋转动画；关闭时立即应用旋转和实际 transform。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "wallpaperCrossFade": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Wallpaper cross fade animation",
+            "name[zh_CN]": "壁纸交叉渐变动画",
+            "description": "Cross fade between wallpapers. Disabling switches as soon as the new wallpaper is ready. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制壁纸之间的交叉渐变；关闭时在新壁纸就绪后立即切换。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "dockPreview": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Dock preview",
+            "name[zh_CN]": "Dock 预览",
+            "description": "Animate dock preview. Disabled transitions apply their final state directly. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制Dock 预览动画；禁用时直接应用目标状态。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "captureToolbar": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Capture toolbar",
+            "name[zh_CN]": "截图工具条",
+            "description": "Animate capture toolbar. Disabled transitions apply their final state directly. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制截图工具条动画；禁用时直接应用目标状态。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "edgeTilePreview": {
+            "value": 3,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Edge tile preview",
+            "name[zh_CN]": "边缘平铺预览",
+            "description": "Animate edge tile preview. Disabled transitions apply their final state directly. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "控制边缘平铺预览动画；禁用时直接应用目标状态。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "windowCornerRadiusEnabled": {
+            "value": 2,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Window rounded corners",
+            "name[zh_CN]": "窗口圆角",
+            "description": "Allow compositor-drawn window corners, including default radii, proxy thumbnails, client radius requests, and popup defaults. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "允许合成器绘制窗口圆角（包括默认圆角、缩略图代理圆角、客户端请求的圆角半径及弹出窗口的默认圆角）。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "windowShadowEnabled": {
+            "value": 2,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Window shadows",
+            "name[zh_CN]": "窗口阴影",
+            "description": "Allow compositor-drawn window shadows. When disabled, client shadow requests are ignored. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "允许合成器绘制窗口阴影。关闭时忽略客户端的阴影请求。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "windowBorderEnabled": {
+            "value": 2,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Window outlines",
+            "name[zh_CN]": "窗口描边",
+            "description": "Allow compositor-drawn window outlines. When disabled, client outline requests are ignored. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "允许合成器绘制窗口描边。关闭时忽略客户端的描边请求。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "windowTransparencyEnabled": {
+            "value": 2,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Window opacity modifiers",
+            "name[zh_CN]": "窗口透明度修饰",
+            "description": "Allow client-requested opacity multipliers. When disabled, the multiplier is forced to 1 while preserving alpha in the client buffer. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "允许客户端请求透明度乘数。关闭时透明度乘数固定为 1，保留客户端缓冲区自身的透明通道。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "backgroundEffectEnabled": {
+            "value": 2,
+            "serial": 0,
+            "flags": [
+                "user-public"
+            ],
+            "name": "Background effects",
+            "name[zh_CN]": "背景特效",
+            "description": "Allow backdrop blur and Liquid Glass. When disabled, the compositor skips background effects, including those requested by clients. Level at which this item turns on: 0=none (always off), 1=low (on at low/medium/high, off at none), 2=medium (on at medium/high, off at low/none), 3=high (on at high only, off at medium/low/none). Enabled when system effectLevel >= this value (and != 0). Range: 0-3. Takes effect immediately.",
+            "description[zh_CN]": "允许背景模糊和液态玻璃。关闭时合成器停用背景特效，包括客户端请求的效果。表示该项从哪个档位开始开启：0=none（始终关闭），1=low（在 low/medium/high 开启，none 关闭），2=medium（在 medium/high 开启，low/none 关闭），3=high（仅 high 开启，medium/low/none 关闭）。当系统 effectLevel >= 该值（且不为 0）时开启，低于该值时关闭。范围：0-3。实时生效。",
             "permissions": "readwrite",
             "visibility": "public"
         }

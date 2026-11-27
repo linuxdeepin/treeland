@@ -145,6 +145,54 @@ int protocol_test_run(const char *socket_name) {
 		}
 	}
 
+	/* Disabling backgroundEffectEnabled suppresses client blur requests until re-enabled. */
+	if (!failed) {
+		int enabled = 0;
+		if (!invoke_on_server_thread(background_effect_set_enabled, &enabled)
+				|| read_server(&srv) || !expect_no_blur(&srv)) {
+			TEST_ERROR("background-effect: DConfig did not disable blur\n");
+			failed = 1;
+		}
+	}
+	if (!failed) {
+		set_blur_region(effect, tc.compositor, 0, 0, 64, 64);
+		wl_surface_commit(tc.surface);
+		wl_display_roundtrip(conn.display);
+		if (read_server(&srv) || !expect_no_blur(&srv)) {
+			TEST_ERROR("background-effect: blur enabled while DConfig disabled it\n");
+			failed = 1;
+		}
+	}
+	if (!failed) {
+		int enabled = 1;
+		if (!invoke_on_server_thread(background_effect_set_enabled, &enabled)
+				|| read_server(&srv) || !expect_blur(&srv)) {
+			TEST_ERROR("background-effect: DConfig did not re-enable blur\n");
+			failed = 1;
+		}
+	}
+	if (!failed) {
+		if (!invoke_on_server_thread(background_effect_set_level, (void *)"low")
+				|| read_server(&srv) || !expect_no_blur(&srv)) {
+			TEST_ERROR("background-effect: effectLevel=low did not disable blur\n");
+			failed = 1;
+		}
+	}
+	if (!failed) {
+		if (!invoke_on_server_thread(background_effect_set_level, (void *)"medium")
+				|| read_server(&srv) || !expect_blur(&srv)) {
+			TEST_ERROR("background-effect: effectLevel=medium did not enable blur\n");
+			failed = 1;
+		}
+	}
+	if (!failed) {
+		if (!invoke_on_server_thread(background_effect_set_level, (void *)"high")
+				|| read_server(&srv) || !expect_blur(&srv)) {
+			TEST_ERROR("background-effect: effectLevel=high did not enable blur\n");
+			failed = 1;
+		}
+	}
+
 	/* NULL region removes the effect on the next commit. */
 	if (!failed) {
 		ext_background_effect_surface_v1_set_blur_region(effect, NULL);

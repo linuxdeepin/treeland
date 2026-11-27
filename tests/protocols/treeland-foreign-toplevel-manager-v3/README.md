@@ -28,8 +28,7 @@ wrapper 已 mapped、已加入 `Workspace`，且 manager 的 `toplevel` 事件�
 manager 发出 `requestDockPreview`，fixture 读取到绝对坐标 `(10,20)`、`BOTTOM` 和
 一个真实 `WSurface`。
 
-状态转换关闭几何动画：desktop fixture 通过 `animationConfig` 关闭 `maximize`/
-`fullscreen`/`restoreWindow` 三个动画开关，使每个状态请求立即落地 `surfaceState`，
+状态转换关闭几何动画：desktop fixture 通过 `globalConfig()->setEffectLevel("medium")` 关闭动画，使每个状态请求立即落地 `surfaceState`，
 不依赖渲染线程驱动的 `OpacityAnimator`。每次状态请求后 fixture render 一帧以刷新排队的
 场景图状态，再读取 wrapper 状态。这样测试验证的是协议状态转换本身，而不是几何动画的
 插值或收敛时序；正常桌面进程的动画行为不受影响。

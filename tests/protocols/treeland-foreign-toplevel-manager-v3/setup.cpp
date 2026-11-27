@@ -12,7 +12,7 @@
 #include <wbackend.h>
 #include <woutputrenderwindow.h>
 
-#include "animationconfig.hpp"
+#include "treelandconfig.hpp"
 
 #include <cstring>
 
@@ -29,12 +29,9 @@ void protocol_test_setup(WaylandServer *server)
     // maximize/fullscreen/restore request land its surface state immediately,
     // so the test does not have to pace the render-thread-driven
     // OpacityAnimator, which used to cause intermittent timeouts.
-    auto *animationConfig = server->animationConfig();
-    if (animationConfig) {
-        animationConfig->setMaximize(false);
-        animationConfig->setFullscreen(false);
-        animationConfig->setRestoreWindow(false);
-    }
+    // Medium disables animations while preserving window effects.
+    if (auto *globalConfig = server->globalConfig())
+        globalConfig->setEffectLevel(QStringLiteral("medium"));
     add_headless_output(server->backend(), false);
     g_manager = server->shellHandler()->foreignToplevel();
     QObject::connect(g_manager,
