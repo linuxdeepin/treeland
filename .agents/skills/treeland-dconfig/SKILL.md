@@ -1,11 +1,11 @@
 ---
 name: treeland-dconfig
-description: "新增、修改、评审与调试 treeland 的 DConfig 配置：描述文件字段、配置作用域与 subpath、生成的配置封装类、异步初始化、override 与序列号演进、运行时 dde-dconfig 检查。在改动 `misc/dconfig/*.json`、`dtk_add_config_to_cpp` 生成的类（`TreelandConfig`、`TreelandUserConfig`、`AnimationConfig`、`OutputConfig`、`SeatUserDConfig`、`AppConfig`）、把设置迁入 DConfig、排查配置读不到或不生效时使用。"
+description: "新增、修改、评审与调试 treeland 的 DConfig 配置：描述文件字段、配置作用域与 subpath、生成的配置封装类、异步初始化、override 与序列号演进、运行时 dde-dconfig 检查。在改动 `misc/dconfig/*.json`、`dtk_add_config_to_cpp` 生成的类（`TreelandConfig`、`TreelandUserConfig`、`OutputConfig`、`SeatUserDConfig`、`AppConfig`）、把设置迁入 DConfig、排查配置读不到或不生效时使用。"
 ---
 
 # Treeland DConfig 配置
 
-> **铁律**：用户业务对象通过构造时注入的固定配置访问设置，不查询 Session 或活动用户。Session/DesktopEnvironment 组装边界负责解析配置与按目标 UID 隔离的 provider；仅共享运行时的活动桌面兼容入口使用 `WaylandServer::config()`（动画开关为该入口上的 `WaylandServer::animationConfig()`）。不要因为全局模式以 `dde` 运行就把用户偏好写进 `TreelandConfig`。显示模式、主屏、复制/单屏配置为系统级；各 Session 的窗口、协议资源和专属区域仍独立。
+> **铁律**：用户业务对象通过构造时注入的固定配置访问设置，不查询 Session 或活动用户。Session/DesktopEnvironment 组装边界负责解析配置与按目标 UID 隔离的 provider；仅共享运行时的活动桌面兼容入口使用 `WaylandServer::config()`。不要因为全局模式以 `dde` 运行就把用户偏好写进 `TreelandConfig`。显示模式、主屏、复制/单屏配置以及系统动效档位（`effectLevel`）为系统级；各 Session 的窗口、协议资源和专属区域仍独立。
 
 ## 范围
 本 skill 用于由 Desktop Spec Group 配置元数据描述、并通过 DTK DConfig 生成的 C++ 封装类消费的 treeland 配置。
@@ -53,7 +53,7 @@ treeland 有两种运行模式，DConfig 归属必须同时考虑两者：
 
 后端在 `DConfig::globalThread()` 访问 system bus；配置对象由 DConfig 持有并销毁。生成类的 `configInitializeSucceed` 连接到后端的 `subscribe`，在配置线程订阅 Manager.valueChanged 并转发给 DConfig，订阅后刷新所有键以覆盖初始化期间的变更。
 
-用户偏好、动画的 subpath 为空，seat 为 `/<seatName>`，应用为 `/<appId>`；用户隔离由 UID 实现。全局和物理输出配置保留默认后端。旧 `dde` UID 下的用户名 subpath 数据不自动迁移。后端的隔离、通知、复杂值、重置及释放通过独立 D-Bus mock 测试验证，不操作系统配置。
+用户偏好的 subpath 为空，seat 为 `/<seatName>`，应用为 `/<appId>`；用户隔离由 UID 实现。全局和物理输出配置保留默认后端。旧 `dde` UID 下的用户名 subpath 数据不自动迁移。后端的隔离、通知、复杂值、重置及释放通过独立 D-Bus mock 测试验证，不操作系统配置。
 
 ## 描述文件格式
 DConfig 描述文件是 JSON 元数据文件。treeland 中它们位于 `misc/dconfig/`，顶层结构如下：
@@ -90,9 +90,8 @@ DConfig 描述文件是 JSON 元数据文件。treeland 中它们位于 `misc/dc
 
 按归属与查找方式选择描述文件：
 
-- `org.deepin.dde.treeland.json` → 不随当前用户变化的合成器全局设置；生成 `TreelandConfig` / `treelandconfig.hpp`；通常通过 `WaylandServer::globalConfig()` 访问。
-- `org.deepin.dde.treeland.user.json` → 当前用户会话、个性化、工作区、光标、主题等设置；生成 `TreelandUserConfig` / `treelanduserconfig.hpp`；通过 `WaylandServer::config()` 访问，用户切换时从 DConfigManager 缓存中选取。
-- `org.deepin.dde.treeland.animation.json` → 当前用户的动画开关；生成 `AnimationConfig` / `animationconfig.hpp`；由 `DConfigManager::animationConfig(uid)` 缓存，通过 `WaylandServer::animationConfig()` 访问并监听 `animationConfigChanged()`。键名直接用 `windowOpen`、`workspaceSwitch` 等效果名，不重复 `AnimationEnabled`。初始化完成前使用默认启用状态，初始化完成或用户切换时重新绑定并刷新效果。
+- `org.deepin.dde.treeland.json` → 不随当前用户变化的合成器全局设置（含系统动效与特效档位 `effectLevel`：`none`/`low`/`medium`/`high`，对应 `0`/`1`/`2`/`3`，默认 `high`，非法值回退 `high`）；生成 `TreelandConfig` / `treelandconfig.hpp`；通常通过 `WaylandServer::globalConfig()` 访问，当前解析后的档位由 `WaylandServer::effectLevel()` 与 `WaylandServer::isEffectEnabled(...)` 暴露给 C++/QML。
+- `org.deepin.dde.treeland.user.json` → 当前用户会话、个性化、工作区、光标、主题，以及 27 项动画档位阈值（默认 `3`，仅 `high` 开启）与 5 项窗口/背景特效档位阈值（圆角、阴影、描边、透明度修饰、背景特效，默认 `2`，从 `medium` 起开启）；生成 `TreelandUserConfig` / `treelanduserconfig.hpp`；通过 `DesktopEnvironment::config()`（或活动兼容入口 `WaylandServer::config()`）访问，用户切换时从 DConfigManager 缓存中选取。每项阈值表示该项从哪个系统档位起开启：`0=None`（始终关闭）、`1=Low`、`2=Medium`、`3=High`，运行时按 `minLevel > 0 && currentLevel >= minLevel`（`src/dconfig/effectlevel.h`）直接判断，支持单键与档位热更新；`glassEnabled` 与 `lockscreenWallpaperDimEnabled` 暂不纳入档位，继续作为独立布尔键直读 `TreelandUserConfig`。
 - `org.deepin.dde.treeland.output.json` → 按 output 的设置；生成 `OutputConfig` / `outputconfig.hpp`；当前代码使用 `OutputConfig::createByName(...)` 和 `/<outputName>`，保存系统级物理身份、分辨率、刷新率、缩放、位置、旋转、颜色等参数。所有 Session 注入同一个 output 配置对象，不增加用户名 subpath。
 - `org.deepin.dde.treeland.user.seat.json` → 当前用户的输入/seat 设置；生成 `SeatUserDConfig` / `seatuserconfig.hpp`；每个 Session 持有独立 InputManager，固定读取所属用户名的 seat 配置；活动 manager 才连接硬件应用路径。`keyboardNumLock` 也位于该用户 seat 配置；旧全局键保留兼容，但新输入管理路径不再读写它。
 - `org.deepin.dde.treeland.user.app.json` → 按应用的设置；生成 `AppConfig` / `appconfig.hpp`；Session 持有组装层创建的 `WindowConfigStore`，后者在构造时固定绑定所属 UID，并显式注入 SessionPrelaunch，通过 `acquireManagerV2(uid, ...)` 选择用户 cache，subpath 仅为 `"/" + appId`。
@@ -113,7 +112,7 @@ DConfig 描述文件是 JSON 元数据文件。treeland 中它们位于 `misc/dc
 
 - `value`：默认值。使用常规 JSON 类型。该类型决定生成的 C++ 访问器类型。
 - `serial`：单调递增整数，新键通常为 `0`。
-- `flags`：数组。用户偏好、动画、seat、应用配置使用 `["user-public"]`，允许 `dde` 跨 UID 访问；该标记不改变数据所属 UID，目标用户由 `acquireManagerV2` 指定。只有确实需要共享存储的项使用 `global`；禁止 override 时加 `nooverride`。
+- `flags`：数组。用户偏好（含动画与特效档位阈值）、seat、应用配置使用 `["user-public"]`，允许 `dde` 跨 UID 访问；该标记不改变数据所属 UID，目标用户由 `acquireManagerV2` 指定。只有确实需要共享存储的项（含 `effectLevel`）使用 `global`；禁止 override 时加 `nooverride`。
 - `name` 与 `name[zh_CN]`：简短的用户可见名称。
 - `description` 与 `description[zh_CN]`：运维含义、有效范围、枚举值、单位与副作用。
 - `permissions`：`readonly` 或 `readwrite`。
@@ -185,7 +184,8 @@ treeland 在 `src/CMakeLists.txt` 中用 `dtk_add_config_to_cpp(...)` 生成类�
 
 ## 生成头文件事实
 不要在源码树里搜索生成的配置头文件，它们由 CMake/dconfig2cpp 生成到 `build/src/`。
-执行 `cmake --preset default` 后直接读生成文件，例如 `build/src/treelanduserconfig.hpp`。
+先配置，再构建生成头文件的目标。例如执行 `cmake --preset default` 后运行
+`cmake --build build --target src/treelanduserconfig.hpp`，然后读 `build/src/treelanduserconfig.hpp`。
 
 生成头文件呈现的 API 与约定、`create(...)`/`createByName(...)` 的完整签名见
 [references/generated-cpp.md](references/generated-cpp.md)。日常要记住的四条：
@@ -214,7 +214,7 @@ treeland 在 `src/CMakeLists.txt` 中用 `dtk_add_config_to_cpp(...)` 生成类�
    ```
 
 4. 把生成的变量（例如 `${NEW_SCOPE_CONFIG}`）加入 `qt_add_qml_module(libtreeland SOURCES ...)` 列表。这一步是必需的，否则生成头文件不参与 target sources，moc/autogen 看不到该 `QObject` 类。
-5. 执行 `cmake --preset default` 重新生成头文件。
+5. 执行 `cmake --preset default`，再构建 `src/<scope>config.hpp` 目标以生成头文件。
 6. 检查 `build/src/<scope>config.hpp`（不是源码树），确认：
    - `Q_CLASSINFO("DConfigFileName", "...")`
    - `Q_CLASSINFO("DConfigFileVersion", "1.0")`
@@ -235,7 +235,7 @@ Desktop Spec 支持 `subpath` 查找。treeland 中保持既有构造方式：
 
 当前 treeland 的 subpath 模式：
 
-- 当前用户偏好和动画配置：subpath 为空，V2 显式指定所属 UID
+- 当前用户偏好（含 27 项动画与 5 项特效档位阈值）：subpath 为空，V2 显式指定所属 UID
 - 用户选定前的初始/默认用户配置：使用初始用户名解析的 UID，subpath 为空
 - seat 用户配置：`"/" + seatName`，V2 指定所属 UID（`DConfigManager::userSeatConfig(...)`，由固定 Session 的 `InputManager::seatUserConfig(...)` 进入）
 - 系统 output 配置：`"/" + outputName`，保存硬件 UUID 和显示参数；旧 `/<username>/outputs/<outputName>` 路径不再读取或写入
@@ -278,7 +278,7 @@ Q_PROPERTY(TreelandConfig* globalConfig READ globalConfig CONSTANT FINAL)
 11. 启动阶段读取等待了 DConfig 初始化，或沿用了既有的有意回退模式。
 12. 需要实时生效的设置连接了生成的 `*Changed` 信号。
 13. 新描述文件已从 `misc/dconfig/CMakeLists.txt` 安装，并通过 `dtk_add_config_to_cpp(...)` 接入。
-14. 已构建或至少已 configure，使生成头文件反映新增键。
+14. 已构建或至少已执行生成头文件的目标，使生成头文件反映新增键。
 
 ## 验证
 改动涉及生成封装或消费方时，优先用仓库标准命令：
@@ -295,7 +295,7 @@ ctest --test-dir build --output-on-failure
 python3 -m json.tool misc/dconfig/<file>.json >/dev/null
 ```
 
-若构建耗时过高，至少执行 `cmake --preset default` 并检查 `build/src/` 中的生成头文件，确认访问器、setter、信号、创建 helper、class info 与版本宏名称。
+若完整构建耗时过高，至少配置并构建对应的生成头文件目标，再检查 `build/src/` 中的生成结果，确认访问器、setter、信号、创建 helper、class info 与版本宏名称。
 
 ## 用 dde-dconfig 调试
 `dde-dconfig` 读取的是**已安装**的配置元数据；只改源码树里的 `misc/dconfig/*.json` 不够，先安装项目（描述文件由 `misc/dconfig/CMakeLists.txt` 装到 `${CMAKE_INSTALL_DATADIR}/dsg/configs/org.deepin.dde.treeland`）。

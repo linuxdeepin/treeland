@@ -40,7 +40,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [output-manager-v2](treeland-output-manager-v2/README.md) | I / P | uuid 寻址的 primary-output 与 picture-control 创建/提交/失效链路 |
 | [region-watch-unstable-v1](treeland-region-watch-unstable-v1/README.md) | E / P | 输出边缘区域的全局坐标注册；真实 toplevel 映射/关闭驱动的 enter/leave；输出重绑、output_removed 与惰性语义 |
 | [appearance-unstable-v1](treeland-appearance-unstable-v1/README.md) | I / P | 初始 `color_scheme` 与 manager setter 触发的 client 广播 | 其余外观字段、无效值和 DConfig 配置替换 |
-| [decoration-unstable-v1](treeland-decoration-unstable-v1/README.md) | E | mapped toplevel 的 `set_corner_radius` 回读真实 `SurfaceWrapper::radius()` | shadow、border、titlebar 和协议错误路径 |
+| [decoration-unstable-v1](treeland-decoration-unstable-v1/README.md) | E | 圆角回读、DConfig 优先控制圆角/阴影/描边、最大化时 SSD 标题栏 configure | 阴影和描边参数渲染、协议错误路径 |
 | [remote-subsurface-unstable-v1](treeland-remote-subsurface-unstable-v1/README.md) | E / P | token 导出、真实 Remote `WSubsurface` 的父子关系、位置与层级、输入上下文查找父窗口、`parent_rejected` / `invalid_sibling` | 跨 client、循环 parent、映射生命周期与 sibling 间排序 |
 | [prelaunch-splash-v2](treeland-prelaunch-splash-v2/README.md) | I / E | splash 请求/关闭信号；生产 splash wrapper 创建、加入 workspace 与销毁 |
 | [prelaunch splash 桌面集成](treeland-prelaunch-splash-desktop-v2/README.md) | E / V | splash wrapper 创建/销毁；AM 图标在 splash item 与客户端 `wl_buffer` 都销毁后仍由 wrapper 持有；dock preview 标题行图标 item 的 buffer 指针、尺寸与纹理像素；无图标窗口与悬停切换不产生 `WBufferItem` / QML 警告 |
@@ -78,8 +78,8 @@ xdg-shell 由共享 xdg-toplevel 夹具覆盖（多个 toplevel 测试复用）�
 
 | 协议 | 覆盖等级 | 主要生产结果 |
 | --- | --- | --- |
-| [wayland-alpha-modifier-v1](wayland-alpha-modifier-v1/README.md) | E | 映射 toplevel + `set_multiplier`，回读真实 `wlr_alpha_modifier_surface_v1_state::multiplier` 与请求值一致 |
-| [ext-background-effect-v1](ext-background-effect-v1/README.md) | E / P | bind 下发 blur 能力位；`set_blur_region` 双缓冲流转（set/保持/NULL/重启用/destroy）回读真实 `SurfaceWrapper::blur()`（非空区域启用整面 blur）；重复关联触发 `background_effect_exists` |
+| [wayland-alpha-modifier-v1](wayland-alpha-modifier-v1/README.md) | E | 映射 toplevel + `set_multiplier`，回读真实 `wlr_alpha_modifier_surface_v1_state::multiplier` 与 `windowTransparencyEnabled` 驱动的 `SurfaceContent` 透明度 |
+| [ext-background-effect-v1](ext-background-effect-v1/README.md) | E / P | bind 下发 blur 能力位；`set_blur_region` 双缓冲流转（set/保持/NULL/重启用/destroy）及 `backgroundEffectEnabled` 开关回读真实 `SurfaceWrapper::blur()`；重复关联触发 `background_effect_exists` |
 | [wayland-cursor-shape-v1](wayland-cursor-shape-v1/README.md) | E | 真实 `wl_pointer` 上 `set_shape`，回读真实 `wlr_cursor_shape_manager_v1::events.request_set_shape` 捕获的 shape 值与请求一致 |
 | [wayland-ext-data-control-v1](wayland-ext-data-control-v1/README.md) | E | 创建 offer 并 `set_selection` 后回读真实 `wlr_seat::selection_source` 非空 |
 | [wayland-ext-foreign-toplevel-list-v1](wayland-ext-foreign-toplevel-list-v1/README.md) | E | 映射 toplevel 后回读真实 `wlr_ext_foreign_toplevel_list_v1::toplevels` 列表非空 |
@@ -130,7 +130,7 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 | activation-token-unstable-v1 | 3 / 3 | 两次 `request_token` 拿到两个独立非空 `token`，第一个经 `xdg_activation_v1.activate` 处置为 Active（回读生产 `activateRequested`）；跨 Session 的两条断言（另一用户可 bind、token 不跨 Session 解析） | token 过期；appid 认证与 singleton 恢复后的 `not_privileged` / `binding_rejected` 拒绝路径（见实现 TODO） |
 | appearance-unstable-v1 + appearance-manager-unstable-v1 | 3 / 13 | bind 初始 `color_scheme`；manager `set_color_scheme` 广播 Dark | 其余外观字段、无效值、DConfig 配置替换 |
 | ddm-v1 | 0 / 7 | 无未请求 VT event；生产连接生命周期 | 所有会话/渲染控制 request 与 `switch_to_vt/acquire_vt` 的实际系统流程 |
-| decoration-unstable-v1 | 4 / 7 | `set_corner_radius` 后 mapped `SurfaceWrapper::radius()` == 12 | shadow、border、titlebar、协议错误与 SSD 协商 |
+| decoration-unstable-v1 | 7 / 7 | 圆角、阴影和描边请求受 DConfig 开关控制；SSD 标题栏影响最大化 configure | 阴影和描边参数渲染、协议错误路径 |
 | foreign-toplevel-manager-v3 | 16 / 16 | `toplevel/identifier/closed`；真实最小化、最大化、全屏、焦点与 icon rectangle；最小化与布局状态正交（含取消布局后不卡在最小化）；布局状态请求在几何动画进行中的重定向与取消（最大化中还原、取消全屏后最大化） | `pid/title/app_id/output_enter/output_leave/state/done/parent` payload；指定 `wl_output` 的 fullscreen hint、preview 像素；`Tiling` 组合 |
 | input-manager-unstable-v1 | 1 / 22 | 默认测试仅证明空设备 manager 可绑定；uinput target 断言 Keyboard capability 热插拔 | settings/apply、真实 mouse/touchpad 配置生效、无设备 failed；uinput E 层需显式启用并实际执行 |
 | keyboard-state-notify-unstable-v1 | 6 / 6 | watcher 配置、`apply` 的空键盘/空 modifier 边界 | `current_state/state_changed`、多 watcher、初始 locked、seat 销毁、重复 apply 与物理键盘对照 |

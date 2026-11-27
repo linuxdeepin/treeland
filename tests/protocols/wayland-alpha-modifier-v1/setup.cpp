@@ -4,12 +4,17 @@
 #include "server-bridge.h"
 #include "core/shellhandler.h"
 #include "core/waylandserver.h"
+#include "dconfig/effectlevel.h"
+#include "desktop/desktopenvironment.h"
 #include "surface/surfacewrapper.h"
+#include "treelandconfig.hpp"
+#include "treelanduserconfig.hpp"
 
+#include <QQuickItem>
 #include <wbackend.h>
+#include <wlr_all.h>
 #include <wsurface.h>
-#include <wlr/types/wlr_compositor.h>
-#include <wlr/types/wlr_alpha_modifier_v1.h>
+#include <wsurfaceitem.h>
 
 namespace {
 // The real mapped XdgToplevel SurfaceWrapper created by the client.
@@ -38,6 +43,10 @@ void alpha_modifier_read_server_state(void *data)
     state->valid = 0;
     state->has_modifier = 0;
     state->multiplier = 0.0;
+    state->has_content_item = 0;
+    state->content_opacity = 0.0;
+    state->has_item_content = 0;
+    state->item_content_opacity = 0.0;
 
     if (!g_wrapper)
         return;
@@ -47,6 +56,16 @@ void alpha_modifier_read_server_state(void *data)
         return;
 
     state->valid = 1;
+    if (auto *surfaceItem = g_wrapper->surfaceItem()) {
+        if (auto *contentItem = surfaceItem->contentItem()) {
+            state->has_content_item = 1;
+            state->content_opacity = contentItem->opacity();
+        }
+        if (auto *itemContent = surfaceItem->findItemContent()) {
+            state->has_item_content = 1;
+            state->item_content_opacity = itemContent->opacity();
+        }
+    }
 
     auto *wlr_surf = wsurface->handle();
     if (!wlr_surf)
@@ -57,4 +76,23 @@ void alpha_modifier_read_server_state(void *data)
         state->has_modifier = 1;
         state->multiplier = am_state->multiplier;
     }
+}
+
+void alpha_modifier_set_transparency_enabled(void *data)
+{
+    if (!g_wrapper || !g_wrapper->desktop())
+        return;
+    auto *config = g_wrapper->desktop()->config();
+    if (!config)
+        return;
+    config->setWindowTransparencyEnabled(
+        *static_cast<const int *>(data) != 0 ? EffectLevel::Medium : EffectLevel::None);
+}
+
+void alpha_modifier_set_effect_level(void *data)
+{
+    auto *globalConfig = WaylandServer::instance()->globalConfig();
+    if (!globalConfig)
+        return;
+    globalConfig->setEffectLevel(QString::fromUtf8(static_cast<const char *>(data)));
 }

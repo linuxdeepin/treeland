@@ -94,6 +94,7 @@ Rectangle {
             id: backgroundBlur
             anchors.fill: parent
             visible: surface.preview.enableBlur
+            effectConfig: surface.preview.desktop.config
             radius: surface.radius
         }
 

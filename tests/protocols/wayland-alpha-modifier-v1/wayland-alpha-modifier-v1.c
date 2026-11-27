@@ -81,6 +81,72 @@ int protocol_test_run(const char *socket_name) {
 		failed = 1;
 	}
 
+	/* Set multiplier to ~0.5 and verify DConfig windowTransparencyEnabled toggles
+	 * SurfaceContent opacity without squaring SurfaceItemContent opacity. */
+	if (!failed) {
+		wp_alpha_modifier_surface_v1_set_multiplier(am_surface, 0x80000000u);
+		wl_surface_commit(tc.surface);
+		wl_display_roundtrip(conn.display);
+
+		if (read_server(&srv)) {
+			failed = 1;
+		} else if (srv.multiplier < 0.49 || srv.multiplier > 0.51) {
+			TEST_ERROR("alpha-modifier: expected multiplier ~0.5, got %f\n", srv.multiplier);
+			failed = 1;
+		} else if (!srv.has_content_item || !srv.has_item_content) {
+			TEST_ERROR("alpha-modifier: missing content_item=%d or item_content=%d\n",
+				srv.has_content_item, srv.has_item_content);
+			failed = 1;
+		} else if (srv.content_opacity < 0.49 || srv.content_opacity > 0.51
+				|| srv.item_content_opacity != 1.0) {
+			TEST_ERROR("alpha-modifier: unexpected content opacity=%f item_content_opacity=%f\n",
+				srv.content_opacity, srv.item_content_opacity);
+			failed = 1;
+		}
+	}
+	if (!failed) {
+		int enabled = 0;
+		if (!invoke_on_server_thread(alpha_modifier_set_transparency_enabled, &enabled)
+				|| read_server(&srv)) {
+			failed = 1;
+		} else if (!srv.has_content_item || srv.content_opacity != 1.0) {
+			TEST_ERROR("alpha-modifier: DConfig disabled transparency (has_content_item=%d content_opacity=%f)\n",
+				srv.has_content_item, srv.content_opacity);
+			failed = 1;
+		}
+	}
+	if (!failed) {
+		int enabled = 1;
+		if (!invoke_on_server_thread(alpha_modifier_set_transparency_enabled, &enabled)
+				|| read_server(&srv)) {
+			failed = 1;
+		} else if (!srv.has_content_item || srv.content_opacity < 0.49 || srv.content_opacity > 0.51) {
+			TEST_ERROR("alpha-modifier: DConfig re-enabled transparency (has_content_item=%d content_opacity=%f)\n",
+				srv.has_content_item, srv.content_opacity);
+			failed = 1;
+		}
+	}
+	if (!failed) {
+		if (!invoke_on_server_thread(alpha_modifier_set_effect_level, (void *)"low")
+				|| read_server(&srv)) {
+			failed = 1;
+		} else if (!srv.has_content_item || srv.content_opacity != 1.0) {
+			TEST_ERROR("alpha-modifier: effectLevel=low did not disable transparency (has_content_item=%d content_opacity=%f)\n",
+				srv.has_content_item, srv.content_opacity);
+			failed = 1;
+		}
+	}
+	if (!failed) {
+		if (!invoke_on_server_thread(alpha_modifier_set_effect_level, (void *)"medium")
+				|| read_server(&srv)) {
+			failed = 1;
+		} else if (!srv.has_content_item || srv.content_opacity < 0.49 || srv.content_opacity > 0.51) {
+			TEST_ERROR("alpha-modifier: effectLevel=medium did not re-enable transparency (has_content_item=%d content_opacity=%f)\n",
+				srv.has_content_item, srv.content_opacity);
+			failed = 1;
+		}
+	}
+
 	/* Set multiplier to UINT32_MAX (fully opaque) and commit. */
 	if (!failed) {
 		wp_alpha_modifier_surface_v1_set_multiplier(am_surface, 0xffffffffu);

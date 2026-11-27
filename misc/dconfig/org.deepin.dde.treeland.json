@@ -122,6 +122,19 @@
             "description[zh_CN]": "连续闪屏匹配失败达到此次数后禁用该应用的闪屏功能。0 表示永不自动禁用。",
             "permissions": "readwrite",
             "visibility": "public"
+        },
+        "effectLevel": {
+            "value": "high",
+            "serial": 0,
+            "flags": [
+                "global"
+            ],
+            "name": "Effect level",
+            "name[zh_CN]": "动效与特效档位",
+            "description": "System-wide animation and visual effect level. Allowed values: none (0), low (1), medium (2), high (3). Each animation and effect item in org.deepin.dde.treeland.user configures the level at which it turns on (0=always off, 1=low, 2=medium, 3=high); an item is enabled when effectLevel >= item value (and item value != 0), and disabled when effectLevel is lower (for example, an item set to 2 turns on at medium/high and turns off at low/none). Invalid values fall back to high. Takes effect immediately.",
+            "description[zh_CN]": "系统级的动画与特效分级档位。可选值：none（0，全部关闭）、low（1，低）、medium（2，中）、high（3，高）。org.deepin.dde.treeland.user 中每个动画和特效项配置该功能从哪个档位开始开启（0=始终关闭、1=low、2=medium、3=high）；当系统 effectLevel >= 该项配置值（且配置值不为 0）时开启，低于该值时自动关闭（例如某项配置为 2 表示在 medium 及以上开启，系统设为 low 或 none 时关闭）。非法值回退为 high。实时生效。",
+            "permissions": "readwrite",
+            "visibility": "public"
         }
     }
 }

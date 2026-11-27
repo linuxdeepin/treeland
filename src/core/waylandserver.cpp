@@ -61,7 +61,6 @@
 #include "surface/surfacewrapper.h"
 #include "treelandconfig.hpp"
 #include "treelanduserconfig.hpp"
-#include "animationconfig.hpp"
 #include "utils/fpsdisplaymanager.h"
 #include "utils/graphicsplatform.h"
 #include "wallpaper/wallpapermanager.h"
@@ -125,12 +124,21 @@ WaylandServer::WaylandServer(QObject *parent)
 
     if (auto *configManager = DConfigManager::instance()) {
         m_config = configManager->initialUserConfig();
-        setAnimationConfig(configManager->initialAnimationConfig());
         m_globalConfig = configManager->globalConfig();
     }
 
     Q_ASSERT(m_config);
     Q_ASSERT(m_globalConfig);
+
+    connect(m_globalConfig,
+            &TreelandConfig::effectLevelChanged,
+            this,
+            &WaylandServer::updateEffectLevel);
+    connect(m_globalConfig,
+            &TreelandConfig::configInitializeSucceed,
+            this,
+            &WaylandServer::updateEffectLevel);
+    updateEffectLevel();
 
     m_renderWindow->setColor(Qt::black);
     m_rootSurfaceContainer->setFlag(QQuickItem::ItemIsFocusScope, true);
@@ -236,26 +244,21 @@ WaylandServer *WaylandServer::instance()
     return m_instance;
 }
 
-AnimationConfig *WaylandServer::animationConfig() const
+void WaylandServer::updateEffectLevel()
 {
-    return m_animationConfig;
-}
-
-void WaylandServer::setAnimationConfig(AnimationConfig *config)
-{
-    if (m_animationConfig == config)
-        return;
-
-    if (m_animationConfig)
-        disconnect(m_animationConfig, nullptr, this, nullptr);
-    m_animationConfig = config;
-    if (config) {
-        connect(config, &AnimationConfig::configInitializeSucceed,
-                this, &WaylandServer::animationConfigChanged);
-        connect(config, &AnimationConfig::configInitializeFailed,
-                this, &WaylandServer::animationConfigChanged);
+    EffectLevel::Level nextLevel = EffectLevel::High;
+    if (m_globalConfig) {
+        bool valid = true;
+        const QString raw = m_globalConfig->effectLevel();
+        nextLevel = parseEffectLevel(raw, &valid);
+        if (!valid) {
+            qCWarning(lcTlConfig) << "Invalid effectLevel value" << raw << "; falling back to high";
+        }
     }
-    Q_EMIT animationConfigChanged();
+    if (m_effectLevel == nextLevel)
+        return;
+    m_effectLevel = nextLevel;
+    Q_EMIT effectLevelChanged();
 }
 
 TreelandUserConfig *WaylandServer::config()
@@ -535,9 +538,6 @@ void WaylandServer::applyCurrentUserConfig(const QString &userName,
         || session->username() != userName) {
         return;
     }
-
-    if (auto *manager = DConfigManager::instance())
-        setAnimationConfig(manager->animationConfig(session->uid()));
 
     const bool configPointerChanged = config != m_config;
     if (configPointerChanged) {

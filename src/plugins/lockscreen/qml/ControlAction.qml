@@ -10,7 +10,8 @@ import Treeland
 
 RowLayout {
     id: bottomGroup
-    readonly property bool enableAnimation: WaylandServer.animationConfig.lockscreen
+    readonly property bool enableAnimation: WaylandServer.isEffectEnabled(
+        WaylandServer.effectLevel, WaylandServer.config.lockscreen)
     spacing: 15
 
     Connections {

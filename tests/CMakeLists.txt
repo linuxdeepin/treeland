@@ -21,4 +21,6 @@ add_subdirectory(test_frame_geometry)
 
 add_subdirectory(test_animation_switches)
 
+add_subdirectory(test_effect_levels)
+
 add_subdirectory(test_user_config_backend)

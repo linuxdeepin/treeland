@@ -143,7 +143,7 @@ OutputItem {
         function rotationOutput(orientation) {
             transformTimer.stop()
 
-            if (!WaylandServer.animationConfig.mirrorOutputRotation) {
+            if (!WaylandServer.isEffectEnabled(WaylandServer.effectLevel, WaylandServer.config.mirrorOutputRotation)) {
                 // Apply the visual value and the real transform together instead
                 // of waiting for the half-way timer.
                 rotationAnimator.complete()

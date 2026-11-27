@@ -86,13 +86,6 @@ dtk_add_config_to_cpp(
 )
 
 dtk_add_config_to_cpp(
-    ANIMATION_CONFIG
-    "${PROJECT_SOURCE_DIR}/misc/dconfig/org.deepin.dde.treeland.animation.json"
-    OUTPUT_FILE_NAME "animationconfig.hpp"
-    CLASS_NAME "AnimationConfig"
-)
-
-dtk_add_config_to_cpp(
     OUTPUT_CONFIG
     "${PROJECT_SOURCE_DIR}/misc/dconfig/org.deepin.dde.treeland.output.json"
     OUTPUT_FILE_NAME "outputconfig.hpp"
@@ -139,7 +132,6 @@ qt_add_qml_module(libtreeland
         ${DBUS_INTERFACE}
         ${TREELAND_CONFIG}
         ${TREELAND_USER_CONFIG}
-        ${ANIMATION_CONFIG}
         ${OUTPUT_CONFIG}
         ${APP_CONFIG}
         ${SEAT_USER_CONFIG}
@@ -152,6 +144,7 @@ qt_add_qml_module(libtreeland
         common/windowdecorations.h
         dconfig/dconfigmanager.cpp
         dconfig/dconfigmanager.h
+        dconfig/effectlevel.h
         dconfig/userconfigbackend.cpp
         dconfig/userconfigbackend.h
         core/layersurfacecontainer.cpp
@@ -480,6 +473,7 @@ target_include_directories(libtreeland
         $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src>
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/config>
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/core>
+        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/dconfig>
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/effects>
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/greeter>
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/input>

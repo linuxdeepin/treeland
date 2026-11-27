@@ -54,6 +54,7 @@ Item {
         anchors.fill: parent
         sourceComponent: Blur {
             anchors.fill: parent
+            effectConfig: root.surface.desktop?.config ?? WaylandServer.config
             radius: surface.presentationFrameGeometry.radius
         }
     }

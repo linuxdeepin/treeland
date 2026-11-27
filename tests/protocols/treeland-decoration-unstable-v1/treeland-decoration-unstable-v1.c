@@ -1,5 +1,5 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
-// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-3.0-only
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "client-connection.h"
 #include "server-bridge-api.h"
 #include "treeland-decoration-unstable-v1.h"
@@ -56,6 +56,24 @@ static int read_server_state(struct decoration_server_state *state)
         return 1;
     }
     return 0;
+}
+
+static int expect_effects(double radius, int shadow_visible, int border_visible, const char *step)
+{
+    struct decoration_server_state state = { 0 };
+    if (read_server_state(&state))
+        return 1;
+    const int radius_ok = state.radius == radius
+        && (radius > 0 || (state.frame_radius == 0 && state.presentation_radius == 0));
+    if (radius_ok && state.shadow_visible == shadow_visible && state.border_visible == border_visible
+        && (!shadow_visible || state.shadow_radius == 24)
+        && (!border_visible || state.border_width == 2))
+        return 0;
+    fprintf(stderr,
+            "decoration: %s: radius=%g (frame=%g presentation=%g) shadow=%d (%g px) border=%d (%g px)\n",
+            step, state.radius, state.frame_radius, state.presentation_radius,
+            state.shadow_visible, state.shadow_radius, state.border_visible, state.border_width);
+    return 1;
 }
 
 // A maximized window keeps its frame on the rect: only the height gives up the title bar.
@@ -138,6 +156,50 @@ int protocol_test_run(const char *socket_name)
         fprintf(stderr, "decoration: corner radius was not applied (radius=%g)\n", state.radius);
         return 1;
     }
+
+    struct decoration_effect_switches switches = { 0, 0, 0 };
+    if (!invoke_on_server_thread(decoration_set_effect_switches, &switches)
+        || expect_effects(0, 0, 0, "DConfig disabled decorations"))
+        return 1;
+
+    treeland_decoration_context_v1_set_corner_radius(context, 16);
+    treeland_decoration_context_v1_set_shadow(context, 24, 0, 8, 0, 0, 0, 128);
+    treeland_decoration_context_v1_set_border(context, 2, 0, 0, 0, 128);
+    if (wl_display_roundtrip(connection.display) < 0
+        || expect_effects(0, 0, 0, "client requests while DConfig disabled decorations"))
+        return 1;
+
+    // Toggle each switch independently to catch any cross-wiring.
+    switches = (struct decoration_effect_switches){ 1, 0, 0 };
+    if (!invoke_on_server_thread(decoration_set_effect_switches, &switches)
+        || expect_effects(16, 0, 0, "DConfig enabled corner radius only"))
+        return 1;
+
+    switches = (struct decoration_effect_switches){ 0, 1, 0 };
+    if (!invoke_on_server_thread(decoration_set_effect_switches, &switches)
+        || expect_effects(0, 1, 0, "DConfig enabled shadow only"))
+        return 1;
+
+    switches = (struct decoration_effect_switches){ 0, 0, 1 };
+    if (!invoke_on_server_thread(decoration_set_effect_switches, &switches)
+        || expect_effects(0, 0, 1, "DConfig enabled border only"))
+        return 1;
+
+    switches = (struct decoration_effect_switches){ 1, 1, 1 };
+    if (!invoke_on_server_thread(decoration_set_effect_switches, &switches)
+        || expect_effects(16, 1, 1, "DConfig re-enabled decorations"))
+        return 1;
+
+    // Effect tiers: low disables all window effects; medium and high keep them enabled.
+    if (!invoke_on_server_thread(decoration_set_effect_level, (void *)"low")
+        || expect_effects(0, 0, 0, "effectLevel=low disabled decorations"))
+        return 1;
+    if (!invoke_on_server_thread(decoration_set_effect_level, (void *)"medium")
+        || expect_effects(16, 1, 1, "effectLevel=medium enabled decorations"))
+        return 1;
+    if (!invoke_on_server_thread(decoration_set_effect_level, (void *)"high")
+        || expect_effects(16, 1, 1, "effectLevel=high enabled decorations"))
+        return 1;
 
     // 0 means square corners, not "fall back to the compositor default radius".
     treeland_decoration_context_v1_set_corner_radius(context, 0);

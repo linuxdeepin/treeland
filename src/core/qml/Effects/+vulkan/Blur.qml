@@ -11,16 +11,21 @@ Rectangle {
 
     property bool radiusEnabled: radius > 0
     property rect frameRect: Qt.rect(0, 0, width, height)
-    property int blurMax: WaylandServer.config.blurStrength
-    property bool blurEnabled: blurMax > 0 && blurAmount > 0
-    property real blurAmount: WaylandServer.config.blurAmount
-    property real multiplier: WaylandServer.config.blurMultiplier
+    property QtObject effectConfig: WaylandServer.config
+    readonly property bool backgroundAllowed: effectConfig?.backgroundEffectEnabled !== undefined
+        ? WaylandServer.isEffectEnabled(WaylandServer.effectLevel, effectConfig.backgroundEffectEnabled)
+        : true
+    property int blurMax: effectConfig?.blurStrength ?? 0
+    property bool blurEnabled: backgroundAllowed && (effectConfig?.blurStrength ?? 0) > 0
+        && blurMax > 0 && blurAmount > 0
+    property real blurAmount: effectConfig?.blurAmount ?? 0
+    property real multiplier: effectConfig?.blurMultiplier ?? 0
     property real brightness: 0.0
     property real contrast: 0.0
-    property real saturation: WaylandServer.config.glassSaturation
-    property real glassSpecular: WaylandServer.config.glassSpecular
+    property real saturation: effectConfig?.glassSaturation ?? 0
+    property real glassSpecular: effectConfig?.glassSpecular ?? 0
     property real glassTint: 0.0
-    property bool glassEnabled: WaylandServer.config.glassEnabled
+    property bool glassEnabled: effectConfig?.glassEnabled ?? false
     property Item effectContent: effectContentItem
     property bool contentOffscreen: false
     property bool effectEnabled: true
@@ -39,7 +44,7 @@ Rectangle {
         id: effectContentItem
         anchors.fill: parent
         clip: true
-        visible: root.effectEnabled && !root.contentOffscreen
+        visible: root.backgroundAllowed && root.effectEnabled && !root.contentOffscreen
         z: -1
 
         Rectangle {
@@ -52,6 +57,6 @@ Rectangle {
         }
     }
 
-    z: parent.z ? parent.z - 1 : -1
+    z: parent ? (parent.z ? parent.z - 1 : -1) : -1
     anchors.fill: parent
 }

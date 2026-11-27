@@ -13,9 +13,10 @@ TestCase {
     width: 800
     height: 600
     Component {
-        id: animationConfigComponent
+        id: userConfigComponent
         QtObject {
-            property bool edgeTilePreview: true
+            readonly property color activeColor: "blue"
+            property int edgeTilePreview: 3
         }
     }
     Component {
@@ -26,7 +27,8 @@ TestCase {
 
     function init() {
         failOnWarning(/.*/)
-        WaylandServer.animationConfig = createTemporaryObject(animationConfigComponent, testCase)
+        WaylandServer.effectLevel = 3
+        WaylandServer.config = createTemporaryObject(userConfigComponent, testCase)
         preview = previewComponent.createObject(testCase)
         verify(preview !== null)
         preview.sourceGeometry = Qt.rect(0, 0, 100, 100)
@@ -39,11 +41,12 @@ TestCase {
             preview = null
             wait(0)
         }
-        WaylandServer.animationConfig = null
+        WaylandServer.config = null
+        WaylandServer.effectLevel = 3
     }
 
     function disable() {
-        WaylandServer.animationConfig.edgeTilePreview = false
+        WaylandServer.config.edgeTilePreview = 0
     }
 
     function verifyDestination() {
@@ -70,8 +73,8 @@ TestCase {
     function test_configurationReplacement() {
         preview.visible = true
         tryCompare(preview, "x", 300, 1000)
-        WaylandServer.animationConfig = createTemporaryObject(
-            animationConfigComponent, testCase, {edgeTilePreview: false})
+        WaylandServer.config = createTemporaryObject(
+            userConfigComponent, testCase, {edgeTilePreview: 0})
         tryCompare(preview, "animationAllowed", false)
         preview.targetGeometry = Qt.rect(400, 300, 500, 400)
         compare(preview.x, 400)
@@ -85,7 +88,21 @@ TestCase {
         preview.visible = true
         verifyDestination()
         preview.visible = false
-        WaylandServer.animationConfig.edgeTilePreview = true
+        WaylandServer.config.edgeTilePreview = 3
+        tryCompare(preview, "animationAllowed", true)
+        preview.visible = true
+        verify(preview.x < 300)
+        tryCompare(preview, "x", 300, 1000)
+        verifyDestination()
+    }
+
+    function test_effectLevelSwitch() {
+        WaylandServer.effectLevel = 2
+        tryCompare(preview, "animationAllowed", false)
+        preview.visible = true
+        verifyDestination()
+        preview.visible = false
+        WaylandServer.effectLevel = 3
         tryCompare(preview, "animationAllowed", true)
         preview.visible = true
         verify(preview.x < 300)

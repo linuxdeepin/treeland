@@ -76,7 +76,7 @@ CaptureSourceSelector {
         anchors.margins: 10
         visible: toolBarModel.count > 1
         Component.onCompleted: {
-            if (WaylandServer.animationConfig.captureToolbar)
+            if (WaylandServer.isEffectEnabled(WaylandServer.effectLevel, WaylandServer.config.captureToolbar))
                 appearAnimation.start()
         }
         OpacityAnimator {

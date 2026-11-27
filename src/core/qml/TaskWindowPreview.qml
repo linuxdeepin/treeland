@@ -9,7 +9,8 @@ import org.deepin.dtk.style 1.0 as DS
 
 Loader {
     id: root
-    readonly property bool enableAnimation: WaylandServer.animationConfig.taskSwitcher
+    readonly property bool enableAnimation: WaylandServer.isEffectEnabled(
+        WaylandServer.effectLevel, WaylandServer.config.taskSwitcher)
 
     signal clicked()
     property int loaderStatus: 0

@@ -5,8 +5,10 @@ pragma Singleton
 import QtQuick
 
 QtObject {
-    readonly property QtObject config: QtObject {
-        readonly property color activeColor: "blue"
+    property int effectLevel: 3
+    property QtObject config
+
+    function isEffectEnabled(currentLevel, minLevel) {
+        return minLevel > 0 && currentLevel >= minLevel
     }
-    property QtObject animationConfig
 }
