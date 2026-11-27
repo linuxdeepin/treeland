@@ -118,7 +118,7 @@ public:
         };
 
         auto *configManager = DConfigManager::instance();
-        if (!configManager || configManager->initializeUserConfigs(initialUid)) {
+        if (configManager->initializeUserConfigs(initialUid)) {
             qCInfo(lcTlConfig) << "Initial user DConfig is ready for UID" << initialUid;
             initializeTreeland();
             return;

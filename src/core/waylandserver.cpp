@@ -123,11 +123,10 @@ WaylandServer::WaylandServer(QObject *parent)
     Q_ASSERT(!m_instance);
     m_instance = this;
 
-    if (auto *configManager = DConfigManager::instance()) {
-        m_config = configManager->initialUserConfig();
-        setAnimationConfig(configManager->initialAnimationConfig());
-        m_globalConfig = configManager->globalConfig();
-    }
+    auto *configManager = DConfigManager::instance();
+    m_config = configManager->initialUserConfig();
+    setAnimationConfig(configManager->initialAnimationConfig());
+    m_globalConfig = configManager->globalConfig();
 
     Q_ASSERT(m_config);
     Q_ASSERT(m_globalConfig);
@@ -222,8 +221,7 @@ WaylandServer::~WaylandServer()
         delete m_rootSurfaceContainer;
         m_rootSurfaceContainer = nullptr;
     }
-    if (auto *configManager = DConfigManager::instance())
-        configManager->stopActiveUserConfig();
+    DConfigManager::instance()->stopActiveUserConfig();
     delete std::exchange(m_lockScreenManager, nullptr);
     delete m_surfaceProtocols;
     delete m_dragController;
@@ -536,8 +534,7 @@ void WaylandServer::applyCurrentUserConfig(const QString &userName,
         return;
     }
 
-    if (auto *manager = DConfigManager::instance())
-        setAnimationConfig(manager->animationConfig(session->uid()));
+    setAnimationConfig(DConfigManager::instance()->animationConfig(session->uid()));
 
     const bool configPointerChanged = config != m_config;
     if (configPointerChanged) {

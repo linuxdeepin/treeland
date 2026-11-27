@@ -340,7 +340,7 @@ void OutputManagerV2Private::get_picture_control(Resource *resource,
     // result(invalid_output) immediately and becomes permanently inert; the
     // client must destroy it and call this request again.
     auto *picture_control_res = wl_resource_create(resource->client(),
-                                                   QtWaylandServer::treeland_output_picture_control_v2::interface(),
+                                                   &treeland_output_picture_control_v2_interface,
                                                    OutputManagerV2::PictureControlInterfaceVersion,
                                                    id);
     if (!picture_control_res) {

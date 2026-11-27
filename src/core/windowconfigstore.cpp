@@ -22,9 +22,7 @@ AppConfig *WindowConfigStore::configForApp(const QString &appId) const
         return nullptr;
     }
 
-    auto *configManager = DConfigManager::instance();
-    Q_ASSERT(configManager);
-    return configManager->appConfig(m_uid, appId);
+    return DConfigManager::instance()->appConfig(m_uid, appId);
 }
 
 void WindowConfigStore::saveLastSize(const QString &appId, const QSize &size)
@@ -138,7 +136,6 @@ void WindowConfigStore::recordSplashMismatch(const QString &appId)
     }
 
     auto *globalConfig = DConfigManager::instance()->globalConfig();
-    Q_ASSERT(globalConfig);
     const int maxMismatchCount =
         static_cast<int>(globalConfig->prelaunchSplashMaxMismatchCount());
     if (maxMismatchCount <= 0) {

@@ -77,7 +77,7 @@ protected:
         }
 
         auto *objRes = wl_resource_create(resource->client(),
-                                          QtWaylandServer::treeland_output_uuid_v1::interface(),
+                                          &treeland_output_uuid_v1_interface,
                                           resource->version(),
                                           id);
         if (!objRes) {
@@ -134,7 +134,7 @@ protected:
         }
 
         auto *objRes = wl_resource_create(resource->client(),
-                                          QtWaylandServer::treeland_output_uuid_v1::interface(),
+                                          &treeland_output_uuid_v1_interface,
                                           resource->version(),
                                           id);
         if (!objRes) {

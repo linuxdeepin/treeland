@@ -166,9 +166,7 @@ Output::Output(WOutput *output, QObject *parent)
     , m_backlight(Backlight::createForOutput(output))
 {
     QString outputName = Output::getOutputId(output->handle());
-    auto *configManager = DConfigManager::instance();
-    Q_ASSERT(configManager);
-    m_config = configManager ? configManager->outputConfig(outputName) : nullptr;
+    m_config = DConfigManager::instance()->outputConfig(outputName);
     connect(WaylandServer::instance(), &WaylandServer::desktopChanged, this, &Output::configChanged);
     connect(WaylandServer::instance(), &WaylandServer::desktopChanged,
             this, &Output::minimizedSurfacesChanged);
