@@ -88,11 +88,22 @@ bool CompositorInputFilter::beforeDisposeEvent(WSeat *seat, QWindow *targetWindo
     // Clear the record on release before the early returns below can bypass the
     // tracked block, otherwise the entry would linger until WSeat::destroy().
     // Auto-repeats are skipped: only the real release ends the press.
-    if (seat == m_context->primarySeat() && event->type() == QEvent::KeyRelease) {
+    if (event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease) {
         const auto *kevent = static_cast<QKeyEvent *>(event);
         const uint32_t evdevKeycode = kevent->nativeVirtualKey();
-        if (!kevent->isAutoRepeat() && seat->isKeyFiltered(evdevKeycode))
-            seat->removeFilteredKey(evdevKeycode);
+        if (seat->isKeyFiltered(evdevKeycode)) {
+            const bool realRelease =
+                event->type() == QEvent::KeyRelease && !kevent->isAutoRepeat();
+            if (realRelease)
+                seat->removeFilteredKey(evdevKeycode);
+            // A bare Esc whose press was consumed by the compositor (leaving the
+            // single-window zoom) must not leak its auto-repeat pairs or a lone
+            // release to the focused client. Bare Esc is not a valid shortcut
+            // binding, so a filtered bare Esc can only come from the zoom cancel.
+            if (kevent->key() == Qt::Key_Escape && kevent->modifiers() == Qt::NoModifier
+                && (realRelease || kevent->isAutoRepeat()))
+                return true;
+        }
     }
 
     // Dismiss the popup grab when the user presses a button outside the popup
@@ -133,10 +144,9 @@ bool CompositorInputFilter::beforeDisposeEvent(WSeat *seat, QWindow *targetWindo
             }
         }
 
+#ifndef QT_NO_DEBUG
         if (event->type() == QEvent::KeyPress) {
             auto kevent = static_cast<QKeyEvent *>(event);
-
-#ifndef QT_NO_DEBUG
             if (QKeySequence(kevent->keyCombination()) ==
                 QKeySequence(Qt::MetaModifier | Qt::Key_F12)) {
                 std::terminate();
@@ -147,13 +157,8 @@ bool CompositorInputFilter::beforeDisposeEvent(WSeat *seat, QWindow *targetWindo
                 if (m_context->toggleDebugView())
                     return true;
             }
-#endif
-
-            if (m_captureManager->isSelecting()) {
-                if (event->modifiers() == Qt::NoModifier && kevent->key() == Qt::Key_Escape)
-                    m_captureManager->cancelSelection();
-            }
         }
+#endif
 
         if (event->type() == QEvent::KeyRelease && !m_captureManager->isSelecting()) {
             auto kevent = static_cast<QKeyEvent *>(event);
@@ -161,6 +166,25 @@ bool CompositorInputFilter::beforeDisposeEvent(WSeat *seat, QWindow *targetWindo
             if (key == Qt::Key_Alt || key == Qt::Key_Control || key == Qt::Key_Shift
                 || key == Qt::Key_Meta) {
                 Q_EMIT modifierKeyReleased(kevent);
+            }
+        }
+    }
+
+    // A bare Esc leaves the transient compositor modes from any seat: the
+    // capture selection (primary seat only, matching where the selection is
+    // driven) and the single-window zoom. One press cancels both when they
+    // are active at the same time.
+    if (event->type() == QEvent::KeyPress) {
+        auto kevent = static_cast<QKeyEvent *>(event);
+        if (event->modifiers() == Qt::NoModifier && kevent->key() == Qt::Key_Escape) {
+            if (seat == m_context->primarySeat() && m_captureManager->isSelecting())
+                m_captureManager->cancelSelection();
+            if (SurfaceWrapper::cancelZoomedWindow()) {
+                // Consume the Esc that only served to leave the single-window
+                // zoom so the focused client doesn't also see it, and record
+                // the keycode so the matching release is swallowed as well.
+                seat->addFilteredKey(kevent->nativeVirtualKey());
+                return true;
             }
         }
     }

@@ -172,6 +172,10 @@ protected:
                               << m_windowId;
 
         m_wrapper->setPositionAutomatic(false);
+        // The zoom transform is anchored to the pre-move geometry and would be
+        // reapplied by geometryChange(); drop it so the requested position
+        // takes effect immediately.
+        m_wrapper->cancelWindowZoom();
         // Suppress only this class's xChanged/yChanged handlers to avoid
         // emitting a serial=0 event alongside the client-requested one.
         m_suppressPositionEvents = true;

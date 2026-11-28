@@ -117,6 +117,7 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(bool isMaximizable READ isMaximizable NOTIFY maximizableChanged FINAL)
     Q_PROPERTY(bool modal READ modal NOTIFY modalChanged FINAL)
     Q_PROPERTY(bool minimized READ isMinimized NOTIFY minimizedChanged FINAL)
+    Q_PROPERTY(bool windowZoomed READ windowZoomed NOTIFY windowZoomedChanged FINAL)
 
 public:
     enum class Type
@@ -301,6 +302,18 @@ public:
     void applyTileMode(TileMode mode, Output *output);
     // Instantly restore `this` to Normal
     void cancelTileMode();
+
+    // Interactive single-window magnifier: proportionally scales the window to
+    // fill its output's valid area and centers it there. The zoom is a pure
+    // QtQuick transform, so pointer and keyboard events keep mapping into the
+    // surface and the window stays interactive for both Wayland and XWayland.
+    // Only one window is zoomed at a time; zooming another window releases the
+    // previous one. Esc cancels the zoom through cancelZoomedWindow().
+    bool windowZoomed() const;
+    Q_INVOKABLE void toggleWindowZoom();
+    Q_INVOKABLE void cancelWindowZoom();
+    // Cancels the zoomed window, if any. Returns true when a zoom was active.
+    static bool cancelZoomedWindow();
 
     qreal radius() const;
     FrameGeometry frameGeometry() const { return m_frameGeometry; }
@@ -489,6 +502,7 @@ Q_SIGNALS:
     void moveRequested();
     void resizeRequested(Qt::Edges edges, bool overrideCursor);
     void windowMenuRequested(QPointF pos);
+    void windowZoomedChanged();
     void geometryChanged();
     void containerChanged();
     void visibleDecorationChanged();
@@ -575,6 +589,9 @@ private:
     QRectF targetGeometryForState(State state) const;
     bool applyGeometry(const QRectF &targetGeometry);
     bool applySurfaceState();
+    // Applies the zoom scale/origin for the current window size, or clears the
+    // zoom when it can no longer be computed. No-op when not zoomed.
+    void updateWindowZoomTransform();
     bool checkSetSurfaceState(State newSurfaceState, bool allowRetarget = false);
     bool shouldUpdateNormalGeometry() const;
     void abortGeometryAnimation();
@@ -732,6 +749,7 @@ private:
     bool m_sessionVisibilityChanging{ false };
     bool m_liveSuppressed{ false };
     bool m_windowAnimationEnabled{ true };
+    bool m_windowZoomed{ false };
 
     QPointer<WSeat> m_pendingActivationSeat;
     std::unique_ptr<SurfaceWindowTransition> m_windowTransition;
