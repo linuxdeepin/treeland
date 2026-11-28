@@ -1441,6 +1441,7 @@ void WSurfaceItemPrivate::removeSubsurfaceItem(WSubsurface *subsurface)
 
     subsurface->removeAttachedData<WSurfaceItem>(q_func());
 
+    item->setVisible(false);
     Q_EMIT q_func()->subsurfaceRemoved(item);
     item->deleteLater();
     reorderSubsurfaceItems();

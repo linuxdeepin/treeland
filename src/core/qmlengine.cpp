@@ -39,8 +39,10 @@ QmlEngine::QmlEngine(QObject *parent)
     , titleBarComponent(this, "Treeland", "TitleBar")
     , decorationComponent(this, "Treeland", "Decoration")
     , windowMenuComponent(this, "Treeland", "WindowMenu")
+    , borderComponent(this, "Treeland", "Border")
     , taskBarComponent(this, "Treeland", "TaskBar")
     , surfaceContent(this, "Treeland", "SurfaceContent")
+    , captureSurfaceContent(this, "Treeland", "CaptureSurfaceContent")
     , xdgShadowComponent(this, "Treeland", "XdgShadow")
     , taskSwitchComponent(this, "Treeland", "TaskSwitcher")
     , geometryAnimationComponent(this, "Treeland", "GeometryAnimation")
@@ -119,11 +121,9 @@ QObject *QmlEngine::createWindowMenu(QObject *parent)
     return obj;
 }
 
-QQuickItem *QmlEngine::createBorder(SurfaceWrapper *surface, QQuickItem *parent)
+QQuickItem *QmlEngine::createBorder(QQuickItem *parent)
 {
-    return createComponent(borderComponent,
-                           parent,
-                           { { "surface", QVariant::fromValue(surface) } });
+    return createComponent(borderComponent, parent);
 }
 
 QQuickItem *QmlEngine::createTaskBar(Output *output, QQuickItem *parent)

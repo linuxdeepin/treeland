@@ -53,6 +53,7 @@ public:
     WBufferRenderer *currentRenderer() const;
     bool inRendering() const;
 
+    bool renderEnabled() const;
     void setRenderEnabled(bool enabled);
 
     static QList<QPointer<QQuickItem>> paintOrderItemList(QQuickItem *root, std::function<bool(QQuickItem*)> filter);
@@ -75,6 +76,7 @@ Q_SIGNALS:
     void outputViewportInitialized(WAYLIB_SERVER_NAMESPACE::WOutputViewport *output);
     void initialized();
     void disableLayersChanged();
+    void renderEnabledChanged();
     void renderEnd(QList<QPointer<WOutput>> committedOutputs);
     void effectiveDevicePixelRatioChanged(qreal scale);
 

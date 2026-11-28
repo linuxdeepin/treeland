@@ -38,10 +38,15 @@ static void xdg_toplevel_configure(void *data, struct xdg_toplevel *toplevel,
                                    int32_t width, int32_t height, struct wl_array *states)
 {
     (void)toplevel;
-    (void)states;
     struct xdg_toplevel_client *client = data;
     client->configure_width = width;
     client->configure_height = height;
+    client->configure_maximized = 0;
+    uint32_t *state;
+    wl_array_for_each(state, states) {
+        if (*state == XDG_TOPLEVEL_STATE_MAXIMIZED)
+            client->configure_maximized = 1;
+    }
 }
 
 static void xdg_toplevel_close(void *data, struct xdg_toplevel *toplevel)

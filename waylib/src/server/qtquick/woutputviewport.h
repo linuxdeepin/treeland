@@ -23,6 +23,8 @@ class WAYLIB_SERVER_EXPORT WOutputViewport : public QQuickItem, public virtual W
     Q_PROPERTY(QQuickTransform* viewportTransform READ viewportTransform WRITE setViewportTransform NOTIFY viewportTransformChanged FINAL)
     Q_PROPERTY(qreal devicePixelRatio READ devicePixelRatio WRITE setDevicePixelRatio NOTIFY devicePixelRatioChanged)
     Q_PROPERTY(bool offscreen READ offscreen WRITE setOffscreen NOTIFY offscreenChanged)
+    Q_PROPERTY(bool hideSource READ hideSource WRITE setHideSource NOTIFY hideSourceChanged FINAL)
+    Q_PROPERTY(QSize bufferSize READ bufferSize WRITE setBufferSize NOTIFY bufferSizeChanged FINAL)
     Q_PROPERTY(bool cacheBuffer READ cacheBuffer WRITE setCacheBuffer NOTIFY cacheBufferChanged FINAL)
     Q_PROPERTY(WGlobal::ColorContentsMode colorContentsMode READ colorContentsMode WRITE setColorContentsMode NOTIFY colorContentsModeChanged FINAL)
     Q_PROPERTY(bool live READ live WRITE setLive NOTIFY liveChanged FINAL)
@@ -62,6 +64,17 @@ public:
 
     bool offscreen() const;
     void setOffscreen(bool newOffscreen);
+
+    // Controls whether source items are hidden from the main scene.
+    bool hideSource() const;
+    void setHideSource(bool hideSource);
+
+    // An empty size uses the output mode. Offscreen viewports can instead use
+    // a window-sized buffer without changing the output's mode or swapchain.
+    QSize bufferSize() const;
+    void setBufferSize(const QSize &size);
+    QSize effectiveBufferSize() const;
+    wlr_swapchain *swapchain() const;
 
     bool cacheBuffer() const;
     void setCacheBuffer(bool newCacheBuffer);
@@ -110,6 +123,11 @@ public Q_SLOTS:
 Q_SIGNALS:
     void devicePixelRatioChanged();
     void offscreenChanged();
+    void hideSourceChanged();
+    void bufferSizeChanged();
+    void frameRendered();
+    void frameRenderFailed();
+    void contentChanged();
     void cacheBufferChanged();
     void colorContentsModeChanged();
     void outputRenderInitialized();
@@ -127,6 +145,8 @@ Q_SIGNALS:
     void dependsChanged();
 
 private:
+    void handleSceneGraphChanged();
+    void finishRender();
     void componentComplete() override;
     void releaseResources() override;
     void itemChange(ItemChange, const ItemChangeData &) override;

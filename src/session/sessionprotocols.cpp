@@ -4,6 +4,7 @@
 #include "sessionprotocols.h"
 #include "session.h"
 #include "sessionworkspace.h"
+#include "toplevelcapturesource.h"
 #include "core/waylandserver.h"
 #include "core/rootsurfacecontainer.h"
 #include "surface/surfacewrapper.h"
@@ -19,7 +20,6 @@
 
 #include <wextforeigntoplevellistv1.h>
 #include <wextimagecapturesourcev1impl.h>
-#include <wsurfaceitem.h>
 #include <wsocket.h>
 #include <wscoplistener.h>
 #include <wxdgshell.h>
@@ -79,6 +79,27 @@ wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *createToplevelCaptureS
     return wlr_ext_foreign_toplevel_image_capture_source_manager_v1_create(display, 1);
 }
 
+class SessionImageCopyCapture final
+    : public NativeSessionProtocol<createImageCopyCapture, wlr_ext_image_copy_capture_manager_v1_destroy>, public WObject
+{
+public:
+    SessionImageCopyCapture() : NativeSessionProtocol("ext_image_copy_capture_manager_v1") {}
+    ~SessionImageCopyCapture() override { teardown(); }
+protected:
+    void create(WServer *server) override
+    {
+        NativeSessionProtocol::create(server);
+        auto *manager = nativeInterface<wlr_ext_image_copy_capture_manager_v1>();
+        if (manager)
+            listeners()->add(&manager->events.new_session, this, &SessionImageCopyCapture::trackSession);
+    }
+private:
+    void trackSession(wlr_ext_image_copy_capture_session_v1 *session)
+    {
+        WExtImageCaptureSourceV1Impl::trackSession(session);
+    }
+};
+
 class SessionToplevelCapture final
     : public NativeSessionProtocol<createToplevelCaptureSource, wlr_ext_foreign_toplevel_image_capture_source_manager_v1_destroy>, public WObject
 {
@@ -119,40 +140,12 @@ void SessionToplevelCapture::capture(wlr_ext_foreign_toplevel_image_capture_sour
         return;
     }
 
-    WSurfaceItem *surfaceItem = surfaceWrapper->surfaceItem();
-    if (!surfaceItem) {
-        qCWarning(lcTlCapture) << "Could not get WSurfaceItem from SurfaceWrapper";
-        wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request_accept(request, nullptr);
-        return;
-    }
+    // Validate and allocate the capture pipeline when the first session starts.
+    auto *imageCaptureSource = new ToplevelCaptureSource(surfaceWrapper);
+    connect(surfaceWrapper, &SurfaceWrapper::aboutToBeInvalidated,
+            imageCaptureSource, &WExtImageCaptureSourceV1Impl::invalidate);
 
-    WSurfaceItemContent *surfaceContent = surfaceItem->findItemContent();
-    if (!surfaceContent) {
-        qCWarning(lcTlCapture) << "Could not find WSurfaceItemContent";
-        wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request_accept(request, nullptr);
-        return;
-    }
-
-    qCDebug(lcTlCapture) << "Found WSurfaceItemContent for capture:"
-             << "size=" << surfaceContent->size()
-             << "implicitSize=" << QSizeF(surfaceContent->implicitWidth(), surfaceContent->implicitHeight())
-             << "isTextureProvider=" << surfaceContent->isTextureProvider();
-
-    auto *output = surfaceWrapper->ownsOutput() ? surfaceWrapper->ownsOutput()->output() : nullptr;
-    if (!output) {
-        qCWarning(lcTlCapture) << "Could not get WOutput from SurfaceWrapper";
-        wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request_accept(request, nullptr);
-        return;
-    }
-
-    auto *imageCaptureSource = new WExtImageCaptureSourceV1Impl(surfaceContent, output);
-
-    imageCaptureSource->setParent(surfaceWrapper);
-
-    bool success = wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request_accept(
-        request, imageCaptureSource->handle());
-
-    if (!success) {
+    if (!imageCaptureSource->accept(request)) {
         qCWarning(lcTlCapture) << "Failed to accept foreign toplevel image capture request";
         delete imageCaptureSource;
     }
@@ -247,7 +240,7 @@ SessionProtocols::SessionProtocols(Session *session)
     session->attachInterface(new SessionForeignInterface(foreignRegistry, SessionForeignInterface::Exporter));
     session->attachInterface(new SessionForeignInterface(foreignRegistry, SessionForeignInterface::Importer));
     session->attachInterface(new NativeSessionProtocol<wlr_screencopy_manager_v1_create, wlr_screencopy_manager_v1_destroy>("zwlr_screencopy_manager_v1"));
-    session->attachInterface(new NativeSessionProtocol<createImageCopyCapture, wlr_ext_image_copy_capture_manager_v1_destroy>("ext_image_copy_capture_manager_v1"));
+    session->attachInterface(new SessionImageCopyCapture);
     session->attachInterface(new NativeSessionProtocol<createOutputCaptureSource, wlr_ext_output_image_capture_source_manager_v1_destroy>("ext_output_image_capture_source_manager_v1"));
     session->attachInterface(new SessionToplevelCapture(session));
 

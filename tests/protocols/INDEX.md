@@ -84,7 +84,7 @@ xdg-shell 由共享 xdg-toplevel 夹具覆盖（多个 toplevel 测试复用）�
 | [wayland-ext-data-control-v1](wayland-ext-data-control-v1/README.md) | E | 创建 offer 并 `set_selection` 后回读真实 `wlr_seat::selection_source` 非空 |
 | [wayland-ext-foreign-toplevel-list-v1](wayland-ext-foreign-toplevel-list-v1/README.md) | E | 映射 toplevel 后回读真实 `wlr_ext_foreign_toplevel_list_v1::toplevels` 列表非空 |
 | [wayland-ext-idle-notify-v1](wayland-ext-idle-notify-v1/README.md) | E | 跨协议验证：创建 idle inhibitor 后 `idled` 不触发，销毁 inhibitor 后 `idled` 触发，证明生产 `wlr_idle_notifier_v1` inhibited 状态被修改 |
-| [wayland-ext-image-copy-capture-v1](wayland-ext-image-copy-capture-v1/README.md) | P | 绑定两个 manager，并从真实 headless `wl_output` 创建、销毁非空 capture source |
+| [wayland-ext-image-copy-capture-v1](wayland-ext-image-copy-capture-v1/README.md) | P / E / V | 输出工厂创建/销毁；独立窗口捕获的主面、递归子面、SSD、遮挡隔离、透明间隙、resize 和拖动还原；source/session 创建与回收；静止请求、空提交和 frame callback 不绘制、不复制、不 ready，内容变化完成原请求；单帧及共享首帧取消、其他 session 首帧不制造 damage；静止额外绘制不唤醒请求，层内 SSD 改色仍唤醒；关屏后的边框改色与内部子面删除/重建；真实 swapchain 耗尽时多会话失败并可重试；暂停恢复、关屏兜底及新会话重选输出；整屏像素/几何、live QSG 状态和离屏不提交检查；历史 pixman / GLES2 场景各连续 20 次通过，物理 scanout 未验收 |
 | [wayland-ext-session-lock-v1](wayland-ext-session-lock-v1/README.md) | E | `lock`→`locked` 后回读真实 `WSessionLock::isLocked()` 为 true；提交 lock surface buffer 后回读生产 wrapper，断言其尺寸 == `Output::geometry()`（全屏，而非去掉 exclusive zone 的工作区）、位置 == 输出原点 |
 | [wayland-fractional-scale-v1](wayland-fractional-scale-v1/README.md) | E | 回读真实 `WOutput::scale()`，断言 `preferred_scale` == round(scale×120) |
 | [wayland-idle-inhibit-unstable-v1](wayland-idle-inhibit-unstable-v1/README.md) | E | 回读真实 `wlr_idle_inhibitor_v1` 已关联 mapped `WSurface`，销毁后确认 resource 已移除 |
@@ -164,9 +164,10 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 ### 标准 wayland-protocols 覆盖
 
 以下 25 个标准 wayland-protocols（wayland-protocols 1.49.0-1）测试中，23 个已升至 **E 级**，
-1 个为 **I / P 级**，仅 1 个仍为 **P 级**：keyboard-shortcuts-inhibit 验证生产 seat
-focus 到 `active` event 的链路；`ext-image-copy-capture-v1` 已验证 output-to-source，
-但 headless 下创建捕获会话可能死锁（issue #1407）。
+1 个为 **E / V / P 级**，1 个为 **I / P 级**：keyboard-shortcuts-inhibit 验证生产 seat
+focus 到 `active` event 的链路；`ext-image-copy-capture-v1` 除 output-to-source 工厂外，
+已验证独立离屏窗口捕获的像素及不改变实际屏幕/几何的契约。output capture session 的
+headless 历史死锁边界（issue #1407）仍未由窗口测试覆盖。
 
 **E 级测试（23 个）**——验证真实生产对象状态：
 
@@ -197,8 +198,30 @@ focus 到 `active` event 的链路；`ext-image-copy-capture-v1` 已验证 outpu
 | `xdg-output-unstable-v1` | `WOutput::position()`/`effectiveSize()` 与客户端事件一致 |
 | `xdg-toplevel-tag-v1` | `WXdgToplevelSurface::tag()` 等于客户端设置值 |
 
-**P 级测试（1 个）**——验证全局存在、资源创建与事件/错误：
-`ext-image-copy-capture-v1`。
+**E / V / P 级测试（1 个）**——`ext-image-copy-capture-v1`：纯 C 客户端读取真实 SHM
+frame，覆盖主面、递归子面、SSD、连续帧、正/负坐标移动、resize、最大化后 SSD 拖动还原
+（还原 buffer 到达前后）、多会话及销毁；捕获管线随 client resource 与 session 创建/回收，
+空闲 source 不建离屏视口且可独立回收，同批停止/重启保留 source，反复请求后 source 和
+视口数都回到 0；source resource 提前销毁不影响存活 session，最后停止时再次排队回收。
+真实 swapchain 槽位耗尽时，每个挂起 frame 收到 unknown 失败，保留会话并在
+释放 buffer 后恢复捕获；同样覆盖原输出关闭时的失败与恢复。fixture 在不先重绘屏幕的
+情况下检查每个提交帧整屏像素、窗口几何和逐次 capture
+render 的 live QSG 状态，离屏不提交真实输出。可选 GPU target 使用同一场景，缺 DRM render
+node 时 skip；pixman / Intel UHD 630 GLES2 各连续 20 次通过，实际 Treeland 桌面 /
+物理 scanout 未验收。输出源工厂保留 P 级。
+新增渲染失败场景在 pixman / GLES2 各连续 5 次通过，另外 12 项相关协议回归全部通过。
+同时覆盖真实 DDM 全局暂停/恢复：原 capture 无额外请求即可恢复，关屏输出仍走
+离屏兜底；暂停时取消或窗口销毁后不再绘制旧视口。重建管线检查 CaptureSurfaceContent
+组件定义复用，并保留原有 SSD 和整图像素断言。
+排队回收检查的完整场景在 pixman / GLES2 各连续 5 次通过，另外 13 项相关协议回归与
+装饰 manager 单测通过；去重标志未复位及 resource 销毁时同步检查两项人为回归均被检出。
+出帧以真实 pending frame、session 的累计 damage 及捕获子树 dirty 状态共同驱动，静止
+请求不复制；空提交、frame callback、额外绘制及单纯暂停恢复不制造 damage。新契约覆盖
+单帧及共享首帧取消、不同 session 的首帧、晚到的标题/边框/子面变化与层内 SSD 改色。
+捕获视口按需启用 live，层纹理刷新与 renderer 绘制状态不当作新内容。变化仍保守报告
+整窗 damage，未实现 SHM 局部复制。最新验证与旧缓存实现的复现证据见协议 README。
+最终实现在 Qt 6.12.1、pixman / GLES2 各连续 20 次通过，另外 14 项相关协议（含
+Session 隔离）及装饰 manager 单测通过；每请求标脏及取消首帧漏记账两项人为回归均被检出。
 
 `cursor-shape`/`relative-pointer`/`pointer-constraints` 三个 E 级测试需要 seat 指针能力，
 在 setup 中通过创建真实 `WInputDevice::Type::Pointer` 设备注入。

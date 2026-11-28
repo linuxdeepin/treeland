@@ -21,6 +21,7 @@ public:
     WOutputViewportPrivate()
         : attached(false)
         , offscreen(false)
+        , hideSource(true)
         , colorContentsMode(WGlobal::ColorContentsMode::DontCare)
         , live(true)
         , forceRender(false)
@@ -79,9 +80,11 @@ public:
     QPointer<QQuickItem> extraRenderSource;
     QRectF sourceRect;
     QRectF targetRect;
+    QSize bufferSize;
 
     uint attached:1;
     uint offscreen:1;
+    uint hideSource:1;
     WGlobal::ColorContentsMode colorContentsMode;
     uint live:1;
     uint forceRender:1;

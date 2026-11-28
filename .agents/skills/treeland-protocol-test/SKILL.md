@@ -71,6 +71,61 @@ void protocol_test_setup(WaylandServer *server)
 - 客户端代码只允许 C、`wayland-client` 与 scanner 生成的 C API；不要 include Qt 或 Treeland 的 C++ API。
 - `invoke_on_server_thread()` 只用于读取生产状态，或注入没有对应客户端请求的定向 fixture 激励。绝不用它伪造请求结果。
 
+### 像素测试的 fixture 条件
+
+- 框架设置 `TREELAND_DISABLE_WALLPAPER=1`。使用保留 output buffer 的软件渲染路径时，
+  需要固定的不透明场景背景来重绘窗口移走后暴露的像素；否则旧窗口残影和阴影累积会
+  污染整屏对比。先在没有被测操作时验证重复渲染稳定，再比较操作前后，不能通过
+  屏蔽区域或像素容差来掩盖未定位的差异。
+- `add_headless_output()` 会立即启用输出，可能使框架先于生产 `OutputManager` 将其加入
+  layout。需要真实渲染且发生重复 output/cursor layer 注册时，只向已有 headless backend
+  添加输出，让生产路径完成注册和启用；参考
+  `tests/protocols/wayland-ext-image-copy-capture-v1/toplevel-setup.cpp`。
+- 检查捕获/离屏渲染是否影响屏幕时，先回读已提交 buffer，再单独验证下一次重绘；
+  不要在取证前强制重绘，否则会覆盖共享 QSG 节点状态污染等瞬态问题。动画场景用
+  capture renderer 的 `beforeRendering` / `afterRendering` 比较 live 节点状态，
+  不用跨帧固定矩阵误判正常移动。
+- 整图比较需要固定光标/悬停等动态内容。指针夹具可在取基线前隐藏光标，仍保留真实
+  seat/QtQuick 输入路径；不要屏蔽差异像素。移动/还原后同时比较完整捕获图像和实际
+  output buffer，GPU 或物理 scanout 未实测时明确记录，不能用 pixman 通过代替。
+- renderer 的 preferred read format 不一定有 QImage 映射；明确选择支持的读回格式并
+  检查分配和读回结果，禁止把空图像地址交给 `wlr_texture_read_pixels()`。夹具窗口引用
+  用 `QPointer`，主动销毁前暂停“不应变化”的整屏比较，避免异步 frame 回调访问已销毁窗口。
+
+### 捕获 / 录屏类协议的资源生命周期
+
+- 服务端对象的所有者必须是请求它的客户端资源加上 session，而不是被捕获的窗口。
+  `accept` 只创建 client resource；离屏视口/副本子树在第一个 session 的 `start()` 里建，
+  最后一个 `stop()` 里同步释放，最后一个 client resource 也消失后再销毁包装对象。
+  窗口失效只负责 `finish()` → `stopped`，不能作为唯一的回收路径。
+- source 回收判断与 `finish()` 必须排队到 native teardown 返回之后：`stop()` 仍在
+  wlroots 的 `session_destroy()` 里，client resource 的 destroy listener 则早于 native 摘链。
+  listener 只摘自己的监听器，不修改 `source.resources`；queued 检查入口先清除去重标志，
+  再读取 resource/session 的最新状态。最后一个 `stop()` 仍同步释放视口。
+- 用 fixture 直接计数 source 包装对象及离屏视口（`findChildren<WOutputViewport*>()` + `offscreen()`），
+  断言：只创建 source 时包装对象为 1、视口为 0；同一 source 的首个 session 创建 1 条
+  管线，增加 session 不再增加管线；销毁最后一个 session 后视口回到 0；
+  会话期间提前销毁 source resource 时包装对象与视口仍各为 1，且继续能捕获到 frame。
+  另外验证空闲 source 独立回收、同批停止/重启，以及 resource/session 都销毁后包装对象归零。
+- `request_frame` 的 `schedule_frame` 只表示该 session 自上次 frame 后累积了 damage，
+  不能作为是否存在待处理请求的标志。copy manager 的 `new_session` 接到
+  `WExtImageCaptureSourceV1Impl::trackSession()`，从公开的 `session.frame` 跟踪 capturing
+  frame，并在其 destroy 事件中移除；强制出帧需求也必须按 frame 记录，取消首帧不能
+  带着另一条静止请求继续绘制。无累计 damage、无内容变化的请求保持挂起，不重绘、不复制。
+- 捕获视口只在需要绘制时启用 `live`。视觉 commit、子面新增/删除/堆叠/位置、视口参数
+  与独立 QML 子树变化都要标脏，并唤醒已有请求，包括借用输出关闭的情况。空提交与
+  frame-callback-only commit 不标脏；绘制产生的 renderer 状态变化与非递归
+  `ShaderEffectSource` 的层纹理刷新不能当作新内容，真正的纹理参数变化仍须通知。
+  强制绘制静止内容时发送空 source damage，避免给其他静止 session 制造 damage。
+- 以真实输出 frame / `renderEnd` 同步静止断言，不加 sleep 或轮询。覆盖请求之后才发生
+  的主面/子面/SSD 变化、静止请求跨暂停恢复、单帧取消、不同 session 的首帧，以及
+  关屏兜底与失败恢复。像素断言的刺激必须可见，例如标题区域应有足够宽度。
+- disabled output 不发送 frame，借用其时钟的离屏捕获需要独立的排队渲染兜底。
+  用真实 power-management 请求覆盖：先发 capture 再在同一批请求中关屏、关屏后
+  提交新内容并再次捕获、复电和取消排队请求；关闭原输出后重建会话，应解析窗口当前
+  可用的输出。fixture 只负责添加第二块输出、移动窗口以及读取生产状态，不替代关屏
+  或捕获请求；同时断言视口复用和兜底不提交真实输出。
+
 ## 测试形态与证据
 - 每个语义用例都要有名字。发出请求后用 roundtrip、指定事件、信号、模型变化或 future 完成来同步；不要用随意 sleep 或跨用例的状态机。
 - 命名为 `dispatch` 的用例只能证明可分发，不能证明业务语义覆盖。
