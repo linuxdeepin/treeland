@@ -1202,6 +1202,14 @@ void SurfaceWrapper::setOwnsOutput(Output *newOwnsOutput)
     cancelWindowZoom();
 
     if (m_ownsOutput) {
+        disconnect(m_ownsOutput,
+                   &Output::exclusiveZoneChanged,
+                   this,
+                   &SurfaceWrapper::updateWindowZoomTransform);
+        disconnect(m_ownsOutput->outputItem(),
+                   &WOutputItem::geometryChanged,
+                   this,
+                   &SurfaceWrapper::updateWindowZoomTransform);
         m_ownsOutput->removeSurface(this);
     }
 
@@ -1209,6 +1217,17 @@ void SurfaceWrapper::setOwnsOutput(Output *newOwnsOutput)
 
     if (m_ownsOutput) {
         m_ownsOutput->addSurface(this);
+        // Refit an active zoom when the output geometry or usable area changes,
+        // which can happen while this wrapper's own geometry stays unchanged.
+        // updateWindowZoomTransform() is a no-op when not zoomed.
+        connect(m_ownsOutput,
+                &Output::exclusiveZoneChanged,
+                this,
+                &SurfaceWrapper::updateWindowZoomTransform);
+        connect(m_ownsOutput->outputItem(),
+                &WOutputItem::geometryChanged,
+                this,
+                &SurfaceWrapper::updateWindowZoomTransform);
     }
 
     Q_EMIT ownsOutputChanged();
