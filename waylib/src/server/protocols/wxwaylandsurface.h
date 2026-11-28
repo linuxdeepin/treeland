@@ -123,6 +123,7 @@ public:
     bool isBypassManager() const;
     bool isAbove() const;
     bool isBelow() const;
+    bool isX11Mapped() const;
     bool isModal() const;
     WindowTypes windowTypes() const;
     bool isPopupLike() const;
