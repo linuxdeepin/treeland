@@ -152,6 +152,11 @@ bool CompositorInputFilter::beforeDisposeEvent(WSeat *seat, QWindow *targetWindo
             if (m_captureManager->isSelecting()) {
                 if (event->modifiers() == Qt::NoModifier && kevent->key() == Qt::Key_Escape)
                     m_captureManager->cancelSelection();
+            } else if (event->modifiers() == Qt::NoModifier && kevent->key() == Qt::Key_Escape
+                       && SurfaceWrapper::cancelZoomedWindow()) {
+                // Consume the Esc that only served to leave the single-window
+                // zoom so the focused client doesn't also see it.
+                return true;
             }
         }
 

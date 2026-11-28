@@ -41,6 +41,11 @@ Menu {
     }
 
     MenuItem {
+        text: surface?.windowZoomed ? qsTr("Restore Zoom") : qsTr("Zoom")
+        onTriggered: surface.toggleWindowZoom()
+    }
+
+    MenuItem {
         text: qsTr("Move")
         onTriggered: surface.moveRequested()
     }

@@ -227,6 +227,10 @@ void SeatSurfaceManager::beginMoveResize(SurfaceWrapper *surface, Qt::Edges edge
         surface->isAnimationRunning())
         return;
 
+    // An interactive move/resize takes over the window geometry; the zoom
+    // transform is computed against the pre-move geometry, so drop it first.
+    surface->cancelWindowZoom();
+
     m_moveResizeState.surface = surface;
     m_moveResizeState.edges = edges;
     m_moveResizeState.startGeometry = surface->geometry();

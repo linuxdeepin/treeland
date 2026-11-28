@@ -44,6 +44,11 @@
 #define OVERLAYLAYER 2
 #define PRIVILEGEDOVERLAYLAYER 3
 
+// At most one window is zoomed at a time. The input filter cancels the zoom on
+// Esc through SurfaceWrapper::cancelZoomedWindow(); QPointer clears itself when
+// the zoomed wrapper dies before the zoom is cancelled.
+static QPointer<SurfaceWrapper> s_windowZoomedSurface;
+
 SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
                                WToplevelSurface *shellSurface,
                                Type type,
@@ -274,6 +279,7 @@ bool SurfaceWrapper::geometryAnimationEnabled(State state) const
 void SurfaceWrapper::invalidate()
 {
     Q_ASSERT_X(!m_wrapperAboutToRemove, Q_FUNC_INFO, "Can't call `invalidate` twice!");
+    cancelWindowZoom();
     if (m_session && !m_isProxy)
         m_session->unregisterWindow(this);
     m_wrapperAboutToRemove = true;
@@ -1036,6 +1042,10 @@ QPointF SurfaceWrapper::mapFromSurface(const QPointF &surfacePoint) const
 
 void SurfaceWrapper::moveNormalGeometryInOutput(const QPointF &position)
 {
+    // The zoom transform is anchored to the pre-move geometry; an external or
+    // client-driven move takes over positioning, so drop the zoom first.
+    cancelWindowZoom();
+
     QPointF alignedPosition = alignToPixelGrid(position);
     setNormalGeometry(QRectF(alignedPosition, m_normalGeometry.size()));
     if (m_surfaceState != State::Normal)
@@ -1187,6 +1197,9 @@ void SurfaceWrapper::setOwnsOutput(Output *newOwnsOutput)
 
     if (m_ownsOutput == newOwnsOutput)
         return;
+
+    // The zoom transform is computed against the old output's usable area.
+    cancelWindowZoom();
 
     if (m_ownsOutput) {
         m_ownsOutput->removeSurface(this);
@@ -1814,6 +1827,8 @@ void SurfaceWrapper::geometryChange(const QRectF &newGeo, const QRectF &oldGeome
     QQuickItem::geometryChange(newGeometry, oldGeometry);
     if (newGeometry.size() != oldGeometry.size())
         updateBoundingRect();
+    if (m_windowZoomed)
+        updateWindowZoomTransform();
     updateClipRect();
 }
 
@@ -2071,6 +2086,10 @@ void SurfaceWrapper::setSurfaceStateValue(State newSurfaceState)
 {
     if (m_wrapperAboutToRemove)
         return;
+
+    // A state change lands new managed geometry; the zoom transform is computed
+    // against the old geometry, so drop it first.
+    cancelWindowZoom();
 
     m_previousSurfaceState.setValueBypassingBindings(m_surfaceState);
     m_surfaceState.setValueBypassingBindings(newSurfaceState);
@@ -2554,6 +2573,7 @@ void SurfaceWrapper::minimize(bool onAnimation)
         return;
 
     abortGeometryAnimation();
+    cancelWindowZoom();
 
     m_minimized = true;
 
@@ -2657,6 +2677,102 @@ void SurfaceWrapper::toggleMaximized()
         unmaximize();
     else
         maximize();
+}
+
+bool SurfaceWrapper::windowZoomed() const
+{
+    return m_windowZoomed;
+}
+
+void SurfaceWrapper::toggleWindowZoom()
+{
+    if (m_windowZoomed) {
+        cancelWindowZoom();
+        return;
+    }
+
+    if (m_wrapperAboutToRemove || m_isProxy || m_isSnapMask || !m_shellSurface)
+        return;
+
+    // A zoom is a transient view over a stable geometry; don't start one while
+    // the window is minimized or running a geometry/window transition animation.
+    if (m_minimized || m_geometryAnimation || isWindowAnimationRunning())
+        return;
+
+    m_windowZoomed = true;
+    updateWindowZoomTransform();
+    if (!m_windowZoomed)
+        return; // not zoomable: no output, invalid area, or it already fits
+
+    // Zooming a new window releases the previously zoomed one. Released only
+    // now so a failed zoom leaves an existing zoom of another window intact.
+    if (s_windowZoomedSurface && s_windowZoomedSurface != this)
+        s_windowZoomedSurface->cancelWindowZoom();
+
+    s_windowZoomedSurface = this;
+    Q_EMIT windowZoomedChanged();
+}
+
+void SurfaceWrapper::cancelWindowZoom()
+{
+    if (!m_windowZoomed)
+        return;
+
+    m_windowZoomed = false;
+    if (s_windowZoomedSurface == this)
+        s_windowZoomedSurface.clear();
+
+    // Reset the transform; the managed geometry was never touched by the zoom.
+    // With scale 1 the transform is the identity regardless of the origin, and
+    // the next zoom computes a fresh origin point.
+    setScale(1.0);
+    setTransformOriginPoint(QPointF());
+    Q_EMIT windowZoomedChanged();
+}
+
+bool SurfaceWrapper::cancelZoomedWindow()
+{
+    if (!s_windowZoomedSurface)
+        return false;
+    s_windowZoomedSurface->cancelWindowZoom();
+    return true;
+}
+
+void SurfaceWrapper::updateWindowZoomTransform()
+{
+    if (!m_windowZoomed)
+        return;
+
+    auto *output = ownsOutput();
+    if (!output || width() <= 0 || height() <= 0) {
+        cancelWindowZoom();
+        return;
+    }
+
+    const QRectF validGeo = output->validGeometryForSurface(this);
+    if (!validGeo.isValid()) {
+        cancelWindowZoom();
+        return;
+    }
+
+    const qreal factor = qMin(validGeo.width() / width(), validGeo.height() / height());
+    if (!(factor > 0) || qFuzzyCompare(factor, 1.0)) {
+        cancelWindowZoom();
+        return;
+    }
+
+    // Scale around a fixed point so the window's center lands on the center of
+    // the output's usable area, without touching x/y/width/height. With origin
+    // O (item-local), scale s maps local point p to O + s*(p - O); solving
+    // O + s*(center - O) = targetCenter for O gives the expression below.
+    // targetCenter is expressed in the item's parent coordinate space, which is
+    // the same space the wrapper's position() lives in.
+    const QPointF center(width() / 2.0, height() / 2.0);
+    const QPointF targetCenter = validGeo.center() - position();
+    const QPointF origin = (center * factor - targetCenter) / (factor - 1.0);
+
+    setTransformOriginPoint(origin);
+    setScale(factor);
 }
 
 bool SurfaceWrapper::supportsTileMode(TileMode mode) const
